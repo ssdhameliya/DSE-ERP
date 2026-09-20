@@ -156,8 +156,9 @@ class SharedUiOwnershipContractTest {
         assertTrue(actionIcons.contains("applyLabeledTableAction"),
                 "Direct table actions must use one shared icon+label treatment");
         String dynamicTable = Files.readString(Path.of("src/main/java/org/example/util/DynamicTableLayoutManager.java"));
-        assertTrue(dynamicTable.contains("if (renderedControl > 0) minimum = Math.max(minimum, renderedControl)"),
-                "Dynamic table layout must preserve every rendered action control, not only Actions menus");
+        assertTrue(dynamicTable.contains("ACTION_CONTROL_MIN_WIDTH = 118.0")
+                        && dynamicTable.contains("\"actions\".equals(semantic)"),
+                "Dynamic table layout must preserve a centralized usable Actions-column floor without scanning realized cells");
 
         String communication = Files.readString(Path.of("src/main/java/org/example/controller/CommunicationCenterController.java"));
         assertTrue(communication.contains("approved-secondary-button\",\"communication-resend-button"),

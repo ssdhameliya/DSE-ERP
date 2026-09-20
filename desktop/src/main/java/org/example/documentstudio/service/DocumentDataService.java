@@ -146,10 +146,7 @@ public final class DocumentDataService {
 
     private static TemplateData loadQuotation(String quotationNo) {
         QuotationApiClient api = new QuotationApiClient();
-        QuotationApiClient.QuoteDto quote = api.list().stream()
-                .filter(q -> q != null && quotationNo.equalsIgnoreCase(q.no()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("The selected quotation could not be loaded."));
+        QuotationApiClient.QuoteDto quote = api.quoteByNumber(quotationNo);
         return TemplateDataFactory.fromQuotation(quote, api.lines(quote.id()));
     }
 

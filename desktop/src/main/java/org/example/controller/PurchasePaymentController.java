@@ -42,7 +42,7 @@ import java.util.*;
  */
 public final class PurchasePaymentController implements ScreenLifecycle {
     public record PaymentRow(int id, String date, String reference, String paidTo, String mode,
-                             double amount, String status, String notes, String proofPath, String paymentType) {}
+                             double amount, String status, String notes, String proofPath, String paymentType, long rowVersion) {}
 
     @FXML private Label invoiceNo, invoiceStatus, supplier, supplierPhone, supplierEmail, invoiceDate, dueDate,
             total, paid, balance, after, summaryTotal, summaryPaid, summaryBalance, paidPercent,
@@ -377,7 +377,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             PaymentRow editing = editingPayment;
             SupportApiClient.PaymentUpdateRequest request = new SupportApiClient.PaymentUpdateRequest(
                     paymentDate.getValue().toString(), newValue, mode.getValue(), reference.getText().trim(),
-                    persistedNotes(), paidTo.getText().trim());
+                    persistedNotes(), paidTo.getText().trim(), editing.rowVersion());
             Path proof = selectedProof;
             boolean removeProof = proofRemovalPending;
             String invoice = purchase.getInvoiceNo();
@@ -470,24 +470,14 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                                 : "FULL".equalsIgnoreCase(row.paymentType()) ? "Full Payment"
                                 : "PARTIAL".equalsIgnoreCase(row.paymentType()) ? "Partial Payment" : "Recorded";
                         allPayments.add(new PaymentRow(row.id(), row.date(), safe(row.reference()), paidToValue,
-                                safe(row.mode()), row.amount(), status, safe(row.notes()), safe(row.attachment()), safe(row.paymentType())));
+                                safe(row.mode()), row.amount(), status, safe(row.notes()), safe(row.attachment()), safe(row.paymentType()), row.rowVersion()));
                     }
                     historyTable.getItems().setAll(allPayments);
                     historyCount.setText(allPayments.size() + " Payment" + (allPayments.size() == 1 ? "" : "s"));
-                    updateHistoryTableHeight();
+                    historyTable.setPlaceholder(new Label(historyTable.getItems().isEmpty() ? "No payment records" : ""));
                 },
                 failure -> new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait()
         );
-    }
-
-    private void updateHistoryTableHeight() {
-        int rowCount = historyTable.getItems().size();
-        double headerHeight = 40.0;
-        double rowHeight = historyTable.getFixedCellSize() > 0 ? historyTable.getFixedCellSize() : 42.0;
-        double height = headerHeight + (rowCount * rowHeight) + 3.0;
-        historyTable.setMinHeight(Math.max(190, height));
-        historyTable.setPrefHeight(Math.max(190, height));
-        historyTable.setPlaceholder(new Label(rowCount == 0 ? "No payment records" : ""));
     }
 
     @FXML private void resetPayment() { resetForm(); }

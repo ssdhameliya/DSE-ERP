@@ -5,8 +5,11 @@ import jakarta.mail.internet.InternetAddress;
 import org.example.server.auth.SmtpMailService;
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
+import org.example.server.security.PermissionAuthorityService;
+import org.example.server.web.ConcurrentEditException;
 import org.example.server.util.BusinessClock;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -41,6 +44,7 @@ public class ReportScheduleService {
     private final ReportingService reporting;
     private final ScheduledReportExportService exporter;
     private final SmtpMailService mail;
+    private final PermissionAuthorityService permissions;
     private final ObjectMapper json = new ObjectMapper();
     private final TransactionTemplate tx;
     private final Path workspace;
@@ -49,12 +53,14 @@ public class ReportScheduleService {
                                  ReportingService reporting,
                                  ScheduledReportExportService exporter,
                                  SmtpMailService mail,
+                                 PermissionAuthorityService permissions,
                                  PlatformTransactionManager transactionManager,
                                  @Value("${dse.workspace.path:}") String workspace) {
         this.db = db;
         this.reporting = reporting;
         this.exporter = exporter;
         this.mail = mail;
+        this.permissions = permissions;
         this.tx = new TransactionTemplate(transactionManager);
         this.workspace = workspace == null || workspace.isBlank() ? null : Path.of(workspace).toAbsolutePath().normalize();
     }
@@ -111,27 +117,30 @@ public class ReportScheduleService {
         String next = instantText(nextRun(v, ZonedDateTime.now(BusinessClock.zone())));
         int changed = db.update("""
                 UPDATE report_schedule SET schedule_name=?,saved_report_name=?,frequency=?,day_of_week=?,day_of_month=?,month_of_year=?,
-                    run_time=?,output_format=?,delivery_mode=?,recipients=?,next_run_at=?,updated_at=?
-                WHERE id=? AND user_id=?
+                    run_time=?,output_format=?,delivery_mode=?,recipients=?,next_run_at=?,updated_at=?,row_version=row_version+1
+                WHERE id=? AND user_id=? AND row_version=?
                 """, v.name, v.savedReport, v.frequency, v.dayOfWeek, v.dayOfMonth, v.monthOfYear, v.time.toString(),
-                v.format, v.delivery, v.recipients, next, BusinessClock.nowUtcText(), id, userId);
-        if (changed != 1) throw new IllegalArgumentException("Schedule not found");
+                v.format, v.delivery, v.recipients, next, BusinessClock.nowUtcText(), id, userId, request.rowVersion());
+        if (changed != 1) throw new ConcurrentEditException("Scheduled Report");
         return rowById(id, userId);
     }
 
     @Transactional
-    public void pause(long id) {
+    public void pause(long id, long rowVersion) {
         int userId = CurrentUser.require().id();
-        if (db.update("UPDATE report_schedule SET status='PAUSED',updated_at=? WHERE id=? AND user_id=?", BusinessClock.nowUtcText(), id, userId) != 1)
-            throw new IllegalArgumentException("Schedule not found");
+        if (db.update("UPDATE report_schedule SET status='PAUSED',updated_at=?,row_version=row_version+1 WHERE id=? AND user_id=? AND row_version=?",
+                BusinessClock.nowUtcText(), id, userId, rowVersion) != 1)
+            throw new ConcurrentEditException("Scheduled Report");
     }
 
     @Transactional
-    public void resume(long id) {
+    public void resume(long id, long rowVersion) {
         int userId = CurrentUser.require().id(); ScheduleDefinition d = requireOwned(id, userId);
+        if (d.rowVersion()!=rowVersion) throw new ConcurrentEditException("Scheduled Report");
         String next = instantText(nextRun(d.validated(), ZonedDateTime.now(BusinessClock.zone())));
-        if (db.update("UPDATE report_schedule SET status='ACTIVE',next_run_at=?,updated_at=? WHERE id=? AND user_id=?", next, BusinessClock.nowUtcText(), id, userId) != 1)
-            throw new IllegalArgumentException("Schedule not found");
+        if (db.update("UPDATE report_schedule SET status='ACTIVE',next_run_at=?,updated_at=?,row_version=row_version+1 WHERE id=? AND user_id=? AND row_version=?",
+                next, BusinessClock.nowUtcText(), id, userId, rowVersion) != 1)
+            throw new ConcurrentEditException("Scheduled Report");
     }
 
     @Transactional
@@ -151,10 +160,10 @@ public class ReportScheduleService {
     }
 
     @Transactional
-    public void delete(long id) {
+    public void delete(long id, long rowVersion) {
         int userId = CurrentUser.require().id();
-        if (db.update("DELETE FROM report_schedule WHERE id=? AND user_id=?", id, userId) != 1)
-            throw new IllegalArgumentException("Schedule not found");
+        if (db.update("DELETE FROM report_schedule WHERE id=? AND user_id=? AND row_version=?", id, userId, rowVersion) != 1)
+            throw new ConcurrentEditException("Scheduled Report");
     }
 
     public Result runNow(long id) {
@@ -203,6 +212,7 @@ public class ReportScheduleService {
     }
 
     private void execute(ScheduleDefinition schedule, String triggeredBy) {
+        assertOwnerCanRun(schedule.userId());
         long runId = beginRun(schedule.id(), triggeredBy);
         Path outputRoot = null;
         boolean deleteAfter = false;
@@ -246,13 +256,13 @@ public class ReportScheduleService {
             if (schedule.delivery().contains("EMAIL")) {
                 List<String> recipients = recipients(schedule.recipients());
                 if (recipients.isEmpty()) throw new IllegalStateException("Scheduled Report email recipient is missing");
-                List<SmtpMailService.Attachment> attachments = new ArrayList<>();
-                for (Path file : files) attachments.add(new SmtpMailService.Attachment(file.getFileName().toString(), contentType(file), Files.readAllBytes(file)));
+                List<SmtpMailService.PathAttachment> attachments = new ArrayList<>();
+                for (Path file : files) attachments.add(new SmtpMailService.PathAttachment(file.getFileName().toString(), contentType(file), file));
                 String subject = mail.companyName() + " Scheduled Report - " + result.title();
                 String body = "Scheduled Report: " + schedule.name() + "\nReport: " + result.title()
                         + "\nPeriod: " + result.periodFrom() + " to " + result.periodTo()
                         + "\nGenerated: " + result.generatedAt() + "\nRows: " + result.totalRows();
-                for (String recipient : recipients) mail.sendBusiness(recipient, subject, body, attachments);
+                for (String recipient : recipients) mail.sendBusinessFiles(recipient, subject, body, attachments);
             }
 
             String artifacts = String.join("; ", files.stream().map(Path::toString).toList());
@@ -266,23 +276,20 @@ public class ReportScheduleService {
     }
 
     private ReportResult runAll(ReportRequest request, String username) {
-        ReportResult first = reporting.run(request, username);
-        if (first.totalPages() <= 1) return first;
-        List<ReportRow> rows = new ArrayList<>(first.rows());
-        for (int page = 1; page < first.totalPages(); page++) {
-            ReportResult next = reporting.run(withRange(request, LocalDate.parse(first.periodFrom()), LocalDate.parse(first.periodTo()), page, 250), username);
-            rows.addAll(next.rows());
-        }
-        return new ReportResult(first.reportId(), first.title(), first.description(), first.periodFrom(), first.periodTo(),
-                first.metrics(), first.columns(), rows, first.totalRows(), 0, rows.size(), 1,
-                first.groupByOptions(), first.appliedFilters(), first.totals(), first.generatedAt(), first.generatedBy());
+        return reporting.runAll(request, username);
     }
 
     private long beginRun(long scheduleId, String triggeredBy) {
-        return tx.execute(status -> db.queryForObject("""
-                INSERT INTO report_schedule_run(schedule_id,started_at,status,triggered_by)
-                VALUES(?,?,'RUNNING',?) RETURNING id
-                """, Long.class, scheduleId, BusinessClock.nowUtcText(), triggeredBy));
+        try {
+            Long id = tx.execute(status -> db.queryForObject("""
+                    INSERT INTO report_schedule_run(schedule_id,started_at,status,triggered_by)
+                    VALUES(?,?,'RUNNING',?) RETURNING id
+                    """, Long.class, scheduleId, BusinessClock.nowUtcText(), triggeredBy));
+            if(id==null) throw new IllegalStateException("Could not create Scheduled Report run");
+            return id;
+        } catch (DataIntegrityViolationException duplicateRun) {
+            throw new IllegalStateException("This Scheduled Report is already running. Wait for the current run to finish.");
+        }
     }
 
     private void finishRun(ScheduleDefinition schedule, long runId, boolean success, String reportTitle, long rows, String artifacts, String error) {
@@ -310,11 +317,11 @@ public class ReportScheduleService {
     private List<ScheduleRow> rows(int userId) {
         return db.query("""
                 SELECT id,user_id,schedule_name,saved_report_name,frequency,day_of_week,day_of_month,month_of_year,run_time,
-                       output_format,delivery_mode,recipients,status,next_run_at,COALESCE(last_run_at,''),COALESCE(last_status,''),COALESCE(last_error,'')
+                       output_format,delivery_mode,recipients,status,next_run_at,COALESCE(last_run_at,''),COALESCE(last_status,''),COALESCE(last_error,''),COALESCE(row_version,0)
                 FROM report_schedule WHERE user_id=? ORDER BY CASE WHEN status='ACTIVE' THEN 0 ELSE 1 END,CAST(next_run_at AS timestamptz),schedule_name
                 """, (r,i) -> toRow(new ScheduleDefinition(r.getLong(1), r.getInt(2), r.getString(3), r.getString(4), r.getString(5),
                 nullableInt(r.getObject(6)), nullableInt(r.getObject(7)), nullableInt(r.getObject(8)), r.getString(9), r.getString(10),
-                r.getString(11), safe(r.getString(12)), r.getString(13), r.getString(14), r.getString(15), r.getString(16), r.getString(17))), userId);
+                r.getString(11), safe(r.getString(12)), r.getString(13), r.getString(14), r.getString(15), r.getString(16), r.getString(17), r.getLong(18))), userId);
     }
 
     private ScheduleSummary summary(int userId) {
@@ -345,7 +352,7 @@ public class ReportScheduleService {
         String preset = saved == null ? "" : safe(saved.datePreset());
         return new ScheduleRow(d.id(), d.name(), d.savedReport(), title, preset, d.frequency(), d.dayOfWeek(), d.dayOfMonth(), d.monthOfYear(),
                 d.time(), displayFormat(d.format()), displayDelivery(d.delivery()), d.recipients(), displayInstant(d.nextRunRaw()),
-                displayInstant(d.lastRunRaw()), d.status(), d.lastStatus(), d.lastError());
+                displayInstant(d.lastRunRaw()), d.status(), d.lastStatus(), d.lastError(), d.rowVersion());
     }
 
     private ScheduleDefinition requireOwned(long id, int userId) {
@@ -357,13 +364,13 @@ public class ReportScheduleService {
     private ScheduleDefinition loadById(long id, Integer userId) {
         String sql = """
                 SELECT id,user_id,schedule_name,saved_report_name,frequency,day_of_week,day_of_month,month_of_year,run_time,
-                       output_format,delivery_mode,recipients,status,next_run_at,COALESCE(last_run_at,''),COALESCE(last_status,''),COALESCE(last_error,'')
+                       output_format,delivery_mode,recipients,status,next_run_at,COALESCE(last_run_at,''),COALESCE(last_status,''),COALESCE(last_error,''),COALESCE(row_version,0)
                 FROM report_schedule WHERE id=?
                 """ + (userId == null ? "" : " AND user_id=?");
         Object[] args = userId == null ? new Object[]{id} : new Object[]{id, userId};
         List<ScheduleDefinition> found = db.query(sql, (r,i) -> new ScheduleDefinition(r.getLong(1), r.getInt(2), r.getString(3), r.getString(4), r.getString(5),
                 nullableInt(r.getObject(6)), nullableInt(r.getObject(7)), nullableInt(r.getObject(8)), r.getString(9), r.getString(10),
-                r.getString(11), safe(r.getString(12)), r.getString(13), r.getString(14), r.getString(15), r.getString(16), r.getString(17)), args);
+                r.getString(11), safe(r.getString(12)), r.getString(13), r.getString(14), r.getString(15), r.getString(16), r.getString(17), r.getLong(18)), args);
         return found.isEmpty() ? null : found.getFirst();
     }
 
@@ -447,14 +454,40 @@ public class ReportScheduleService {
             case "LAST_7_DAYS" -> from = today.minusDays(6);
             case "LAST_30_DAYS" -> from = today.minusDays(29);
             default -> {
-                try { from = request.from() == null || request.from().isBlank() ? today.withDayOfMonth(1) : LocalDate.parse(request.from()); }
-                catch (Exception ignored) { from = today.withDayOfMonth(1); }
-                try { to = request.to() == null || request.to().isBlank() ? today : LocalDate.parse(request.to()); }
-                catch (Exception ignored) { to = today; }
+                from = parseSavedDate(request.from(), today.withDayOfMonth(1), "start");
+                to = parseSavedDate(request.to(), today, "end");
             }
         }
+        if(from.isAfter(to)) throw new IllegalStateException("Saved Report date range is invalid: start date is after end date");
         return new DateRange(from, to);
     }
+
+    private LocalDate parseSavedDate(String value, LocalDate fallback, String label) {
+        if(value==null||value.isBlank()) return fallback;
+        try { return LocalDate.parse(value.trim()); }
+        catch (Exception invalid) { throw new IllegalStateException("Saved Report " + label + " date is invalid: " + value); }
+    }
+
+    private void assertOwnerCanRun(int userId) {
+        List<Map<String,Object>> rows=db.queryForList("""
+                SELECT username,COALESCE(role,''),COALESCE(active,0),COALESCE(locked,0),COALESCE(approval_status,'APPROVED')
+                FROM users WHERE id=?
+                """,userId);
+        if(rows.isEmpty()) throw new SecurityException("Scheduled Report owner no longer exists");
+        Map<String,Object> row=rows.getFirst();
+        boolean active=number(row.get("active"))==1;
+        boolean locked=number(row.get("locked"))==1;
+        String approval=safe(Objects.toString(row.get("approval_status"),"APPROVED")).trim().toUpperCase(Locale.ROOT);
+        String role=safe(Objects.toString(row.get("role"),"")).trim().toUpperCase(Locale.ROOT);
+        if(!active||locked||!"APPROVED".equals(approval))
+            throw new SecurityException("Scheduled Report owner is not an active approved user");
+        if("ADMIN".equals(role)) return;
+        Set<String> keys=new HashSet<>(permissions.permissionKeys(role));
+        if(!keys.contains("REPORTS.VIEW")||!keys.contains("REPORTS.EXPORT"))
+            throw new SecurityException("Scheduled Report owner no longer has REPORTS.VIEW and REPORTS.EXPORT permissions");
+    }
+
+    private static int number(Object value){return value instanceof Number n?n.intValue():0;}
 
     private ReportRequest withRange(ReportRequest q, LocalDate from, LocalDate to, int page, int size) {
         return new ReportRequest(q.reportId(), from.toString(), to.toString(), q.party(), q.item(), q.salesperson(), q.documentStatus(), q.paymentStatus(),
@@ -565,7 +598,7 @@ public class ReportScheduleService {
     private record Validated(String name,String savedReport,String frequency,Integer dayOfWeek,Integer dayOfMonth,Integer monthOfYear,LocalTime time,String format,String delivery,String recipients) {
         Validated withName(String name) { return new Validated(name,savedReport,frequency,dayOfWeek,dayOfMonth,monthOfYear,time,format,delivery,recipients); }
     }
-    private record ScheduleDefinition(long id,int userId,String name,String savedReport,String frequency,Integer dayOfWeek,Integer dayOfMonth,Integer monthOfYear,String time,String format,String delivery,String recipients,String status,String nextRunRaw,String lastRunRaw,String lastStatus,String lastError) {
+    private record ScheduleDefinition(long id,int userId,String name,String savedReport,String frequency,Integer dayOfWeek,Integer dayOfMonth,Integer monthOfYear,String time,String format,String delivery,String recipients,String status,String nextRunRaw,String lastRunRaw,String lastStatus,String lastError,long rowVersion) {
         Validated validated() { return new Validated(name,savedReport,frequency,dayOfWeek,dayOfMonth,monthOfYear,LocalTime.parse(time),format,delivery,recipients); }
     }
 }

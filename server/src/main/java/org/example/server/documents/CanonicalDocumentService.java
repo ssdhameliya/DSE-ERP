@@ -61,7 +61,7 @@ public class CanonicalDocumentService {
                     if(official) {
                         var issued=issuedSalesPdf.find(sale);
                         if(issued.isPresent()) {
-                            safeAudit(sale.id(),"PDF_ACCESSED",documentNo+" • ISSUED_SNAPSHOT • rowVersion="+sale.rowVersion());
+                            auditRequired(sale.id(),"PDF_ACCESSED",documentNo+" • ISSUED_SNAPSHOT • rowVersion="+sale.rowVersion());
                             return new Rendered(finalName,format.contentType,issued.get());
                         }
                     }
@@ -69,14 +69,14 @@ public class CanonicalDocumentService {
                     validate(output,format,documentNo);
                     byte[] bytes=Files.readAllBytes(output);
                     if(official) issuedSalesPdf.save(sale,finalName,bytes);
-                    safeAudit(sale.id(),"DOCUMENT_RENDERED",documentNo+" • PDF • "+authority+" • rowVersion="+sale.rowVersion());
+                    auditRequired(sale.id(),"DOCUMENT_RENDERED",documentNo+" • PDF • "+authority+" • rowVersion="+sale.rowVersion());
                     return new Rendered(finalName,format.contentType,bytes);
                 }
-                renderExcel(type,dataFactory.sales(sale,config,assets.templateImages()),output);
+                renderExcel(type,dataFactory.sales(sale,config,assets.templateImages()),output,"SALE",sale.id(),documentNo);
             }else{
                 var purchase=operations.purchase(documentNo);
                 if(format==Format.PDF) renderPurchasePdf(purchase,config,assets,output);
-                else renderExcel(type,dataFactory.purchase(purchase,config,assets.templateImages()),output);
+                else renderExcel(type,dataFactory.purchase(purchase,config,assets.templateImages()),output,"PURCHASE",purchase.id(),documentNo);
             }
             validate(output,format,documentNo);
             return new Rendered(fileName(type,documentNo,format),format.contentType,Files.readAllBytes(output));
@@ -95,13 +95,13 @@ public class CanonicalDocumentService {
                 } catch (Exception failure) {
                     studioFailure=rootMessage(failure);
                     Files.deleteIfExists(output);
-                    safeAudit(sale.id(),"PDF_STUDIO_FALLBACK",sale.invoiceNo()+" • "+studioFailure);
+                    auditRequired(sale.id(),"PDF_STUDIO_FALLBACK",sale.invoiceNo()+" • "+studioFailure);
                 }
             }
         } catch (Exception failure) {
             studioFailure=rootMessage(failure);
             Files.deleteIfExists(output);
-            safeAudit(sale.id(),"PDF_STUDIO_FALLBACK",sale.invoiceNo()+" • "+studioFailure);
+            auditRequired(sale.id(),"PDF_STUDIO_FALLBACK",sale.invoiceNo()+" • "+studioFailure);
         }
         TaxInvoicePdfGenerator.generate(dataFactory.salesBuiltIn(sale,config,assets.logo,assets.signature),output,TaxInvoicePdfGenerator.Presentation.FULL);
         validate(output,Format.PDF,sale.invoiceNo());
@@ -109,29 +109,42 @@ public class CanonicalDocumentService {
     }
 
     private void renderPurchasePdf(org.example.server.operations.OperationDtos.PurchaseDto purchase,Map<String,String> config,Assets assets,Path output) throws Exception {
+        String studioFailure=null;
         try(var selected=templates.pdf(DocumentType.PURCHASE_INVOICE).orElse(null)){
             if(selected!=null){
-                var data=dataFactory.purchase(purchase,config,assets.templateImages());
-                TemplateStorageService.withRoot(selected.activeRoot(),()->PdfStudioRenderer.render(selected.template(),data,output));
-                return;
+                try {
+                    var data=dataFactory.purchase(purchase,config,assets.templateImages());
+                    TemplateStorageService.withRoot(selected.activeRoot(),()->PdfStudioRenderer.render(selected.template(),data,output));
+                    validate(output,Format.PDF,purchase.invoiceNo());
+                    return;
+                } catch(Exception failure){
+                    studioFailure=rootMessage(failure); Files.deleteIfExists(output);
+                    audit.log("PURCHASE",purchase.id(),"PDF_STUDIO_FALLBACK",purchase.invoiceNo()+" • "+studioFailure);
+                }
             }
+        } catch(Exception failure){
+            studioFailure=rootMessage(failure); Files.deleteIfExists(output);
+            audit.log("PURCHASE",purchase.id(),"PDF_STUDIO_FALLBACK",purchase.invoiceNo()+" • "+studioFailure);
         }
         ConfigManager.withValues(config,()->{ProfessionalDocumentRenderer.render(output,assets.logo,dataFactory.professionalPurchase(purchase,config),ProfessionalDocumentRenderer.Kind.PURCHASE_INVOICE);return output;});
+        validate(output,Format.PDF,purchase.invoiceNo());
     }
 
-    private void renderExcel(DocumentType type,org.example.documentstudio.model.TemplateData data,Path output) throws Exception {
+    private void renderExcel(DocumentType type,org.example.documentstudio.model.TemplateData data,Path output,String entity,Number entityId,String number) throws Exception {
+        String studioFailure=null;
         try(var selected=templates.excel(type).orElse(null)){
             if(selected!=null){
                 try {
                     ExcelTemplateStorageService.withRoot(selected.root(),()->ExcelTemplateRenderer.render(selected.template(),data,List.of(),output));
                     return;
                 } catch (Exception failure) {
-                    Files.deleteIfExists(output);
+                    studioFailure=rootMessage(failure); Files.deleteIfExists(output);
                 }
             }
         } catch (Exception failure) {
-            Files.deleteIfExists(output);
+            studioFailure=rootMessage(failure); Files.deleteIfExists(output);
         }
+        if(studioFailure!=null) audit.log(entity,entityId,"EXCEL_STUDIO_FALLBACK",number+" • "+studioFailure);
         ExcelTemplateRenderer.renderBuiltIn(type,data,List.of(),output);
     }
 
@@ -144,17 +157,20 @@ public class CanonicalDocumentService {
         return c;
     }
 
-    private Assets loadAssets(Path work){
+    private Assets loadAssets(Path work) throws java.io.IOException{
         Path logo=asset(work,"company.logoPath","logo"),signature=asset(work,"company.signaturePath","signature"),qr=asset(work,"payment.qrImagePath","qr");
         return new Assets(work,logo,signature,qr);
     }
 
-    private Path asset(Path work,String key,String fallbackName){
+    private Path asset(Path work,String key,String fallbackName) throws java.io.IOException{
         try{
             var f=resources.get(BUSINESS_ASSET,key); String original=f.fileName()==null?"":f.fileName();
             String ext=original.contains(".")?original.substring(original.lastIndexOf('.')).replaceAll("[^A-Za-z0-9.]",""):".bin";
             Path path=work.resolve(fallbackName+ext); Files.write(path,f.content()); return path;
-        }catch(Exception ignored){return null;}
+        }catch(IllegalArgumentException missing){
+            if(missing.getMessage()!=null&&missing.getMessage().contains("Server resource not found"))return null;
+            throw missing;
+        }
     }
 
     private static void validate(Path file,Format format,String number)throws Exception{
@@ -163,7 +179,7 @@ public class CanonicalDocumentService {
         if(format==Format.PDF){if(b.length<4||b[0]!='%'||b[1]!='P'||b[2]!='D'||b[3]!='F')throw new IllegalStateException("Generated PDF is invalid for "+number+".");}
         else if(b.length<4||b[0]!='P'||b[1]!='K')throw new IllegalStateException("Generated Excel workbook is invalid for "+number+".");
     }
-    private void safeAudit(Number saleId,String action,String detail){try{audit.log("SALE",saleId,action,detail);}catch(Exception ignored){}}
+    private void auditRequired(Number saleId,String action,String detail){audit.log("SALE",saleId,action,detail);}
     private static String safeTemplate(String value){return value==null||value.isBlank()?"unknown":value.replaceAll("[^A-Za-z0-9._-]","_");}
     private static String rootMessage(Throwable error){Throwable root=error;while(root.getCause()!=null&&root.getCause()!=root)root=root.getCause();String m=root.getMessage();return m==null||m.isBlank()?root.getClass().getSimpleName():m;}
 

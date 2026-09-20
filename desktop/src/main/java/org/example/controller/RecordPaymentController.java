@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 public class RecordPaymentController implements ScreenLifecycle {
     private final SupportApiClient supportApi = new SupportApiClient();
     public record PaymentRow(int id, String date, String reference, String from, String mode,
-                             double amount, String status, String notes, String receiptPath, String paymentType) {}
+                             double amount, String status, String notes, String receiptPath, String paymentType, long rowVersion) {}
 
     @FXML private Label invoiceNo, invoiceStatus, customer, customerPhone, customerEmail, invoiceDate, dueDate,
             total, paid, balance, after, summaryTotal, summaryPaid, summaryBalance, paidPercent,
@@ -275,7 +275,7 @@ public class RecordPaymentController implements ScreenLifecycle {
             String confirmation="ACCOUNTING CONFIRMATION\n\n"+"Old Amount: "+money(editingPayment.amount())+"\n"+"New Amount: "+money(newValue)+"\n"+"Difference: "+signedMoney(difference)+"\n\n"+"This changes the invoice balance and payment status.\n\nContinue?";
             ButtonType choice=new OwnedAlert(Alert.AlertType.CONFIRMATION,confirmation,ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO);if(choice!=ButtonType.YES)return;
             PaymentRow current=editingPayment;Path proof=selectedAttachment;boolean removeProof=proofRemovalPending;String currentInvoice=sale.getInvoiceNo();
-            var request=new SupportApiClient.PaymentUpdateRequest(paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim());
+            var request=new SupportApiClient.PaymentUpdateRequest(paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim(),current.rowVersion());
             if(btnSavePayment!=null)btnSavePayment.setDisable(true);
             UiTaskExecutor.submitAction("record-payment-update-"+current.id(),()->{supportApi.updatePayment(current.id(),request);if(removeProof)supportApi.deletePaymentAttachment(current.id());else if(proof!=null)supportApi.uploadPaymentAttachment(current.id(),proof);return true;},ignored->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);NotificationService.add("Payment updated for "+currentInvoice);org.example.util.ToastManager.success(amount,"Payment updated","Payment updated and invoice totals recalculated.");org.example.util.ScreenRefreshPolicy.invalidate("sales-register");resetForm();refreshInvoiceAmounts();loadHistory();},failure->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait();});
         }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
@@ -317,7 +317,7 @@ public class RecordPaymentController implements ScreenLifecycle {
             () -> supportApi.payments("SALE",saleId),
             rows -> {
                 allPayments.clear();
-                for(var r:rows)allPayments.add(new PaymentRow(r.id(),r.date(),safe(r.reference()),safeOr(r.receivedFrom(),customerName),safe(r.mode()),r.amount(),"Recorded",safe(r.notes()),safe(r.attachment()),safe(r.paymentType())));
+                for(var r:rows)allPayments.add(new PaymentRow(r.id(),r.date(),safe(r.reference()),safeOr(r.receivedFrom(),customerName),safe(r.mode()),r.amount(),"Recorded",safe(r.notes()),safe(r.attachment()),safe(r.paymentType()),r.rowVersion()));
                 historyCount.setText(allPayments.size()+" Payment"+(allPayments.size()==1?"":"s"));applyHistoryFilter();refreshTimeline();
             },
             failure -> new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait()
@@ -332,18 +332,7 @@ public class RecordPaymentController implements ScreenLifecycle {
             LocalDate d; try{d=LocalDate.parse(row.date());}catch(Exception e){d=null;}
             return modeOk && (from==null || (d!=null&&!d.isBefore(from))) && (to==null || (d!=null&&!d.isAfter(to)));
         }).collect(Collectors.toList()));
-        updateHistoryTableHeight();
-    }
-
-    private void updateHistoryTableHeight() {
-        int rowCount = historyTable.getItems().size();
-        double headerHeight = 40.0;
-        double rowHeight = historyTable.getFixedCellSize() > 0 ? historyTable.getFixedCellSize() : 42.0;
-        double height = headerHeight + (rowCount * rowHeight) + 3.0;
-        historyTable.setMinHeight(height);
-        historyTable.setPrefHeight(height);
-        historyTable.setMaxHeight(height);
-        historyTable.setPlaceholder(new Label(rowCount == 0 ? "No payment records" : ""));
+        historyTable.setPlaceholder(new Label(historyTable.getItems().isEmpty() ? "No payment records" : ""));
     }
 
     @FXML private void history(){ historySection.requestFocus(); historyTable.requestFocus(); if(!historyTable.getItems().isEmpty())historyTable.getSelectionModel().selectFirst(); }

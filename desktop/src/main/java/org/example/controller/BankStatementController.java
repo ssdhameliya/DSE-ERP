@@ -586,7 +586,7 @@ public class BankStatementController implements ScreenLifecycle {
                         int completed=0,failed=0;String firstFailure="";
                         for(Row row:rows){
                             try{
-                                if("REVIEW".equals(action))api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,user()));
+                                if("REVIEW".equals(action))api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,user(),row.dto.rowVersion()));
                                 else api.ignore(row.dto.id(),new BankStatementApiClient.IgnoreRequest(reason,user()));
                                 completed++;
                             }catch(Exception e){failed++;if(firstFailure.isBlank())firstFailure=safe(e.getMessage());}
@@ -868,7 +868,7 @@ public class BankStatementController implements ScreenLifecycle {
         d.showAndWait().filter(x->x==save).ifPresent(x->{
             String value=note.getText().trim(),performedBy=user();
             UiTaskExecutor.submitAction("bank-statement-note-"+t.id(),
-                () -> api.updateNote(t.id(),new BankStatementApiClient.NoteRequest(value,performedBy)),
+                () -> api.updateNote(t.id(),new BankStatementApiClient.NoteRequest(value,performedBy,t.rowVersion())),
                 ignored -> {org.example.util.ToastManager.success(table,"Note saved","Bank transaction note was saved successfully.");refresh();},this::error);
         });
     }
@@ -898,7 +898,7 @@ public class BankStatementController implements ScreenLifecycle {
         requiredReason("Mark for Review","Explain what must be checked before this transaction is reconciled.").ifPresent(reason->{
             String performedBy=user();
             UiTaskExecutor.submitAction("bank-statement-review-"+row.dto.id(),
-                () -> api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,performedBy)),
+                () -> api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,performedBy,row.dto.rowVersion())),
                 ignored -> {org.example.util.ToastManager.success(table,"Marked for review","Bank transaction was marked for review.");refresh();},this::error);
         });
     }

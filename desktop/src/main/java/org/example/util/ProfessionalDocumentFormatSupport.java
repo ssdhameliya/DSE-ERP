@@ -18,7 +18,7 @@ public final class ProfessionalDocumentFormatSupport {
     }
     public static String money(double value) { return MONEY.format(value); }
     public static String quantity(double value) {
-        return value == Math.rint(value) ? String.valueOf((long) value) : new DecimalFormat("0.###").format(value);
+        return value == Math.rint(value) ? String.valueOf((long) value) : new DecimalFormat("0.####").format(value);
     }
     public static String url(String value) { return value.replace(" ", "%20"); }
     public static String amountWords(double amount) {

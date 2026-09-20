@@ -3,6 +3,7 @@ package org.example.dao;
 import org.example.api.master.MasterApiClient;
 import org.example.model.Item;
 import java.util.List;
+import java.util.Collection;
 
 /** Compatibility DAO backed by the typed Spring master-data API. */
 public class ItemDAO {
@@ -22,6 +23,7 @@ public class ItemDAO {
         delete(item);
     }
     public List<Item> getAll() { return api.items(); }
+    public List<Item> getByCodes(Collection<String> codes) { return api.itemsByCodes(codes); }
     public boolean existsByCode(String code) { return api.itemExists(code); }
     public void saveOrUpdate(Item item) { if (existsByCode(item.getItemCode())) update(item); else save(item); }
     public String nextCode() { return api.nextItemCode(); }

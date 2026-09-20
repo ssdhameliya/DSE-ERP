@@ -1,6 +1,7 @@
 package org.example.server.auth;
 
 import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,8 +21,8 @@ public class AuthController {
     public Map<String, Object> health() { return Map.of("status", "UP"); }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthDtos.LoginResponse> login(@RequestBody AuthDtos.LoginRequest request) {
-        AuthDtos.LoginResponse result = auth.login(request);
+    public ResponseEntity<AuthDtos.LoginResponse> login(@RequestBody AuthDtos.LoginRequest request, HttpServletRequest httpRequest) {
+        AuthDtos.LoginResponse result = auth.login(request, httpRequest == null ? "" : httpRequest.getRemoteAddr());
         return result.success() ? ResponseEntity.ok(result) : ResponseEntity.status(401).body(result);
     }
 

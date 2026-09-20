@@ -121,7 +121,10 @@ public final class DocumentCalculationEngine {
     public static TaxMode taxMode(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         if (normalized.equals("GST") || normalized.equals("CGST/SGST") || normalized.equals("CGST + SGST")
-                || normalized.equals("INTRASTATE") || normalized.equals("INTRA STATE")) return TaxMode.GST;
+                || normalized.equals("INTRASTATE") || normalized.equals("INTRA STATE")
+                || normalized.equals("NON-GST") || normalized.equals("NON GST")
+                || normalized.equals("NO-GST") || normalized.equals("NO GST") || normalized.equals("NO_GST")
+                || normalized.equals("NONE") || normalized.equals("EXEMPT")) return TaxMode.GST;
         if (normalized.equals("IGST") || normalized.equals("INTERSTATE") || normalized.equals("INTER STATE")) return TaxMode.IGST;
         throw new IllegalArgumentException("Unsupported tax mode: " + (value == null ? "<blank>" : value));
     }

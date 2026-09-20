@@ -3,12 +3,13 @@ import java.util.List;
 public final class ReturnDtos{private ReturnDtos(){}
  public record Summary(String no,String date,String invoice,String party,double total,double refund,String reason,String status,String refundStatus,String email){}
  public record Line(String name,String code,double quantity,String unit,double rate,double tax,double amount,String reason){}
- public record Details(String no,String date,String invoice,String party,String type,String paymentTerms,String currency,String createdAt,String updatedAt,String attachment,String notes,double total,double refund,String status,String refundStatus,List<Line> lines){}
- public record CreateLine(String code,double quantity,double amount,String reason){}
+ public record Details(String no,String date,String invoice,String party,String type,String paymentTerms,String currency,String createdAt,String updatedAt,String attachment,String notes,double total,double refund,String status,String refundStatus,long rowVersion,List<Line> lines){}
+ public record ReturnableLine(long sourceLineId,String code,String description,double quantity,double rate,double discountPercent,double taxPercent,double lineTotal,double returnedQuantity,double returnedAmount){}
+ public record CreateLine(String code,Long sourceLineId,double quantity,double amount,String reason){}
  public record CreateRequest(String type,String invoiceNo,int partyId,String returnDate,List<CreateLine> lines){}
  public record Created(String returnNo){}
  public record Settlement(String invoiceNo,String status,double pendingAmount,double approvedReturnAmount,double settledAmount,String dueDate,String returnStatus,String refundStatus,double returnedQuantity,double originalQuantity){}
- public record UpdateRequest(String field,String value){}
+ public record UpdateRequest(String field,String value,long expectedRowVersion){}
  public record RefundRequest(double amount){}
  public record RefundCreateRequest(String date,double amount,String mode,String reference,String bankAccount,String refundedParty,String notes,String refundType,String createdBy){}
  public record RefundRow(int id,String date,String reference,String mode,String bankAccount,double amount,String refundedParty,String status,String notes,String attachment,String refundType){}

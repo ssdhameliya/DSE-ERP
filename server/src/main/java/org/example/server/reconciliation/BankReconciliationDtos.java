@@ -10,7 +10,7 @@ public final class BankReconciliationDtos {
  public record BatchPage(List<BatchDto> rows,int page,int size,long totalRows,int totalPages){}
  public record SourceDto(String fileName,String fingerprint,String csvContent){}
  public record AllocationDto(Long allocationId,String targetType,Integer targetId,String documentNo,double allocatedAmount,double roundingAdjustment,Integer paymentRecordId,Integer financeEntryId){}
- public record TransactionDto(Long id,Long importId,Integer sourceRowNumber,String transactionTimestamp,String transactionDate,String valueDate,String description,String reference,double debit,double credit,double balance,String status,String suggestedMatchType,Integer suggestedMatchId,Double suggestedConfidence,String matchLink,Integer financeEntryId,String linkedTargetType,Integer linkedTargetId,String linkedDocumentNo,List<AllocationDto> linkedAllocations){}
+ public record TransactionDto(Long id,Long importId,Integer sourceRowNumber,String transactionTimestamp,String transactionDate,String valueDate,String description,String reference,double debit,double credit,double balance,String status,String suggestedMatchType,Integer suggestedMatchId,Double suggestedConfidence,String matchLink,Integer financeEntryId,String linkedTargetType,Integer linkedTargetId,String linkedDocumentNo,List<AllocationDto> linkedAllocations,long rowVersion){}
  public record TransactionPage(List<TransactionDto> rows,Metrics metrics,int page,int size,long totalRows,int totalPages){}
  public record CandidateDto(String type,Integer id,String documentNo,String partyName,String documentDate,double totalAmount,double paidAmount,double outstanding,double confidence){}
  public record AllocationRequest(String targetType,Integer targetId,double amount){}
@@ -21,7 +21,7 @@ public final class BankReconciliationDtos {
  public record BulkBankEntryRequest(List<Long> transactionIds,String accountName,String paymentMode,String notes,String user){}
  public record BulkOperationResult(boolean success,String message,String status,int processed,List<Integer> financeEntryIds){}
  public record IgnoreRequest(String note,String user){}
- public record NoteRequest(String note,String user){}
+ public record NoteRequest(String note,String user,long rowVersion){}
  public record OperationResult(boolean success,String message,String status,Integer financeEntryId){}
  public record BatchDeleteResult(boolean success,String message,long deletedBatchId,int deletedTransactions,int reversedTransactions){}
  public record AuditDto(Long id,String eventType,String detail,String previousStatus,String newStatus,String performedBy,String createdAt){}

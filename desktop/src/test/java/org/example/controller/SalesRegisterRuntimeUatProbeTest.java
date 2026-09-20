@@ -6,6 +6,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import org.example.model.Sales;
+import org.example.util.ProfessionalUiEnhancer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
@@ -60,6 +61,7 @@ class SalesRegisterRuntimeUatProbeTest {
                 Method configure = SalesListController.class.getDeclaredMethod("configureActions");
                 configure.setAccessible(true);
                 configure.invoke(controller);
+                ProfessionalUiEnhancer.enhance(table);
 
                 Stage stage = new Stage();
                 stage.setScene(new Scene(new StackPane(table), 1450, 720));

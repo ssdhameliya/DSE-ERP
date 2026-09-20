@@ -49,10 +49,10 @@ for theme in css:
 # Action controls must remain completely visible even when a detail drawer
 # reduces the table viewport, and dialog buttons must size from their full label.
 table_layout=t('desktop/src/main/java/org/example/util/DynamicTableLayoutManager.java')
-need('fitWithVisibleActionColumn' in table_layout and 'ACTION_CONTROL_MIN_WIDTH' in table_layout,
+need('ACTION_CONTROL_MIN_WIDTH' in table_layout and 'allocateDense' in table_layout,
      'dynamic table layout no longer protects the visible Actions column')
-need('width + 24.0' in table_layout,
-     'rendered Actions controls no longer reserve table-cell chrome')
+need('lookupAll(".table-cell")' not in table_layout and 'SAMPLED_CONTENT_WIDTH' not in table_layout,
+     'dynamic table layout regressed to realized-cell/content scanning')
 for theme in css:
     theme_text=t('desktop/src/main/resources/css/'+theme)
     need('-fx-pref-width: 124px;' not in theme_text,

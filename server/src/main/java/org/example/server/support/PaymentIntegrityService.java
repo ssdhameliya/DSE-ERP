@@ -35,6 +35,11 @@ public class PaymentIntegrityService {
         if (amount.compareTo(ZERO) <= 0) throw new IllegalArgumentException("Payment amount must be greater than zero");
         LocalDate date = date(request.date());
         String mode = required(request.mode(), "Payment mode");
+        String paymentType = clean(request.paymentType());
+        if (paymentType == null) paymentType = "PARTIAL";
+        paymentType = paymentType.toUpperCase(Locale.ROOT);
+        if ("BANK_RECONCILIATION".equals(paymentType))
+            throw new IllegalArgumentException("BANK_RECONCILIATION payment type is reserved for the Bank Reconciliation subsystem");
 
         List<Target> rows = jdbc.query("SELECT total_amount,COALESCE(paid_amount,0),COALESCE(document_status,'') " +
                         "FROM " + type.table + " WHERE id=? FOR UPDATE",
@@ -57,7 +62,7 @@ public class PaymentIntegrityService {
         Integer paymentId = jdbc.queryForObject("INSERT INTO payment_record(document_type,document_id,payment_date,amount,payment_mode,reference_no," +
                         "notes,received_from,payment_type,attachment_path,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?) RETURNING id", Integer.class,
                 type.name(), request.documentId(), date, amount, mode, clean(request.reference()), clean(request.notes()),
-                clean(request.receivedFrom()), clean(request.paymentType()), null, CurrentUser.require().username());
+                clean(request.receivedFrom()), paymentType, null, CurrentUser.require().username());
         BigDecimal paid = authoritativePaid.add(amount).setScale(2, RoundingMode.HALF_UP);
         String status = paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
         if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=?,row_version=row_version+1 WHERE id=?",
@@ -65,7 +70,7 @@ public class PaymentIntegrityService {
         if (paymentId == null || paymentId <= 0) throw new IllegalStateException("Payment id was not returned after saving");
         audit.logChanges(type.name(), request.documentId(), "PAYMENT_RECORDED",
                 "Payment #"+paymentId+" • "+mode+" • "+amount.toPlainString(),
-                List.of(new AuditService.Change("Payment Status", target.paid.compareTo(ZERO)<=0?"PENDING":"PARTIAL", status),
+                List.of(new AuditService.Change("Payment Status", paymentStatus(authoritativePaid,target.total), status),
                         new AuditService.Change("Payment Amount", "0.00", amount.toPlainString()),
                         new AuditService.Change("Payment Mode", null, mode),
                         new AuditService.Change("Payment Reference", null, clean(request.reference()))));
@@ -78,16 +83,18 @@ public class PaymentIntegrityService {
         if (request == null) throw new IllegalArgumentException("Payment details are required");
 
         List<ExistingPayment> payments = jdbc.query(
-                "SELECT document_type,document_id,amount,COALESCE(payment_type,'PARTIAL') " +
+                "SELECT document_type,document_id,amount,COALESCE(payment_type,'PARTIAL'),COALESCE(row_version,0) " +
                         "FROM payment_record WHERE id=? FOR UPDATE",
                 (row, index) -> new ExistingPayment(
                         DocumentType.parse(row.getString(1)),
                         row.getInt(2),
                         decimal(row.getObject(3)),
-                        clean(row.getString(4))),
+                        clean(row.getString(4)), row.getLong(5)),
                 paymentId);
         if (payments.isEmpty()) throw new IllegalArgumentException("Payment record was not found");
         ExistingPayment existing = payments.getFirst();
+        if (request.expectedRowVersion() < 0 || request.expectedRowVersion() != existing.rowVersion)
+            throw new org.example.server.web.ConcurrentEditException("Payment");
         CurrentUser.requirePermission(existing.type == DocumentType.PURCHASE ? "PURCHASE.EDIT" : "SALES.EDIT", "Edit payment");
         if ("BANK_RECONCILIATION".equalsIgnoreCase(existing.paymentType))
             throw new IllegalStateException("Bank-reconciled payments must be changed through the Bank Statement reversal/reconciliation workflow");
@@ -111,6 +118,7 @@ public class PaymentIntegrityService {
         if (existing.type == DocumentType.PURCHASE && purchaseLifecycleLocked(target.status))
             throw new IllegalStateException("Payments cannot be edited while the Purchase is Draft or has an active Purchase Return.");
 
+        BigDecimal oldAuthoritativePaid = effectivePaid(existing.type, existing.documentId, null);
         BigDecimal otherPaid = effectivePaid(existing.type, existing.documentId, paymentId);
         BigDecimal recalculatedPaid = otherPaid.add(newAmount).setScale(2, RoundingMode.HALF_UP);
         if (recalculatedPaid.compareTo(target.total) > 0) {
@@ -119,9 +127,9 @@ public class PaymentIntegrityService {
         }
 
         int updated = jdbc.update(
-                "UPDATE payment_record SET payment_date=?,amount=?,payment_mode=?,reference_no=?,notes=?,received_from=?,row_version=row_version+1 WHERE id=?",
+                "UPDATE payment_record SET payment_date=?,amount=?,payment_mode=?,reference_no=?,notes=?,received_from=?,row_version=row_version+1 WHERE id=? AND row_version=?",
                 paymentDate, newAmount, paymentMode, clean(request.reference()), clean(request.notes()),
-                clean(request.receivedFrom()), paymentId);
+                clean(request.receivedFrom()), paymentId, request.expectedRowVersion());
         if (updated != 1) throw new IllegalStateException("Payment record changed while saving");
 
         BigDecimal paid = effectivePaid(existing.type, existing.documentId, null);
@@ -139,7 +147,7 @@ public class PaymentIntegrityService {
                 + "; new amount=" + newAmount.toPlainString() + "; difference=" + difference.toPlainString();
         audit.logChanges(existing.type.name(), existing.documentId, "PAYMENT_EDITED", detail,
                 List.of(new AuditService.Change("Payment Amount", existing.amount.toPlainString(), newAmount.toPlainString()),
-                        new AuditService.Change("Payment Status", target.paid.compareTo(ZERO)<=0?"PENDING":"PARTIAL", status),
+                        new AuditService.Change("Payment Status", paymentStatus(oldAuthoritativePaid,target.total), status),
                         new AuditService.Change("Payment Mode", null, paymentMode)));
     }
 
@@ -217,6 +225,11 @@ public class PaymentIntegrityService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private static String paymentStatus(BigDecimal paid, BigDecimal total) {
+        if (paid == null || paid.compareTo(ZERO) <= 0) return "PENDING";
+        return paid.compareTo(total) >= 0 ? "PAID" : "PARTIAL";
+    }
+
     private static boolean inactive(String value) {
         String status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
         return status.equals("CANCELLED") || status.equals("DELETED");
@@ -235,7 +248,7 @@ public class PaymentIntegrityService {
     private record Target(BigDecimal total, BigDecimal paid, String status) {
     }
 
-    private record ExistingPayment(DocumentType type, int documentId, BigDecimal amount, String paymentType) {
+    private record ExistingPayment(DocumentType type, int documentId, BigDecimal amount, String paymentType, long rowVersion) {
     }
 
     private record AttachmentPayment(DocumentType type, int documentId, String paymentType, String attachmentPath) {

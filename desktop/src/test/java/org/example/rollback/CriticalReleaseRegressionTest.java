@@ -141,10 +141,14 @@ class CriticalReleaseRegressionTest {
         String layout = Files.readString(Path.of("src/main/java/org/example/util/DynamicTableLayoutManager.java"));
         assertFalse(enhancer.contains("table.refresh();"));
         assertTrue(enhancer.contains("updateSelectionVisual()"));
-        assertTrue(layout.contains("Always coalesce width/item/skin changes into one next-pulse pass"));
-        assertTrue(layout.contains("RENDERED_ACTION_WIDTH"));
+        assertTrue(layout.contains("Coalesces structural geometry changes into one next-pulse calculation"));
+        assertTrue(layout.contains("CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"));
         assertTrue(layout.contains("requestSettledLayout(table)"),
-                "Content/skin changes must receive a later central settle pass so tables cannot retain a right-edge filler gap.");
+                "Content/skin changes must receive one coalesced central settle request.");
+        assertFalse(layout.contains("lookupAll(\".table-cell\")"),
+                "Table sizing must not scan realized cells while VirtualFlow recycles rows.");
+        assertFalse(layout.contains(".virtual-flow"),
+                "Normal VirtualFlow scrolling must not be a column-width trigger.");
         assertFalse(layout.contains("region.applyCss();"));
     }
 
@@ -357,9 +361,11 @@ class CriticalReleaseRegressionTest {
 
         assertFalse(tableLayout.contains("TABLE_CHROME_ALLOWANCE"), "Dynamic table width must use live JavaFX viewport geometry, not fixed OS chrome.");
         assertTrue(tableLayout.contains("contentViewportWidth(table)"));
-        assertTrue(tableLayout.contains("fitDenseViewport"));
+        assertTrue(tableLayout.contains("allocateDense"));
         assertTrue(tableLayout.contains("closeResidual"));
-        assertTrue(tableLayout.contains("SAMPLED_CONTENT_WIDTH"));
+        assertTrue(tableLayout.contains("headerMinimum"));
+        assertFalse(tableLayout.contains("SAMPLED_CONTENT_WIDTH"),
+                "Dynamic widths must no longer scan up to 48 row values per column.");
 
         assertTrue(kpiLayout.contains("region.setPrefWidth(0)"), "Grid KPI cards must not keep a competing preferred width.");
         assertTrue(kpiLayout.contains("column.setPercentWidth(100.0d / columns)"));
@@ -550,6 +556,29 @@ class CriticalReleaseRegressionTest {
             assertEquals("Second", sheet.getRow(1).getCell(0).getStringCellValue());
             assertEquals(3d, sheet.getRow(1).getCell(1).getNumericCellValue());
         }
+    }
+
+    @Test void tablePerformancePatchKeepsVisualContractWithoutLateHistoryResizingFor10018() throws Exception {
+        String layout = Files.readString(Path.of("src/main/java/org/example/util/DynamicTableLayoutManager.java"));
+        String semantic = Files.readString(Path.of("src/main/java/org/example/util/SemanticTableCells.java"));
+        String enhancer = Files.readString(Path.of("src/main/java/org/example/util/ProfessionalUiEnhancer.java"));
+        String salesPayment = Files.readString(Path.of("src/main/java/org/example/controller/RecordPaymentController.java"));
+        String purchasePayment = Files.readString(Path.of("src/main/java/org/example/controller/PurchasePaymentController.java"));
+        String popup = Files.readString(Path.of("src/main/java/org/example/util/PopupTableWorkspace.java"));
+
+        assertTrue(layout.contains("CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"));
+        assertTrue(layout.contains("allocateFromFloors") && layout.contains("flexWeight"));
+        assertFalse(layout.contains("sampledContentWidth("));
+        assertFalse(layout.contains("lookupAll(\".table-cell\")"));
+        assertFalse(layout.contains(".virtual-flow"));
+        assertTrue(semantic.contains("graphicCache.computeIfAbsent"),
+                "Semantic status cells must reuse glyphs while VirtualFlow recycles rows");
+        assertTrue(enhancer.contains("if (previous == cell) return"),
+                "Hovering inside one table cell must not repeatedly remeasure text on every mouse-move event");
+        assertFalse(salesPayment.contains("updateHistoryTableHeight"));
+        assertFalse(purchasePayment.contains("updateHistoryTableHeight"));
+        assertFalse(salesPayment.contains("historyTable.setMaxHeight(height)"));
+        assertTrue(popup.contains("erp-popup-responsive-width") && popup.contains("label.setWrapText(true)"));
     }
 
 }

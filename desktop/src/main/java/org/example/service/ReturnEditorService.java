@@ -63,8 +63,13 @@ public final class ReturnEditorService {
     }
 
     /** Immutable invoice-line input used by both sales and purchase screens. */
-    public record InvoiceItem(String code, String description, double quantity,
-                              double rate, double discountPercent, double taxPercent) {
+    public record InvoiceItem(Long sourceLineId, String code, String description, double quantity,
+                              double rate, double discountPercent, double taxPercent,
+                              double lineTotal, double alreadyReturnedAmount) {
+        public InvoiceItem(String code, String description, double quantity, double rate, double discountPercent, double taxPercent) {
+            this(null, code, description, quantity, rate, discountPercent, taxPercent,
+                    org.example.shared.DocumentCalculationEngine.line(quantity, rate, discountPercent, taxPercent).totalAmount(), 0);
+        }
     }
 
     private ReturnEditorService() {
@@ -320,13 +325,17 @@ public final class ReturnEditorService {
         }
     }
 
-    private static List<ReturnLine> loadReturnableLines(Type type, String invoiceNo, List<InvoiceItem> items) {
+    private static List<ReturnLine> loadReturnableLines(Type type, String invoiceNo, List<InvoiceItem> ignoredItems) {
         try {
-            Map<String,Double> returned = new ReturnApiClient().returned(type.databaseValue, invoiceNo);
+            List<ReturnApiClient.ReturnableLine> authoritative = new ReturnApiClient().returnableLines(type.databaseValue, invoiceNo);
             List<ReturnLine> rows = new ArrayList<>();
-            for (InvoiceItem item : items) rows.add(new ReturnLine(item, returned.getOrDefault(item.code(),0.0)));
+            for (ReturnApiClient.ReturnableLine line : authoritative) {
+                InvoiceItem item = new InvoiceItem(line.sourceLineId(), line.code(), line.description(), line.quantity(),
+                        line.rate(), line.discountPercent(), line.taxPercent(), line.lineTotal(), line.returnedAmount());
+                rows.add(new ReturnLine(item, line.returnedQuantity()));
+            }
             return rows;
-        } catch (Exception exception) { throw new IllegalStateException("Previously returned quantities could not be loaded", exception); }
+        } catch (Exception exception) { throw new IllegalStateException("Authoritative returnable invoice lines could not be loaded", exception); }
     }
 
     private static List<ReturnLine> validate(List<ReturnLine> rows, LocalDate returnDate) {
@@ -349,7 +358,7 @@ public final class ReturnEditorService {
     }
 
     private static String save(Type type, String invoiceNo, int partyId, LocalDate returnDate, List<ReturnLine> rows) {
-        List<ReturnApiClient.CreateLine> lines=rows.stream().map(r->new ReturnApiClient.CreateLine(r.code(),r.returnQuantity(),r.returnAmount(),r.reason())).toList();
+        List<ReturnApiClient.CreateLine> lines=rows.stream().map(r->new ReturnApiClient.CreateLine(r.code(),r.sourceLineId(),r.returnQuantity(),r.returnAmount(),r.reason())).toList();
         String returnNo = new ReturnApiClient().create(new ReturnApiClient.CreateRequest(type.databaseValue,invoiceNo,partyId,returnDate.toString(),lines));
         if (type == Type.SALES) {
             ScreenRefreshPolicy.invalidate("sales-returns");
@@ -366,7 +375,7 @@ public final class ReturnEditorService {
     }
 
     private static String formatQuantity(double value) {
-        return String.format(Locale.getDefault(), "%,.3f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+        return String.format(Locale.getDefault(), "%,.4f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
     private static void warning(String message) {
@@ -376,6 +385,7 @@ public final class ReturnEditorService {
     /** Mutable row model used by the editable return table. */
     private static final class ReturnLine {
         private final BooleanProperty selected = new SimpleBooleanProperty(false);
+        private final Long sourceLineId;
         private final StringProperty code;
         private final StringProperty description;
         private final DoubleProperty invoiced;
@@ -385,9 +395,12 @@ public final class ReturnEditorService {
         private final DoubleProperty rate;
         private final DoubleProperty discount;
         private final DoubleProperty tax;
+        private final double originalLineTotal;
+        private final double alreadyReturnedAmount;
         private final StringProperty reason = new SimpleStringProperty("Return requested");
 
         ReturnLine(InvoiceItem item, double alreadyReturned) {
+            sourceLineId = item.sourceLineId();
             code = new SimpleStringProperty(item.code());
             description = new SimpleStringProperty(item.description());
             invoiced = new SimpleDoubleProperty(item.quantity());
@@ -396,8 +409,11 @@ public final class ReturnEditorService {
             rate = new SimpleDoubleProperty(item.rate());
             discount = new SimpleDoubleProperty(item.discountPercent());
             tax = new SimpleDoubleProperty(item.taxPercent());
+            originalLineTotal = item.lineTotal();
+            alreadyReturnedAmount = item.alreadyReturnedAmount();
         }
 
+        Long sourceLineId() { return sourceLineId; }
         boolean selected() { return selected.get(); }
         void setSelected(boolean value) { selected.set(value); }
         BooleanProperty selectedProperty() { return selected; }
@@ -421,8 +437,11 @@ public final class ReturnEditorService {
         void setReason(String value) { reason.set(value == null ? "" : value); }
         StringProperty reasonProperty() { return reason; }
         double returnAmount() {
-            return org.example.shared.DocumentCalculationEngine.line(
-                    returnQuantity(), rate(), discount(), tax()).totalAmount();
+            double qty = org.example.shared.DocumentCalculationEngine.quantity(returnQuantity());
+            if (qty <= 0 || invoiced.get() <= 0) return 0;
+            double remainingAmount = Math.max(0, originalLineTotal - alreadyReturnedAmount);
+            double raw = qty + 0.0001 >= available() ? remainingAmount : (originalLineTotal / invoiced.get()) * qty;
+            return java.math.BigDecimal.valueOf(raw).setScale(2, java.math.RoundingMode.HALF_UP).doubleValue();
         }
     }
 }

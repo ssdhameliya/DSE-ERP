@@ -27,11 +27,25 @@ public final class ServerBackupClient {
     public DatabaseMetrics metrics() { return request("GET", base() + "/metrics", null, DatabaseMetrics.class); }
 
     public BackupFile importBackup(Path file) {
+        if (file == null || !Files.isRegularFile(file)) throw new IllegalArgumentException("A PostgreSQL backup file is required.");
         try {
             String name = URLEncoder.encode(file.getFileName().toString(), StandardCharsets.UTF_8);
-            return request("POST", base() + "/import?filename=" + name, Files.readAllBytes(file), BackupFile.class);
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base() + "/import?filename=" + name))
+                    .timeout(Duration.ofMinutes(30))
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/octet-stream")
+                    .POST(HttpRequest.BodyPublishers.ofFile(file));
+            ApiSession.authorize(builder);
+            HttpResponse<String> response=http.send(builder.build(),HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401) throw new ApiSession.AuthenticationRequiredException("Please sign in again");
+            if (response.statusCode() < 200 || response.statusCode() >= 300)
+                throw new IllegalStateException(message(response.body(), "Server backup import failed (HTTP " + response.statusCode() + ")"));
+            return json.readValue(response.body(),BackupFile.class);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Server backup import was interrupted", e);
         } catch (IOException e) {
-            throw new IllegalStateException("The selected backup could not be read.", e);
+            throw new IllegalStateException("The selected backup could not be streamed to the company server.", e);
         }
     }
 
@@ -47,16 +61,18 @@ public final class ServerBackupClient {
                     .header("Accept", "application/zip")
                     .POST(HttpRequest.BodyPublishers.noBody());
             ApiSession.authorize(builder);
-            HttpResponse<byte[]> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() == 401) throw new ApiSession.AuthenticationRequiredException("Please sign in again");
+            Files.createDirectories(target.toAbsolutePath().getParent());
+            Path temp=target.resolveSibling(target.getFileName()+".download-"+System.nanoTime());
+            HttpResponse<Path> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofFile(temp,
+                    java.nio.file.StandardOpenOption.CREATE,java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,java.nio.file.StandardOpenOption.WRITE));
+            if (response.statusCode() == 401) { Files.deleteIfExists(temp); throw new ApiSession.AuthenticationRequiredException("Please sign in again"); }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                String body = new String(response.body(), StandardCharsets.UTF_8);
+                String body = Files.size(temp) <= 1024*1024 ? Files.readString(temp,StandardCharsets.UTF_8) : "";
+                Files.deleteIfExists(temp);
                 throw new IllegalStateException(message(body, "Recovery package request failed (HTTP " + response.statusCode() + ")"));
             }
-            byte[] bytes = response.body();
-            if (bytes == null || bytes.length < 128) throw new IllegalStateException("The company server returned an empty recovery package.");
-            Files.createDirectories(target.toAbsolutePath().getParent());
-            Files.write(target, bytes);
+            if (Files.size(temp) < 128) { Files.deleteIfExists(temp); throw new IllegalStateException("The company server returned an empty recovery package."); }
+            Files.move(temp,target,java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             // Layer portable workstation preferences/branding onto the server-created package.
             // Machine-specific deployment identity and credentials are intentionally excluded.
             org.example.backup.PortableRecoverySettings.augment(target);

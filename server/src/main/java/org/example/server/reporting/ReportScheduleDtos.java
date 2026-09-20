@@ -24,7 +24,8 @@ public final class ReportScheduleDtos {
             String lastRun,
             String status,
             String lastStatus,
-            String lastError) { }
+            String lastError,
+            long rowVersion) { }
 
     public record ScheduleRequest(
             String name,
@@ -36,7 +37,8 @@ public final class ReportScheduleDtos {
             String time,
             String format,
             String delivery,
-            String recipients) { }
+            String recipients,
+            long rowVersion) { }
 
     public record ScheduleSummary(
             long activeSchedules,

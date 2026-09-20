@@ -38,16 +38,16 @@ public class ReportScheduleController {
     public ReportScheduleDtos.Result run(@PathVariable long id) { requireEdit(); requireExport(); return service.runNow(id); }
 
     @PostMapping("/{id}/pause")
-    public ReportScheduleDtos.Result pause(@PathVariable long id) { requireEdit(); service.pause(id); return new ReportScheduleDtos.Result(true, "Schedule paused"); }
+    public ReportScheduleDtos.Result pause(@PathVariable long id, @RequestParam long rowVersion) { requireEdit(); service.pause(id, rowVersion); return new ReportScheduleDtos.Result(true, "Schedule paused"); }
 
     @PostMapping("/{id}/resume")
-    public ReportScheduleDtos.Result resume(@PathVariable long id) { requireEdit(); service.resume(id); return new ReportScheduleDtos.Result(true, "Schedule resumed"); }
+    public ReportScheduleDtos.Result resume(@PathVariable long id, @RequestParam long rowVersion) { requireEdit(); service.resume(id, rowVersion); return new ReportScheduleDtos.Result(true, "Schedule resumed"); }
 
     @PostMapping("/{id}/duplicate")
     public ReportScheduleDtos.ScheduleRow duplicate(@PathVariable long id) { requireCreate(); requireExport(); return service.duplicate(id); }
 
     @DeleteMapping("/{id}")
-    public ReportScheduleDtos.Result delete(@PathVariable long id) { requireDelete(); service.delete(id); return new ReportScheduleDtos.Result(true, "Schedule deleted"); }
+    public ReportScheduleDtos.Result delete(@PathVariable long id, @RequestParam long rowVersion) { requireDelete(); service.delete(id, rowVersion); return new ReportScheduleDtos.Result(true, "Schedule deleted"); }
 
     @GetMapping("/{id}/history")
     public List<ReportScheduleDtos.RunHistory> history(@PathVariable long id) { requireView(); return service.historyForCurrentUser(id); }

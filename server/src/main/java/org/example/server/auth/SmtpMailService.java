@@ -186,6 +186,43 @@ public class SmtpMailService {
         }
     }
 
+    public void sendBusinessFiles(String recipient, String subject, String body, List<PathAttachment> attachments) {
+        Settings settings = settings();
+        if (settings.host().isBlank() || settings.email().isBlank() || settings.password().isBlank())
+            throw new IllegalStateException("Server business email is not configured");
+        try {
+            Session session = mailSession(settings, 15_000, 30_000);
+            MimeMessage message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(settings.email()));
+            message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipient, true));
+            message.setSubject(subject == null ? companyName() + " document" : subject);
+            List<PathAttachment> files = attachments == null ? List.of() : attachments.stream()
+                    .filter(a -> a != null && a.path() != null && Files.isRegularFile(a.path())).toList();
+            if (files.isEmpty()) message.setText(body == null ? "" : body);
+            else {
+                var multipart = new jakarta.mail.internet.MimeMultipart();
+                var text = new jakarta.mail.internet.MimeBodyPart();
+                text.setText(body == null ? "" : body);
+                multipart.addBodyPart(text);
+                for (PathAttachment attachment : files) {
+                    var file = new jakarta.mail.internet.MimeBodyPart();
+                    file.attachFile(attachment.path().toFile());
+                    file.setFileName(attachment.name() == null || attachment.name().isBlank()
+                            ? attachment.path().getFileName().toString() : attachment.name());
+                    if (attachment.contentType() != null && !attachment.contentType().isBlank())
+                        file.setHeader("Content-Type", attachment.contentType());
+                    multipart.addBodyPart(file);
+                }
+                message.setContent(multipart);
+            }
+            Transport.send(message);
+        } catch (Exception e) {
+            EmailDeliveryException failure = EmailDeliveryException.business(e);
+            LOG.warn("Business email delivery failed via {}:{} for sender {}: {}", settings.host(), settings.port(), masked(settings.email()), failure.adminMessage());
+            throw failure;
+        }
+    }
+
     private Session mailSession(Settings settings, int connectTimeout, int timeout) {
         Properties properties = new Properties();
         properties.put("mail.smtp.auth", "true");
@@ -275,5 +312,6 @@ public class SmtpMailService {
     }
 
     public record Attachment(String name, String contentType, byte[] data) {}
+    public record PathAttachment(String name, String contentType, Path path) {}
     public record Settings(String host, int port, String email, String password) {}
 }

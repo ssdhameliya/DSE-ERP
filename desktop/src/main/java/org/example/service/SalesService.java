@@ -48,7 +48,7 @@ public class SalesService {
     private void applyReturnSettlements(List<Sales> rows){
         if(rows==null||rows.isEmpty())return;
         Map<String,ReturnApiClient.Settlement> byInvoice=new HashMap<>();
-        try{for(ReturnApiClient.Settlement s:returnApi.settlements("SALES RETURN"))if(s!=null&&s.invoiceNo()!=null)byInvoice.put(s.invoiceNo(),s);}catch(Exception e){throw new IllegalStateException("Unable to load authoritative Sales Return lifecycle state. Refresh after the server connection is restored.",e);}
+        try{for(ReturnApiClient.Settlement s:returnApi.settlements("SALES RETURN",rows.stream().filter(Objects::nonNull).map(Sales::getInvoiceNo).filter(Objects::nonNull).toList()))if(s!=null&&s.invoiceNo()!=null)byInvoice.put(s.invoiceNo(),s);}catch(Exception e){throw new IllegalStateException("Unable to load authoritative Sales Return lifecycle state. Refresh after the server connection is restored.",e);}
         for(Sales row:rows){
             if(row==null)continue;
             ReturnApiClient.Settlement s=byInvoice.get(row.getInvoiceNo());

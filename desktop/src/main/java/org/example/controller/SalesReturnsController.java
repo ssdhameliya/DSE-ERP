@@ -193,11 +193,19 @@ public class SalesReturnsController implements ScreenLifecycle {
         info("Create a sales return from the Sales Register so the original invoice, stock and customer balance stay linked.");
         NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");
     }
-    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(ManagedInvoicePdfService.refund(row.no(), true).toFile()); } catch (Exception e) { error(e); } }
+    private void pdf(Row row) {
+        if (row == null) return;
+        UiTaskExecutor.submitAction("sales-return-pdf-" + row.no(),
+                () -> ManagedInvoicePdfService.refund(row.no(), true),
+                file -> { try { java.awt.Desktop.getDesktop().open(file.toFile()); } catch (Exception e) { error(e); } },
+                failure -> error(asException(failure)));
+    }
     private void excel(Row row) {
         if (row == null) return;
-        try { java.awt.Desktop.getDesktop().open(ExcelOutputService.generate(DocumentType.SALES_RETURN, row.no()).toFile()); }
-        catch (Exception e) { error(e); }
+        UiTaskExecutor.submitAction("sales-return-excel-" + row.no(),
+                () -> ExcelOutputService.generate(DocumentType.SALES_RETURN, row.no()),
+                file -> { try { java.awt.Desktop.getDesktop().open(file.toFile()); } catch (Exception e) { error(e); } },
+                failure -> error(asException(failure)));
     }
     private void configureDrawer() {
         if (detailDrawer == null) return;
@@ -238,7 +246,13 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void notes(Row row) { input("", "Return notes - " + row.no(), "Notes:").ifPresent(value -> update(row.no(), "notes", value)); }
     private void audit(Row row) {
         if(row==null)return;
-        try{var resolved=supportApi.resolveRecord("SALES_RETURN",row.no());if(!resolved.found()||resolved.recordId()==null)throw new IllegalStateException("Audit record could not be resolved for "+row.no());org.example.util.ActivityTimelineDialog.show(table,"SALES_RETURN",resolved.recordId().intValue(),row.no());}catch(Exception e){error(e);}
+        UiTaskExecutor.submitLatest("sales-return-audit-" + row.no(),
+                () -> supportApi.resolveRecord("SALES_RETURN", row.no()),
+                resolved -> {
+                    if(!resolved.found() || resolved.recordId()==null){error(new IllegalStateException("Audit record could not be resolved for " + row.no()));return;}
+                    org.example.util.ActivityTimelineDialog.show(table,"SALES_RETURN",resolved.recordId().intValue(),row.no());
+                },
+                failure -> error(asException(failure)));
     }
     private void original(Row row) { if(row==null)return; LinkedRecordContext.open("SALE",null,row.invoice(),"VIEW","Sales Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
     private void recordRefund(Row row) {
@@ -266,7 +280,15 @@ public class SalesReturnsController implements ScreenLifecycle {
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("sales-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" cancelled.");org.example.util.ToastManager.success(table,"Return cancelled",row.no()+" was cancelled successfully.");load();},failure->error(asException(failure))); }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("sales-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");org.example.util.ToastManager.success(table,"Return deleted",row.no()+" was removed from the register; the audit record was retained.");load();},failure->error(asException(failure))); }
-    private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return."); EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",ManagedInvoicePdfService.refund(row.no(),true)); info("Sales return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
+    private void email(Row row) {
+        if(row==null)return;
+        UiTaskExecutor.submitAction("sales-return-email-" + row.no(), () -> {
+            String recipient=partyEmail(row.no());
+            if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return.");
+            EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",ManagedInvoicePdfService.refund(row.no(),true));
+            return recipient;
+        }, recipient -> info("Sales return emailed to "+recipient+"."), failure -> error(asException(failure)));
+    }
     private Optional<String> input(String initial, String title, String prompt) {
         TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial == null ? "" : initial);
         dialog.initOwner(table.getScene() == null ? null : table.getScene().getWindow());
@@ -277,7 +299,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     }
 
     private String partyEmail(String returnNo){ return supportApi.returnPartyEmail(returnNo); }
-    private void update(String returnNo,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("sales-return-update-"+returnNo+"-"+column,()->{returnApi.update(returnNo,column,value);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");org.example.util.ToastManager.success(table,"Return updated",returnNo+" "+column+" was updated.");load();},failure->error(asException(failure)));}
+    private void update(String returnNo,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("sales-return-update-"+returnNo+"-"+column,()->{var current=returnApi.details(returnNo);returnApi.update(returnNo,column,value,current.rowVersion());return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");org.example.util.ToastManager.success(table,"Return updated",returnNo+" "+column+" was updated.");load();},failure->error(asException(failure)));}
 
     @FXML private void export() {
         org.example.service.PermissionService.require("SALES.EXPORT", "Export Sales Returns");

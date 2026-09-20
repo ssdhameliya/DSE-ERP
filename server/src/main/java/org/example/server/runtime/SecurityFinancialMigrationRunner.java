@@ -147,7 +147,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V10_0_1__per_user_notifications",
                     "db/migration/V10_0_1__per_user_notifications.sql"),
             new Migration("V10_0_2__central_audit_trail",
-                    "db/migration/V10_0_2__central_audit_trail.sql")
+                    "db/migration/V10_0_2__central_audit_trail.sql"),
+            new Migration("V10_0_18__final_defect_hardening",
+                    "db/migration/V10_0_18__final_defect_hardening.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -290,7 +292,15 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("purchase_header", "rejected_by");
         requireColumn("purchase_header", "rejected_at");
         requireTable("report_schedule");
+        requireColumn("report_schedule", "row_version");
         requireTable("report_schedule_run");
+        requireColumn("return_register", "row_version");
+        requireColumn("registration_request", "mfa_attempts");
+        requireColumn("registration_request", "expires_at");
+        requireTable("auth_challenge");
+        requireTable("auth_totp_login_challenge");
+        requireTable("login_throttle");
+        requireTable("backup_scheduler_state");
         requireTable("audit_event");
         requireTable("audit_change");
         requireFunction("dse_safe_date");

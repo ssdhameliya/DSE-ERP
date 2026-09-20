@@ -46,49 +46,63 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthDtos.LoginResponse login(AuthDtos.LoginRequest request) {
+    public AuthDtos.LoginResponse login(AuthDtos.LoginRequest request, String sourceAddress) {
         String identity = request == null || request.identity() == null ? "" : request.identity().trim();
         String raw = request == null || request.password() == null ? "" : request.password();
-        if (identity.isBlank() || raw.isBlank()) return failedLogin("Invalid email/username or password.");
+        String source = normalizeLoginSource(sourceAddress);
+        if (identity.isBlank() || raw.isBlank()) {
+            recordLoginFailure(source, identity);
+            return failedLogin("Invalid email/username or password.");
+        }
+        if (loginBlocked(source, identity)) {
+            return failedLogin("Too many sign-in attempts. Try again later.");
+        }
 
         UserEntity user = users.findForAuthentication(identity).orElse(null);
         if (user == null) {
             var pending = pendingRegistration(identity);
-            if (pending != null && passwordMatches(raw, String.valueOf(pending.get("password_hash"))))
+            if (pending != null && passwordMatches(raw, String.valueOf(pending.get("password_hash")))) {
+                clearLoginThrottle(source, identity);
                 return failedLogin("Account Approval Pending. Your verified registration is awaiting administrator approval. You cannot sign in until an administrator approves your account.");
+            }
+            recordLoginFailure(source, identity);
             return failedLogin("Invalid email/username or password.");
         }
-        if (!"APPROVED".equals(user.getApprovalStatus()) || !user.isActive())
-            return failedLogin("Account Approval Pending. This account is not active for sign in.");
-        if (user.isLocked()) return failedLogin(lockMessage(user));
+
         // Release gate: plaintext/legacy password values are never compared during sign-in.
-        // Existing legacy accounts must be reset once by an administrator (or via Forgot Password),
-        // which writes the normal BCrypt value used by all current account flows.
         if (!isBcrypt(user.getPassword())) {
             audit(user.getId(), "LEGACY_PASSWORD_BLOCKED", "Legacy password format requires secure reset", user.getUsername());
             return failedLogin("This account uses a legacy password format. Reset the password before signing in.");
         }
-        if (!passwordMatches(raw, user.getPassword())) return failedPassword(user);
+        if (!passwordMatches(raw, user.getPassword())) {
+            recordLoginFailure(source, identity);
+            return failedPassword(user);
+        }
+        clearLoginThrottle(source, identity);
+
+        if (!"APPROVED".equals(user.getApprovalStatus()) || !user.isActive())
+            return failedLogin("Account Approval Pending. This account is not active for sign in.");
+        if (user.isLocked()) return failedLogin(lockMessage(user));
 
         String role = normalizeRole(user.getRoleName());
         if (role.isBlank() || !roleMaster.isActive(role))
             return failedLogin("This account role is not active in Role Master.");
 
-        // ADMIN keeps the existing password-only production flow. Every non-Admin account
-        // uses an RFC-6238 authenticator token enrolled during approved registration.
         boolean mfaRequired = requiresMfa(user, role);
         user.resetPasswordFailures();
 
         if (mfaRequired) {
             if (user.getTotpSecretEnc() == null || user.getTotpSecretEnc().isBlank()) {
-                // Safe upgrade bridge for accounts created before 9.0.50: retain their existing email-OTP
-                // factor instead of locking them out. Every newly approved registration has TOTP.
-                String email=user.getEmail()==null?"":user.getEmail().trim();
-                if(email.isBlank()) return failedLogin("MFA setup is incomplete for this legacy account. Contact an administrator.");
+                String email = user.getEmail() == null ? "" : user.getEmail().trim();
+                if (email.isBlank()) return failedLogin("MFA setup is incomplete for this account. Contact an administrator.");
                 mail.requireConfigured();
-                var issued=otp.issue(AuthOtpService.Purpose.LOGIN_MFA,"user:"+user.getId(),loginMfaBinding(user),user.getId(),email,mail);
-                audit(user.getId(),"LEGACY_MFA_CHALLENGE_ISSUED","Existing account email-OTP compatibility bridge",user.getUsername());
-                return new AuthDtos.LoginResponse(true,payload(user),"Verification code sent to registered email",null,null,true,issued.challengeId(),maskEmail(email));
+                TotpService.Setup setup = totp.createSetup(user.getUsername(), email);
+                user.setTotpSecretEnc(setup.encryptedSecret());
+                user.setMfaEnabled(true);
+                sendAuthenticatorEnrollment(email, user.getUsername(), setup);
+                audit(user.getId(), "MFA_ENROLLMENT_PROVISIONED",
+                        "Authenticator enrollment was provisioned for an existing account", user.getUsername());
+                return failedLogin("Authenticator enrollment instructions were sent to your registered email. Configure the authenticator app, then sign in again.");
             }
             String challenge = totp.issueLogin(user.getId());
             audit(user.getId(), "MFA_CHALLENGE_ISSUED", "Authenticator token requested", user.getUsername());
@@ -144,15 +158,49 @@ public class AuthService {
         // Authenticated Admin/User Management only. Public self-registration never calls this path.
         if (request == null || request.username() == null || request.username().isBlank())
             return new AuthDtos.OperationResponse(false, "Username is required");
-        String passwordError = passwordError(request.password()); if (passwordError != null) return new AuthDtos.OperationResponse(false, passwordError);
-        if (users.findActiveByIdentity(request.username().trim()).isPresent()) return new AuthDtos.OperationResponse(false, "Username is already registered");
-        String requestedRole=normalizeRole(request.role()); RoleMasterService.RoleDefinition role;
-        try { role=roleMaster.requireActive(requestedRole); } catch(IllegalArgumentException ignored){return new AuthDtos.OperationResponse(false,"Selected role is unavailable");}
-        UserEntity user=new UserEntity(); user.setUsername(request.username().trim()); user.setPassword(passwords.encode(request.password()));
-        user.setFullName(request.fullName()); user.setEmail(request.email()); user.setRole(role.code()); user.setActive(true); user.setApprovalStatus("APPROVED"); user.setLocked(false);
-        // Preserve existing Admin behavior. Admin-created non-Admin users must enroll an authenticator before login.
-        user.setMfaEnabled(mfaForRequestedUser(role.code(), request.mfaEnabled())); user.setAccessLevel("STANDARD"); users.save(user);
-        return new AuthDtos.OperationResponse(true,"User registered");
+        String passwordError = passwordError(request.password());
+        if (passwordError != null) return new AuthDtos.OperationResponse(false, passwordError);
+        String username = request.username().trim();
+        String email = request.email() == null ? "" : request.email().trim();
+        if (users.existsByUsernameIgnoreCase(username))
+            return new AuthDtos.OperationResponse(false, "Username is already registered");
+        if (!email.isBlank() && users.existsByEmailIgnoreCase(email))
+            return new AuthDtos.OperationResponse(false, "Email is already registered");
+
+        String requestedRole = normalizeRole(request.role());
+        RoleMasterService.RoleDefinition role;
+        try { role = roleMaster.requireActive(requestedRole); }
+        catch (IllegalArgumentException ignored) { return new AuthDtos.OperationResponse(false, "Selected role is unavailable"); }
+
+        boolean mfa = mfaForRequestedUser(role.code(), request.mfaEnabled());
+        TotpService.Setup setup = null;
+        if (mfa) {
+            if (email.isBlank()) return new AuthDtos.OperationResponse(false, "Email is required for authenticator enrollment");
+            mail.requireConfigured();
+            setup = totp.createSetup(username, email);
+        }
+
+        UserEntity user = new UserEntity();
+        user.setUsername(username);
+        user.setPassword(passwords.encode(request.password()));
+        user.setFullName(request.fullName());
+        user.setEmail(email);
+        user.setRole(role.code());
+        user.setActive(true);
+        user.setApprovalStatus("APPROVED");
+        user.setLocked(false);
+        user.setMfaEnabled(mfa);
+        if (setup != null) user.setTotpSecretEnc(setup.encryptedSecret());
+        user.setAccessLevel("STANDARD");
+        users.saveAndFlush(user);
+
+        if (setup != null) {
+            sendAuthenticatorEnrollment(email, username, setup);
+            audit(user.getId(), "MFA_ENROLLMENT_PROVISIONED",
+                    "Authenticator enrollment instructions sent for Admin-created account", "SYSTEM");
+        }
+        return new AuthDtos.OperationResponse(true,
+                setup == null ? "User registered" : "User registered. Authenticator enrollment instructions were sent to the user's email.");
     }
 
     @Transactional(readOnly = true)
@@ -160,6 +208,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthDtos.ChallengeResponse requestRegistrationOtp(AuthDtos.RegistrationOtpRequest request) {
+        cleanupExpiredRegistrations();
         String validation=publicRegistrationError(request==null?null:request.username(),request==null?null:request.fullName(),request==null?null:request.email(),request==null?null:request.role());
         if(validation!=null)return new AuthDtos.ChallengeResponse(false,null,validation);
         if(request==null || !captcha.verify(request.captchaChallengeId(),request.captchaAnswer()))
@@ -175,6 +224,7 @@ public class AuthService {
 
     @Transactional
     public AuthDtos.RegistrationMfaSetupResponse verifyRegistrationEmail(AuthDtos.RegistrationEmailVerifyRequest request) {
+        cleanupExpiredRegistrations();
         String validation=publicRegistrationError(request==null?null:request.username(),request==null?null:request.fullName(),request==null?null:request.email(),request==null?null:request.role());
         if(validation!=null)throw new IllegalArgumentException(validation);
         String passwordError=passwordError(request.password());if(passwordError!=null)throw new IllegalArgumentException(passwordError);
@@ -184,17 +234,41 @@ public class AuthService {
         if(users.existsByUsernameIgnoreCase(username)||openRegistrationExists("username",username))throw new IllegalArgumentException("Username is already registered or awaiting approval");
         if(users.existsByEmailIgnoreCase(email)||openRegistrationExists("email",email))throw new IllegalArgumentException("Email is already registered or awaiting approval");
         var setup=totp.createSetup(username,email);
-        Long id=db.queryForObject("INSERT INTO registration_request(username,password_hash,full_name,email,requested_role,totp_secret_enc,email_verified,mfa_verified,status,requested_at,row_version) VALUES(?,?,?,?,?,?,1,0,'MFA_ENROLLMENT_PENDING',CURRENT_TIMESTAMP,0) RETURNING id",Long.class,username,passwords.encode(request.password()),request.fullName().trim(),email,role,setup.encryptedSecret());
+        Long id=db.queryForObject("INSERT INTO registration_request(username,password_hash,full_name,email,requested_role,totp_secret_enc,email_verified,mfa_verified,status,requested_at,expires_at,mfa_attempts,row_version) VALUES(?,?,?,?,?,?,1,0,'MFA_ENROLLMENT_PENDING',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP + INTERVAL '30 minutes',0,0) RETURNING id",Long.class,username,passwords.encode(request.password()),request.fullName().trim(),email,role,setup.encryptedSecret());
         return new AuthDtos.RegistrationMfaSetupResponse(true,id,setup.manualSecret(),setup.provisioningUri(),"Email verified. Add " + mail.companyName() + " to Google Authenticator or Microsoft Authenticator, then enter the current 6-digit code.");
     }
 
     @Transactional
     public AuthDtos.OperationResponse completeRegistrationMfa(AuthDtos.RegistrationMfaCompleteRequest request){
-        if(request==null||request.registrationId()<=0)return new AuthDtos.OperationResponse(false,"Registration request is invalid");
-        var row=db.queryForMap("SELECT id,totp_secret_enc,status,username,email FROM registration_request WHERE id=? FOR UPDATE",request.registrationId());
-        String status=String.valueOf(row.get("status")); if(!"MFA_ENROLLMENT_PENDING".equals(status))return new AuthDtos.OperationResponse(false,"This registration request has already been submitted or processed");
-        if(!totp.verifyEncrypted(String.valueOf(row.get("totp_secret_enc")),request.otp()))return new AuthDtos.OperationResponse(false,"Authenticator code is incorrect. Enter the current 6-digit code.");
-        db.update("UPDATE registration_request SET mfa_verified=1,status='PENDING_ADMIN_APPROVAL',row_version=row_version+1 WHERE id=?",request.registrationId());
+        if(request==null||request.registrationId()<=0)
+            return new AuthDtos.OperationResponse(false,"Registration request is invalid");
+        cleanupExpiredRegistrations();
+        var row=db.queryForMap("""
+                SELECT id,totp_secret_enc,status,username,email,COALESCE(mfa_attempts,0) mfa_attempts,expires_at
+                FROM registration_request WHERE id=? FOR UPDATE
+                """,request.registrationId());
+        String status=String.valueOf(row.get("status"));
+        if(!"MFA_ENROLLMENT_PENDING".equals(status))
+            return new AuthDtos.OperationResponse(false,"This registration request has already been submitted, expired, or processed");
+        Boolean active=db.queryForObject("SELECT expires_at>CURRENT_TIMESTAMP FROM registration_request WHERE id=?",Boolean.class,request.registrationId());
+        if(!Boolean.TRUE.equals(active)){
+            db.update("UPDATE registration_request SET status='EXPIRED',row_version=row_version+1 WHERE id=? AND status='MFA_ENROLLMENT_PENDING'",request.registrationId());
+            return new AuthDtos.OperationResponse(false,"Authenticator enrollment expired. Start registration again.");
+        }
+        int attempts=row.get("mfa_attempts") instanceof Number n?n.intValue():0;
+        if(!totp.verifyEncrypted(String.valueOf(row.get("totp_secret_enc")),request.otp())){
+            int next=attempts+1;
+            if(next>=MAX_MFA_ATTEMPTS){
+                db.update("UPDATE registration_request SET mfa_attempts=?,mfa_last_attempt_at=CURRENT_TIMESTAMP,status='EXPIRED',row_version=row_version+1 WHERE id=?",
+                        next,request.registrationId());
+                return new AuthDtos.OperationResponse(false,"Too many incorrect authenticator codes. Start registration again.");
+            }
+            db.update("UPDATE registration_request SET mfa_attempts=?,mfa_last_attempt_at=CURRENT_TIMESTAMP,row_version=row_version+1 WHERE id=?",
+                    next,request.registrationId());
+            return new AuthDtos.OperationResponse(false,"Authenticator code is incorrect or expired.");
+        }
+        db.update("UPDATE registration_request SET mfa_verified=1,status='PENDING_ADMIN_APPROVAL',mfa_attempts=0,mfa_last_attempt_at=CURRENT_TIMESTAMP,expires_at=NULL,row_version=row_version+1 WHERE id=?",
+                request.registrationId());
         db.update("INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at) VALUES(?,?,?,?,0,?,?,?,?,?,?)",
                 "New User Approval Required", String.valueOf(row.get("username"))+" completed email and authenticator verification and is awaiting Admin approval.",
                 "INFO","SECURITY","/fxml/pages/RegistrationApprovals.fxml",String.valueOf(request.registrationId()),"USER_REGISTRATION",request.registrationId(),"REVIEW",System.currentTimeMillis());
@@ -220,13 +294,15 @@ public class AuthService {
     @Transactional
     public AuthDtos.OperationResponse completePasswordReset(AuthDtos.PasswordResetCompleteRequest request) {
         String passwordError=passwordError(request==null?null:request.password()); if(passwordError!=null)return new AuthDtos.OperationResponse(false,passwordError);
-        var verified=otp.verify(AuthOtpService.Purpose.PASSWORD_RESET,request.challengeId(),request.otp(),"");
+        var verified=otp.verifyWithoutConsume(AuthOtpService.Purpose.PASSWORD_RESET,request.challengeId(),request.otp(),"");
         if(verified.userId()==null)throw new IllegalArgumentException("The verification code is invalid or expired");
         UserEntity user=users.findById(verified.userId()).orElseThrow(()->new IllegalArgumentException("The verification code is invalid or expired"));
         String role=normalizeRole(user.getRoleName());
         if(requiresMfa(user,role) && user.getTotpSecretEnc()!=null && !user.getTotpSecretEnc().isBlank()){
-            if(!totp.verifyEncrypted(user.getTotpSecretEnc(),request.totp()))return new AuthDtos.OperationResponse(false,"Authenticator code is incorrect");
+            if(!totp.verifyEncrypted(user.getTotpSecretEnc(),request.totp()))
+                return new AuthDtos.OperationResponse(false,"Authenticator code is incorrect");
         }
+        otp.consume(AuthOtpService.Purpose.PASSWORD_RESET,request.challengeId());
         user.setPassword(passwords.encode(request.password())); String prior=user.getLockReason(); user.clearAutomaticLock(); tokens.revokeUser(user.getId());
         audit(user.getId(),"PASSWORD_RESET_COMPLETED",requiresMfa(user,role)?"Password reset completed through email OTP + authenticator":"Password reset completed through email OTP under current MFA policy",user.getUsername());
         if(LOCK_ADMIN.equals(prior)&&user.isLocked())return new AuthDtos.OperationResponse(true,"Password updated. This account remains locked by an administrator.");
@@ -290,14 +366,10 @@ public class AuthService {
 
     private AuthDtos.LoginResponse failedPassword(UserEntity user) {
         int attempt = user.recordFailedPasswordAttempt();
-        audit(user.getId(), "LOGIN_FAILED", "Incorrect password (attempt " + attempt + " of " + MAX_PASSWORD_ATTEMPTS + ")", user.getUsername());
-        if (attempt >= MAX_PASSWORD_ATTEMPTS) {
-            autoLock(user, LOCK_FAILED_PASSWORD, "Five incorrect password attempts");
-            return failedLogin("Incorrect password. Failed attempt 5 of 5. Your account has been locked. Use Forgot Password or contact an administrator.");
-        }
-        String suffix = attempt == MAX_PASSWORD_ATTEMPTS - 1
-                ? " One attempt remains before this account is locked." : "";
-        return failedLogin("Incorrect password. Failed attempt " + attempt + " of " + MAX_PASSWORD_ATTEMPTS + "." + suffix);
+        audit(user.getId(), "LOGIN_FAILED", "Incorrect password attempt " + attempt, user.getUsername());
+        // Password failures are throttled by source+identity. They do not permanently lock
+        // the account because a public caller must not be able to lock another user's account.
+        return failedLogin("Invalid email/username or password.");
     }
 
     private AuthDtos.LoginResponse failedMfa(UserEntity user) {
@@ -382,16 +454,103 @@ public class AuthService {
 
     private java.util.Map<String,Object> pendingRegistration(String identity){
         if(identity==null||identity.isBlank())return null;
-        var rows=db.queryForList("SELECT id,username,email,password_hash,status FROM registration_request WHERE (LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?)) AND status IN ('MFA_ENROLLMENT_PENDING','PENDING_ADMIN_APPROVAL') ORDER BY id DESC LIMIT 1",identity,identity);
+        cleanupExpiredRegistrations();
+        var rows=db.queryForList("""
+                SELECT id,username,email,password_hash,status
+                FROM registration_request
+                WHERE (LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?))
+                  AND (status='PENDING_ADMIN_APPROVAL'
+                       OR (status='MFA_ENROLLMENT_PENDING' AND expires_at>CURRENT_TIMESTAMP))
+                ORDER BY id DESC LIMIT 1
+                """,identity,identity);
         return rows.isEmpty()?null:rows.getFirst();
     }
     private boolean openRegistrationExists(String field,String value){
         if(!"username".equals(field)&&!"email".equals(field))throw new IllegalArgumentException("Invalid registration field");
-        Long count=db.queryForObject("SELECT COUNT(*) FROM registration_request WHERE LOWER("+field+")=LOWER(?) AND status IN ('MFA_ENROLLMENT_PENDING','PENDING_ADMIN_APPROVAL')",Long.class,value);
+        cleanupExpiredRegistrations();
+        Long count=db.queryForObject("SELECT COUNT(*) FROM registration_request WHERE LOWER("+field+")=LOWER(?) AND (status='PENDING_ADMIN_APPROVAL' OR (status='MFA_ENROLLMENT_PENDING' AND expires_at>CURRENT_TIMESTAMP))",Long.class,value);
         return count!=null&&count>0;
     }
     private void auditRegistration(Long id,String action,String detail,String actor){
         try{db.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('REGISTRATION',?,?,?,?,?)",id,action,detail,actor==null||actor.isBlank()?"SYSTEM":actor,BusinessClock.nowUtcText());}catch(RuntimeException ignored){}
+    }
+
+    private void cleanupExpiredRegistrations() {
+        db.update("""
+                UPDATE registration_request
+                SET status='EXPIRED',row_version=row_version+1
+                WHERE status='MFA_ENROLLMENT_PENDING'
+                  AND expires_at IS NOT NULL AND expires_at<=CURRENT_TIMESTAMP
+                """);
+    }
+
+    private void sendAuthenticatorEnrollment(String email, String username, TotpService.Setup setup) {
+        String body = "Authenticator enrollment for " + mail.companyName() + "\n"
+                + "Username: " + username + "\n"
+                + "Manual setup key: " + setup.manualSecret() + "\n"
+                + "Provisioning URI: " + setup.provisioningUri() + "\n\n"
+                + "Add this account to Google Authenticator, Microsoft Authenticator, or another RFC-6238 compatible app before signing in.";
+        mail.sendBusiness(email, mail.companyName() + " authenticator enrollment", body, java.util.List.of());
+    }
+
+    private boolean loginBlocked(String source, String identity) {
+        cleanupLoginThrottle();
+        return throttleBlocked("IP|" + source) || throttleBlocked("PAIR|" + source + "|" + normalizeThrottleIdentity(identity));
+    }
+
+    private boolean throttleBlocked(String key) {
+        Long count = db.queryForObject(
+                "SELECT COUNT(*) FROM login_throttle WHERE throttle_key=? AND blocked_until>CURRENT_TIMESTAMP",
+                Long.class, key);
+        return count != null && count > 0;
+    }
+
+    private void recordLoginFailure(String source, String identity) {
+        recordThrottle("IP|" + source, 20);
+        if (identity != null && !identity.isBlank())
+            recordThrottle("PAIR|" + source + "|" + normalizeThrottleIdentity(identity), 5);
+    }
+
+    private void recordThrottle(String key, int threshold) {
+        db.update("""
+                INSERT INTO login_throttle(throttle_key,window_started,attempts,blocked_until,updated_at)
+                VALUES(?,CURRENT_TIMESTAMP,1,NULL,CURRENT_TIMESTAMP)
+                ON CONFLICT(throttle_key) DO UPDATE SET
+                    attempts=CASE
+                        WHEN login_throttle.window_started < CURRENT_TIMESTAMP - INTERVAL '10 minutes' THEN 1
+                        ELSE login_throttle.attempts+1 END,
+                    window_started=CASE
+                        WHEN login_throttle.window_started < CURRENT_TIMESTAMP - INTERVAL '10 minutes' THEN CURRENT_TIMESTAMP
+                        ELSE login_throttle.window_started END,
+                    blocked_until=CASE
+                        WHEN (CASE WHEN login_throttle.window_started < CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+                                   THEN 1 ELSE login_throttle.attempts+1 END) >= ?
+                            THEN CURRENT_TIMESTAMP + INTERVAL '15 minutes'
+                        WHEN login_throttle.blocked_until>CURRENT_TIMESTAMP THEN login_throttle.blocked_until
+                        ELSE NULL END,
+                    updated_at=CURRENT_TIMESTAMP
+                """, key, threshold);
+    }
+
+    private void clearLoginThrottle(String source, String identity) {
+        if (identity != null && !identity.isBlank())
+            db.update("DELETE FROM login_throttle WHERE throttle_key=?", "PAIR|" + source + "|" + normalizeThrottleIdentity(identity));
+    }
+
+    private void cleanupLoginThrottle() {
+        db.update("DELETE FROM login_throttle WHERE updated_at<CURRENT_TIMESTAMP - INTERVAL '2 days'");
+    }
+
+    private static String normalizeLoginSource(String source) {
+        String value = source == null ? "" : source.trim().toLowerCase(Locale.ROOT);
+        if (value.isBlank()) value = "unknown";
+        value = value.replaceAll("[^a-z0-9:._-]", "_");
+        return value.length() <= 120 ? value : value.substring(0,120);
+    }
+
+    private static String normalizeThrottleIdentity(String identity) {
+        String value = identity == null ? "" : identity.trim().toLowerCase(Locale.ROOT);
+        return value.length() <= 240 ? value : value.substring(0,240);
     }
 
     private String normalizeRole(String role) {
@@ -413,11 +572,9 @@ public class AuthService {
     }
 
     private String mfaPolicy() {
-        try {
-            String value = db.queryForObject("SELECT setting_value FROM application_setting WHERE setting_key='security.auth.mfa.policy'", String.class);
-            String normalized = value == null ? "REQUIRED" : value.trim().toUpperCase(Locale.ROOT).replace(' ', '_');
-            return switch (normalized) { case "ADMIN_CONTROLLED", "DISABLED" -> normalized; default -> "REQUIRED"; };
-        } catch (RuntimeException ignored) { return "REQUIRED"; }
+        String value = db.queryForObject("SELECT setting_value FROM application_setting WHERE setting_key='security.auth.mfa.policy'", String.class);
+        String normalized = value == null ? "REQUIRED" : value.trim().toUpperCase(Locale.ROOT).replace(' ', '_');
+        return switch (normalized) { case "ADMIN_CONTROLLED", "DISABLED" -> normalized; default -> "REQUIRED"; };
     }
 
     private boolean passwordMatches(String raw, String stored) {

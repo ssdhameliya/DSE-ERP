@@ -37,6 +37,7 @@ public final class UpdateDistributionService {
     private final String repository;
     private final String token;
     private final String apiBase;
+    private final String deploymentEnvironment;
     private final HttpClient http;
     private final ObjectMapper json;
     private final ConcurrentHashMap<Long, Long> publishedAssetUntil = new ConcurrentHashMap<>();
@@ -47,8 +48,9 @@ public final class UpdateDistributionService {
             @Value("${dse.update.github.repository:DSE-ERP}") String repository,
             @Value("${dse.update.github.token:}") String token,
             @Value("${dse.update.github.api-base:https://api.github.com}") String apiBase,
+            @Value("${dse.deployment.environment:LOCAL}") String deploymentEnvironment,
             ObjectProvider<ObjectMapper> mapperProvider) {
-        this(owner, repository, token, apiBase,
+        this(owner, repository, token, apiBase, deploymentEnvironment,
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20))
                         .followRedirects(HttpClient.Redirect.NEVER).build(),
                 mapperProvider.getIfAvailable(ObjectMapper::new));
@@ -56,15 +58,22 @@ public final class UpdateDistributionService {
 
     UpdateDistributionService(String owner, String repository, String token, String apiBase,
                               HttpClient http, ObjectMapper json) {
+        this(owner,repository,token,apiBase,"LOCAL",http,json);
+    }
+
+    UpdateDistributionService(String owner, String repository, String token, String apiBase, String deploymentEnvironment,
+                              HttpClient http, ObjectMapper json) {
         this.owner = requirePart(owner, "GitHub owner");
         this.repository = requirePart(repository, "GitHub repository");
         this.token = Objects.requireNonNullElse(token, "").trim();
         this.apiBase = stripTrailingSlash(Objects.requireNonNullElse(apiBase, "https://api.github.com").trim());
+        this.deploymentEnvironment = Objects.requireNonNullElse(deploymentEnvironment,"LOCAL").trim().toUpperCase(Locale.ROOT);
         this.http = Objects.requireNonNull(http, "http");
         this.json = Objects.requireNonNull(json, "json");
     }
 
     public ReleaseView latest(boolean includePrerelease) throws Exception {
+        includePrerelease = allowPrerelease(includePrerelease);
         if (!includePrerelease) {
             JsonNode node = requestJson("/repos/%s/%s/releases/latest".formatted(owner, repository));
             return mapRelease(node);
@@ -76,6 +85,7 @@ public final class UpdateDistributionService {
     }
 
     public List<ReleaseView> releases(boolean includePrerelease, int limit) throws Exception {
+        includePrerelease = allowPrerelease(includePrerelease);
         int bounded = Math.max(1, Math.min(100, limit));
         JsonNode root = requestJson("/repos/%s/%s/releases?per_page=%d".formatted(owner, repository, bounded));
         List<ReleaseView> result = new ArrayList<>();
@@ -96,6 +106,7 @@ public final class UpdateDistributionService {
         requireSuccess(response, "Published DSE ERP release " + clean + " was not found by the server update gateway.");
         JsonNode node = json.readTree(response.body());
         if (node.path("draft").asBoolean(false)) throw new IllegalStateException("Release " + clean + " is still a draft.");
+        if (isProd() && node.path("prerelease").asBoolean(false)) throw new IllegalArgumentException("Prerelease builds are not available from the PROD update gateway.");
         return mapRelease(node);
     }
 
@@ -214,6 +225,7 @@ public final class UpdateDistributionService {
         boolean found = false;
         for (JsonNode release : root) {
             if (release.path("draft").asBoolean(false)) continue;
+            if (isProd() && release.path("prerelease").asBoolean(false)) continue;
             for (JsonNode asset : release.path("assets")) {
                 long id = asset.path("id").asLong(0);
                 if (id <= 0) continue;
@@ -224,6 +236,14 @@ public final class UpdateDistributionService {
         publishedAssetUntil.entrySet().removeIf(entry -> entry.getValue() < now);
         if (!found) throw new IllegalArgumentException("Update asset is not part of a published DSE ERP release.");
     }
+
+
+    private boolean allowPrerelease(boolean requested) {
+        if (requested && isProd()) throw new IllegalArgumentException("Prerelease builds are not available from the PROD update gateway.");
+        return requested;
+    }
+
+    private boolean isProd() { return "PROD".equals(deploymentEnvironment); }
 
     private static String normalizeVersion(String version) {
         String clean = Objects.requireNonNullElse(version, "").trim();

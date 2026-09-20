@@ -242,6 +242,8 @@ public final class ExcelTemplateStorageService {
         if (template == null) return;
         if (!DocumentFlowRegistry.isExcelAutomatic(template.getDocumentType()))
             throw new IOException(template.getDocumentType().label() + " is not ERP-connected and cannot be an automatic Excel default.");
+        // All activation surfaces (Designer and Document Studio list) pass through the same complete certification.
+        ExcelDefaultCertification.certify(template);
         Path source = sourceWorkbook(template);
         byte[] sourceBeforeValidation = Files.readAllBytes(source);
         Path test = folder(template).resolve(".activation-test.xlsx");

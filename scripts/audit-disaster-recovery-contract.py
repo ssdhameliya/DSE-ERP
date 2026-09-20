@@ -27,7 +27,7 @@ for token in ('workspace/Attachments','workspace/Documents','workspace/Templates
 need('/recovery-package' in controller and 'application/zip' in controller,'recovery package endpoint missing')
 need('HttpMethod.POST, "/api/authority/backups/recovery-package"' in security and 'hasAuthority("ROLE_ADMIN")' in security,
      'recovery package endpoint is not admin-only')
-need('downloadRecoveryPackage' in client and 'BodyHandlers.ofByteArray' in client,'shared desktop recovery-package download missing')
+need('downloadRecoveryPackage' in client and ('BodyHandlers.ofFile' in client or 'BodyHandlers.ofByteArray' in client),'shared desktop recovery-package download missing')
 need('stageForLocal' in recovery and 'database.sha256' in recovery and 'Unsafe recovery package path' in recovery,
      'LOCAL recovery package validation/staging contract missing')
 need('markDatabaseRestoreSuccess' in recovery and 'applyPendingFilesIfReady' in recovery,

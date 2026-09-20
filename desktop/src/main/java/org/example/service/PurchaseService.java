@@ -72,7 +72,7 @@ public class PurchaseService {
     private void applyReturnSettlements(List<Purchase> rows){
         if(rows==null||rows.isEmpty())return;
         Map<String,ReturnApiClient.Settlement> byInvoice=new HashMap<>();
-        try{for(ReturnApiClient.Settlement s:returnApi.settlements("PURCHASE RETURN"))if(s!=null&&s.invoiceNo()!=null)byInvoice.put(s.invoiceNo(),s);}catch(Exception e){throw new IllegalStateException("Unable to load authoritative Purchase Return lifecycle state. Refresh after the server connection is restored.",e);}
+        try{for(ReturnApiClient.Settlement s:returnApi.settlements("PURCHASE RETURN",rows.stream().filter(Objects::nonNull).map(Purchase::getInvoiceNo).filter(Objects::nonNull).toList()))if(s!=null&&s.invoiceNo()!=null)byInvoice.put(s.invoiceNo(),s);}catch(Exception e){throw new IllegalStateException("Unable to load authoritative Purchase Return lifecycle state. Refresh after the server connection is restored.",e);}
         for(Purchase row:rows){
             if(row==null)continue;
             ReturnApiClient.Settlement s=byInvoice.get(row.getInvoiceNo());

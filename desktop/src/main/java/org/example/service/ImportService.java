@@ -448,7 +448,7 @@ public class ImportService {
                             Sales persisted = service.getByInvoice(document.getInvoiceNo());
                             if (persisted == null || persisted.getId() <= 0)
                                 throw new IllegalStateException("saved sale could not be reloaded for attachment upload");
-                            String reference = new SupportApiClient().uploadDocumentAttachment("SALE", persisted.getId(), extras.attachmentSource());
+                            String reference = new SupportApiClient().uploadDocumentAttachment("SALE", persisted.getId(), extras.attachmentSource(), persisted.getRowVersion());
                             document.setAttachmentPath(reference);
                         } catch (Exception attachmentFailure) {
                             postSaveWarning = "Record imported successfully; attachment could not be uploaded: "
@@ -514,7 +514,7 @@ public class ImportService {
                             Purchase persisted=service.getByInvoice(document.getInvoiceNo());
                             if(persisted==null||persisted.getId()<=0)throw new IllegalStateException("saved purchase could not be reloaded for attachment upload");
                             SupportApiClient api=new SupportApiClient();
-                            for(Path source:extras.attachmentSources())api.addDocumentAttachment("PURCHASE",persisted.getId(),source);
+                            for(Path source:extras.attachmentSources())api.addDocumentAttachment("PURCHASE",persisted.getId(),source,persisted.getRowVersion());
                         } catch (Exception attachmentFailure) {
                             postSaveWarning = "Record imported successfully; one or more attachments could not be uploaded: "
                                 + safeImportMessage(attachmentFailure);

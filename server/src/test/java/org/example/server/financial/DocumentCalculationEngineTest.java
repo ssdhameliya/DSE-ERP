@@ -40,6 +40,13 @@ class DocumentCalculationEngineTest {
     }
 
     @Test
+    void historicalNoTaxAliasesRemainRenderCompatible() {
+        assertEquals(DocumentCalculationEngine.TaxMode.GST, DocumentCalculationEngine.taxMode("NON-GST"));
+        assertEquals(DocumentCalculationEngine.TaxMode.GST, DocumentCalculationEngine.taxMode("NO GST"));
+        assertEquals(DocumentCalculationEngine.TaxMode.GST, DocumentCalculationEngine.taxMode("EXEMPT"));
+    }
+
+    @Test
     void invalidPercentAndNegativeMoneyAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> DocumentCalculationEngine.percent(100.01));
         assertThrows(IllegalArgumentException.class, () -> DocumentCalculationEngine.line(1, -1, 0, 18));

@@ -1493,11 +1493,11 @@ public class SalesController {
         int id=persisted.getId();
         if(id<=0)throw new IllegalStateException("Sales attachment cannot be linked because the saved sale id is unavailable.");
         if(attachmentRemovalPending){
-            supportApi.deleteDocumentAttachment("SALE",id);
+            supportApi.deletePrimaryDocumentAttachment("SALE",id,persisted.getRowVersion());
             sale.setAttachmentPath("");
             if(editingSale!=null)editingSale.setAttachmentPath("");
         }else if(pendingAttachment!=null){
-            String reference=supportApi.uploadDocumentAttachment("SALE",id,pendingAttachment.toPath());
+            String reference=supportApi.uploadDocumentAttachment("SALE",id,pendingAttachment.toPath(),persisted.getRowVersion());
             sale.setAttachmentPath(reference);
             if(editingSale!=null)editingSale.setAttachmentPath(reference);
         }
