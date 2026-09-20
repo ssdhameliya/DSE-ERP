@@ -190,14 +190,40 @@ public class PurchaseReturnsController implements ScreenLifecycle {
 
     private void audit(Row row) {
         if(row==null)return;
-        try{var resolved=supportApi.resolveRecord("PURCHASE_RETURN",row.no());if(!resolved.found()||resolved.recordId()==null)throw new IllegalStateException("Audit record could not be resolved for "+row.no());org.example.util.ActivityTimelineDialog.show(table,"PURCHASE_RETURN",resolved.recordId().intValue(),row.no());}catch(Exception e){error(e);}
+        UiTaskExecutor.submitLatest("purchase-return-audit-" + row.no(),
+                () -> supportApi.resolveRecord("PURCHASE_RETURN", row.no()),
+                resolved -> {
+                    if(!resolved.found() || resolved.recordId()==null){error(new IllegalStateException("Audit record could not be resolved for " + row.no()));return;}
+                    org.example.util.ActivityTimelineDialog.show(table,"PURCHASE_RETURN",resolved.recordId().intValue(),row.no());
+                },
+                failure -> error(asException(failure)));
     }
     private void original(Row row) { if(row==null)return; LinkedRecordContext.open("PURCHASE",null,row.invoice(),"VIEW","Purchase Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void edit(Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
     private void notes(Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }
-    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(ManagedInvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
-    private void excel(Row row) { if(row==null)return; try { java.awt.Desktop.getDesktop().open(org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.PURCHASE_RETURN,row.no()).toFile()); } catch(Exception e) { error(e); } }
-    private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",ManagedInvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
+    private void pdf(Row row) {
+        if(row==null)return;
+        UiTaskExecutor.submitAction("purchase-return-pdf-" + row.no(),
+                () -> ManagedInvoicePdfService.refund(row.no(),false),
+                file -> { try { java.awt.Desktop.getDesktop().open(file.toFile()); } catch(Exception e) { error(e); } },
+                failure -> error(asException(failure)));
+    }
+    private void excel(Row row) {
+        if(row==null)return;
+        UiTaskExecutor.submitAction("purchase-return-excel-" + row.no(),
+                () -> org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.PURCHASE_RETURN,row.no()),
+                file -> { try { java.awt.Desktop.getDesktop().open(file.toFile()); } catch(Exception e) { error(e); } },
+                failure -> error(asException(failure)));
+    }
+    private void email(Row row) {
+        if(row==null)return;
+        UiTaskExecutor.submitAction("purchase-return-email-" + row.no(), () -> {
+            String recipient=partyEmail(row.no());
+            if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return.");
+            EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",ManagedInvoicePdfService.refund(row.no(),false));
+            return recipient;
+        }, recipient -> info("Purchase return emailed to "+recipient+"."), failure -> error(asException(failure)));
+    }
     private Optional<String> input(String title, String prompt) {
         return input("", title, prompt);
     }
@@ -237,7 +263,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("purchase-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),false);return true;},ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" cancelled.");org.example.util.ToastManager.success(table,"Return cancelled",row.no()+" was cancelled successfully.");load();},failure->error(asException(failure))); }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("purchase-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),false);return true;},ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");org.example.util.ToastManager.success(table,"Return deleted",row.no()+" was removed from the register; the audit record was retained.");load();},failure->error(asException(failure))); }
-    private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("purchase-return-update-"+no+"-"+column,()->{returnApi.update(no,column,value);return true;},ignored->{org.example.util.ToastManager.success(table,"Return updated",no+" "+column+" was updated.");load();},failure->error(asException(failure)));}
+    private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("purchase-return-update-"+no+"-"+column,()->{var current=returnApi.details(no);returnApi.update(no,column,value,current.rowVersion());return true;},ignored->{org.example.util.ToastManager.success(table,"Return updated",no+" "+column+" was updated.");load();},failure->error(asException(failure)));}
 
     @FXML private void export() {
         org.example.service.PermissionService.require("PURCHASE.EXPORT", "Export Purchase Returns");

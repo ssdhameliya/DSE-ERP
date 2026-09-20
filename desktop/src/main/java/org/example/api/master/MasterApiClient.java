@@ -30,6 +30,7 @@ public final class MasterApiClient {
 
  public List<Item> items(){return get("/api/master/items",new TypeReference<List<ItemDto>>(){}).stream().map(this::item).toList();}
  public List<Item> searchItems(String query,int limit){return get("/api/master/items/search?q="+enc(query)+"&limit="+Math.max(1,Math.min(limit,100)),new TypeReference<List<ItemDto>>(){}).stream().map(this::item).toList();}
+ public List<Item> itemsByCodes(Collection<String> codes){ItemDto[] rows=post("/api/master/items/by-codes",codes==null?List.of():List.copyOf(codes),ItemDto[].class);return rows==null?List.of():Arrays.stream(rows).map(this::item).toList();}
  public SalesEntryBootstrap salesEntryBootstrap(){SalesEntryBootstrapDto d=get("/api/master/sales-entry-bootstrap",SalesEntryBootstrapDto.class);return new SalesEntryBootstrap(d.paymentTerms,d.chargeTypes,d.gstTypes,d.transporters==null?List.of():d.transporters.stream().map(this::lookup).toList(),d.customers==null?List.of():d.customers.stream().map(this::party).toList());}
  public void saveItem(Item i){applyItemIdentity(i,post("/api/master/items",itemDto(i),ItemDto.class));}
  public void updateItem(Item i){applyItemIdentity(i,put("/api/master/items",itemDto(i),ItemDto.class));}

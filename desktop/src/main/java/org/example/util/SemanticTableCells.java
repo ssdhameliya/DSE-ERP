@@ -4,7 +4,9 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.TableCell;
 
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Value-aware renderer for register status cells.
@@ -15,19 +17,18 @@ public final class SemanticTableCells {
 
     public static <S> TableCell<S, String> status(String semantic) {
         final String role = semantic == null ? "status" : semantic.toLowerCase(Locale.ROOT);
-        return new TableCell<>() {
+        return new CachedGraphicCell<>() {
             @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 reset(this, empty ? null : value);
                 if (empty || value == null || value.isBlank()) return;
-                Presentation presentation = presentation(role, value);
-                apply(this, presentation);
+                apply(this, presentation(role, value));
             }
         };
     }
 
     public static <S> TableCell<S, Boolean> activeBoolean() {
-        return new TableCell<>() {
+        return new CachedGraphicCell<>() {
             @Override protected void updateItem(Boolean value, boolean empty) {
                 super.updateItem(value, empty);
                 setText(null);
@@ -40,14 +41,14 @@ public final class SemanticTableCells {
                 setText(value ? "Active" : "Inactive");
                 Presentation p = value ? new Presentation("complete", State.SUCCESS) : new Presentation("cancel", State.DANGER);
                 getStyleClass().add(p.state.styleClass);
-                setGraphic(IconFactory.statusIcon(p.icon, p.state.iconState));
+                setGraphic(graphic(p));
                 setGraphicTextGap(5);
             }
         };
     }
 
     public static <S> TableCell<S, String> dueDate() {
-        return new TableCell<>() {
+        return new CachedGraphicCell<>() {
             @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 reset(this, empty ? null : value);
@@ -186,11 +187,22 @@ public final class SemanticTableCells {
 
     private static void apply(TableCell<?, String> cell, Presentation p) {
         cell.getStyleClass().add(p.state.styleClass);
-        // Status cells use the dedicated CSS-state glyph renderer; active theme CSS
-        // owns both text and icon colour so controllers never carry palette hex values.
-        Node graphic = IconFactory.statusIcon(p.icon, p.state.iconState);
-        cell.setGraphic(graphic);
+        // VirtualFlow reuses the same TableCell instances while scrolling. Cache one
+        // status glyph per semantic/state on each realized cell so row recycling does
+        // not allocate a fresh FontIcon/CSS node on every scroll pulse.
+        if (cell instanceof CachedGraphicCell<?, ?> cached) cell.setGraphic(cached.graphic(p));
+        else cell.setGraphic(IconFactory.statusIcon(p.icon, p.state.iconState));
         cell.setGraphicTextGap(5);
+    }
+
+    private abstract static class CachedGraphicCell<S, T> extends TableCell<S, T> {
+        private final Map<String, Node> graphicCache = new HashMap<>();
+
+        protected final Node graphic(Presentation presentation) {
+            String key = presentation.icon + "|" + presentation.state.iconState;
+            return graphicCache.computeIfAbsent(key,
+                    ignored -> IconFactory.statusIcon(presentation.icon, presentation.state.iconState));
+        }
     }
 
     private static State classify(String v) {

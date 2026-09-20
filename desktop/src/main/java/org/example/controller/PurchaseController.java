@@ -759,14 +759,18 @@ public class PurchaseController implements ScreenLifecycle {
 
     private void persistAttachmentChanges(Purchase full, List<Long> removals, List<PurchaseAttachmentEntry> attachments){
         if(full==null||full.getId()<=0)return;
+        long expected=full.getRowVersion();
         for(Long id:removals){
             if(id==null)continue;
-            if(id<0) supportApi.deleteDocumentAttachment("PURCHASE",full.getId());
-            else supportApi.deleteDocumentAttachment("PURCHASE",full.getId(),id);
+            if(id<0) supportApi.deletePrimaryDocumentAttachment("PURCHASE",full.getId(),expected);
+            else supportApi.deleteDocumentAttachment("PURCHASE",full.getId(),id,expected);
+            Purchase refreshed=purchaseService.getByInvoice(full.getInvoiceNo()); if(refreshed!=null) expected=refreshed.getRowVersion();
         }
         for(PurchaseAttachmentEntry entry:attachments){
-            if(entry!=null&&entry.pending()&&entry.localFile()!=null)
-                supportApi.addDocumentAttachment("PURCHASE",full.getId(),entry.localFile().toPath());
+            if(entry!=null&&entry.pending()&&entry.localFile()!=null){
+                supportApi.addDocumentAttachment("PURCHASE",full.getId(),entry.localFile().toPath(),expected);
+                Purchase refreshed=purchaseService.getByInvoice(full.getInvoiceNo()); if(refreshed!=null) expected=refreshed.getRowVersion();
+            }
         }
     }
 

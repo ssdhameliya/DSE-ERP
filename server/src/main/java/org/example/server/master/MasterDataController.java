@@ -17,6 +17,7 @@ public class MasterDataController {
 
  @GetMapping("/items") public List<MasterDtos.ItemDto> items(){return service.items();}
  @GetMapping("/items/search") public List<MasterDtos.ItemDto> searchItems(@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="25") int limit){return service.searchItems(q,limit);}
+ @PostMapping("/items/by-codes") public List<MasterDtos.ItemDto> itemsByCodes(@RequestBody List<String> codes){return service.itemsByCodes(codes);}
  @GetMapping("/sales-entry-bootstrap") public MasterDtos.SalesEntryBootstrap salesEntryBootstrap(){return service.salesEntryBootstrap();}
  @PostMapping("/items") public MasterDtos.ItemDto saveItem(@RequestBody MasterDtos.ItemDto d){return service.saveItem(d);}
  @PutMapping("/items") public MasterDtos.ItemDto updateItem(@RequestBody MasterDtos.ItemDto d){return service.updateItem(d);}

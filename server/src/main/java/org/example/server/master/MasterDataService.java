@@ -259,6 +259,17 @@ public class MasterDataService {
             .stream().map(this::itemDto).toList();
     }
 
+    public List<MasterDtos.ItemDto> itemsByCodes(Collection<String> codes) {
+        CurrentUser.requirePermission("INVENTORY.VIEW", "Load item details");
+        if(codes==null||codes.isEmpty())return List.of();
+        LinkedHashSet<String> clean=new LinkedHashSet<>();
+        for(String code:codes)if(code!=null&&!code.isBlank())clean.add(code.trim());
+        if(clean.isEmpty())return List.of();
+        if(clean.size()>250)throw new IllegalArgumentException("A maximum of 250 item codes can be loaded at once.");
+        Map<String,Integer> order=new HashMap<>();int pos=0;for(String code:clean)order.put(code.toUpperCase(Locale.ROOT),pos++);
+        return items.findByItemCodeIn(clean).stream().sorted(Comparator.comparingInt(e->order.getOrDefault(Objects.toString(e.getItemCode(),"").toUpperCase(Locale.ROOT),Integer.MAX_VALUE))).map(this::itemDto).toList();
+    }
+
     @Transactional(readOnly = true)
     public MasterDtos.SalesEntryBootstrap salesEntryBootstrap() {
         return new MasterDtos.SalesEntryBootstrap(

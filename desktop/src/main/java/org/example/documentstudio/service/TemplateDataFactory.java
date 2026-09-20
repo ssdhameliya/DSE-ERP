@@ -1,5 +1,6 @@
 package org.example.documentstudio.service;
 
+import org.example.api.ApiSession;
 import org.example.api.quotation.QuotationApiClient;
 import org.example.api.returns.ReturnApiClient;
 import org.example.config.ConfigManager;
@@ -26,8 +27,10 @@ import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -164,7 +167,7 @@ public final class TemplateDataFactory {
         }
 
         List<TaxInvoiceItem> items = new ArrayList<>();
-        Map<String, Item> itemByCode = itemMasterByCode();
+        Map<String, Item> itemByCode = itemMasterByCode(details.lines()==null?List.of():details.lines().stream().map(ReturnApiClient.Line::code).toList());
         double subtotal = 0, discount = 0, gst = 0;
         int serial = 1;
         if (details.lines() != null) for (ReturnApiClient.Line line : details.lines()) {
@@ -174,8 +177,9 @@ public final class TemplateDataFactory {
             gst += f.tax();
             String code = safe(line.code());
             Item master = itemByCode.get(normalize(code));
-            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(),
-                    safeOr(line.unit(), "Nos"), line.rate(), f.discountPercent(), line.tax(), master));
+            items.add(returnItemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(),
+                    safeOr(line.unit(), "Nos"), line.rate(), f.discountPercent(), line.tax(), master,
+                    f.taxable(), f.tax(), line.amount()));
         }
         put(v, "totals.subtotal", money(subtotal));
         put(v, "totals.discountAmount", money(discount));
@@ -216,7 +220,7 @@ public final class TemplateDataFactory {
         }
 
         List<TaxInvoiceItem> items = new ArrayList<>();
-        Map<String, Item> itemByCode = itemMasterByCode();
+        Map<String, Item> itemByCode = itemMasterByCode(details.lines()==null?List.of():details.lines().stream().map(ReturnApiClient.Line::code).toList());
         double subtotal = 0, discount = 0, gst = 0;
         int serial = 1;
         if (details.lines() != null) for (ReturnApiClient.Line line : details.lines()) {
@@ -226,8 +230,9 @@ public final class TemplateDataFactory {
             gst += f.tax();
             String code = safe(line.code());
             Item master = itemByCode.get(normalize(code));
-            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(),
-                    safeOr(line.unit(), "Nos"), line.rate(), f.discountPercent(), line.tax(), master));
+            items.add(returnItemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(),
+                    safeOr(line.unit(), "Nos"), line.rate(), f.discountPercent(), line.tax(), master,
+                    f.taxable(), f.tax(), line.amount()));
         }
         put(v, "totals.subtotal", money(subtotal));
         put(v, "totals.discountAmount", money(discount));
@@ -553,7 +558,7 @@ public final class TemplateDataFactory {
 
 
     private static List<TaxInvoiceItem> salesItems(Sales sale) {
-        Map<String, Item> itemByCode = itemMasterByCode();
+        Map<String, Item> itemByCode = itemMasterByCode((sale.getLines()==null?List.<SalesLine>of():sale.getLines()).stream().map(SalesLine::getItemCode).toList());
         List<TaxInvoiceItem> items = new ArrayList<>();
         int serial = 1;
         for (SalesLine line : sale.getLines() == null ? List.<SalesLine>of() : sale.getLines()) {
@@ -570,7 +575,7 @@ public final class TemplateDataFactory {
     }
 
     private static List<TaxInvoiceItem> purchaseItems(Purchase purchase) {
-        Map<String, Item> itemByCode = itemMasterByCode();
+        Map<String, Item> itemByCode = itemMasterByCode((purchase.getLines()==null?List.<PurchaseLine>of():purchase.getLines()).stream().map(PurchaseLine::getItemCode).toList());
         List<TaxInvoiceItem> items = new ArrayList<>();
         int serial = 1;
         for (PurchaseLine line : purchase.getLines() == null ? List.<PurchaseLine>of() : purchase.getLines()) {
@@ -587,7 +592,7 @@ public final class TemplateDataFactory {
     }
 
     private static List<TaxInvoiceItem> quotationItems(List<QuotationApiClient.LineDto> lines) {
-        Map<String, Item> itemByCode = itemMasterByCode();
+        Map<String, Item> itemByCode = itemMasterByCode((lines==null?List.<QuotationApiClient.LineDto>of():lines).stream().map(QuotationApiClient.LineDto::code).toList());
         List<TaxInvoiceItem> items = new ArrayList<>();
         int serial = 1;
         for (QuotationApiClient.LineDto line : lines == null ? List.<QuotationApiClient.LineDto>of() : lines) {
@@ -601,14 +606,37 @@ public final class TemplateDataFactory {
         return items;
     }
 
-    private static Map<String, Item> itemMasterByCode() {
+    private static Map<String, Item> itemMasterByCode(Collection<String> codes) {
         Map<String, Item> itemByCode = new HashMap<>();
+        LinkedHashSet<String> requested=new LinkedHashSet<>();
+        if(codes!=null)for(String code:codes)if(code!=null&&!code.isBlank())requested.add(code.trim());
+        if(requested.isEmpty())return itemByCode;
+        // Pure/offline render tests and local preview fixtures intentionally rely on immutable line snapshots.
+        // When authenticated, metadata lookup is authoritative and failures are surfaced rather than silently ignored.
+        if(!ApiSession.isEstablished())return itemByCode;
         try {
-            for (Item item : new ItemDAO().getAll()) {
+            for (Item item : new ItemDAO().getByCodes(requested)) {
                 if (item != null && item.getItemCode() != null) itemByCode.put(normalize(item.getItemCode()), item);
             }
-        } catch (Exception ignored) { }
+        } catch (Exception failure) {
+            throw new IllegalStateException("Item metadata could not be loaded for document rendering.",failure);
+        }
         return itemByCode;
+    }
+
+    private static TaxInvoiceItem returnItemWithMaster(int serial, String code, String description, String remarks, String snapshotHsn,
+                                                        double quantity, String unit, double rate, double discount, double gst,
+                                                        Item master, double authoritativeTaxable, double authoritativeTax, double authoritativeTotal) {
+        String hsn = firstNonBlank(snapshotHsn, master == null ? "" : safe(master.getHsn()));
+        return new TaxInvoiceItem(serial, hsn, description, remarks, quantity, unit, rate, discount, gst,
+                code,
+                master == null ? "" : safe(master.getCategory()), master == null ? "" : safe(master.getBrand()),
+                master == null ? "" : safe(master.getMaterial()), master == null ? "" : safe(master.getSize()),
+                master == null ? "" : safe(master.getLocation()), master == null ? 0 : master.getPurchasePrice(),
+                master == null ? 0 : master.getSellingPrice(), master == null ? 0 : master.getAvailableStock(),
+                master == null ? 0 : master.getOpeningStock(), master == null ? 0 : master.getMinimumStock(),
+                master == null ? 0 : master.getReservedStock(), master == null ? 0 : master.getGst(),
+                master == null ? 0 : master.getDiscountPercent(), authoritativeTaxable, authoritativeTax, authoritativeTotal);
     }
 
     private static TaxInvoiceItem itemWithMaster(int serial, String code, String description, String remarks, String snapshotHsn,

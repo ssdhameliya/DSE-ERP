@@ -522,7 +522,7 @@ public final class ExcelTemplateRenderer {
         v.put("item.material",safe(item.getMaterial()));
         v.put("item.size",safe(item.getSize()));
         v.put("item.hsn",safe(item.getHsn()));
-        v.put("item.quantity",number(item.getQuantity()));v.put("item.unit",safe(item.getUnit()));v.put("item.rate",money(item.getRate()));
+        v.put("item.quantity",quantityNumber(item.getQuantity()));v.put("item.unit",safe(item.getUnit()));v.put("item.rate",money(item.getRate()));
         v.put("item.discountPercent",number(item.getDiscountPercent()));v.put("item.discountAmount",money(result.discountAmount()));v.put("item.taxable",money(result.taxableAmount()));
         v.put("item.gstPercent",number(item.getGstPercent()));v.put("item.gstAmount",money(result.taxAmount()));
         boolean interstate=DocumentCalculationEngine.taxMode(gstType)==DocumentCalculationEngine.TaxMode.IGST;
@@ -648,6 +648,13 @@ public final class ExcelTemplateRenderer {
     private static void writeReplacedValue(Cell cell,String source,String replaced){
         Matcher whole=WHOLE_TOKEN.matcher(source==null?"":source);
         String numeric=replaced==null?"":replaced.replace(",","").trim();
+        // Keep absent ERP values as true blank cells. Writing "" creates an empty
+        // shared-string entry and some lightweight XLSX previewers display its internal
+        // sharedStrings.xml index (for example 57/107) instead of a blank value.
+        if (replaced == null || replaced.isBlank()) {
+            cell.setBlank();
+            return;
+        }
         if(whole.matches() && isNumericExcelField(whole.group(1)) && numeric.matches("-?\\d+(\\.\\d+)?")){
             try{double value=Double.parseDouble(numeric);cell.setCellValue(value);if(requiresTwoDecimalMoneyFormat(whole.group(1)))ensureTwoDecimalMoneyFormat(cell);return;}catch(Exception ignored){}
         }
@@ -678,6 +685,6 @@ public final class ExcelTemplateRenderer {
         return d+"\n"+r;
     }
 
-    private static String money(double value){return String.format(Locale.ROOT,"%.2f",value);} private static String number(double value){return Math.rint(value)==value?String.format(Locale.ROOT,"%.0f",value):String.format(Locale.ROOT,"%.2f",value);} private static String safe(String v){return v==null?"":v;}
+    private static String money(double value){return String.format(Locale.ROOT,"%.2f",value);} private static String number(double value){return Math.rint(value)==value?String.format(Locale.ROOT,"%.0f",value):String.format(Locale.ROOT,"%.2f",value);} private static String quantityNumber(double value){double q=DocumentCalculationEngine.quantity(value);return java.math.BigDecimal.valueOf(q).stripTrailingZeros().toPlainString();} private static String safe(String v){return v==null?"":v;}
     private static String rootMessage(Throwable e){Throwable r=e;while(r.getCause()!=null&&r.getCause()!=r)r=r.getCause();return r.getMessage()==null?r.getClass().getSimpleName():r.getMessage();}
 }

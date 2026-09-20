@@ -25,10 +25,10 @@ public final class ReportScheduleApiClient {
     public ScheduleRow create(ScheduleRequest value) { return request("POST", base, value, ScheduleRow.class, null); }
     public ScheduleRow update(long id, ScheduleRequest value) { return request("PUT", base + "/" + id, value, ScheduleRow.class, null); }
     public Result run(long id) { return request("POST", base + "/" + id + "/run", null, Result.class, null); }
-    public Result pause(long id) { return request("POST", base + "/" + id + "/pause", null, Result.class, null); }
-    public Result resume(long id) { return request("POST", base + "/" + id + "/resume", null, Result.class, null); }
+    public Result pause(long id,long rowVersion) { return request("POST", base + "/" + id + "/pause?rowVersion=" + rowVersion, null, Result.class, null); }
+    public Result resume(long id,long rowVersion) { return request("POST", base + "/" + id + "/resume?rowVersion=" + rowVersion, null, Result.class, null); }
     public ScheduleRow duplicate(long id) { return request("POST", base + "/" + id + "/duplicate", null, ScheduleRow.class, null); }
-    public Result delete(long id) { return request("DELETE", base + "/" + id, null, Result.class, null); }
+    public Result delete(long id,long rowVersion) { return request("DELETE", base + "/" + id + "?rowVersion=" + rowVersion, null, Result.class, null); }
     public List<RunHistory> history(long id) { return request("GET", base + "/" + id + "/history", null, null, new TypeReference<List<RunHistory>>(){}); }
 
     private <T>T request(String method,String uri,Object body,Class<T> cls,TypeReference<T> type){
@@ -47,8 +47,8 @@ public final class ReportScheduleApiClient {
         catch(IOException|IllegalArgumentException e){throw new IllegalStateException("Cannot reach scheduled reporting service",e);}
     }
 
-    public record ScheduleRow(long id,String name,String savedReport,String reportTitle,String datePreset,String frequency,Integer dayOfWeek,Integer dayOfMonth,Integer monthOfYear,String time,String format,String delivery,String recipients,String nextRun,String lastRun,String status,String lastStatus,String lastError){}
-    public record ScheduleRequest(String name,String savedReport,String frequency,Integer dayOfWeek,Integer dayOfMonth,Integer monthOfYear,String time,String format,String delivery,String recipients){}
+    public record ScheduleRow(long id,String name,String savedReport,String reportTitle,String datePreset,String frequency,Integer dayOfWeek,Integer dayOfMonth,Integer monthOfYear,String time,String format,String delivery,String recipients,String nextRun,String lastRun,String status,String lastStatus,String lastError,long rowVersion){}
+    public record ScheduleRequest(String name,String savedReport,String frequency,Integer dayOfWeek,Integer dayOfMonth,Integer monthOfYear,String time,String format,String delivery,String recipients,long rowVersion){}
     public record ScheduleSummary(long activeSchedules,String nextRun,String nextSchedule,long reportsThisMonth,long failuresLast30Days){}
     public record SavedReportOption(String name,String reportId,String title,String datePreset){ @Override public String toString(){return name+(title==null||title.isBlank()?"":"  —  "+title);} }
     public record RunHistory(long id,long scheduleId,String startedAt,String finishedAt,String status,String reportTitle,String format,String delivery,long rowCount,String artifacts,String error,String triggeredBy){}

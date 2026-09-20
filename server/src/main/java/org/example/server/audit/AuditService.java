@@ -117,8 +117,15 @@ public class AuditService {
     private List<AuditDtos.EventRow> load(String suffix,Object...args){
         List<Base> base=jdbc.query("SELECT e.id,e.entity_type,e.entity_id,COALESCE(e.reference_no,''),e.action,e.category,COALESCE(e.detail,''),e.created_by,e.created_at,COALESCE(e.source,'SERVER'),COALESCE(e.legacy_source,'') FROM audit_event e "+suffix,
                 (r,i)->new Base(r.getLong(1),r.getString(2),r.getLong(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getString(9),r.getString(10),r.getString(11)),args);
+        if(base.isEmpty())return List.of();
+        String placeholders=String.join(",",Collections.nCopies(base.size(),"?"));
+        Object[] ids=base.stream().map(Base::id).toArray();
+        Map<Long,List<AuditDtos.ChangeRow>> byEvent=new HashMap<>();
+        jdbc.query("SELECT audit_event_id,id,field_name,COALESCE(old_value,''),COALESCE(new_value,'') FROM audit_change WHERE audit_event_id IN ("+placeholders+") ORDER BY audit_event_id,id",r->{
+            long eventId=r.getLong(1);byEvent.computeIfAbsent(eventId,k->new ArrayList<>()).add(new AuditDtos.ChangeRow(r.getLong(2),r.getString(3),r.getString(4),r.getString(5)));
+        },ids);
         List<AuditDtos.EventRow> out=new ArrayList<>(base.size());
-        for(Base e:base){List<AuditDtos.ChangeRow> changes=jdbc.query("SELECT id,field_name,COALESCE(old_value,''),COALESCE(new_value,'') FROM audit_change WHERE audit_event_id=? ORDER BY id",(r,i)->new AuditDtos.ChangeRow(r.getLong(1),r.getString(2),r.getString(3),r.getString(4)),e.id());out.add(new AuditDtos.EventRow(e.id(),e.type(),e.entityId(),e.reference(),e.action(),e.category(),e.detail(),e.user(),e.at(),e.source(),e.legacy(),changes));}
+        for(Base e:base)out.add(new AuditDtos.EventRow(e.id(),e.type(),e.entityId(),e.reference(),e.action(),e.category(),e.detail(),e.user(),e.at(),e.source(),e.legacy(),List.copyOf(byEvent.getOrDefault(e.id(),List.of()))));
         return List.copyOf(out);
     }
 

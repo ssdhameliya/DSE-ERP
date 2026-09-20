@@ -530,10 +530,10 @@ public final class ProfessionalUiEnhancer {
 
         table.addEventFilter(MouseEvent.MOUSE_MOVED, event -> {
             TableCell cell = findTableCell(event.getPickResult().getIntersectedNode());
-            Object previous = table.getProperties().put("erp-hovered-table-cell", cell);
-            if (previous instanceof TableCell previousCell && previousCell != cell) {
-                clearManagedTooltip(previousCell);
-            }
+            Object previous = table.getProperties().get("erp-hovered-table-cell");
+            if (previous == cell) return; // mouse movement inside one cell performs zero repeated measurement work
+            table.getProperties().put("erp-hovered-table-cell", cell);
+            if (previous instanceof TableCell previousCell) clearManagedTooltip(previousCell);
             if (cell == null || cell.isEmpty()) return;
 
             String value = cell.getText();
@@ -542,7 +542,9 @@ public final class ProfessionalUiEnhancer {
                 return;
             }
 
-            Text measurement = new Text(value);
+            Text measurement = (Text) table.getProperties().computeIfAbsent(
+                    "erp-cell-tooltip-measurement", ignored -> new Text());
+            measurement.setText(value);
             measurement.setFont(cell.getFont());
             double availableWidth = Math.max(0, cell.getWidth() - 18);
             boolean clipped = measurement.getLayoutBounds().getWidth() > availableWidth;

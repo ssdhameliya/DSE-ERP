@@ -24,6 +24,9 @@ public final class TaxInvoiceItem {
     private final double reservedStock;
     private final double masterGstPercent;
     private final double masterDiscountPercent;
+    private final Double authoritativeTaxableAmount;
+    private final Double authoritativeTaxAmount;
+    private final Double authoritativeTotalAmount;
 
     public TaxInvoiceItem(int serialNo, String hsn, String description, String remarks, double quantity,
                           String unit, double rate, double discountPercent, double gstPercent) {
@@ -37,6 +40,18 @@ public final class TaxInvoiceItem {
                           String location, double purchasePrice, double sellingPrice, double availableStock,
                           double openingStock, double minimumStock, double reservedStock,
                           double masterGstPercent, double masterDiscountPercent) {
+        this(serialNo, hsn, description, remarks, quantity, unit, rate, discountPercent, gstPercent,
+                itemCode, category, brand, material, size, location, purchasePrice, sellingPrice, availableStock,
+                openingStock, minimumStock, reservedStock, masterGstPercent, masterDiscountPercent, null, null, null);
+    }
+
+    public TaxInvoiceItem(int serialNo, String hsn, String description, String remarks, double quantity,
+                          String unit, double rate, double discountPercent, double gstPercent,
+                          String itemCode, String category, String brand, String material, String size,
+                          String location, double purchasePrice, double sellingPrice, double availableStock,
+                          double openingStock, double minimumStock, double reservedStock,
+                          double masterGstPercent, double masterDiscountPercent,
+                          Double authoritativeTaxableAmount, Double authoritativeTaxAmount, Double authoritativeTotalAmount) {
         this.serialNo = serialNo;
         this.hsn = safe(hsn);
         this.description = safe(description);
@@ -60,6 +75,9 @@ public final class TaxInvoiceItem {
         this.reservedStock = reservedStock;
         this.masterGstPercent = masterGstPercent;
         this.masterDiscountPercent = masterDiscountPercent;
+        this.authoritativeTaxableAmount = authoritativeTaxableAmount;
+        this.authoritativeTaxAmount = authoritativeTaxAmount;
+        this.authoritativeTotalAmount = authoritativeTotalAmount;
     }
 
     public int getSerialNo() { return serialNo; }
@@ -86,10 +104,10 @@ public final class TaxInvoiceItem {
     public double getMasterGstPercent() { return masterGstPercent; }
     public double getMasterDiscountPercent() { return masterDiscountPercent; }
     public double getGrossAmount() { return quantity * rate; }
-    public double getDiscountAmount() { return getGrossAmount() * discountPercent / 100.0; }
-    public double getTaxableAmount() { return getGrossAmount() - getDiscountAmount(); }
-    public double getTaxAmount() { return getTaxableAmount() * gstPercent / 100.0; }
-    public double getTotalAmount() { return getTaxableAmount() + getTaxAmount(); }
+    public double getDiscountAmount() { return authoritativeTaxableAmount != null ? Math.max(0, getGrossAmount() - authoritativeTaxableAmount) : getGrossAmount() * discountPercent / 100.0; }
+    public double getTaxableAmount() { return authoritativeTaxableAmount != null ? authoritativeTaxableAmount : getGrossAmount() - getDiscountAmount(); }
+    public double getTaxAmount() { return authoritativeTaxAmount != null ? authoritativeTaxAmount : getTaxableAmount() * gstPercent / 100.0; }
+    public double getTotalAmount() { return authoritativeTotalAmount != null ? authoritativeTotalAmount : getTaxableAmount() + getTaxAmount(); }
 
     private static String safe(String value) { return value == null ? "" : value.trim(); }
 }

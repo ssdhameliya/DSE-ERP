@@ -3,6 +3,7 @@ package org.example.util;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.geometry.Bounds;
+import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -13,6 +14,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogEvent;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -80,6 +82,53 @@ class CentralUiRuntimeRegressionTest {
                 return null;
             });
         }
+    }
+
+    @Test
+    void denseRegisterFillsViewportAndVerticalScrollingDoesNotTriggerWidthGenerations() throws Exception {
+        AtomicReference<TableView<String>> tableRef = new AtomicReference<>();
+        fx(() -> {
+            TableView<String> table = new TableView<>();
+            String[] headings = {"Invoice No.", "Date", "Customer", "Mobile", "GSTIN", "Amount", "Paid",
+                    "Pending", "Payment Due", "Document Status", "Payment Status", "Email", "Actions"};
+            for (String heading : headings) {
+                TableColumn<String, String> column = new TableColumn<>(heading);
+                column.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue()));
+                table.getColumns().add(column);
+            }
+            for (int i = 0; i < 500; i++) table.getItems().add("JI/25-2026/" + String.format("%04d", i));
+            ProfessionalUiEnhancer.enhance(table);
+            VBox root = new VBox(table);
+            VBox.setVgrow(table, Priority.ALWAYS);
+            stage = new Stage();
+            stage.setScene(new Scene(root, 1280, 520));
+            stage.getScene().getStylesheets().setAll(ResourceLocator.require("/css/light-theme.css").toExternalForm());
+            stage.show();
+            tableRef.set(table);
+            return null;
+        });
+        settle(10);
+
+        TableView<String> table = tableRef.get();
+        long before = fx(() -> ((Number) table.getProperties().get("erp.table.dynamic-layout.generation")).longValue());
+        for (int i = 0; i < 16; i++) {
+            int index = (i & 1) == 0 ? 499 : 0;
+            fx(() -> { table.scrollTo(index); return null; });
+        }
+        settle(6);
+        long after = fx(() -> ((Number) table.getProperties().get("erp.table.dynamic-layout.generation")).longValue());
+        assertEquals(before, after, "Vertical VirtualFlow scrolling must not request column-width generations");
+
+        double widthSum = fx(() -> table.getVisibleLeafColumns().stream().mapToDouble(TableColumn::getWidth).sum());
+        double tableWidth = fx(table::getWidth);
+        assertTrue(Math.abs(tableWidth - widthSum) < 32,
+                "Visible columns must consume the viewport without a large right-side filler: table=" + tableWidth + " columns=" + widthSum);
+        boolean horizontalVisible = fx(() -> table.lookupAll(".scroll-bar").stream()
+                .filter(ScrollBar.class::isInstance).map(ScrollBar.class::cast)
+                .anyMatch(bar -> bar.getOrientation() == Orientation.HORIZONTAL && bar.isVisible()));
+        assertTrue(!horizontalVisible, "Normal dense ERP registers must not require horizontal scrolling");
+        assertTrue(fx(() -> table.getVisibleLeafColumns().stream().allMatch(c -> c.getGraphic() != null)),
+                "Every visible semantic header must retain its coloured icon + label graphic");
     }
 
     @Test
@@ -503,7 +552,7 @@ class CentralUiRuntimeRegressionTest {
             double buttonWidth = fx(button::getWidth);
             assertTrue(graphicWidth > 8, "shell icon graphic must have rendered width");
             assertTrue(graphicWidth <= buttonWidth - 2,
-                    "shell icon graphic must fit the 44px control: graphic=" + graphicWidth + " button=" + buttonWidth);
+                    "shell icon graphic must fit the 44px control:  graphic=" + graphicWidth + " button=" + buttonWidth);
         }
         assertNotNull(fx(theme::getGraphic), "theme switch icon must exist");
         double themeGraphic = fx(() -> theme.getGraphic().getLayoutBounds().getWidth());

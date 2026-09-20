@@ -1,5 +1,6 @@
 package org.example.documentstudio.service;
 
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -15,6 +16,27 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CanonicalExcelTemplateRendererTest {
+    @Test
+    void emptyErpPlaceholderBecomesTrueBlankCellRatherThanEmptySharedString() throws Exception {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Invoice");
+            var blankField = sheet.createRow(0).createCell(0);
+            blankField.setCellValue("{{sales.paymentTerms}}");
+            var realField = sheet.getRow(0).createCell(1);
+            realField.setCellValue("{{sales.number}}");
+
+            TemplateData data = new TemplateData(
+                    Map.of("sales.paymentTerms", "", "sales.number", "INV-001"),
+                    Map.of(), List.of(), List.of(), "GST");
+
+            ExcelTemplateRenderer.fillWorkbook(workbook, data, List.of());
+
+            assertEquals(CellType.BLANK, blankField.getCellType(),
+                    "Blank ERP values must not be stored as empty shared-string cells");
+            assertEquals("INV-001", realField.getStringCellValue());
+        }
+    }
+
     @Test
     void serverRendererRepeatsContiguousMultiRowItemBlockAsOneUnit() throws Exception {
         try (Workbook workbook = new XSSFWorkbook()) {

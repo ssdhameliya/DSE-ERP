@@ -115,6 +115,18 @@ public class ReturnService {
         return out;
     }
 
+    @Transactional(readOnly = true)
+    public List<ReturnDtos.ReturnableLine> returnableLines(String type, String invoice) {
+        String normalized=normalizeType(type); boolean sales="SALES RETURN".equals(normalized);
+        String line=sales?"sales_line":"purchase_line", header=sales?"sales_header":"purchase_header", fk=sales?"sales_id":"purchase_id";
+        String description="COALESCE(NULLIF(l.item_description_snapshot,''),im.description,l.item_code)";
+        String sql="SELECT l.id,l.item_code,"+description+",l.quantity,l.rate,COALESCE(l.discount_percent,0),COALESCE(l.gst_percent,0),COALESCE(l.line_total,0),"+
+                "COALESCE((SELECT SUM(r.quantity) FROM return_register r WHERE r.source_line_id=l.id AND UPPER(COALESCE(r.return_type,'')) IN ("+(sales?"'SALE RETURN','SALES RETURN'":"'PURCHASE RETURN'")+") AND UPPER(COALESCE(r.status,'PENDING APPROVAL')) IN ('PENDING APPROVAL','APPROVED')),0),"+
+                "COALESCE((SELECT SUM(r.amount) FROM return_register r WHERE r.source_line_id=l.id AND UPPER(COALESCE(r.return_type,'')) IN ("+(sales?"'SALE RETURN','SALES RETURN'":"'PURCHASE RETURN'")+") AND UPPER(COALESCE(r.status,'PENDING APPROVAL')) IN ('PENDING APPROVAL','APPROVED')),0) " +
+                "FROM "+line+" l JOIN "+header+" h ON h.id=l."+fk+" LEFT JOIN item_master im ON im.item_code=l.item_code WHERE h.invoice_no=? ORDER BY l.id";
+        return jdbc.query(sql,(r,i)->new ReturnDtos.ReturnableLine(r.getLong(1),r.getString(2),r.getString(3),r.getDouble(4),r.getDouble(5),r.getDouble(6),r.getDouble(7),r.getDouble(8),r.getDouble(9),r.getDouble(10)),invoice);
+    }
+
     @Transactional
     public ReturnDtos.Created create(ReturnDtos.CreateRequest d) {
         if (d == null || d.lines() == null || d.lines().isEmpty()) throw new IllegalArgumentException("Select at least one item to return.");
@@ -138,9 +150,11 @@ public class ReturnService {
         for (var requested : d.lines()) {
             if (requested.code() == null || requested.code().isBlank()) throw new IllegalArgumentException("Return item code is required.");
             if (!Double.isFinite(requested.quantity()) || requested.quantity() <= 0) throw new IllegalArgumentException("Return quantity must be a finite number greater than zero.");
-            double already = returnedQuantity(type, d.invoiceNo(), requested.code());
-            List<OriginalLine> originals = originalLines(sales, d.invoiceNo(), requested.code());
+            List<OriginalLine> originals = requested.sourceLineId()!=null
+                    ? originalLines(sales,d.invoiceNo(),requested.code()).stream().filter(line->line.id()==requested.sourceLineId()).toList()
+                    : originalLines(sales, d.invoiceNo(), requested.code());
             double invoiced = originals.stream().mapToDouble(OriginalLine::quantity).sum();
+            double already = originals.stream().mapToDouble(OriginalLine::returnedQuantity).sum();
             if (invoiced <= 0) throw new IllegalArgumentException("Item " + requested.code() + " is not present on invoice " + d.invoiceNo() + ".");
             if (requested.quantity() > invoiced - already + .0001) throw new IllegalArgumentException("Return quantity exceeds the remaining invoiced quantity for " + requested.code() + ".");
 
@@ -198,8 +212,14 @@ public class ReturnService {
     }
 
     @Transactional(readOnly = true)
-    public List<ReturnDtos.Settlement> settlements(String type) {
+    public List<ReturnDtos.Settlement> settlements(String type) { return settlements(type,List.of()); }
+
+    @Transactional(readOnly = true)
+    public List<ReturnDtos.Settlement> settlements(String type, Collection<String> invoices) {
         String normalized = normalizeType(type);
+        LinkedHashSet<String> invoiceFilter=new LinkedHashSet<>();
+        if(invoices!=null)for(String invoice:invoices)if(invoice!=null&&!invoice.isBlank())invoiceFilter.add(invoice.trim());
+        if(invoiceFilter.size()>250)throw new IllegalArgumentException("A maximum of 250 invoices can be enriched at once.");
         boolean salesReturn = "SALES RETURN".equals(normalized);
         String originalQtySql = salesReturn
             ? "COALESCE((SELECT SUM(COALESCE(sl.quantity,0)) FROM sales_line sl JOIN sales_header sh ON sh.id=sl.sales_id WHERE sh.invoice_no=a.invoice_no),0)"
@@ -222,7 +242,10 @@ public class ReturnService {
             "SUM(COALESCE(r.amount,0)) return_total,SUM(COALESCE(r.quantity,0)) return_qty," +
             "COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no=r.return_no),0) refunded," +
             "MAX(r.settlement_due_date) due_date FROM return_register r WHERE r.return_type=? AND UPPER(COALESCE(r.status,'PENDING APPROVAL')) IN ('PENDING APPROVAL','APPROVED') GROUP BY r.return_no" +
-            ") x GROUP BY x.invoice_no) a WHERE a.waiting_count>0 OR a.approved_total>0 ORDER BY a.invoice_no";
+            ") x GROUP BY x.invoice_no) a WHERE (a.waiting_count>0 OR a.approved_total>0)" +
+            (invoiceFilter.isEmpty()?"":" AND a.invoice_no IN ("+String.join(",",Collections.nCopies(invoiceFilter.size(),"?"))+")") +
+            " ORDER BY a.invoice_no";
+        List<Object> queryArgs=new ArrayList<>();queryArgs.add(normalized);queryArgs.addAll(invoiceFilter);
         return jdbc.query(sql, (r, i) -> {
             double approved = r.getDouble(2), settled = r.getDouble(3), returnedQty = r.getDouble(7), originalQty = r.getDouble(8);
             long unreturnedLines = r.getLong(9);
@@ -240,7 +263,7 @@ public class ReturnService {
             else refundStatus = "PENDING";
             return new ReturnDtos.Settlement(r.getString(1), current, r.getDouble(4), approved, settled,
                 r.getObject(6) == null ? null : String.valueOf(r.getObject(6)), returnStatus, refundStatus, returnedQty, originalQty);
-        }, normalized);
+        }, queryArgs.toArray());
     }
 
     @Transactional(readOnly = true)
@@ -248,14 +271,14 @@ public class ReturnService {
         List<ReturnDtos.Line> lines = jdbc.query("SELECT COALESCE(NULLIF(sl.item_description_snapshot,''),NULLIF(pl.item_description_snapshot,''),im.description,r.item_code),r.item_code,r.quantity,COALESCE(NULLIF(sl.unit_snapshot,''),NULLIF(pl.unit_snapshot,''),im.unit,'Nos'),COALESCE(sl.rate,pl.rate,0),COALESCE(sl.gst_percent,pl.gst_percent,0),r.amount,COALESCE(r.reason,'') FROM return_register r LEFT JOIN item_master im ON im.item_code=r.item_code LEFT JOIN sales_line sl ON r.return_type='SALES RETURN' AND sl.id=r.source_line_id LEFT JOIN purchase_line pl ON r.return_type='PURCHASE RETURN' AND pl.id=r.source_line_id WHERE r.return_no=? ORDER BY r.id",
             (r, i) -> new ReturnDtos.Line(r.getString(1), r.getString(2), r.getDouble(3), r.getString(4), r.getDouble(5), r.getDouble(6), r.getDouble(7), r.getString(8)), no);
         if (lines.isEmpty()) throw new IllegalArgumentException("Return not found: " + no);
-        Map<String, Object> h = jdbc.queryForMap("SELECT MAX(r.return_no) no,MAX(r.return_date) date,MAX(COALESCE(r.invoice_no,'')) invoice,MAX(COALESCE(pm.name,'')) party,MAX(r.return_type) type,MAX(COALESCE(sh.payment_terms,ph.payment_terms,'')) terms,MAX(CASE WHEN UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') THEN 'INR - Indian Rupee' ELSE COALESCE(ph.currency,'INR - Indian Rupee') END) currency,MAX(COALESCE(r.created_at::text,'')) created,MAX(COALESCE(r.updated_at::text,'')) updated,MAX(COALESCE(r.attachment_path,'')) attachment,MAX(COALESCE(r.notes,'')) notes,SUM(r.amount) total,MAX(COALESCE(r.status,'PENDING APPROVAL')) raw_status FROM return_register r LEFT JOIN party_master pm ON pm.id=r.party_id LEFT JOIN sales_header sh ON UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') AND sh.invoice_no=r.invoice_no LEFT JOIN purchase_header ph ON UPPER(COALESCE(r.return_type,''))='PURCHASE RETURN' AND ph.invoice_no=r.invoice_no WHERE r.return_no=?", no);
+        Map<String, Object> h = jdbc.queryForMap("SELECT MAX(r.return_no) no,MAX(r.return_date) date,MAX(COALESCE(r.invoice_no,'')) invoice,MAX(COALESCE(pm.name,'')) party,MAX(r.return_type) type,MAX(COALESCE(sh.payment_terms,ph.payment_terms,'')) terms,MAX(CASE WHEN UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') THEN 'INR - Indian Rupee' ELSE COALESCE(ph.currency,'INR - Indian Rupee') END) currency,MAX(COALESCE(r.created_at::text,'')) created,MAX(COALESCE(r.updated_at::text,'')) updated,MAX(COALESCE(r.attachment_path,'')) attachment,MAX(COALESCE(r.notes,'')) notes,SUM(r.amount) total,MAX(COALESCE(r.status,'PENDING APPROVAL')) raw_status,MAX(COALESCE(r.row_version,0)) row_version FROM return_register r LEFT JOIN party_master pm ON pm.id=r.party_id LEFT JOIN sales_header sh ON UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') AND sh.invoice_no=r.invoice_no LEFT JOIN purchase_header ph ON UPPER(COALESCE(r.return_type,''))='PURCHASE RETURN' AND ph.invoice_no=r.invoice_no WHERE r.return_no=?", no);
         double total = n(h.get("total")), refund = refundTotal(no);
         String raw = Objects.toString(h.get("raw_status"), "PENDING APPROVAL"), refundStatus = lifecycleRefundStatus(raw, total, refund);
-        return new ReturnDtos.Details(no, Objects.toString(h.get("date"), ""), Objects.toString(h.get("invoice"), ""), Objects.toString(h.get("party"), ""), Objects.toString(h.get("type"), ""), Objects.toString(h.get("terms"), ""), Objects.toString(h.get("currency"), "INR - Indian Rupee"), Objects.toString(h.get("created"), ""), Objects.toString(h.get("updated"), ""), Objects.toString(h.get("attachment"), ""), Objects.toString(h.get("notes"), ""), total, refund, raw, refundStatus, lines);
+        return new ReturnDtos.Details(no, Objects.toString(h.get("date"), ""), Objects.toString(h.get("invoice"), ""), Objects.toString(h.get("party"), ""), Objects.toString(h.get("type"), ""), Objects.toString(h.get("terms"), ""), Objects.toString(h.get("currency"), "INR - Indian Rupee"), Objects.toString(h.get("created"), ""), Objects.toString(h.get("updated"), ""), Objects.toString(h.get("attachment"), ""), Objects.toString(h.get("notes"), ""), total, refund, raw, refundStatus, ((Number)h.getOrDefault("row_version",0)).longValue(), lines);
     }
 
     @Transactional
-    public void update(String no, String field, String value) {
+    public void update(String no, String field, String value, long expectedRowVersion) {
         requireReturnPermission(no, "EDIT");
         String requestedField = field == null ? "" : field.trim().toLowerCase(Locale.ROOT);
         // Backward-compatible bridge for existing clients that already submit a Return
@@ -269,8 +292,10 @@ public class ReturnService {
         }
         if (!Set.of("reason", "notes").contains(requestedField)) throw new IllegalArgumentException("Return status is lifecycle-managed and cannot be edited directly.");
         if (RETURN_DOCUMENT_TERMINAL.contains(currentStateForUpdate(no))) throw new IllegalStateException("Rejected, cancelled or deleted Returns cannot be edited.");
+        Long currentVersion=jdbc.queryForObject("SELECT COALESCE(MAX(row_version),0) FROM return_register WHERE return_no=?",Long.class,no);
+        if(currentVersion==null||currentVersion!=expectedRowVersion)throw new org.example.server.web.ConcurrentEditException("Return");
         String oldValue = jdbc.queryForObject("SELECT COALESCE(MAX(" + requestedField + "),'') FROM return_register WHERE return_no=?", String.class, no);
-        jdbc.update("UPDATE return_register SET " + requestedField + "=?,updated_at=? WHERE return_no=?", value, BusinessClock.nowUtcText(), no);
+        jdbc.update("UPDATE return_register SET " + requestedField + "=?,updated_at=?,row_version=row_version+1 WHERE return_no=?", value, BusinessClock.nowUtcText(), no);
         audit.logChange(returnEntityType(no), returnAuditId(no), "UPDATED", no + " • " + requestedField,
                 "reason".equals(requestedField) ? "Reason" : "Notes", oldValue, value);
     }
@@ -323,8 +348,8 @@ public class ReturnService {
     @Transactional
     public void delete(String no, boolean ignoredSalesFlag) {
         requireReturnPermission(no, "DELETE");
-        assertUnrefunded(no);
         String state = currentStateForUpdate(no);
+        assertUnrefunded(no);
         if ("DELETED".equals(state)) return;
         ReturnOrigin origin = origin(no);
         if ("APPROVED".equals(state)) reverseApprovedStock(no, "SALES RETURN".equalsIgnoreCase(origin.type()));
@@ -335,8 +360,8 @@ public class ReturnService {
     @Transactional
     public void cancel(String no, boolean ignoredSalesFlag) {
         requireReturnPermission(no, "EDIT");
-        assertUnrefunded(no);
         String state = currentStateForUpdate(no);
+        assertUnrefunded(no);
         if ("DELETED".equals(state)) throw new IllegalStateException("Deleted Returns cannot be cancelled.");
         if ("CANCELLED".equals(state)) throw new IllegalStateException("This Return is already cancelled.");
         if ("REJECTED".equals(state)) throw new IllegalStateException("Rejected Returns are final. Delete the audit row only if policy allows it.");
@@ -492,6 +517,7 @@ public class ReturnService {
 
     private String normalizeType(String type) {
         String normalized = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        if ("SALE RETURN".equals(normalized)) normalized="SALES RETURN";
         if (!Set.of("SALES RETURN", "PURCHASE RETURN").contains(normalized)) throw new IllegalArgumentException("Return type must be SALES RETURN or PURCHASE RETURN.");
         return normalized;
     }

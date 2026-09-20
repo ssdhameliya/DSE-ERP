@@ -1,7 +1,9 @@
 package org.example.server.auth;
 
+import org.example.server.persistence.JpaNativeRepository;
 import org.example.shared.SecretValueCodec;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -9,16 +11,18 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class TotpService {
     private static final String ALPHABET="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     private static final SecureRandom RANDOM=new SecureRandom();
-    private final Map<String, LoginChallenge> logins=new ConcurrentHashMap<>();
+    private final JpaNativeRepository db;
+
+    public TotpService(JpaNativeRepository db){this.db=db;}
 
     public Setup createSetup(String username, String email){
         byte[] raw=new byte[20]; RANDOM.nextBytes(raw); String secret=base32(raw);
@@ -34,14 +38,40 @@ public class TotpService {
         for(long offset=-1;offset<=1;offset++) if(code.trim().equals(generate(secret,step+offset))) return true;
         return false;
     }
-    public String issueLogin(int userId){cleanup();String id=UUID.randomUUID().toString();logins.put(id,new LoginChallenge(userId,Instant.now().plusSeconds(300).getEpochSecond()));return id;}
-    public Integer consumeLogin(String id){cleanup();LoginChallenge c=logins.remove(id);return c==null?null:c.userId();}
-    public Integer peekLogin(String id){cleanup();LoginChallenge c=logins.get(id);return c==null?null:c.userId();}
-    private void cleanup(){long now=Instant.now().getEpochSecond();logins.entrySet().removeIf(e->e.getValue().expiresAt()<now);}
+
+    @Transactional
+    public String issueLogin(int userId){
+        cleanup();
+        String id=UUID.randomUUID().toString();
+        db.update("INSERT INTO auth_totp_login_challenge(challenge_id,user_id,expires_at,created_at) " +
+                "VALUES(?,?,CURRENT_TIMESTAMP + INTERVAL '5 minutes',CURRENT_TIMESTAMP)", id, userId);
+        return id;
+    }
+
+    @Transactional
+    public Integer consumeLogin(String id){
+        cleanup();
+        if(id==null||id.isBlank())return null;
+        List<Map<String,Object>> rows=db.queryForList("SELECT user_id FROM auth_totp_login_challenge WHERE challenge_id=? AND expires_at>CURRENT_TIMESTAMP FOR UPDATE",id);
+        if(rows.isEmpty())return null;
+        db.update("DELETE FROM auth_totp_login_challenge WHERE challenge_id=?",id);
+        Object value=rows.getFirst().get("user_id");
+        return value instanceof Number number?number.intValue():null;
+    }
+
+    @Transactional(readOnly=true)
+    public Integer peekLogin(String id){
+        if(id==null||id.isBlank())return null;
+        List<Map<String,Object>> rows=db.queryForList("SELECT user_id FROM auth_totp_login_challenge WHERE challenge_id=? AND expires_at>CURRENT_TIMESTAMP",id);
+        if(rows.isEmpty())return null;
+        Object value=rows.getFirst().get("user_id");
+        return value instanceof Number number?number.intValue():null;
+    }
+
+    private void cleanup(){db.update("DELETE FROM auth_totp_login_challenge WHERE expires_at<=CURRENT_TIMESTAMP");}
     private String generate(String secret,long counter){try{byte[] key=decode32(secret);byte[] msg=new byte[8];for(int i=7;i>=0;i--){msg[i]=(byte)(counter&0xff);counter>>>=8;}Mac mac=Mac.getInstance("HmacSHA1");mac.init(new SecretKeySpec(key,"HmacSHA1"));byte[] h=mac.doFinal(msg);int o=h[h.length-1]&15;int bin=((h[o]&127)<<24)|((h[o+1]&255)<<16)|((h[o+2]&255)<<8)|(h[o+3]&255);return String.format(Locale.ROOT,"%06d",bin%1_000_000);}catch(Exception e){throw new IllegalStateException("Unable to verify authenticator code",e);}}
     private static String base32(byte[] bytes){StringBuilder out=new StringBuilder();int buffer=0,bits=0;for(byte b:bytes){buffer=(buffer<<8)|(b&255);bits+=8;while(bits>=5){out.append(ALPHABET.charAt((buffer>>(bits-5))&31));bits-=5;}}if(bits>0)out.append(ALPHABET.charAt((buffer<<(5-bits))&31));return out.toString();}
     private static byte[] decode32(String text){String s=text.replace("=","").replace(" ","").toUpperCase(Locale.ROOT);java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();int buffer=0,bits=0;for(char c:s.toCharArray()){int v=ALPHABET.indexOf(c);if(v<0)throw new IllegalArgumentException("Invalid authenticator secret");buffer=(buffer<<5)|v;bits+=5;if(bits>=8){out.write((buffer>>(bits-8))&255);bits-=8;}}return out.toByteArray();}
     private static String enc(String v){return URLEncoder.encode(v, StandardCharsets.UTF_8).replace("+","%20");}
     public record Setup(String manualSecret,String encryptedSecret,String provisioningUri){}
-    private record LoginChallenge(int userId,long expiresAt){}
 }

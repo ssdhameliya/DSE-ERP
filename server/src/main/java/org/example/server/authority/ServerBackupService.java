@@ -1,6 +1,7 @@
 package org.example.server.authority;
 
 import org.example.server.persistence.JpaNativeRepository;
+import org.example.server.util.BusinessClock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,6 @@ public class ServerBackupService {
     private final String deploymentEnvironment;
     private final String applicationVersion;
     private final JpaNativeRepository db;
-    private volatile LocalDate lastScheduled;
 
     public ServerBackupService(@Value("${dse.workspace.path:}") String workspace,
                                @Value("${spring.datasource.url}") String url,
@@ -53,7 +53,7 @@ public class ServerBackupService {
 
     public synchronized BackupFile create(String source) throws IOException {
         Files.createDirectories(root);
-        Path target = root.resolve("DSE-ERP-Server-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pgbackup");
+        Path target = root.resolve("DSE-ERP-Server-" + BusinessClock.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pgbackup");
         runPgDump(target);
         Validation validation = validate(target.getFileName().toString());
         if (!validation.valid()) { Files.deleteIfExists(target); throw new IOException("Backup verification failed: " + validation.message()); }
@@ -61,21 +61,24 @@ public class ServerBackupService {
         return file(target, source == null || source.isBlank() ? "SERVER" : source);
     }
 
-    public synchronized BackupFile importBackup(String originalName, byte[] data) throws IOException {
-        if (data == null || data.length < 16) throw new IOException("The selected backup is empty.");
+    public synchronized BackupFile importBackup(String originalName, InputStream data) throws IOException {
+        if (data == null) throw new IOException("The selected backup is empty.");
         Files.createDirectories(root);
         String base = safeName(originalName == null ? "backup.pgbackup" : originalName);
         if (!base.toLowerCase(Locale.ROOT).endsWith(".pgbackup"))
             throw new IOException("Company-server restore requires a PostgreSQL .pgbackup file.");
-        Path target = root.resolve("Imported-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + "-" + base);
-        Files.write(target, data, StandardOpenOption.CREATE_NEW);
-        Validation validation = validate(target.getFileName().toString());
-        if (!validation.valid()) {
+        Path target = root.resolve("Imported-" + BusinessClock.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + "-" + base);
+        try {
+            copyBounded(data, target, maxBackupUploadBytes());
+            if (Files.size(target) < 16) throw new IOException("The selected backup is empty.");
+            Validation validation = validate(target.getFileName().toString());
+            if (!validation.valid()) throw new IOException(validation.message());
+            retain(retention());
+            return file(target, "IMPORTED");
+        } catch (IOException failure) {
             Files.deleteIfExists(target);
-            throw new IOException(validation.message());
+            throw failure;
         }
-        retain(retention());
-        return file(target, "IMPORTED");
     }
 
     public List<BackupFile> list() throws IOException {
@@ -94,11 +97,13 @@ public class ServerBackupService {
         }
     }
 
-    public byte[] read(String name) throws IOException {
+    public Path readablePath(String name) throws IOException {
         Path file = safe(name);
         if (!Files.isRegularFile(file)) throw new FileNotFoundException(name);
-        return Files.readAllBytes(file);
+        return file;
     }
+
+    public long size(String name) throws IOException { return Files.size(readablePath(name)); }
 
     public Validation validate(String name) throws IOException {
         Path file = safe(name);
@@ -135,7 +140,7 @@ public class ServerBackupService {
     public synchronized RecoveryPackage createRecoveryPackage() throws IOException {
         Path recoveryRoot = workspaceRoot.resolve("Backups").resolve("Recovery");
         Files.createDirectories(recoveryRoot);
-        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        String stamp = BusinessClock.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         String filename = "DSE-ERP-" + deploymentEnvironment + "-Recovery-" + stamp + ".zip";
         Path databaseSnapshot = recoveryRoot.resolve("recovery-" + UUID.randomUUID() + ".pgbackup");
         try {
@@ -145,26 +150,33 @@ public class ServerBackupService {
 
             String databaseName = metrics().databaseName();
             String databaseSha = sha256(databaseSnapshot);
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(bytes))) {
-                Properties manifest = new Properties();
-                manifest.setProperty("format.version", "1");
-                manifest.setProperty("createdAt", Instant.now().toString());
-                manifest.setProperty("application.version", applicationVersion);
-                manifest.setProperty("environment", deploymentEnvironment);
-                manifest.setProperty("database.name", databaseName == null ? "" : databaseName);
-                manifest.setProperty("database.file", "database.pgbackup");
-                manifest.setProperty("database.sha256", databaseSha);
-                manifest.setProperty("files", "Attachments,Documents,Templates");
-                ByteArrayOutputStream manifestBytes = new ByteArrayOutputStream();
-                manifest.store(manifestBytes, "DSE ERP local disaster-recovery package");
-                putZipBytes(zip, "manifest.properties", manifestBytes.toByteArray());
-                putZipFile(zip, databaseSnapshot, "database.pgbackup");
-                addTree(zip, workspaceRoot.resolve("Attachments"), "workspace/Attachments");
-                addTree(zip, workspaceRoot.resolve("Documents"), "workspace/Documents");
-                addTree(zip, workspaceRoot.resolve("Templates"), "workspace/Templates");
+            Path packageFile = recoveryRoot.resolve("package-" + UUID.randomUUID() + ".zip");
+            boolean complete = false;
+            try {
+                try (OutputStream fileOut = Files.newOutputStream(packageFile, StandardOpenOption.CREATE_NEW);
+                     ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(fileOut))) {
+                    Properties manifest = new Properties();
+                    manifest.setProperty("format.version", "1");
+                    manifest.setProperty("createdAt", Instant.now().toString());
+                    manifest.setProperty("application.version", applicationVersion);
+                    manifest.setProperty("environment", deploymentEnvironment);
+                    manifest.setProperty("database.name", databaseName == null ? "" : databaseName);
+                    manifest.setProperty("database.file", "database.pgbackup");
+                    manifest.setProperty("database.sha256", databaseSha);
+                    manifest.setProperty("files", "Attachments,Documents,Templates");
+                    ByteArrayOutputStream manifestBytes = new ByteArrayOutputStream();
+                    manifest.store(manifestBytes, "DSE ERP local disaster-recovery package");
+                    putZipBytes(zip, "manifest.properties", manifestBytes.toByteArray());
+                    putZipFile(zip, databaseSnapshot, "database.pgbackup");
+                    addTree(zip, workspaceRoot.resolve("Attachments"), "workspace/Attachments");
+                    addTree(zip, workspaceRoot.resolve("Documents"), "workspace/Documents");
+                    addTree(zip, workspaceRoot.resolve("Templates"), "workspace/Templates");
+                }
+                complete = true;
+                return new RecoveryPackage(filename, packageFile, Files.size(packageFile), databaseSha, databaseName, deploymentEnvironment, applicationVersion);
+            } finally {
+                if (!complete) Files.deleteIfExists(packageFile);
             }
-            return new RecoveryPackage(filename, bytes.toByteArray(), databaseSha, databaseName, deploymentEnvironment, applicationVersion);
         } finally {
             Files.deleteIfExists(databaseSnapshot);
         }
@@ -209,26 +221,40 @@ public class ServerBackupService {
         }
     }
 
-    public synchronized String stageRestore(String name, byte[] data) throws IOException {
-        if (data == null || data.length < 16) throw new IOException("Restore backup is empty");
+    public synchronized String stageRestore(String name, InputStream data) throws IOException {
+        if (data == null) throw new IOException("Restore backup is empty");
         Files.createDirectories(root);
         Path candidate=root.resolve("restore-validation-"+UUID.randomUUID()+".pgbackup");
         try{
-            Files.write(candidate,data,StandardOpenOption.CREATE_NEW);
+            copyBounded(data,candidate,maxBackupUploadBytes());
+            if(Files.size(candidate)<16)throw new IOException("Restore backup is empty");
             Validation validation=validate(candidate.getFileName().toString());
             if(!validation.valid())throw new IOException(validation.message());
-            Path pending=root.resolve("restore-pending.pgbackup");
-            Files.move(candidate,pending,StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
-            Files.writeString(root.resolve("restore-pending.marker"),"STAGED "+Instant.now()+" "+safeName(name));
+            stageValidatedCandidate(candidate,name);
         }finally{Files.deleteIfExists(candidate);}
         return "Restore staged on the server. Restart the company server with the staged-restore procedure before normal startup.";
     }
 
     public synchronized String stageStoredRestore(String name) throws IOException {
-        Path file = safe(name);
+        Path file = readablePath(name);
         Validation validation = validate(name);
         if (!validation.valid()) throw new IOException(validation.message());
-        return stageRestore(name, Files.readAllBytes(file));
+        Path candidate=root.resolve("restore-validation-"+UUID.randomUUID()+".pgbackup");
+        try {
+            Files.copy(file,candidate,StandardCopyOption.REPLACE_EXISTING);
+            stageValidatedCandidate(candidate,name);
+        } finally { Files.deleteIfExists(candidate); }
+        return "Restore staged on the server. Restart the company server with the staged-restore procedure before normal startup.";
+    }
+
+    private void stageValidatedCandidate(Path candidate,String name) throws IOException {
+        Path pending=root.resolve("restore-pending.pgbackup");
+        try {
+            Files.move(candidate,pending,StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(candidate,pending,StandardCopyOption.REPLACE_EXISTING);
+        }
+        Files.writeString(root.resolve("restore-pending.marker"),"STAGED "+Instant.now()+" "+safeName(name));
     }
 
     public synchronized void deleteSafely(String name) throws IOException {
@@ -236,8 +262,9 @@ public class ServerBackupService {
         if (!Files.isRegularFile(file)) throw new FileNotFoundException(name);
         Path trash = root.resolve(".trash");
         Files.createDirectories(trash);
-        String stamped = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + "-" + file.getFileName();
+        String stamped = BusinessClock.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + "-" + file.getFileName();
         Files.move(file, trash.resolve(stamped), StandardCopyOption.REPLACE_EXISTING);
+        purgeTrash();
     }
 
     public DatabaseMetrics metrics() {
@@ -254,13 +281,22 @@ public class ServerBackupService {
         try {
             String schedule = setting("backup.schedule", "WEEKLY").toUpperCase(Locale.ROOT);
             if ("MANUAL".equals(schedule)) return;
-            LocalDate today = LocalDate.now();
-            boolean due = !today.equals(lastScheduled) && (!"WEEKLY".equals(schedule) || today.getDayOfWeek() == DayOfWeek.SUNDAY);
+            LocalDate today = BusinessClock.today();
+            String stateKey="backup.lastScheduled."+schedule;
+            String previous=schedulerState(stateKey);
+            boolean due = !today.toString().equals(previous) && (!"WEEKLY".equals(schedule) || today.getDayOfWeek() == DayOfWeek.SUNDAY);
             if (due) {
                 create("SCHEDULED");
-                lastScheduled = today;
+                saveSchedulerState(stateKey,today.toString());
+                saveSchedulerState("backup.lastSuccessAt",BusinessClock.nowUtcText());
+                saveSchedulerState("backup.lastError","");
             }
+            purgeTrash();
         } catch (Exception e) {
+            try {
+                saveSchedulerState("backup.lastFailureAt",BusinessClock.nowUtcText());
+                saveSchedulerState("backup.lastError",concise(e.getMessage()));
+            } catch (Exception persistFailure) { e.addSuppressed(persistFailure); }
             System.err.println("Scheduled server backup failed: " + e.getMessage());
         }
     }
@@ -308,12 +344,37 @@ public class ServerBackupService {
     }
 
     private String setting(String key, String fallback) {
-        try {
-            String value = db.queryForObject("SELECT setting_value FROM application_setting WHERE setting_key=?", String.class, key);
-            return value == null || value.isBlank() ? fallback : value;
-        } catch (Exception e) {
-            return fallback;
+        List<String> values=db.query("SELECT setting_value FROM application_setting WHERE setting_key=?",(r,i)->r.getString(1),key);
+        String value=values.isEmpty()?null:values.getFirst();
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private long maxBackupUploadBytes() {
+        try { return Math.max(16L*1024*1024,Long.parseLong(setting("backup.maxUploadBytes","21474836480"))); }
+        catch (NumberFormatException ignored) { return 21474836480L; }
+    }
+
+    private static void copyBounded(InputStream input,Path target,long maxBytes) throws IOException {
+        long total=0;byte[] buffer=new byte[128*1024];
+        try(OutputStream out=Files.newOutputStream(target,StandardOpenOption.CREATE_NEW)){
+            for(int read;(read=input.read(buffer))>=0;){if(read==0)continue;total+=read;if(total>maxBytes)throw new IOException("Backup exceeds the configured maximum upload size.");out.write(buffer,0,read);}
         }
+    }
+
+    private String schedulerState(String key) {
+        List<String> values=db.query("SELECT state_value FROM backup_scheduler_state WHERE state_key=?",(r,i)->r.getString(1),key);
+        return values.isEmpty()?null:values.getFirst();
+    }
+
+    private void saveSchedulerState(String key,String value) {
+        db.update("INSERT INTO backup_scheduler_state(state_key,state_value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(state_key) DO UPDATE SET state_value=excluded.state_value,updated_at=CURRENT_TIMESTAMP",key,value);
+    }
+
+    private void purgeTrash() throws IOException {
+        Path trash=root.resolve(".trash");if(!Files.isDirectory(trash))return;
+        int days;try{days=Math.max(1,Math.min(365,Integer.parseInt(setting("backup.trashRetentionDays","30"))));}catch(NumberFormatException ignored){days=30;}
+        Instant cutoff=BusinessClock.nowUtc().minus(Duration.ofDays(days));
+        try(var files=Files.list(trash)){for(Path file:files.toList())if(Files.isRegularFile(file)&&Files.getLastModifiedTime(file).toInstant().isBefore(cutoff))Files.deleteIfExists(file);}
     }
 
     private void retain(int count) throws IOException {
@@ -366,5 +427,5 @@ public class ServerBackupService {
     public record BackupFile(String name, long size, String createdAt, String source) {}
     public record Validation(boolean valid, String message) {}
     public record DatabaseMetrics(String databaseName, long sizeBytes, boolean ready) {}
-    public record RecoveryPackage(String filename, byte[] bytes, String databaseSha256, String databaseName, String environment, String applicationVersion) {}
+    public record RecoveryPackage(String filename, Path file, long size, String databaseSha256, String databaseName, String environment, String applicationVersion) {}
 }

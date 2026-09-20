@@ -64,6 +64,13 @@ public class QuotationService {
     @Transactional
     public QuotationDtos.QuoteDto quote(int id){CurrentUser.requirePermission("QUOTATION.VIEW","View quotation");expireQuotations();List<QuotationDtos.QuoteDto> rows=jdbc.query(quoteSelect()+" FROM quotation_header q JOIN party_master p ON p.id=q.customer_id WHERE q.id=? AND UPPER(COALESCE(q.status,''))<>'DELETED'",this::mapQuote,id);if(rows.isEmpty())throw new IllegalArgumentException("Quotation not found.");return rows.getFirst();}
 
+
+    @Transactional
+    public QuotationDtos.QuoteDto quoteByNumber(String quotationNo){
+        CurrentUser.requirePermission("QUOTATION.VIEW","View quotation");expireQuotations();String no=trim(quotationNo);if(no==null)throw new IllegalArgumentException("Quotation number is required.");
+        List<QuotationDtos.QuoteDto> rows=jdbc.query(quoteSelect()+" FROM quotation_header q JOIN party_master p ON p.id=q.customer_id WHERE UPPER(q.quotation_no)=UPPER(?) AND UPPER(COALESCE(q.status,''))<>'DELETED'",this::mapQuote,no);
+        if(rows.isEmpty())throw new IllegalArgumentException("Quotation not found: "+no);return rows.getFirst();
+    }
     private void expireQuotations(){jdbc.update("UPDATE quotation_header SET status='EXPIRED',row_version=row_version+1 WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND NULLIF(TRIM(valid_until),'') IS NOT NULL AND dse_safe_date(valid_until) < ?",BusinessClock.today());}
     private String quoteSelect(){return "SELECT q.id,q.customer_id,q.quotation_no,CAST(q.quotation_date AS text),p.name,COALESCE(CAST(q.valid_until AS text),''),COALESCE(q.status,''),COALESCE(CAST(q.follow_up_date AS text),''),COALESCE(q.converted_invoice_no,''),COALESCE(q.salesperson,''),COALESCE(q.created_by,''),COALESCE(q.total_amount,0),COALESCE(p.phone,''),COALESCE(p.email,''),COALESCE(p.gstin,''),COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,''),COALESCE(q.row_version,0)";}
     private QuotationDtos.QuoteDto mapQuote(org.example.server.persistence.JpaNativeRepository.NativeRow r,Integer i){return new QuotationDtos.QuoteDto(r.getInt(1),r.getInt(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getString(9),r.getString(10),r.getString(11),r.getDouble(12),r.getString(13),r.getString(14),r.getString(15),r.getString(16),r.getString(17),r.getDouble(18),r.getString(19),r.getLong(20));}
@@ -75,7 +82,7 @@ public class QuotationService {
         List<QuotationDtos.MetricPoint> statuses=jdbc.query("SELECT "+state+",COUNT(*)"+joins+where+" GROUP BY "+state+" ORDER BY 1",(r,i)->new QuotationDtos.MetricPoint(r.getString(1),r.getDouble(2)),args);
         return new QuotationDtos.Metrics(total,count,pending,pc,accepted,ac,expired,ec,count==0?0:ac*100d/count,count==0?0:total/count,trend,statuses);
     }
-    private static String trim(String v){return v==null||v.isBlank()?null:v.trim();}private static String up(String v){String x=trim(v);return x==null?null:x.toUpperCase(Locale.ROOT);}private static Double numberOrNull(String v){try{return trim(v)==null?null:Double.parseDouble(v.replace(",","").replace("₹","").trim());}catch(Exception e){return null;}}private static LocalDate dateOrNull(String v){try{return trim(v)==null?null:LocalDate.parse(v);}catch(Exception e){return null;}}private static double n(Number v){return v==null?0:v.doubleValue();}private static long l(Number v){return v==null?0:v.longValue();}
+    private static String trim(String v){return v==null||v.isBlank()?null:v.trim();}private static String up(String v){String x=trim(v);return x==null?null:x.toUpperCase(Locale.ROOT);}private static Double numberOrNull(String v){try{return trim(v)==null?null:Double.parseDouble(v.replace(",","").replace("₹","").trim());}catch(Exception e){throw new IllegalArgumentException("Invalid quotation amount filter: "+v);}}private static LocalDate dateOrNull(String v){String x=trim(v);if(x==null)return null;try{return LocalDate.parse(x);}catch(Exception e){throw new IllegalArgumentException("Invalid quotation date filter: "+v+". Use YYYY-MM-DD.");}}private static double n(Number v){return v==null?0:v.doubleValue();}private static long l(Number v){return v==null?0:v.longValue();}
 
     @Transactional
     public QuotationDtos.EditorBootstrapDto editorBootstrap(Integer id) {
@@ -220,20 +227,20 @@ public class QuotationService {
     }
 
     @Transactional
-    public void notes(int id, String v) {
-        CurrentUser.requirePermission("QUOTATION.EDIT","Edit quotation notes");requireEditable(id);
+    public void notes(int id, String v, long rowVersion) {
+        CurrentUser.requirePermission("QUOTATION.EDIT","Edit quotation notes");requireEditable(id,rowVersion);
         String old = jdbc.queryForObject("SELECT COALESCE(remarks,'') FROM quotation_header WHERE id=?",String.class,id);
-        jdbc.update("UPDATE quotation_header SET remarks=?,row_version=row_version+1 WHERE id=?", v, id);
+        int changed=jdbc.update("UPDATE quotation_header SET remarks=?,row_version=row_version+1 WHERE id=? AND row_version=?", v, id,rowVersion);if(changed!=1)throw new ConcurrentEditException("Quotation");
         audit.logChange("QUOTATION",id,"UPDATED","Quotation notes updated","Remarks",old,v);
     }
 
     @Transactional
-    public void markSent(int id, String ch) {
-        CurrentUser.requirePermission("QUOTATION.EDIT","Update quotation delivery status");requireEditable(id);
+    public void markSent(int id, String ch, long rowVersion) {
+        CurrentUser.requirePermission("QUOTATION.EDIT","Update quotation delivery status");requireEditable(id,rowVersion);
         String col = "WHATSAPP".equalsIgnoreCase(ch) ? "whatsapp_sent" : "email_sent";
         String label = "WHATSAPP".equalsIgnoreCase(ch) ? "WhatsApp Sent" : "Email Sent";
         Map<String,Object> old = jdbc.queryForMap("SELECT COALESCE("+col+",0) channel,COALESCE(status,'DRAFT') status FROM quotation_header WHERE id=?",id);
-        jdbc.update("UPDATE quotation_header SET " + col + "=1,status=CASE WHEN status='DRAFT' THEN 'SENT' ELSE status END,row_version=row_version+1 WHERE id=?", id);
+        int changed=jdbc.update("UPDATE quotation_header SET " + col + "=1,status=CASE WHEN status='DRAFT' THEN 'SENT' ELSE status END,row_version=row_version+1 WHERE id=? AND row_version=?", id,rowVersion);if(changed!=1)throw new ConcurrentEditException("Quotation");
         Map<String,Object> after = jdbc.queryForMap("SELECT COALESCE("+col+",0) channel,COALESCE(status,'DRAFT') status FROM quotation_header WHERE id=?",id);
         audit.logChanges("QUOTATION",id,"UPDATED","Quotation delivery status",List.of(
                 new AuditService.Change(label,Objects.toString(old.get("channel"),"0"),Objects.toString(after.get("channel"),"1")),
@@ -242,11 +249,11 @@ public class QuotationService {
 
     @Transactional
     public void followUp(int id, QuotationDtos.FollowUp d) {
-        CurrentUser.requirePermission("QUOTATION.EDIT","Update quotation follow-up");requireEditable(id);
+        CurrentUser.requirePermission("QUOTATION.EDIT","Update quotation follow-up");requireEditable(id,d.rowVersion());
         var q = jdbc.queryForMap("SELECT quotation_no,customer_id,COALESCE(CAST(follow_up_date AS text),'') follow_up_date FROM quotation_header WHERE id=?", id);
         String customer = jdbc.queryForObject("SELECT name FROM party_master WHERE id=?", String.class, q.get("customer_id"));
         String followUp = date(d.date()) == null ? null : date(d.date()).toString();
-        jdbc.update("UPDATE quotation_header SET follow_up_date=?,row_version=row_version+1 WHERE id=?", followUp, id);
+        int changed=jdbc.update("UPDATE quotation_header SET follow_up_date=?,row_version=row_version+1 WHERE id=? AND row_version=?", followUp,id,d.rowVersion());if(changed!=1)throw new ConcurrentEditException("Quotation");
         String quotationNo=Objects.toString(q.get("quotation_no"),"");
         audit.logChange("QUOTATION",id,"UPDATED",quotationNo+" • follow-up","Follow-up Date",Objects.toString(q.get("follow_up_date"),""),followUp);
         jdbc.update("UPDATE reminder_register SET status='CANCELLED',updated_at=? WHERE reference_no=? AND title LIKE 'Quotation follow-up:%' AND UPPER(COALESCE(status,'')) IN ('OPEN','SNOOZED')",
@@ -259,9 +266,10 @@ public class QuotationService {
     }
 
     @Transactional
-    public String convert(int id, String ignoredUser) {
+    public String convert(int id, String ignoredUser, long rowVersion) {
         CurrentUser.requirePermission("QUOTATION.EDIT","Convert quotation");CurrentUser.requirePermission("SALES.CREATE","Create Sale from quotation");
         Map<String, Object> q = jdbc.queryForMap("SELECT * FROM quotation_header WHERE id=? FOR UPDATE", id);
+        long actualVersion=((Number)q.getOrDefault("row_version",0)).longValue();if(actualVersion!=rowVersion)throw new ConcurrentEditException("Quotation");
         String existing = Objects.toString(q.get("converted_invoice_no"), "");
         if (!existing.isBlank()) return existing;
         String status = Objects.toString(q.get("status"), "DRAFT").trim().toUpperCase(Locale.ROOT);
@@ -317,7 +325,7 @@ public class QuotationService {
                 new AuditService.Change("Source Reference", String.valueOf(q.get("quotation_no")), invoice),
                 new AuditService.Change("Document Type", "Quotation", "Sale"),
                 new AuditService.Change("GST Type", null, jdbc.queryForObject("SELECT gst_type FROM sales_header WHERE id=?",String.class,sid))));
-        jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=?,row_version=row_version+1 WHERE id=?", invoice, id);
+        int changed=jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=?,row_version=row_version+1 WHERE id=? AND row_version=?", invoice,id,rowVersion);if(changed!=1)throw new ConcurrentEditException("Quotation");
         activity(id, "CONVERTED", invoice, ignoredUser);
         return invoice;
     }
@@ -346,26 +354,28 @@ public class QuotationService {
     }
 
     @Transactional
-    public void delete(int id) {
+    public void delete(int id, long rowVersion) {
         CurrentUser.requirePermission("QUOTATION.DELETE","Delete quotation");
         Map<String, Object> current = jdbc.queryForMap(
-                "SELECT COALESCE(status,'DRAFT') status,COALESCE(converted_invoice_no,'') converted FROM quotation_header WHERE id=? FOR UPDATE",
+                "SELECT COALESCE(status,'DRAFT') status,COALESCE(converted_invoice_no,'') converted,COALESCE(row_version,0) row_version FROM quotation_header WHERE id=? FOR UPDATE",
                 id);
         String status = Objects.toString(current.get("status"), "DRAFT").trim().toUpperCase(Locale.ROOT);
+        long actualVersion=((Number)current.getOrDefault("row_version",0)).longValue();if(actualVersion!=rowVersion)throw new ConcurrentEditException("Quotation");
         if ("DELETED".equals(status)) return;
         if (!Objects.toString(current.get("converted"), "").isBlank()) {
             throw new IllegalStateException("A converted quotation cannot be deleted because it is linked to a Sales invoice.");
         }
-        jdbc.update("UPDATE quotation_header SET status='DELETED',row_version=row_version+1 WHERE id=?", id);
+        int changed=jdbc.update("UPDATE quotation_header SET status='DELETED',row_version=row_version+1 WHERE id=? AND row_version=?", id,rowVersion);if(changed!=1)throw new ConcurrentEditException("Quotation");
         activity(id, "DELETED", "Quotation soft-deleted", null);
     }
 
 
-    private void requireEditable(int id) {
+    private void requireEditable(int id,long rowVersion) {
         Map<String, Object> state = jdbc.queryForMap(
-                "SELECT COALESCE(status,'DRAFT') status,COALESCE(converted_invoice_no,'') converted FROM quotation_header WHERE id=? FOR UPDATE",
+                "SELECT COALESCE(status,'DRAFT') status,COALESCE(converted_invoice_no,'') converted,COALESCE(row_version,0) row_version FROM quotation_header WHERE id=? FOR UPDATE",
                 id);
         String status = Objects.toString(state.get("status"), "DRAFT").trim().toUpperCase(Locale.ROOT);
+        long actualVersion=((Number)state.getOrDefault("row_version",0)).longValue();if(actualVersion!=rowVersion)throw new ConcurrentEditException("Quotation");
         if ("DELETED".equals(status)) throw new IllegalStateException("Deleted quotations are read-only.");
         if (!Objects.toString(state.get("converted"), "").isBlank())
             throw new IllegalStateException("Converted quotations are read-only. Duplicate the quotation if a new revision is required.");
@@ -407,5 +417,5 @@ public class QuotationService {
         return operations.nextSalesInvoice();
     }
 
-    private LocalDate date(String v) { return v == null || v.isBlank() ? null : LocalDate.parse(v); }
+    private LocalDate date(String v) { if(v==null||v.isBlank())return null; try{return LocalDate.parse(v.trim());}catch(Exception ex){throw new IllegalArgumentException("Quotation follow-up date must be a valid YYYY-MM-DD date");} }
 }

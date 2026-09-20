@@ -65,11 +65,22 @@ public class JpaNativeRepository {
         return out;
     }
 
+    /** Bounded native query used by interactive/reporting paths to prevent unbounded materialization. */
+    public <T> List<T> queryLimited(String sql, int maxRows, BiFunction<NativeRow,Integer,T> mapper, Object... args) {
+        if (maxRows <= 0) return List.of();
+        List<NativeRow> rows = rows(sql, maxRows, args);
+        List<T> out = new ArrayList<>(rows.size());
+        for (int i=0;i<rows.size();i++) out.add(mapper.apply(rows.get(i), i));
+        return out;
+    }
+
     public void query(String sql, Consumer<NativeRow> consumer, Object... args) {
         for (NativeRow row : rows(sql, args)) consumer.accept(row);
     }
 
-    private List<NativeRow> rows(String sql, Object... args) {
+    private List<NativeRow> rows(String sql, Object... args) { return rows(sql, 0, args); }
+
+    private List<NativeRow> rows(String sql, int maxRows, Object... args) {
         /*
          * Positional row mappers must not depend on Hibernate Tuple element aliases.
          * Hibernate 7 can collapse/omit unaliased native select expressions from a
@@ -82,6 +93,7 @@ public class JpaNativeRepository {
          */
         Query q = entityManager.createNativeQuery(indexParameters(sql), Object[].class);
         bind(q, args);
+        if (maxRows > 0) q.setMaxResults(maxRows);
         @SuppressWarnings("unchecked") List<Object[]> raw = q.getResultList();
         List<NativeRow> out = new ArrayList<>(raw.size());
         for (Object[] row : raw) out.add(new NativeRow(row));

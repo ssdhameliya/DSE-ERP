@@ -673,7 +673,8 @@ public final class PdfStudioRenderer {
         int count = items == null ? 0 : items.size();
         if (e.isUseSourceTableDesign()) {
             effective = e.copy();
-            rebuildSourceSalesGridDynamic(page, cs, effective, count, pageNumber == totalPages, fillerRowHeight);
+            double sourceFillerRowHeight = effective.getRowHeight() > 0 ? effective.getRowHeight() : fillerRowHeight;
+            rebuildSourceSalesGridDynamic(page, cs, effective, count, pageNumber == totalPages, sourceFillerRowHeight);
         }
 
         drawTableScaffold(page, cs, effective, columns);
@@ -851,7 +852,7 @@ public final class PdfStudioRenderer {
             case "brand" -> safe(item.getBrand());
             case "material" -> safe(item.getMaterial());
             case "size" -> safe(item.getSize());
-            case "quantity" -> number(item.getQuantity());
+            case "quantity" -> quantityNumber(item.getQuantity());
             case "unit" -> safe(item.getUnit());
             case "rate" -> money(item.getRate());
             case "discountPercent" -> number(item.getDiscountPercent());
@@ -1071,6 +1072,10 @@ public final class PdfStudioRenderer {
     private static String number(double value) {
         if (Math.rint(value) == value) return Long.toString(Math.round(value));
         return String.format(Locale.ENGLISH, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+    }
+    private static String quantityNumber(double value) {
+        double quantity = DocumentCalculationEngine.quantity(value);
+        return java.math.BigDecimal.valueOf(quantity).stripTrailingZeros().toPlainString();
     }
 
 
@@ -1351,7 +1356,7 @@ public final class PdfStudioRenderer {
         String mode = data.gstType() == null ? "" : data.gstType().trim().toUpperCase(Locale.ROOT);
         if (mode.contains("IGST") || mode.contains("INTER")) {
             rows.add(new String[]{blankAs(data.value("tax.primaryLabel"), "IGST"), blankAs(data.value("totals.igstAmount"), "0.00")});
-        } else if (!(mode.contains("NO_GST") || mode.contains("NO GST") || mode.contains("NONE") || mode.contains("EXEMPT"))) {
+        } else if (!(mode.contains("NO_GST") || mode.contains("NO GST") || mode.contains("NO-GST") || mode.contains("NON-GST") || mode.contains("NON GST") || mode.contains("NONE") || mode.contains("EXEMPT"))) {
             rows.add(new String[]{blankAs(data.value("tax.primaryLabel"), "CGST"), blankAs(data.value("totals.cgstAmount"), "0.00")});
             rows.add(new String[]{blankAs(data.value("tax.secondaryLabel"), "SGST"), blankAs(data.value("totals.sgstAmount"), "0.00")});
         }

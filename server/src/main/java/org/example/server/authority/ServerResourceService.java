@@ -15,6 +15,41 @@ public class ServerResourceService {
     private final JpaNativeRepository db;
     public ServerResourceService(JpaNativeRepository db) { this.db = db; }
 
+
+    /** API-facing operations enforce the business permission boundary; internal canonical services use list/get/put/delete. */
+    public List<ResourceMeta> apiList(String type) { requireApiRead(type); return list(type); }
+    public ResourceFile apiGet(String type,String key) { requireApiRead(type); return get(type,key); }
+    public ResourceMeta apiPut(String type,String key,String fileName,String contentType,byte[] content,String expectedChecksum) {
+        requireApiWrite(type); return put(type,key,fileName,contentType,content,expectedChecksum);
+    }
+    public void apiDelete(String type,String key) { requireApiWrite(type); delete(type,key); }
+
+    private static void requireApiRead(String type) {
+        String normalized=normalize(type);
+        switch(normalized){
+            case "ISSUED_SALES_PDF" -> CurrentUser.requirePermission("SALES.VIEW","View issued sales PDFs");
+            case "EXCEL_TEMPLATE","PDF_STUDIO_V3_TEMPLATE","PDF_STUDIO_V3_ACTIVE" -> CurrentUser.requirePermission("DOCUMENT_STUDIO.VIEW","View document templates");
+            case "BUSINESS_ASSET" -> {
+                if(!(CurrentUser.hasPermission("SETTINGS.VIEW")||CurrentUser.hasPermission("DOCUMENT_STUDIO.VIEW")))
+                    throw new SecurityException("Viewing business assets requires SETTINGS.VIEW or DOCUMENT_STUDIO.VIEW permission");
+            }
+            default -> { if(!"ADMIN".equalsIgnoreCase(CurrentUser.require().role())) throw new SecurityException("Administrator permission is required for this server resource"); }
+        }
+    }
+
+    private static void requireApiWrite(String type) {
+        String normalized=normalize(type);
+        if("ISSUED_SALES_PDF".equals(normalized))
+            throw new SecurityException("Issued sales PDF snapshots are immutable through the generic resource API");
+        switch(normalized){
+            case "EXCEL_TEMPLATE","PDF_STUDIO_V3_TEMPLATE","PDF_STUDIO_V3_ACTIVE" -> {
+                if(!(CurrentUser.hasPermission("DOCUMENT_STUDIO.EDIT")||CurrentUser.hasPermission("DOCUMENT_STUDIO.MANAGE_TEMPLATES")))
+                    throw new SecurityException("Managing document templates requires DOCUMENT_STUDIO.EDIT or DOCUMENT_STUDIO.MANAGE_TEMPLATES permission");
+            }
+            default -> { if(!"ADMIN".equalsIgnoreCase(CurrentUser.require().role())) throw new SecurityException("Administrator permission is required for this server resource"); }
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<ResourceMeta> list(String type) {
         return db.query("SELECT resource_key,COALESCE(file_name,''),COALESCE(content_type,'application/octet-stream'),checksum,updated_at,octet_length(content) FROM server_resource WHERE resource_type=? ORDER BY resource_key",

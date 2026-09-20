@@ -44,7 +44,7 @@ public class StorageMaintenanceService {
     }
 
     public StorageDtos.Status status() {
-        CurrentUser.require();
+        requireAdmin();
         if (workspace == null) throw new IllegalStateException("Server workspace path is not configured");
         StorageDtos.Policy p = policy();
         long documents = size(workspace.resolve("Documents"));
@@ -112,7 +112,13 @@ public class StorageMaintenanceService {
                     + "; reclaimed " + counter.reclaimed + " bytes";
             putSetting("storage.cleanup.lastAt", BusinessClock.nowUtcText());
             putSetting("storage.cleanup.lastSummary", summary);
-        } catch (Exception ignored) { }
+        } catch (Exception failure) {
+            try {
+                putSetting("storage.cleanup.lastFailureAt", BusinessClock.nowUtcText());
+                putSetting("storage.cleanup.lastError", concise(failure));
+            } catch (Exception persistFailure) { failure.addSuppressed(persistFailure); }
+            System.err.println("Scheduled storage cleanup failed: " + failure.getMessage());
+        }
     }
 
     private void cleanupTree(Path root, int days, boolean dryRun, Counter counter, boolean diagnosticsAware) {
@@ -219,17 +225,19 @@ public class StorageMaintenanceService {
     }
 
     private String setting(String key, String def) {
-        try {
-            String value = jdbc.queryForObject("SELECT setting_value FROM application_setting WHERE setting_key=?", String.class, key);
-            return value == null ? def : value;
-        } catch (Exception ignored) { return def; }
+        List<String> values=jdbc.query("SELECT setting_value FROM application_setting WHERE setting_key=?",(r,i)->r.getString(1),key);
+        String value=values.isEmpty()?null:values.getFirst();
+        return value == null ? def : value;
     }
 
     private void putSetting(String key, String value) {
-        try {
-            jdbc.update("INSERT INTO application_setting(setting_key,setting_value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) "
-                    + "ON CONFLICT(setting_key) DO UPDATE SET setting_value=EXCLUDED.setting_value,updated_at=CURRENT_TIMESTAMP", key, value);
-        } catch (Exception ignored) { }
+        jdbc.update("INSERT INTO application_setting(setting_key,setting_value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) "
+                + "ON CONFLICT(setting_key) DO UPDATE SET setting_value=EXCLUDED.setting_value,updated_at=CURRENT_TIMESTAMP", key, value);
+    }
+
+    private static String concise(Exception failure) {
+        String message=failure==null?"Unknown storage cleanup failure":String.valueOf(failure.getMessage());
+        return message.length()<=1000?message:message.substring(0,1000);
     }
 
     private static void requireAdmin() {

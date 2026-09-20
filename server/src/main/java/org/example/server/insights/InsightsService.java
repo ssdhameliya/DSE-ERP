@@ -80,7 +80,12 @@ public class InsightsService {
      +"WHEN "+text+" ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' AND pg_input_is_valid("+dash+",'date') THEN CAST("+dash+" AS date) "
      +"ELSE NULL END";
  }
- private <T> T dashboardSection(String section,java.util.function.Supplier<T> query,T fallback){try{return query.get();}catch(RuntimeException failure){System.err.println("[Dashboard] "+section+" unavailable: "+Objects.toString(failure.getMessage(),failure.getClass().getSimpleName()));return fallback;}}
+ private <T> T dashboardSection(String section,java.util.function.Supplier<T> query,T fallback){
+   try{return query.get();}
+   catch(RuntimeException failure){
+     throw new IllegalStateException("Dashboard section unavailable: "+section, failure);
+   }
+ }
 
 
  @Transactional(readOnly=true) public InsightDtos.ShellCounts shellCounts(){
@@ -420,7 +425,7 @@ public class InsightsService {
 
  private boolean readFlag(Object v){if(v==null)return false;if(v instanceof Boolean b)return b;String s=String.valueOf(v).trim();return s.equals("1")||s.equalsIgnoreCase("true")||s.equalsIgnoreCase("t");}
  private List<String> strings(String q){return jdbc.query(q,(r,i)->r.getString(1));}
- private List<InsightDtos.PointDto> points(String q,Object... a){return jdbc.query(q,(r,i)->new InsightDtos.PointDto(Objects.toString(r.getObject(1),"â€”"),r.getDouble(2)),a);}
- private List<InsightDtos.ReportRow> rows(String q,Object... a){return jdbc.query(q,(r,i)->new InsightDtos.ReportRow(r.getString(1),String.valueOf(r.getObject(2)),Objects.toString(r.getObject(3),"â€”"),r.getDouble(4),r.getString(5)),a);}
+ private List<InsightDtos.PointDto> points(String q,Object... a){return jdbc.query(q,(r,i)->new InsightDtos.PointDto(Objects.toString(r.getObject(1),"—"),r.getDouble(2)),a);}
+ private List<InsightDtos.ReportRow> rows(String q,Object... a){return jdbc.query(q,(r,i)->new InsightDtos.ReportRow(r.getString(1),String.valueOf(r.getObject(2)),Objects.toString(r.getObject(3),"—"),r.getDouble(4),r.getString(5)),a);}
  private double n(String q,Object... a){Double x=jdbc.queryForObject(q,Double.class,a);return x==null?0:x;} private long l(String q,Object... a){Long x=jdbc.queryForObject(q,Long.class,a);return x==null?0:x;}
 }

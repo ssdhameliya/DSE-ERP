@@ -872,7 +872,7 @@ public final class PdfStudioRenderer {
             case "brand" -> safe(item.getBrand());
             case "material" -> safe(item.getMaterial());
             case "size" -> safe(item.getSize());
-            case "quantity" -> number(item.getQuantity());
+            case "quantity" -> quantityNumber(item.getQuantity());
             case "unit" -> safe(item.getUnit());
             case "rate" -> money(item.getRate());
             case "discountPercent" -> number(item.getDiscountPercent());
@@ -1092,6 +1092,10 @@ public final class PdfStudioRenderer {
     private static String number(double value) {
         if (Math.rint(value) == value) return Long.toString(Math.round(value));
         return String.format(Locale.ENGLISH, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+    }
+    private static String quantityNumber(double value) {
+        double quantity = DocumentCalculationEngine.quantity(value);
+        return java.math.BigDecimal.valueOf(quantity).stripTrailingZeros().toPlainString();
     }
 
 

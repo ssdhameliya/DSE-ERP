@@ -27,10 +27,20 @@ public class SetupService {
                 || !r.adminPassword().matches(".*[A-Za-z].*") || !r.adminPassword().matches(".*[0-9].*"))
             throw new IllegalArgumentException("Company, administrator username and an 8+ character password with a letter and number are required");
         roles.requireActive("ADMIN");
-        Long userCount=jdbc.queryForObject("SELECT COUNT(*) FROM users",Long.class);
-        if(userCount!=null && userCount>0) throw new IllegalStateException("Initial setup has already been completed");
-        jdbc.update("INSERT INTO users(username,password,full_name,role,role_id,email,active,access_level,locked,failed_attempts,mfa_enabled) VALUES(?,?,?,?,NULL,?,1,'ADMIN',0,0,0)",
-                r.adminUsername().trim(), passwords.encode(r.adminPassword()), nz(r.adminName()), "ADMIN", nz(r.adminEmail()));
+        jdbc.query("SELECT pg_advisory_xact_lock(?)",(row,index)->row.getObject(1),51018002L);
+        Long adminCount=jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE UPPER(TRIM(COALESCE(role,'')))='ADMIN' AND active=1",Long.class);
+        if(adminCount!=null && adminCount>0) throw new IllegalStateException("Initial setup has already been completed");
+        String username=r.adminUsername().trim();
+        String email=nz(r.adminEmail());
+        Long identityCount=jdbc.queryForObject("""
+                SELECT COUNT(*) FROM users
+                WHERE LOWER(TRIM(username))=LOWER(TRIM(?))
+                   OR (?<>'' AND LOWER(TRIM(COALESCE(email,'')))=LOWER(TRIM(?)))
+                """,Long.class,username,email,email);
+        if(identityCount!=null&&identityCount>0)
+            throw new IllegalStateException("The requested administrator username or email is already in use");
+        jdbc.update("INSERT INTO users(username,password,full_name,role,role_id,email,active,access_level,locked,failed_attempts,mfa_enabled,approval_status,row_version) VALUES(?,?,?,?,NULL,?,1,'ADMIN',0,0,0,'APPROVED',0)",
+                username, passwords.encode(r.adminPassword()), nz(r.adminName()), "ADMIN", email);
         setting("company.name",r.companyName()); setting("company.phone",r.phone()); setting("company.email",r.companyEmail());
         setting("company.gstin",r.gstin()); setting("company.address",r.address()); setting("setup.completed","true");
         return new SetupDtos.BootstrapResponse(true,"READY");

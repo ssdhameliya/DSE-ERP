@@ -87,13 +87,14 @@ class PostgresWorkflowIntegrationTest {
                 "PAID", "APPROVED", "APPROVED", true, java.time.Instant.now().toString(), 0, 0);
         assertNotNull(saleId);
 
-        jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,unit_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        Long sourceLineId = jdbc.queryForObject("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,unit_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?) RETURNING id", Long.class,
                 saleId, ITEM, 1d, 100d, 0d, 0d, 0d, 100d, 50d, "Integration Item", "Nos");
+        assertNotNull(sourceLineId);
 
         double before = stock();
         ReturnDtos.Created created = returns.create(new ReturnDtos.CreateRequest(
                 "SALES RETURN", INVOICE, partyId, LocalDate.now().toString(),
-                List.of(new ReturnDtos.CreateLine(ITEM, 1d, 100d, "Integration lifecycle"))));
+                List.of(new ReturnDtos.CreateLine(ITEM, sourceLineId, 1d, 100d, "Integration lifecycle"))));
         assertNotNull(created.returnNo());
         assertEquals(before, stock(), 0.0001, "Pending approval must not move stock");
         assertSettlement(created.returnNo(), "RETURN APPROVAL PENDING", 0d);

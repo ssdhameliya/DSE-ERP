@@ -3,12 +3,15 @@ package org.example.util;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogEvent;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Screen;
+import javafx.stage.Window;
 
 import java.util.Locale;
 
@@ -56,6 +59,8 @@ public final class PopupTableWorkspace {
 
     public static HBox metricStrip(Node... cards) {
         HBox strip = new HBox(12);
+        strip.setMinWidth(0);
+        strip.setMaxWidth(Double.MAX_VALUE);
         strip.getStyleClass().addAll("erp-popup-metric-strip", ResponsiveKpiLayoutManager.KPI_SECTION_STYLE, "erp-kpi-single-row");
         if (cards != null) {
             for (Node card : cards) {
@@ -71,6 +76,10 @@ public final class PopupTableWorkspace {
     public static Label footerText(String text) {
         Label label = new Label(text == null ? "" : text);
         label.getStyleClass().add("erp-popup-footer-text");
+        label.setWrapText(true);
+        label.setMinWidth(0);
+        label.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(label, Priority.ALWAYS);
         return label;
     }
 
@@ -108,6 +117,21 @@ public final class PopupTableWorkspace {
             dialog.getDialogPane().getStyleClass().add("erp-table-workspace-dialog");
         }
         if (prefWidth > 0) dialog.getDialogPane().setPrefWidth(prefWidth);
+        if (!Boolean.TRUE.equals(dialog.getDialogPane().getProperties().get("erp-popup-responsive-width"))) {
+            dialog.getDialogPane().getProperties().put("erp-popup-responsive-width", true);
+            dialog.addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
+                Window owner = dialog.getOwner();
+                Screen screen = owner == null
+                        ? Screen.getPrimary()
+                        : Screen.getScreensForRectangle(owner.getX(), owner.getY(), Math.max(1, owner.getWidth()), Math.max(1, owner.getHeight()))
+                                .stream().findFirst().orElse(Screen.getPrimary());
+                double usable = Math.max(640, screen.getVisualBounds().getWidth() - 64);
+                double target = prefWidth > 0 ? Math.min(prefWidth, usable) : usable;
+                dialog.getDialogPane().setPrefWidth(target);
+                dialog.getDialogPane().setMaxWidth(usable);
+                dialog.getDialogPane().setMinWidth(Math.min(720, target));
+            });
+        }
     }
 
     public static void prepareTable(TableView<?> table, String profileClass) {
