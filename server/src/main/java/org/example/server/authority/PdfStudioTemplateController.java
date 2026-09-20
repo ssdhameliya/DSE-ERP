@@ -33,12 +33,9 @@ public class PdfStudioTemplateController {
     public ServerResourceService.ResourceMeta put(@PathVariable String key,@RequestParam(defaultValue = "pdf-studio-template.zip") String filename,@RequestParam(defaultValue = "") String expectedChecksum,HttpServletRequest request) throws IOException {
         requireTemplateEdit();
         byte[] content=BoundedUpload.read(request,MAX_TEMPLATE_BYTES,"PDF Studio template");
-        defaults.validatePackage(content); // validate before replacing the authoritative resource
-        var result=resources.put(RESOURCE_TYPE,key,filename,"application/zip",content,expectedChecksum);
-        defaults.reconcilePut(key,content);
-        return result;
+        return defaults.putTemplate(key,filename,content,expectedChecksum);
     }
 
-    @DeleteMapping("/{key}") public void delete(@PathVariable String key) { requireTemplateEdit(); resources.delete(RESOURCE_TYPE,key); defaults.reconcileDelete(key); }
+    @DeleteMapping("/{key}") public void delete(@PathVariable String key) { requireTemplateEdit(); defaults.deleteTemplate(key); }
     private static void requireTemplateEdit() { if(!(CurrentUser.hasPermission("DOCUMENT_STUDIO.EDIT")||CurrentUser.hasPermission("DOCUMENT_STUDIO.MANAGE_TEMPLATES"))) throw new SecurityException("Manage PDF Studio templates requires DOCUMENT_STUDIO.EDIT or DOCUMENT_STUDIO.MANAGE_TEMPLATES permission"); }
 }

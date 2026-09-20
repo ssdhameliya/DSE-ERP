@@ -49,6 +49,23 @@ public final class PdfStyleResolver {
         return parent == null || effectivelyVisible(template, parent, visiting);
     }
 
+    /** A locked parent locks geometry/editing for every descendant. */
+    public static boolean effectivelyLocked(DocumentTemplate template, TemplateElement element) {
+        if (element == null) return false;
+        return effectivelyLocked(template, element, new HashSet<>());
+    }
+
+    private static boolean effectivelyLocked(DocumentTemplate template, TemplateElement element, Set<String> visiting) {
+        if (element == null) return false;
+        if (element.isLocked()) return true;
+        if (template == null || element.getParentId().isBlank()) return false;
+        if (!visiting.add(element.getId())) return false;
+        TemplateElement parent = template.getElements().stream()
+                .filter(candidate -> Objects.equals(candidate.getId(), element.getParentId()))
+                .findFirst().orElse(null);
+        return parent != null && effectivelyLocked(template, parent, visiting);
+    }
+
     /** Re-evaluates which child style values are genuine overrides of the effective parent style. */
     public static void updateOverrides(DocumentTemplate template, TemplateElement element) {
         if (template == null || element == null || !element.isInheritParentStyle() || element.getParentId().isBlank()) return;

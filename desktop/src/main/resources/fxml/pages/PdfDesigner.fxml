@@ -83,10 +83,12 @@
                         <Button text="Image" onAction="#addImage" onDragDetected="#dragCreateImage" styleClass="pdf-v2-tool"/>
                         <Button text="Item Table" onAction="#addItemRepeater" onDragDetected="#dragCreateItems" styleClass="pdf-v2-tool"/>
                         <Button text="Charge Table" onAction="#addChargeRepeater" onDragDetected="#dragCreateCharges" styleClass="pdf-v2-tool"/>
+                        <Button text="Financial Summary" onAction="#addFinancialSummary" styleClass="pdf-v2-tool"/>
                         <Button text="Text" onAction="#addText" onDragDetected="#dragCreateText" styleClass="pdf-v2-tool"/>
                     </TilePane>
                 </content>
             </TitledPane>
+            <Label text="Repeated tables: create one Item Table, then drag Item ERP fields onto it once in PDF column order. The table repeats rows and paginates automatically." wrapText="true" styleClass="pdf-v2-help"/>
         </VBox>
     </left>
 

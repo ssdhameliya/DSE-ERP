@@ -14,6 +14,7 @@ import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.TemplateCategory;
 import org.example.documentstudio.model.TemplateElement;
 import org.example.documentstudio.model.TemplateStatus;
+import org.example.documentstudio.model.TemplateValidationIssue;
 
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -223,6 +224,7 @@ public final class PdfStudioTemplateRepository {
     public static synchronized void publish(DocumentTemplate template) throws IOException {
         if (template == null) throw new IOException("Template is required.");
         ensureWorkingTemplate(template);
+        validateMappingReady(template, "Publish");
         validateRenderable(template, "publish-validation");
 
         int next = template.getPublishedVersion() <= 0 ? 1 : template.getPublishedVersion() + 1;
@@ -264,8 +266,33 @@ public final class PdfStudioTemplateRepository {
         DocumentTemplate published = loadSnapshot(template.getId(), PUBLISHED)
                 .orElseThrow(() -> new IOException("Published snapshot could not be loaded."));
         published.setStorageVariant(PUBLISHED);
+        validateMappingReady(published, "Default activation");
         validateRenderable(published, "activation-validation");
         PdfDefaultCertification.validate(published);
+
+        DocumentTemplate activeMeta = deepCopy(published);
+        activeMeta.setStorageVariant("");
+        activeMeta.setStatus(TemplateStatus.ACTIVE);
+        activeMeta.setDefaultTemplate(true);
+        activeMeta.setRuntimeEnabled(true);
+        activeMeta.setActiveVersion(template.getPublishedVersion());
+        activeMeta.setActivatedAt(Instant.now().toString());
+        DocumentTemplate originalWorking = deepCopy(template);
+        try {
+            // Establish and mirror the new ACTIVE candidate before touching the previous default.
+            replaceSnapshot(folder(template), ACTIVE, activeMeta);
+            template.setStatus(TemplateStatus.ACTIVE);
+            template.setDefaultTemplate(true);
+            template.setRuntimeEnabled(true);
+            template.setActiveVersion(template.getPublishedVersion());
+            template.setActivatedAt(activeMeta.getActivatedAt());
+            writeWorkingAndMirror(template);
+        } catch (Exception failure) {
+            try { deleteTree(folder(template).resolve(ACTIVE)); } catch (Exception ignored) { }
+            try { writeMetadata(folder(template), originalWorking); } catch (Exception ignored) { }
+            if (failure instanceof IOException io) throw io;
+            throw new IOException("Default activation failed before the previous default was changed.", failure);
+        }
 
         for (DocumentTemplate other : listAll()) {
             if (other.getDocumentType() == template.getDocumentType() && !other.getId().equals(template.getId())
@@ -277,22 +304,6 @@ public final class PdfStudioTemplateRepository {
                 writeWorkingAndMirror(other);
             }
         }
-
-        DocumentTemplate activeMeta = deepCopy(published);
-        activeMeta.setStorageVariant("");
-        activeMeta.setStatus(TemplateStatus.ACTIVE);
-        activeMeta.setDefaultTemplate(true);
-        activeMeta.setRuntimeEnabled(true);
-        activeMeta.setActiveVersion(template.getPublishedVersion());
-        activeMeta.setActivatedAt(Instant.now().toString());
-        replaceSnapshot(folder(template), ACTIVE, activeMeta);
-
-        template.setStatus(TemplateStatus.ACTIVE);
-        template.setDefaultTemplate(true);
-        template.setRuntimeEnabled(true);
-        template.setActiveVersion(template.getPublishedVersion());
-        template.setActivatedAt(activeMeta.getActivatedAt());
-        writeWorkingAndMirror(template);
     }
 
     public static synchronized void setDefault(String id) throws IOException {
@@ -469,6 +480,14 @@ public final class PdfStudioTemplateRepository {
 
     private static int pageCount(DocumentTemplate template) throws IOException {
         try (PDDocument document = Loader.loadPDF(sourcePdf(template).toFile())) { return document.getNumberOfPages(); }
+    }
+
+    private static void validateMappingReady(DocumentTemplate template, String action) throws IOException {
+        TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
+        if (result.readyForDefault()) return;
+        String details = result.issues().stream().filter(TemplateValidationIssue::error).limit(5)
+                .map(TemplateValidationIssue::userMessage).collect(java.util.stream.Collectors.joining(" | "));
+        throw new IOException(action + " blocked: PDF Studio mapping is incomplete. " + details);
     }
 
     private static void validateRenderable(DocumentTemplate template, String prefix) throws IOException {

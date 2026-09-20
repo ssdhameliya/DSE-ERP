@@ -257,7 +257,7 @@ final class BuiltInPdfTemplateInstaller {
         table.setRowHeight(18.10);
         table.setFontSize(6.45);
         table.setTextColor("#000000");
-        table.setTableColumns(List.of("serial", "hsn", "remarks", "quantity", "rate", "unit", "grossAmount"));
+        table.setTableColumns(List.of("serial", "hsn", "descriptionWithRemarks", "quantity", "rate", "unit", "taxable"));
         table.setTableColumnWidths(List.of(33.97, 47.98, 295.67, 29.99, 47.98, 30.99, 59.96));
         table.setTableColumnAlignments(List.of("CENTER", "CENTER", "LEFT", "CENTER", "RIGHT", "CENTER", "RIGHT"));
         table.setFillEnabled(false); table.setStrokeEnabled(false);

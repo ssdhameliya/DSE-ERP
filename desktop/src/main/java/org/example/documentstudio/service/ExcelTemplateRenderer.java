@@ -299,9 +299,18 @@ public final class ExcelTemplateRenderer {
             Set<Integer> mappedColumns = mappedColumns(template, marker);
             if (mappedColumns.isEmpty()) break;
             if (!looksLikeRepeatingDataRow(template, row, mappedColumns)) break;
+            // The literal sample row is now owned by the ERP repeater. Normalize mapped
+            // cells to the canonical template-row style so old pink/red sample formatting does
+            // not appear on arbitrary generated items.
+            row.setHeight(template.getHeight());
             for (int c : mappedColumns) {
+                Cell templateCell = template.getCell(c);
                 Cell cell = row.getCell(c);
-                if (cell != null) cell.setBlank();
+                if (cell == null && templateCell != null) cell = row.createCell(c, CellType.BLANK);
+                if (cell != null) {
+                    if (templateCell != null) cell.setCellStyle(templateCell.getCellStyle());
+                    cell.setBlank();
+                }
             }
         }
     }
