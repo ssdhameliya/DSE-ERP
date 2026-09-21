@@ -30,6 +30,12 @@ public class TotpService {
         String uri="otpauth://totp/"+enc("DSE ERP:"+account)+"?secret="+secret+"&issuer="+enc("DSE ERP")+"&algorithm=SHA1&digits=6&period=30";
         return new Setup(secret, SecretValueCodec.encrypt(secret), uri);
     }
+    public Setup existingSetup(String username, String email, String encryptedSecret){
+        String secret=decrypt(encryptedSecret);
+        String account=(email==null||email.isBlank()?username:email).trim();
+        String uri="otpauth://totp/"+enc("DSE ERP:"+account)+"?secret="+secret+"&issuer="+enc("DSE ERP")+"&algorithm=SHA1&digits=6&period=30";
+        return new Setup(secret, encryptedSecret, uri);
+    }
     public String decrypt(String encrypted){return SecretValueCodec.decrypt(encrypted);}
     public boolean verifyEncrypted(String encrypted,String code){return verify(decrypt(encrypted),code);}
     public boolean verify(String secret,String code){
@@ -57,6 +63,11 @@ public class TotpService {
         db.update("DELETE FROM auth_totp_login_challenge WHERE challenge_id=?",id);
         Object value=rows.getFirst().get("user_id");
         return value instanceof Number number?number.intValue():null;
+    }
+
+    @Transactional
+    public void invalidateUser(int userId){
+        db.update("DELETE FROM auth_totp_login_challenge WHERE user_id=?", userId);
     }
 
     @Transactional(readOnly=true)

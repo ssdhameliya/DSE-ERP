@@ -129,7 +129,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
 
     private void configurePaymentForm() {
         paymentDate.setValue(BusinessClock.today());
-        applyPaymentLookups(List.of("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"), configuredBankAccounts());
+        applyPaymentLookups(List.of("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"), List.of());
 
         ToggleGroup paymentType = new ToggleGroup();
         fullPayment.setToggleGroup(paymentType);

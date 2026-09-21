@@ -195,6 +195,7 @@ public class PurchaseController implements ScreenLifecycle {
     private boolean updatingSupplierSearch;
 
     private Purchase editingPurchase = null;
+    private String companyGstin = "";
     private boolean viewMode;
     private final ContextMenu itemSuggestions = new ContextMenu();
     private Item selectedItem;
@@ -912,7 +913,7 @@ public class PurchaseController implements ScreenLifecycle {
     private record PurchaseBootstrap(
         List<Party> suppliers, List<Item> items, List<String> paymentTerms,
         List<String> transporters, List<String> gstTypes, List<String> charges,
-        List<String> errors) { }
+        String companyGstin, List<String> errors) { }
 
     private void loadPurchaseBootstrapAsync() {
         UiTaskExecutor.submitLatest(
@@ -931,6 +932,7 @@ public class PurchaseController implements ScreenLifecycle {
         List<String> transporters = loadPurchaseValue("Transporters", errors, () -> lookupService.getValuesByCategoryCode("TRANSPORTER"), List.of());
         List<String> gstTypes = loadPurchaseValue("GST Types", errors, () -> lookupService.getValuesByCategoryCode("GST_TYPE"), List.of("GST", "IGST"));
         List<String> charges = loadPurchaseValue("Charges", errors, () -> lookupService.getValuesByCategoryCode("CHARGES"), List.of());
+        String loadedCompanyGstin = loadPurchaseValue("Company GSTIN", errors, () -> ConfigManager.get("company.gstin", ""), "");
         return new PurchaseBootstrap(
             suppliers == null ? List.of() : List.copyOf(suppliers),
             items == null ? List.of() : List.copyOf(items),
@@ -938,7 +940,7 @@ public class PurchaseController implements ScreenLifecycle {
             transporters == null ? List.of() : List.copyOf(transporters),
             gstTypes == null || gstTypes.isEmpty() ? List.of("GST", "IGST") : List.copyOf(gstTypes),
             charges == null ? List.of() : List.copyOf(charges),
-            List.copyOf(errors));
+            loadedCompanyGstin, List.copyOf(errors));
     }
 
     private <T> T loadPurchaseValue(String label, List<String> errors, java.util.concurrent.Callable<T> loader, T fallback) {
@@ -952,6 +954,7 @@ public class PurchaseController implements ScreenLifecycle {
     }
 
     private void applyPurchaseBootstrap(PurchaseBootstrap data) {
+        companyGstin = data.companyGstin() == null ? "" : data.companyGstin();
         cmbSupplier.getItems().setAll(data.suppliers());
         allItems.setAll(data.items());
         applyLookupDefaults(data.paymentTerms(), data.transporters(), data.gstTypes(), data.charges());
@@ -1228,7 +1231,7 @@ public class PurchaseController implements ScreenLifecycle {
     private void suggestGstTypeFromGstin() {
         if (cmbGstType == null || txtBillingGstin == null) return;
         DocumentLookupPolicy.suggestedGstType(
-            ConfigManager.get("company.gstin", ""), txtBillingGstin.getText(), cmbGstType.getItems()
+            companyGstin, txtBillingGstin.getText(), cmbGstType.getItems()
         ).ifPresent(cmbGstType::setValue);
     }
 

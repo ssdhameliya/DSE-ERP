@@ -74,6 +74,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
@@ -97,6 +98,8 @@ public class SettingsController implements ScreenLifecycle {
     private boolean rootInitialized;
     private boolean fragmentLoading;
     private final EnumMap<Section, VBox> loadedPanels = new EnumMap<>(Section.class);
+    private final EnumSet<Section> loadingSections = EnumSet.noneOf(Section.class);
+    private final EnumSet<Section> readySections = EnumSet.noneOf(Section.class);
     private final Map<String, PendingAsset> pendingAssets = new LinkedHashMap<>();
     private Section activeSection = Section.COMPANY;
     private final EnumMap<Action, String> shortcutDraftValues = new EnumMap<>(Action.class);
@@ -485,94 +488,41 @@ public class SettingsController implements ScreenLifecycle {
             case COMPANY -> {
                 cmbBusinessType.setItems(FXCollections.observableArrayList("Proprietorship","Partnership","Private Limited Company","Public Limited Company","Limited Liability Partnership","Trust","Society","Other"));
                 cmbIndustry.setItems(FXCollections.observableArrayList("Manufacturing","Trading","Retail","Wholesale","Construction","Engineering","Textile","Automotive","Information Technology","Professional Services","Logistics","Healthcare","Food & Beverage","Other"));
-                txtCompanyName.setText(ConfigManager.get("company.name", ""));
-                txtPhone.setText(ConfigManager.get("company.phone", ""));
-                txtEmail.setText(ConfigManager.get("company.email", ""));
-                txtGstin.setText(ConfigManager.get("company.gstin", ""));
-                txtCompanyPan.setText(ConfigManager.get("company.pan", ""));
-                txtApplicationName.setText(org.example.service.BrandingService.companyName());
-                txtApplicationTagline.setText(ConfigManager.get("application.tagline", "Business Management Suite"));
-                txtApplicationStartingText.setText(org.example.service.BrandingService.startingText());
-                selectComboValue(cmbBusinessType, ConfigManager.get("company.businessType", "Proprietorship"));
-                selectComboValue(cmbIndustry, ConfigManager.get("company.industry", "Manufacturing"));
-                dpFinancialYearStart.setValue(parseDate(ConfigManager.get("company.financialYearStart", "")));
                 BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
                 BrandImagePresenter.contain(imgApplicationMark, applicationMarkPreview);
                 refreshAllAssetPreviewsAsync();
+                loadSectionDataAsync(section);
             }
             case PAYMENT -> {
-                txtUpiId.setText(ConfigManager.get("payment.upiId", ""));
-                txtAccountHolder.setText(ConfigManager.get("payment.accountHolder", ""));
-                txtBankName.setText(ConfigManager.get("payment.bankName", ""));
-                txtAccountNumber.setText(ConfigManager.get("payment.accountNumber", ""));
-                txtIfsc.setText(ConfigManager.get("payment.ifsc", ""));
-                txtBranch.setText(ConfigManager.get("payment.branch", ""));
-                loadPaymentAccountTypes();
-                txtBankMatchRoundingTolerance.setText(ConfigManager.get("payment.bankMatchRoundingTolerance", "1.00"));
                 BrandImagePresenter.contain(imgPaymentQr, paymentQrPreview);
                 refreshAllAssetPreviewsAsync();
+                loadSectionDataAsync(section);
             }
             case INVOICE -> {
                 cmbCurrency.setItems(FXCollections.observableArrayList("INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","AED - UAE Dirham"));
                 cmbTimeZone.setItems(FXCollections.observableArrayList("Asia/Kolkata","Asia/Dubai","Europe/London","America/New_York","America/Los_Angeles","UTC"));
                 cmbDateFormat.setItems(FXCollections.observableArrayList("dd/MM/yyyy","dd-MM-yyyy","yyyy-MM-dd","MM/dd/yyyy","dd MMM yyyy"));
-                txtCompanyAddress.setText(ConfigManager.get("company.address", ""));
-                txtCompanyState.setText(ConfigManager.get("company.state", ""));
-                txtCompanyWebsite.setText(ConfigManager.get("company.website", ""));
-                txtCompanyTagline.setText(ConfigManager.get("company.tagline", "Business Solution - Simplified"));
-                txtShipAddress.setText(ConfigManager.get("company.shipAddress", ""));
-                txtInvoiceTerms.setText(ConfigManager.get("company.terms", ""));
-                selectComboValue(cmbCurrency, ConfigManager.get("company.currency", "INR - Indian Rupee"));
-                selectComboValue(cmbTimeZone, ConfigManager.get("company.timeZone", BusinessClock.zone().getId()));
-                selectComboValue(cmbDateFormat, ConfigManager.get("company.dateFormat", "dd/MM/yyyy"));
-                // Logo and signature controls both belong to InvoiceSettingsPanel.fxml.
-                // Configure them only after that fragment has injected its controls.
                 BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
                 BrandImagePresenter.contain(imgSignature, signaturePreview);
                 refreshAllAssetPreviewsAsync();
+                loadSectionDataAsync(section);
             }
             case NOTIFICATIONS -> {
                 applyNotificationPreferences(NotificationPreferenceService.current());
                 chkNotifications.selectedProperty().addListener((obs, oldValue, enabled) -> setNotificationCategoriesDisabled(!enabled));
                 setNotificationCategoriesDisabled(!chkNotifications.isSelected());
+                readySections.add(section);
                 UiTaskExecutor.submitLatest("notification-preferences-load",
                         NotificationPreferenceService::refreshStrict,
                         this::applyNotificationPreferences,
                         failure -> System.err.println("[Settings] Notification preferences unavailable: " + failure.getMessage()));
             }
-            case EMAIL -> {
-                if (ConfigManager.isSharedClient()) {
-                    if (SessionService.isAdmin()) {
-                        var smtp = new org.example.api.authority.BusinessEmailClient().settings();
-                        txtSmtpEmail.setText(smtp.email());
-                        txtSmtpPassword.clear();
-                        txtSmtpPassword.setPromptText(smtp.passwordConfigured()?"Configured — leave blank to keep current password":"Enter email app password");
-                        txtSmtpHost.setText(smtp.host());
-                        txtSmtpPort.setText(smtp.port() == null ? "587" : Integer.toString(smtp.port()));
-                    } else {
-                        txtSmtpEmail.clear(); txtSmtpPassword.clear(); txtSmtpHost.clear(); txtSmtpPort.setText("587");
-                        txtSmtpEmail.setDisable(true); txtSmtpPassword.setDisable(true); txtSmtpHost.setDisable(true); txtSmtpPort.setDisable(true);
-                    }
-                } else {
-                    txtSmtpEmail.setText(ConfigManager.getSmtpEmail());
-                    txtSmtpPassword.setText(ConfigManager.getSmtpPassword());
-                    txtSmtpHost.setText(ConfigManager.getSmtpHost());
-                    txtSmtpPort.setText(ConfigManager.getSmtpPort());
-                }
-            }
+            case EMAIL -> loadSectionDataAsync(section);
             case SECURITY -> {
-                var support = new org.example.api.support.SupportApiClient();
-                txtSessionTimeoutMinutes.setText(support.setting("security.session.timeout.minutes", "10"));
-                txtSessionWarningMinutes.setText(support.setting("security.session.warning.minutes", "2"));
-                if (cmbMfaPolicy != null) {
-                    cmbMfaPolicy.getItems().setAll("Required", "Admin Controlled", "Disabled");
-                    String policy=support.setting("security.auth.mfa.policy", "REQUIRED").trim().toUpperCase(Locale.ROOT);
-                    cmbMfaPolicy.setValue("ADMIN_CONTROLLED".equals(policy)?"Admin Controlled":"DISABLED".equals(policy)?"Disabled":"Required");
-                }
+                if (cmbMfaPolicy != null) cmbMfaPolicy.getItems().setAll("Required", "Admin Controlled", "Disabled");
                 if (chkUiDiagnostics != null) chkUiDiagnostics.setSelected(UiDiagnostics.isEnabled());
                 if (securityHeaderIcon != null) securityHeaderIcon.getChildren().setAll(IconFactory.icon("security", 22));
-                boolean editable = SessionService.isAdmin();
-                txtSessionTimeoutMinutes.setDisable(!editable); txtSessionWarningMinutes.setDisable(!editable); if(cmbMfaPolicy!=null)cmbMfaPolicy.setDisable(!editable);
+                loadSectionDataAsync(section);
             }
             case WORKSPACE -> {
                 refreshWorkspacePanel();
@@ -580,7 +530,6 @@ public class SettingsController implements ScreenLifecycle {
                 if (deploymentSection != null) { deploymentSection.setVisible(admin); deploymentSection.setManaged(admin); }
                 if (storageRetentionSection != null) storageRetentionSection.setDisable(!admin);
                 configureRetentionInputs();
-                loadStorageRetentionSettings();
                 refreshStorageUsage();
                 if (admin) {
                     loadedDeploymentMode = ConfigManager.getDeploymentMode();
@@ -598,8 +547,9 @@ public class SettingsController implements ScreenLifecycle {
                     cmbDeploymentMode.valueProperty().addListener((o,a,b)->updateDeploymentSettingsControls());
                     updateDeploymentSettingsControls();
                 }
+                loadSectionDataAsync(section);
             }
-            case SHORTCUTS -> initializeShortcutSettings();
+            case SHORTCUTS -> { initializeShortcutSettings(); readySections.add(section); }
             case UPDATES -> {
                 cmbUpdateChannel.setItems(FXCollections.observableArrayList("STABLE", "BETA"));
                 selectComboValue(cmbUpdateChannel, ConfigManager.getEffectiveUpdateChannel());
@@ -614,10 +564,183 @@ public class SettingsController implements ScreenLifecycle {
                 chkDownloadInBackground.setSelected(Boolean.parseBoolean(ConfigManager.get("update.downloadInBackground", "false")));
                 refreshUpdateSummary();
                 if (btnCheckUpdates != null) { btnCheckUpdates.setGraphic(IconFactory.icon("update", 16)); btnCheckUpdates.getProperties().put("erp-icon-preserve", true); }
+                readySections.add(section);
             }
         }
+        updateSectionReadyState();
         PerformanceMonitor.event("controller-phase", "settings-section-loaded | " + section);
     }
+
+    private boolean needsAsyncSectionData(Section section) {
+        return switch (section) {
+            case COMPANY, PAYMENT, INVOICE, EMAIL, SECURITY, WORKSPACE -> true;
+            default -> false;
+        };
+    }
+
+    private void loadSectionDataAsync(Section section) {
+        if (!needsAsyncSectionData(section) || loadingSections.contains(section) || readySections.contains(section)) return;
+        loadingSections.add(section);
+        VBox panel = loadedPanels.get(section);
+        if (panel != null) panel.setDisable(true);
+        updateSectionReadyState();
+        UiTaskExecutor.submitLatest("settings-section-" + section.name().toLowerCase(Locale.ROOT),
+                () -> readSectionSnapshot(section),
+                snapshot -> {
+                    try {
+                        applySectionSnapshot(section, snapshot);
+                        readySections.add(section);
+                        if (panel != null) panel.setDisable(false);
+                    } finally {
+                        loadingSections.remove(section);
+                        updateSectionReadyState();
+                    }
+                },
+                error -> {
+                    loadingSections.remove(section);
+                    if (panel != null) panel.setDisable(true);
+                    updateSectionReadyState();
+                    System.err.println("[Settings] " + section + " settings unavailable: " + safeMessage(error));
+                });
+    }
+
+    private Object readSectionSnapshot(Section section) {
+        return switch (section) {
+            case COMPANY -> new CompanySettingsSnapshot(
+                    ConfigManager.get("company.name", ""), ConfigManager.get("company.phone", ""),
+                    ConfigManager.get("company.email", ""), ConfigManager.get("company.gstin", ""),
+                    ConfigManager.get("company.pan", ""), ConfigManager.get("application.displayName", ""),
+                    ConfigManager.get("application.tagline", "Business Management Suite"),
+                    ConfigManager.get("application.startingText", ""), ConfigManager.get("company.businessType", "Proprietorship"),
+                    ConfigManager.get("company.industry", "Manufacturing"), ConfigManager.get("company.financialYearStart", ""));
+            case PAYMENT -> {
+                String configuredType = ConfigManager.get("payment.accountType", "").trim();
+                LinkedHashSet<String> accountTypes = new LinkedHashSet<>();
+                try { accountTypes.addAll(new org.example.api.master.MasterApiClient().lookupValuesByCategoryCode("ACCOUNT_TYPE")); }
+                catch (RuntimeException ignored) { }
+                if (!configuredType.isBlank()) accountTypes.add(configuredType);
+                yield new PaymentSettingsSnapshot(
+                        ConfigManager.get("payment.upiId", ""), ConfigManager.get("payment.accountHolder", ""),
+                        ConfigManager.get("payment.bankName", ""), ConfigManager.get("payment.accountNumber", ""),
+                        ConfigManager.get("payment.ifsc", ""), ConfigManager.get("payment.branch", ""), configuredType,
+                        List.copyOf(accountTypes), ConfigManager.get("payment.bankMatchRoundingTolerance", "1.00"));
+            }
+            case INVOICE -> new InvoiceSettingsSnapshot(
+                    ConfigManager.get("company.address", ""), ConfigManager.get("company.state", ""),
+                    ConfigManager.get("company.website", ""), ConfigManager.get("company.tagline", "Business Solution - Simplified"),
+                    ConfigManager.get("company.shipAddress", ""), ConfigManager.get("company.terms", ""),
+                    ConfigManager.get("company.currency", "INR - Indian Rupee"),
+                    ConfigManager.get("company.timeZone", BusinessClock.zone().getId()),
+                    ConfigManager.get("company.dateFormat", "dd/MM/yyyy"));
+            case EMAIL -> readEmailSettingsSnapshot();
+            case SECURITY -> {
+                var support = new org.example.api.support.SupportApiClient();
+                yield new SecuritySettingsSnapshot(
+                        support.setting("security.session.timeout.minutes", "10"),
+                        support.setting("security.session.warning.minutes", "2"),
+                        support.setting("security.auth.mfa.policy", "REQUIRED"));
+            }
+            case WORKSPACE -> {
+                var support = new org.example.api.support.SupportApiClient();
+                yield new StorageRetentionSnapshot(
+                        support.setting("storage.logs.retentionDays", "30"),
+                        support.setting("storage.reports.retentionDays", "365"),
+                        support.setting("storage.exports.retentionDays", "90"),
+                        support.setting("storage.diagnostics.retentionDays", "30"),
+                        support.setting("storage.importResults.retentionDays", "90"),
+                        support.setting("storage.temp.retentionDays", "7"),
+                        Boolean.parseBoolean(support.setting("storage.logs.compress", "true")));
+            }
+            default -> null;
+        };
+    }
+
+    private EmailSettingsSnapshot readEmailSettingsSnapshot() {
+        if (ConfigManager.isSharedClient()) {
+            if (!SessionService.isAdmin()) return new EmailSettingsSnapshot("", "", "", "587", false, false);
+            var smtp = new org.example.api.authority.BusinessEmailClient().settings();
+            return new EmailSettingsSnapshot(smtp.email(), "", smtp.host(), smtp.port() == null ? "587" : Integer.toString(smtp.port()), smtp.passwordConfigured(), true);
+        }
+        return new EmailSettingsSnapshot(ConfigManager.getSmtpEmail(), ConfigManager.getSmtpPassword(),
+                ConfigManager.getSmtpHost(), ConfigManager.getSmtpPort(), false, true);
+    }
+
+    private void applySectionSnapshot(Section section, Object snapshot) {
+        switch (section) {
+            case COMPANY -> {
+                CompanySettingsSnapshot value = (CompanySettingsSnapshot) snapshot;
+                txtCompanyName.setText(value.companyName()); txtPhone.setText(value.phone()); txtEmail.setText(value.email());
+                txtGstin.setText(value.gstin()); txtCompanyPan.setText(value.pan());
+                String applicationName = value.companyName().isBlank() ? value.legacyApplicationName().trim() : value.companyName().trim();
+                if (applicationName.isBlank()) applicationName = org.example.service.BrandingService.technicalProductName();
+                txtApplicationName.setText(applicationName); txtApplicationTagline.setText(value.applicationTagline());
+                String starting = value.applicationStartingText();
+                if (starting == null || starting.isBlank() || starting.equalsIgnoreCase("Starting DSE ERP...") || starting.equalsIgnoreCase("Starting DSE ERP…"))
+                    starting = "Starting " + applicationName + "...";
+                else starting = starting.replace(org.example.service.BrandingService.technicalProductName(), applicationName);
+                txtApplicationStartingText.setText(starting);
+                selectComboValue(cmbBusinessType, value.businessType()); selectComboValue(cmbIndustry, value.industry());
+                dpFinancialYearStart.setValue(parseDate(value.financialYearStart()));
+            }
+            case PAYMENT -> {
+                PaymentSettingsSnapshot value = (PaymentSettingsSnapshot) snapshot;
+                txtUpiId.setText(value.upiId()); txtAccountHolder.setText(value.accountHolder()); txtBankName.setText(value.bankName());
+                txtAccountNumber.setText(value.accountNumber()); txtIfsc.setText(value.ifsc()); txtBranch.setText(value.branch());
+                cmbAccountType.setItems(FXCollections.observableArrayList(value.accountTypes()));
+                selectComboValue(cmbAccountType, value.accountType());
+                txtBankMatchRoundingTolerance.setText(value.roundingTolerance());
+            }
+            case INVOICE -> {
+                InvoiceSettingsSnapshot value = (InvoiceSettingsSnapshot) snapshot;
+                txtCompanyAddress.setText(value.address()); txtCompanyState.setText(value.state()); txtCompanyWebsite.setText(value.website());
+                txtCompanyTagline.setText(value.tagline()); txtShipAddress.setText(value.shipAddress()); txtInvoiceTerms.setText(value.terms());
+                selectComboValue(cmbCurrency, value.currency()); selectComboValue(cmbTimeZone, value.timeZone()); selectComboValue(cmbDateFormat, value.dateFormat());
+            }
+            case EMAIL -> {
+                EmailSettingsSnapshot value = (EmailSettingsSnapshot) snapshot;
+                txtSmtpEmail.setText(value.email()); txtSmtpPassword.clear(); txtSmtpHost.setText(value.host()); txtSmtpPort.setText(value.port());
+                txtSmtpPassword.setPromptText(value.passwordConfigured() ? "Configured — leave blank to keep current password" : "Enter email app password");
+                boolean editable = value.editable();
+                txtSmtpEmail.setDisable(!editable); txtSmtpPassword.setDisable(!editable); txtSmtpHost.setDisable(!editable); txtSmtpPort.setDisable(!editable);
+            }
+            case SECURITY -> {
+                SecuritySettingsSnapshot value = (SecuritySettingsSnapshot) snapshot;
+                txtSessionTimeoutMinutes.setText(value.timeout()); txtSessionWarningMinutes.setText(value.warning());
+                if (cmbMfaPolicy != null) {
+                    String policy = value.mfaPolicy().trim().toUpperCase(Locale.ROOT);
+                    cmbMfaPolicy.setValue("ADMIN_CONTROLLED".equals(policy) ? "Admin Controlled" : "DISABLED".equals(policy) ? "Disabled" : "Required");
+                }
+                boolean editable = SessionService.isAdmin();
+                txtSessionTimeoutMinutes.setDisable(!editable); txtSessionWarningMinutes.setDisable(!editable); if (cmbMfaPolicy != null) cmbMfaPolicy.setDisable(!editable);
+            }
+            case WORKSPACE -> {
+                StorageRetentionSnapshot value = (StorageRetentionSnapshot) snapshot;
+                if (txtLogRetentionDays != null) {
+                    txtLogRetentionDays.setText(value.logs()); txtReportRetentionDays.setText(value.reports()); txtExportRetentionDays.setText(value.exports());
+                    txtDiagnosticRetentionDays.setText(value.diagnostics()); txtImportResultRetentionDays.setText(value.importResults()); txtTempRetentionDays.setText(value.temp());
+                    chkCompressOldLogs.setSelected(value.compressOldLogs());
+                }
+            }
+            default -> { }
+        }
+    }
+
+    private void updateSectionReadyState() {
+        if (btnSaveSettings == null) return;
+        btnSaveSettings.setDisable(needsAsyncSectionData(activeSection) && !readySections.contains(activeSection));
+    }
+
+    private record CompanySettingsSnapshot(String companyName, String phone, String email, String gstin, String pan,
+                                           String legacyApplicationName, String applicationTagline, String applicationStartingText,
+                                           String businessType, String industry, String financialYearStart) { }
+    private record PaymentSettingsSnapshot(String upiId, String accountHolder, String bankName, String accountNumber, String ifsc,
+                                           String branch, String accountType, List<String> accountTypes, String roundingTolerance) { }
+    private record InvoiceSettingsSnapshot(String address, String state, String website, String tagline, String shipAddress,
+                                           String terms, String currency, String timeZone, String dateFormat) { }
+    private record EmailSettingsSnapshot(String email, String password, String host, String port, boolean passwordConfigured, boolean editable) { }
+    private record SecuritySettingsSnapshot(String timeout, String warning, String mfaPolicy) { }
+    private record StorageRetentionSnapshot(String logs, String reports, String exports, String diagnostics, String importResults,
+                                            String temp, boolean compressOldLogs) { }
 
     @Override
     public void onScreenShown(boolean reusedFromCache) {
@@ -989,7 +1112,16 @@ private record AssetPreviewRequest(
        ========================================================= */
     private void selectSection(Section section, HBox selectedNavigation, VBox selectedPanel) {
         activeSection = section == null ? Section.COMPANY : section;
+        if (needsAsyncSectionData(activeSection) && !readySections.contains(activeSection) && !loadingSections.contains(activeSection)) {
+            loadSectionDataAsync(activeSection);
+        }
         updateSaveButtonLabel();
+        if (btnTestEmail != null) {
+            boolean emailSection = activeSection == Section.EMAIL;
+            btnTestEmail.setVisible(emailSection);
+            btnTestEmail.setManaged(emailSection);
+        }
+        updateSectionReadyState();
         HBox[] navigationItems = {navCompany, navPayment, navInvoice, navNotifications, navEmail, navWorkspace, navUpdates};
         for (HBox item : navigationItems) if (item != null) item.getStyleClass().remove("settings-navigation-item-selected");
         if (selectedNavigation != null && !selectedNavigation.getStyleClass().contains("settings-navigation-item-selected")) {
@@ -1836,6 +1968,9 @@ private record AssetPreviewRequest(
                 return;
             }
 
+            if (section == Section.COMPANY) {
+                org.example.service.BrandingService.invalidateSharedIdentity();
+            }
             SharedApplicationFooter.refreshAll();
             if (section == Section.COMPANY) {
                 org.example.util.SceneManager.refreshApplicationTitle();

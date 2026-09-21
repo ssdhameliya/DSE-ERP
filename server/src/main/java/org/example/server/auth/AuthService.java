@@ -92,19 +92,23 @@ public class AuthService {
         user.resetPasswordFailures();
 
         if (mfaRequired) {
+            boolean enrollmentPending = enrollmentPending(user.getId());
             if (user.getTotpSecretEnc() == null || user.getTotpSecretEnc().isBlank()) {
                 String email = user.getEmail() == null ? "" : user.getEmail().trim();
-                if (email.isBlank()) return failedLogin("MFA setup is incomplete for this account. Contact an administrator.");
-                mail.requireConfigured();
                 TotpService.Setup setup = totp.createSetup(user.getUsername(), email);
                 user.setTotpSecretEnc(setup.encryptedSecret());
                 user.setMfaEnabled(true);
-                sendAuthenticatorEnrollment(email, user.getUsername(), setup);
+                markEnrollmentPending(user.getId());
+                enrollmentPending = true;
                 audit(user.getId(), "MFA_ENROLLMENT_PROVISIONED",
-                        "Authenticator enrollment was provisioned for an existing account", user.getUsername());
-                return failedLogin("Authenticator enrollment instructions were sent to your registered email. Configure the authenticator app, then sign in again.");
+                        "Authenticator enrollment was provisioned after password verification", user.getUsername());
             }
             String challenge = totp.issueLogin(user.getId());
+            if (enrollmentPending) {
+                audit(user.getId(), "MFA_ENROLLMENT_CHALLENGE_ISSUED", "Authenticator enrollment verification requested", user.getUsername());
+                return new AuthDtos.LoginResponse(true, payload(user), "Set up Google or Microsoft Authenticator, then verify the current 6-digit code",
+                        null, null, true, challenge, "Authenticator enrollment");
+            }
             audit(user.getId(), "MFA_CHALLENGE_ISSUED", "Authenticator token requested", user.getUsername());
             return new AuthDtos.LoginResponse(true, payload(user), "Enter the current 6-digit code from your authenticator app",
                     null, null, true, challenge, "Authenticator app");
@@ -122,11 +126,34 @@ public class AuthService {
         UserEntity user=users.findByIdForAuthentication(userId).orElseThrow(()->new IllegalArgumentException("The MFA challenge is invalid or expired"));
         String role=normalizeRole(user.getRoleName());
         if(!user.isActive()||user.isLocked()||!"APPROVED".equals(user.getApprovalStatus())||role.isBlank()||!roleMaster.isActive(role)||!requiresMfa(user,role))return failedLogin(user.isLocked()?lockMessage(user):"This account is not available for sign in.");
+        boolean wasEnrollmentPending = authenticator && enrollmentPending(userId);
         boolean verified;
         if(authenticator){ verified=totp.verifyEncrypted(user.getTotpSecretEnc(),request.otp()); if(verified)totp.consumeLogin(request.challengeId()); }
         else { try{var v=otp.verify(AuthOtpService.Purpose.LOGIN_MFA,request.challengeId(),request.otp());verified=v.userId()!=null&&v.userId().equals(userId);}catch(IllegalArgumentException ex){verified=false;} }
         if(!verified)return failedMfa(user);
+        if(wasEnrollmentPending){
+            clearEnrollmentPending(userId);
+            audit(userId,"MFA_ENROLLMENT_COMPLETED","Authenticator enrollment verified and activated",user.getUsername());
+        }
         user.resetMfaFailures();audit(userId,authenticator?"MFA_LOGIN_SUCCESS":"LEGACY_MFA_LOGIN_SUCCESS",authenticator?"Authenticator verification completed":"Existing-account email OTP verification completed",user.getUsername());return authenticatedLogin(user,role);
+    }
+
+    @Transactional(readOnly = true)
+    public AuthDtos.LoginMfaEnrollmentResponse loginMfaEnrollment(AuthDtos.LoginMfaEnrollmentRequest request) {
+        if(request==null||request.challengeId()==null||request.challengeId().isBlank())
+            throw new IllegalArgumentException("The MFA enrollment challenge is invalid or expired");
+        Integer userId=totp.peekLogin(request.challengeId());
+        if(userId==null||!enrollmentPending(userId))
+            throw new IllegalArgumentException("The MFA enrollment challenge is invalid or expired");
+        UserEntity user=users.findByIdForAuthentication(userId).orElseThrow(()->new IllegalArgumentException("The MFA enrollment challenge is invalid or expired"));
+        String role=normalizeRole(user.getRoleName());
+        if(!user.isActive()||user.isLocked()||!requiresMfa(user,role))
+            throw new IllegalArgumentException("This account is not available for authenticator enrollment");
+        if(user.getTotpSecretEnc()==null||user.getTotpSecretEnc().isBlank())
+            throw new IllegalStateException("Authenticator enrollment is not provisioned for this account");
+        TotpService.Setup setup=totp.existingSetup(user.getUsername(),user.getEmail(),user.getTotpSecretEnc());
+        return new AuthDtos.LoginMfaEnrollmentResponse(true,request.challengeId(),setup.manualSecret(),setup.provisioningUri(),
+                "Scan the QR code with Google or Microsoft Authenticator, then enter the current 6-digit code.");
     }
 
     @Transactional(readOnly = true)
@@ -173,12 +200,6 @@ public class AuthService {
         catch (IllegalArgumentException ignored) { return new AuthDtos.OperationResponse(false, "Selected role is unavailable"); }
 
         boolean mfa = mfaForRequestedUser(role.code(), request.mfaEnabled());
-        TotpService.Setup setup = null;
-        if (mfa) {
-            if (email.isBlank()) return new AuthDtos.OperationResponse(false, "Email is required for authenticator enrollment");
-            mail.requireConfigured();
-            setup = totp.createSetup(username, email);
-        }
 
         UserEntity user = new UserEntity();
         user.setUsername(username);
@@ -190,17 +211,13 @@ public class AuthService {
         user.setApprovalStatus("APPROVED");
         user.setLocked(false);
         user.setMfaEnabled(mfa);
-        if (setup != null) user.setTotpSecretEnc(setup.encryptedSecret());
         user.setAccessLevel("STANDARD");
         users.saveAndFlush(user);
 
-        if (setup != null) {
-            sendAuthenticatorEnrollment(email, username, setup);
-            audit(user.getId(), "MFA_ENROLLMENT_PROVISIONED",
-                    "Authenticator enrollment instructions sent for Admin-created account", "SYSTEM");
-        }
+        if (mfa) audit(user.getId(), "MFA_ENROLLMENT_REQUIRED",
+                "Authenticator enrollment required at the user's next sign-in", "SYSTEM");
         return new AuthDtos.OperationResponse(true,
-                setup == null ? "User registered" : "User registered. Authenticator enrollment instructions were sent to the user's email.");
+                mfa ? "User registered. Authenticator enrollment is required at the next sign-in." : "User registered");
     }
 
     @Transactional(readOnly = true)
@@ -298,7 +315,7 @@ public class AuthService {
         if(verified.userId()==null)throw new IllegalArgumentException("The verification code is invalid or expired");
         UserEntity user=users.findById(verified.userId()).orElseThrow(()->new IllegalArgumentException("The verification code is invalid or expired"));
         String role=normalizeRole(user.getRoleName());
-        if(requiresMfa(user,role) && user.getTotpSecretEnc()!=null && !user.getTotpSecretEnc().isBlank()){
+        if(requiresMfa(user,role) && !enrollmentPending(user.getId()) && user.getTotpSecretEnc()!=null && !user.getTotpSecretEnc().isBlank()){
             if(!totp.verifyEncrypted(user.getTotpSecretEnc(),request.totp()))
                 return new AuthDtos.OperationResponse(false,"Authenticator code is incorrect");
         }
@@ -551,6 +568,20 @@ public class AuthService {
     private static String normalizeThrottleIdentity(String identity) {
         String value = identity == null ? "" : identity.trim().toLowerCase(Locale.ROOT);
         return value.length() <= 240 ? value : value.substring(0,240);
+    }
+
+    private boolean enrollmentPending(int userId) {
+        Long count=db.queryForObject("SELECT COUNT(*) FROM auth_totp_enrollment_pending WHERE user_id=?",Long.class,userId);
+        return count!=null&&count>0;
+    }
+
+    private void markEnrollmentPending(int userId) {
+        db.update("INSERT INTO auth_totp_enrollment_pending(user_id,created_at) VALUES(?,CURRENT_TIMESTAMP) " +
+                "ON CONFLICT(user_id) DO UPDATE SET created_at=CURRENT_TIMESTAMP",userId);
+    }
+
+    private void clearEnrollmentPending(int userId) {
+        db.update("DELETE FROM auth_totp_enrollment_pending WHERE user_id=?",userId);
     }
 
     private String normalizeRole(String role) {

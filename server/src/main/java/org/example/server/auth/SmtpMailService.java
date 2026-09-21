@@ -59,6 +59,38 @@ public class SmtpMailService {
 
     public Settings currentSettings() { return settings(); }
 
+    /** Metadata for the Admin Settings UI; never decrypts or exposes the stored App Password. */
+    public SettingsSummary currentSettingsSummary() {
+        Settings fallback = new Settings(host, port, email, password);
+        if (!configFile.isBlank()) {
+            Path path = Path.of(configFile).toAbsolutePath().normalize();
+            if (Files.isRegularFile(path)) {
+                Properties values = new Properties();
+                try (InputStream input = Files.newInputStream(path)) {
+                    values.load(input);
+                    String currentEmail = values.getProperty("smtp.email", fallback.email()).trim();
+                    String storedPassword = values.getProperty("smtp.appPassword", fallback.password());
+                    String currentHost = values.getProperty("smtp.host", fallback.host()).trim();
+                    int currentPort;
+                    try { currentPort = Integer.parseInt(values.getProperty("smtp.port", Integer.toString(fallback.port())).trim()); }
+                    catch (Exception ignored) { currentPort = 587; }
+                    if (currentHost.isBlank()) currentHost = inferHost(currentEmail);
+                    return new SettingsSummary(currentHost,currentPort,currentEmail,storedPassword!=null&&!storedPassword.isBlank());
+                } catch (Exception exception) {
+                    throw new IllegalStateException("Email/OTP settings metadata could not be read", exception);
+                }
+            }
+        }
+        String currentEmail=setting("smtp.email",fallback.email()).trim();
+        String storedPassword=setting("smtp.appPassword",fallback.password());
+        String currentHost=setting("smtp.host",fallback.host()).trim();
+        int currentPort;
+        try { currentPort=Integer.parseInt(setting("smtp.port",Integer.toString(fallback.port())).trim()); }
+        catch(Exception ignored){ currentPort=587; }
+        if(currentHost.isBlank())currentHost=inferHost(currentEmail);
+        return new SettingsSummary(currentHost,currentPort,currentEmail,storedPassword!=null&&!storedPassword.isBlank());
+    }
+
     /** Customer-facing company identity used by server-generated email surfaces. */
     public String companyName() {
         if (!configFile.isBlank()) {
@@ -314,4 +346,5 @@ public class SmtpMailService {
     public record Attachment(String name, String contentType, byte[] data) {}
     public record PathAttachment(String name, String contentType, Path path) {}
     public record Settings(String host, int port, String email, String password) {}
+    public record SettingsSummary(String host, int port, String email, boolean passwordConfigured) {}
 }

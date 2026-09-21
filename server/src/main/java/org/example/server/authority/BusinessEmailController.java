@@ -35,15 +35,16 @@ public class BusinessEmailController {
     @GetMapping("/settings")
     public Settings settings() {
         requireAdmin();
-        var current = mail.currentSettings();
-        return new Settings(current.email(), "", current.host(), current.port(), !current.password().isBlank());
+        var current = mail.currentSettingsSummary();
+        return new Settings(current.email(), "", current.host(), current.port(), current.passwordConfigured());
     }
 
     @PutMapping("/settings")
     public Settings settings(@RequestBody Settings requested) {
         requireAdmin();
-        var saved = mail.saveSettings(requested.email(), requested.appPassword(), requested.host(), requested.port());
-        return new Settings(saved.email(), "", saved.host(), saved.port(), !saved.password().isBlank());
+        mail.saveSettings(requested.email(), requested.appPassword(), requested.host(), requested.port());
+        var saved = mail.currentSettingsSummary();
+        return new Settings(saved.email(), "", saved.host(), saved.port(), saved.passwordConfigured());
     }
 
     @PostMapping("/test")

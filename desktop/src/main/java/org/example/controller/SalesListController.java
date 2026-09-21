@@ -354,9 +354,9 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
                 button.setOnAction(event -> {
                     Sales row = getTableRow()==null ? null : getTableRow().getItem();
                     if(row==null)return;
-                    // Action invocation always makes this exact row the selected record first.
+                    // Select the clicked record without moving it to the top of the viewport.
+                    // The action row stays focused in-place even when it is the 5th/8th visible row.
                     getTableView().getSelectionModel().select(getIndex());
-                    getTableView().scrollTo(getIndex());
                     target.set(row);
                     updateAvailability.accept(row);
                     if(sharedMenu.isShowing())sharedMenu.hide();

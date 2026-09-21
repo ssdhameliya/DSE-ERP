@@ -28,6 +28,7 @@ import org.example.backup.LocalRecoveryManager;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
 import org.example.util.IconFactory;
+import org.example.util.UiTaskExecutor;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -137,6 +138,9 @@ public class BackupRestoreController {
             }
         }
 
+        // Paint the page first. Company-server settings, backup history and database
+        // metrics are remote I/O and must never run on the JavaFX application thread.
+        updateScheduleSummary();
         loadSettings();
         refresh();
     }
@@ -286,28 +290,45 @@ public class BackupRestoreController {
 
     @FXML
     private void refresh() {
-        try {
-            if (ConfigManager.isSharedClient()) {
-                var rows = serverBackups.list().stream().map(this::toRemoteRow).toList();
-                backupRows.setAll(rows);
-                updateSummaryCards();
-                setStatus(rows.size() + " backup(s) available on the company server");
-                return;
-            }
+        String selected = backupTable.getSelectionModel().getSelectedItem() == null
+                ? null : backupTable.getSelectionModel().getSelectedItem().name();
+        setStatus("Loading backups...");
+        UiTaskExecutor.submitLatest("backup-restore-refresh",
+                this::readBackupSnapshot,
+                snapshot -> applyBackupSnapshot(snapshot, selected),
+                failure -> showError(failure instanceof Exception e ? e : new RuntimeException(failure)));
+    }
 
+    private BackupSnapshot readBackupSnapshot() throws Exception {
+        java.util.List<BackupRow> rows;
+        String status;
+        if (ConfigManager.isSharedClient()) {
+            rows = serverBackups.list().stream().map(this::toRemoteRow).toList();
+            status = rows.size() + " backup(s) available on the company server";
+        } else {
             Files.createDirectories(backupFolder);
-            var rows = new java.util.ArrayList<BackupRow>();
+            var local = new java.util.ArrayList<BackupRow>();
             try (var stream = Files.list(backupFolder)) {
                 stream.filter(this::isDatabaseBackup)
                         .sorted(Comparator.comparing(this::modified).reversed())
                         .map(this::toRow)
-                        .forEach(rows::add);
+                        .forEach(local::add);
             }
-            backupRows.setAll(rows);
-            updateSummaryCards();
-            setStatus(rows.size() + " backup(s) available in " + backupFolder);
-        } catch (Exception exception) {
-            showError(exception);
+            rows = java.util.List.copyOf(local);
+            status = rows.size() + " backup(s) available in " + backupFolder;
+        }
+        ServerBackupClient.DatabaseMetrics metrics = null;
+        try { metrics = serverBackups.metrics(); } catch (Exception ignored) { }
+        return new BackupSnapshot(rows, metrics, status);
+    }
+
+    private void applyBackupSnapshot(BackupSnapshot snapshot, String selectedName) {
+        backupRows.setAll(snapshot.rows());
+        updateSummaryCards(snapshot.metrics());
+        setStatus(snapshot.status());
+        if (selectedName != null) {
+            backupRows.stream().filter(row -> selectedName.equals(row.name())).findFirst()
+                    .ifPresent(row -> backupTable.getSelectionModel().select(row));
         }
     }
 
@@ -349,20 +370,19 @@ public class BackupRestoreController {
         return "ERP Backup";
     }
 
-    private void updateSummaryCards() throws Exception {
+    private void updateSummaryCards(ServerBackupClient.DatabaseMetrics metrics) {
         int count = backupRows.size();
         lblBackupCount.setText(String.valueOf(count));
         lblBackupCountCaption.setText(count == 1 ? "1 backup available" : count + " backups available");
         lblHistoryCount.setText(count == 1 ? "1 backup" : count + " backups");
 
-        try {
-            ServerBackupClient.DatabaseMetrics metrics = serverBackups.metrics();
+        if (metrics != null) {
             lblDatabaseSize.setText(human(metrics.sizeBytes()));
             lblDatabaseHealth.setText((metrics.databaseName() == null || metrics.databaseName().isBlank() ? "PostgreSQL" : metrics.databaseName())
                     + (ConfigManager.isSharedClient() ? " • Company server" : " • This PC"));
             lblDatabaseHealth.getStyleClass().setAll("backup-metric-caption", "backup-caption-positive");
             lblDatabaseSize.setTooltip(new Tooltip("Authoritative PostgreSQL size from pg_database_size(current_database())"));
-        } catch (Exception metricFailure) {
+        } else {
             lblDatabaseSize.setText("Unavailable");
             lblDatabaseHealth.setText("Database size could not be read from PostgreSQL");
             lblDatabaseHealth.getStyleClass().setAll("backup-metric-caption", "backup-caption-negative");
@@ -791,12 +811,29 @@ public class BackupRestoreController {
     }
 
     private void loadSettings() {
-        try {
-            cmbSchedule.setValue(supportApi.setting("backup.schedule", "MANUAL"));
-            spRetention.getValueFactory().setValue(Integer.parseInt(supportApi.setting("backup.retention", "2")));
-        } catch (Exception ignored) { cmbSchedule.setValue("MANUAL"); }
-        if (cmbSchedule.getValue() == null) cmbSchedule.setValue("MANUAL");
-        updateScheduleSummary();
+        cmbSchedule.setDisable(true);
+        spRetention.setDisable(true);
+        UiTaskExecutor.submitLatest("backup-restore-settings",
+                () -> {
+                    String schedule = "MANUAL";
+                    int retention = 2;
+                    try { schedule = supportApi.setting("backup.schedule", "MANUAL"); } catch (Exception ignored) { }
+                    try { retention = Integer.parseInt(supportApi.setting("backup.retention", "2")); } catch (Exception ignored) { }
+                    return new BackupSettings(schedule, retention);
+                },
+                settings -> {
+                    cmbSchedule.setValue(settings.schedule() == null || settings.schedule().isBlank() ? "MANUAL" : settings.schedule());
+                    spRetention.getValueFactory().setValue(Math.max(1, Math.min(50, settings.retention())));
+                    cmbSchedule.setDisable(false);
+                    spRetention.setDisable(false);
+                    updateScheduleSummary();
+                },
+                failure -> {
+                    cmbSchedule.setValue("MANUAL");
+                    cmbSchedule.setDisable(false);
+                    spRetention.setDisable(false);
+                    updateScheduleSummary();
+                });
     }
 
     private void updateScheduleSummary() {
@@ -901,4 +938,7 @@ public class BackupRestoreController {
             String source
     ) {
     }
+    private record BackupSnapshot(java.util.List<BackupRow> rows, ServerBackupClient.DatabaseMetrics metrics, String status) { }
+    private record BackupSettings(String schedule, int retention) { }
+
 }

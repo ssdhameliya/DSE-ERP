@@ -40,7 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/admin/users").hasAnyAuthority("ROLE_ADMIN", "USERS.CREATE")
                         .requestMatchers(HttpMethod.PUT, "/api/admin/users/**").hasAnyAuthority("ROLE_ADMIN", "USERS.EDIT")
                         .requestMatchers(HttpMethod.DELETE, "/api/admin/users/**").hasAnyAuthority("ROLE_ADMIN", "USERS.DELETE")
-                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/password", "/api/admin/users/*/lock", "/api/admin/audit").hasAnyAuthority("ROLE_ADMIN", "USERS.EDIT")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/password", "/api/admin/users/*/lock", "/api/admin/users/*/mfa/reset", "/api/admin/audit").hasAnyAuthority("ROLE_ADMIN", "USERS.EDIT")
                         .requestMatchers(HttpMethod.PUT, "/api/admin/permissions").hasAnyAuthority("ROLE_ADMIN", "USERS.MANAGE_PERMISSIONS")
                         .requestMatchers("/api/auth/register").hasAnyAuthority("ROLE_ADMIN", "USERS.CREATE")
                         .requestMatchers("/api/operations/sales/approve", "/api/operations/sales/reject").hasAnyAuthority("ROLE_ADMIN", "SALES.APPROVE")

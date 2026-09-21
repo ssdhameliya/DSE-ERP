@@ -168,17 +168,48 @@ public class AdminService {
             }
             if (previousMfa != enforcedMfa) {
                 tokens.revokeUser(request.id());
-                jdbc.update("UPDATE users SET mfa_failed_attempts=0 WHERE id=?", request.id());
+                jdbc.update("UPDATE users SET mfa_failed_attempts=0,totp_secret_enc=NULL WHERE id=?", request.id());
+                jdbc.update("DELETE FROM auth_totp_enrollment_pending WHERE user_id=?", request.id());
+                jdbc.update("DELETE FROM auth_totp_login_challenge WHERE user_id=?", request.id());
                 jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) " +
                                 "VALUES('USER',?,?,?,?,?)", request.id(),
-                        enforcedMfa ? "MFA_ENABLED" : "MFA_DISABLED",
-                        "MFA changed under server policy " + mfaPolicy(),
+                        enforcedMfa ? "MFA_ENROLLMENT_REQUIRED" : "MFA_DISABLED",
+                        enforcedMfa ? "Authenticator enrollment required under server policy " + mfaPolicy()
+                                : "MFA disabled and authenticator secret invalidated under server policy " + mfaPolicy(),
                         CurrentUser.require().username(), BusinessClock.nowUtcText());
             }
         }
         return request.id() == null
                 ? users().stream().filter(value -> value.username().equalsIgnoreCase(request.username().trim())).findFirst().orElseThrow()
                 : user(request.id());
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDtos.MfaState mfaState(int id) {
+        Map<String,Object> row=jdbc.queryForMap("SELECT COALESCE(role,'') role,COALESCE(mfa_enabled,0) mfa_enabled,COALESCE(totp_secret_enc,'') totp_secret_enc FROM users WHERE id=?",id);
+        String role=String.valueOf(row.get("role"));
+        boolean required=effectiveMfa(role,flag(row.get("mfa_enabled")));
+        if(!required)return new AdminDtos.MfaState(false,"DISABLED","Authenticator is not required under the current policy.");
+        Long pending=jdbc.queryForObject("SELECT COUNT(*) FROM auth_totp_enrollment_pending WHERE user_id=?",Long.class,id);
+        String secret=String.valueOf(row.get("totp_secret_enc"));
+        boolean enrollmentRequired=secret.isBlank()||(pending!=null&&pending>0);
+        return new AdminDtos.MfaState(true,enrollmentRequired?"ENROLLMENT_REQUIRED":"ACTIVE",
+                enrollmentRequired?"Authenticator enrollment is required at the next sign-in.":"Authenticator is active.");
+    }
+
+    @Transactional
+    public AdminDtos.MfaState resetAuthenticator(int id) {
+        Map<String,Object> row=jdbc.queryForMap("SELECT COALESCE(role,'') role,COALESCE(mfa_enabled,0) mfa_enabled FROM users WHERE id=? FOR UPDATE",id);
+        String role=String.valueOf(row.get("role"));
+        boolean required=effectiveMfa(role,flag(row.get("mfa_enabled")));
+        if(!required)throw new IllegalStateException("Authenticator is not required for this user under the current MFA policy.");
+        jdbc.update("UPDATE users SET totp_secret_enc=NULL,mfa_failed_attempts=0,row_version=row_version+1 WHERE id=?",id);
+        jdbc.update("DELETE FROM auth_totp_enrollment_pending WHERE user_id=?",id);
+        jdbc.update("DELETE FROM auth_totp_login_challenge WHERE user_id=?",id);
+        tokens.revokeUser(id);
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
+                id,"MFA_AUTHENTICATOR_RESET","Existing authenticator invalidated; enrollment required at next sign-in",CurrentUser.require().username(),BusinessClock.nowUtcText());
+        return new AdminDtos.MfaState(true,"ENROLLMENT_REQUIRED","Authenticator reset. The user must scan a new QR code at the next sign-in.");
     }
 
     @Transactional

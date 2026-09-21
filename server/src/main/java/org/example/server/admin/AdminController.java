@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;import java.util.*;
  @DeleteMapping("/users/{id}") public AdminDtos.Ok deleteUser(@PathVariable int id){s.deleteUser(id);return ok("Deleted");}
  @PostMapping("/users/{id}/password") public AdminDtos.Ok password(@PathVariable int id,@RequestBody AdminDtos.PasswordRequest d){s.resetPassword(id,d.password());return ok("Updated");}
  @PostMapping("/users/{id}/lock") public AdminDtos.Ok lock(@PathVariable int id,@RequestBody AdminDtos.LockRequest d){s.setLocked(id,d.locked());return ok("Updated");}
+ @PostMapping("/users/{id}/mfa/reset") public AdminDtos.MfaState resetMfa(@PathVariable int id){return s.resetAuthenticator(id);}
+ @GetMapping("/users/{id}/mfa") public AdminDtos.MfaState mfaState(@PathVariable int id){return s.mfaState(id);}
  @GetMapping("/roles") public List<AdminDtos.RoleDto> roles(){return s.roles();}
  @GetMapping("/registration-role") public AdminDtos.RegistrationRoleDto registrationRole(){return s.registrationRole();}
  @PutMapping("/registration-role") public AdminDtos.RegistrationRoleDto registrationRole(@RequestBody AdminDtos.RegistrationRoleSaveRequest d){return s.setRegistrationRole(d);}

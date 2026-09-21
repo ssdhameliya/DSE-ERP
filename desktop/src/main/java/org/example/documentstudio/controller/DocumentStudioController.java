@@ -20,6 +20,7 @@ import org.example.documentstudio.util.PdfPreviewSupport;
 import org.example.navigation.ScreenLifecycle;
 import org.example.util.ModernDialog;
 import org.example.util.IconFactory;
+import org.example.util.UiTaskExecutor;
 
 import java.awt.Desktop;
 import java.nio.file.Path;
@@ -68,7 +69,9 @@ public class DocumentStudioController implements ScreenLifecycle {
         txtSearch.textProperty().addListener((obs, old, value) -> applyFilters());
         cmbType.valueProperty().addListener((obs, old, value) -> applyFilters());
         cmbStatus.valueProperty().addListener((obs, old, value) -> applyFilters());
-        refresh();
+        // Initial template synchronization is intentionally deferred until the page is
+        // attached. NavigationManager calls onScreenShown() exactly once for the first
+        // display, avoiding the historical initialize()+onScreenShown() double refresh.
     }
 
     @Override public void onScreenShown(boolean reused) {
@@ -77,28 +80,78 @@ public class DocumentStudioController implements ScreenLifecycle {
         refresh();
     }
 
+    @Override public void onScreenHidden() {
+        UiTaskExecutor.cancel("document-studio-refresh");
+    }
+
     @FXML
     public void refresh() {
-        all = TemplateStorageService.listAll();
-        excelAll = ExcelTemplateStorageService.listAll();
-        if(excelMode){
+        boolean requestedExcelMode = excelMode;
+        UiTaskExecutor.submitLatest("document-studio-refresh",
+                () -> readStudioSnapshot(requestedExcelMode),
+                this::applyStudioSnapshot,
+                error -> ModernDialog.error(root, "Document library could not be refreshed", "Document Studio", rootMessage(error)));
+    }
+
+    private StudioSnapshot readStudioSnapshot(boolean requestedExcelMode) {
+        // Each repository is synchronized from the company server only once. Default
+        // labels are derived from that same snapshot instead of calling defaultFor()
+        // four times (which previously triggered four additional remote refreshes).
+        List<DocumentTemplate> pdfTemplates = requestedExcelMode ? List.of() : TemplateStorageService.listAll();
+        List<ExcelTemplate> excelTemplates = requestedExcelMode ? ExcelTemplateStorageService.listAll() : List.of();
+        String defaultSummary;
+        if (requestedExcelMode) {
+            String sales = excelDefaultName(excelTemplates, DocumentType.SALES_INVOICE);
+            String purchase = excelDefaultName(excelTemplates, DocumentType.PURCHASE_INVOICE);
+            String purchaseReturn = excelDefaultName(excelTemplates, DocumentType.PURCHASE_RETURN);
+            String quotation = excelDefaultName(excelTemplates, DocumentType.QUOTATION);
+            defaultSummary = "Excel • Sales: " + sales + "   •   Purchase: " + purchase
+                    + "   •   Purchase Return: " + purchaseReturn + "   •   Quotation: " + quotation
+                    + "   •   Missing/invalid defaults use built-in Excel.";
+        } else {
+            String sales = pdfDefaultName(pdfTemplates, DocumentType.SALES_INVOICE);
+            String purchase = pdfDefaultName(pdfTemplates, DocumentType.PURCHASE_INVOICE);
+            String purchaseReturn = pdfDefaultName(pdfTemplates, DocumentType.PURCHASE_RETURN);
+            String quotation = pdfDefaultName(pdfTemplates, DocumentType.QUOTATION);
+            defaultSummary = "PDF • Sales: " + sales + "   •   Purchase: " + purchase
+                    + "   •   Purchase Return: " + purchaseReturn + "   •   Quotation: " + quotation;
+        }
+        return new StudioSnapshot(requestedExcelMode, List.copyOf(pdfTemplates), List.copyOf(excelTemplates), defaultSummary);
+    }
+
+    private void applyStudioSnapshot(StudioSnapshot snapshot) {
+        if (snapshot.excelMode() != excelMode) return;
+        all = snapshot.pdfTemplates();
+        excelAll = snapshot.excelTemplates();
+        if (excelMode) {
             lblTotal.setText(Integer.toString(excelAll.size()));
-            lblActive.setText(Long.toString(excelAll.stream().filter(t->t.getStatus()==TemplateStatus.ACTIVE).count()));
-            String sales=ExcelTemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).map(ExcelTemplate::getName).orElse("Built-in Excel");
-            String purchase=ExcelTemplateStorageService.defaultFor(DocumentType.PURCHASE_INVOICE).map(ExcelTemplate::getName).orElse("Built-in Excel");
-            String purchaseReturn=ExcelTemplateStorageService.defaultFor(DocumentType.PURCHASE_RETURN).map(ExcelTemplate::getName).orElse("Built-in Excel");
-            String quotation=ExcelTemplateStorageService.defaultFor(DocumentType.QUOTATION).map(ExcelTemplate::getName).orElse("Built-in Excel");
-            lblPurchaseDefault.setText("Excel • Sales: "+sales+"   •   Purchase: "+purchase+"   •   Purchase Return: "+purchaseReturn+"   •   Quotation: "+quotation+"   •   Missing/invalid defaults use built-in Excel.");
-        }else{
+            lblActive.setText(Long.toString(excelAll.stream().filter(t -> t.getStatus() == TemplateStatus.ACTIVE).count()));
+        } else {
             lblTotal.setText(Integer.toString(all.size()));
             lblActive.setText(Long.toString(all.stream().filter(t -> t.getStatus() == TemplateStatus.ACTIVE).count()));
-            String sales = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.SALES_INVOICE));
-            String purchase = TemplateStorageService.defaultFor(DocumentType.PURCHASE_INVOICE).map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.PURCHASE_INVOICE));
-            String purchaseReturn = TemplateStorageService.defaultFor(DocumentType.PURCHASE_RETURN).map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.PURCHASE_RETURN));
-            String quotation = TemplateStorageService.defaultFor(DocumentType.QUOTATION).map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.QUOTATION));
-            lblPurchaseDefault.setText("PDF • Sales: " + sales + "   •   Purchase: " + purchase + "   •   Purchase Return: " + purchaseReturn + "   •   Quotation: " + quotation);
         }
+        lblPurchaseDefault.setText(snapshot.defaultSummary());
         applyFilters();
+    }
+
+    private static String excelDefaultName(List<ExcelTemplate> templates, DocumentType type) {
+        return templates.stream()
+                .filter(t -> t.getDocumentType() == type)
+                .filter(t -> t.getStatus() == TemplateStatus.ACTIVE)
+                .filter(ExcelTemplate::isDefaultTemplate)
+                .map(ExcelTemplate::getName)
+                .findFirst().orElse("Built-in Excel");
+    }
+
+    private static String pdfDefaultName(List<DocumentTemplate> templates, DocumentType type) {
+        return templates.stream()
+                .filter(t -> t.getDocumentType() == type)
+                .filter(t -> t.getStatus() == TemplateStatus.ACTIVE)
+                .filter(DocumentTemplate::isDefaultTemplate)
+                .filter(DocumentTemplate::isRuntimeEnabled)
+                .filter(t -> t.getActiveVersion() > 0)
+                .map(DocumentTemplate::getName)
+                .findFirst().orElse(DocumentFlowRegistry.builtInLabel(type));
     }
 
     private void applyModePresentation(){
@@ -497,4 +550,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         Throwable root = error; while (root.getCause() != null && root.getCause() != root) root = root.getCause();
         return root.getMessage() == null || root.getMessage().isBlank() ? root.getClass().getSimpleName() : root.getMessage();
     }
+    private record StudioSnapshot(boolean excelMode, List<DocumentTemplate> pdfTemplates,
+                                  List<ExcelTemplate> excelTemplates, String defaultSummary) { }
+
 }

@@ -1,15 +1,22 @@
 package org.example.service;
 
+import javafx.application.Platform;
 import javafx.scene.image.Image;
+import org.example.api.ApiSession;
 import org.example.config.ConfigManager;
+import org.example.util.UiTaskExecutor;
 
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Workspace-aware branding with safe built-in fallbacks for first launch. */
 public final class BrandingService {
     private static final String TECHNICAL_PRODUCT_NAME = "DSE ERP";
+    private static volatile String sharedCompanyName;
+    private static volatile String sharedCompanyTagline;
+    private static final AtomicBoolean sharedIdentityRefreshPending = new AtomicBoolean();
 
     private BrandingService() { }
 
@@ -18,10 +25,19 @@ public final class BrandingService {
 
     /** Canonical customer-facing identity. Shared clients resolve company.* from the company server after login. */
     public static String companyName() {
+        String fallback = value("application.displayName", "");
+        if (fallback.isBlank()) fallback = TECHNICAL_PRODUCT_NAME;
+        if (mustAvoidSharedServerReadOnFxThread()) {
+            String cached = sharedCompanyName;
+            if (cached == null) refreshSharedIdentityAsync();
+            return cached == null || cached.isBlank() ? fallback : cached;
+        }
         String company = value("company.name", "");
-        if (!company.isBlank()) return company;
-        String legacyApplicationName = value("application.displayName", "");
-        return legacyApplicationName.isBlank() ? TECHNICAL_PRODUCT_NAME : legacyApplicationName;
+        if (!company.isBlank()) {
+            sharedCompanyName = company;
+            return company;
+        }
+        return fallback;
     }
 
     /**
@@ -30,7 +46,52 @@ public final class BrandingService {
      */
     public static String applicationName() { return companyName(); }
 
-    public static String tagline() { return value("application.tagline", value("company.tagline", "Business Management Suite")); }
+    public static String tagline() {
+        String applicationTagline = value("application.tagline", "");
+        if (!applicationTagline.isBlank()) return applicationTagline;
+        if (mustAvoidSharedServerReadOnFxThread()) {
+            String cached = sharedCompanyTagline;
+            if (cached == null) refreshSharedIdentityAsync();
+            return cached == null || cached.isBlank() ? "Business Management Suite" : cached;
+        }
+        String companyTagline = value("company.tagline", "Business Management Suite");
+        sharedCompanyTagline = companyTagline;
+        return companyTagline;
+    }
+
+    /**
+     * Invalidates the lightweight shared-company identity cache after Company settings change.
+     * The next UI read returns a safe local fallback immediately and refreshes in the background.
+     */
+    public static void invalidateSharedIdentity() {
+        sharedCompanyName = null;
+        sharedCompanyTagline = null;
+        sharedIdentityRefreshPending.set(false);
+    }
+
+    /** Preloads shared-client company identity without ever blocking the JavaFX application thread. */
+    public static void refreshSharedIdentityAsync() {
+        if (!ConfigManager.isSharedClient() || !ApiSession.isEstablished()) return;
+        if (!sharedIdentityRefreshPending.compareAndSet(false, true)) return;
+        UiTaskExecutor.submitLatest(
+                "branding-shared-identity",
+                () -> {
+                    String company = value("company.name", "");
+                    String tagline = value("company.tagline", "Business Management Suite");
+                    return new String[]{company, tagline};
+                },
+                values -> {
+                    sharedCompanyName = values[0];
+                    sharedCompanyTagline = values[1];
+                    sharedIdentityRefreshPending.set(false);
+                },
+                failure -> sharedIdentityRefreshPending.set(false)
+        );
+    }
+
+    private static boolean mustAvoidSharedServerReadOnFxThread() {
+        return Platform.isFxApplicationThread() && ConfigManager.isSharedClient() && ApiSession.isEstablished();
+    }
 
     public static String startingText() {
         String configured = value("application.startingText", "");

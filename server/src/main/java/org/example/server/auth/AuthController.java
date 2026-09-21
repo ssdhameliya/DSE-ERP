@@ -39,6 +39,12 @@ public class AuthController {
         return ResponseEntity.ok(auth.resendLoginMfa(request));
     }
 
+    @PostMapping("/login/mfa/enrollment")
+    public ResponseEntity<AuthDtos.LoginMfaEnrollmentResponse> loginMfaEnrollment(
+            @RequestBody AuthDtos.LoginMfaEnrollmentRequest request) {
+        return ResponseEntity.ok(auth.loginMfaEnrollment(request));
+    }
+
     @PostMapping("/login-complete")
     public AuthDtos.OperationResponse loginComplete(@RequestBody AuthDtos.UserIdRequest request,
                                                      @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {
