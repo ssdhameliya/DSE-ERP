@@ -113,7 +113,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     private void configurePaymentForm() {
         paymentDate.setValue(BusinessClock.today());
         List<String> defaultModes=new ArrayList<>(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
-        applyPaymentLookups(defaultModes,configuredBankAccounts());
+        applyPaymentLookups(defaultModes,List.of());
         ToggleGroup group = new ToggleGroup();
         fullPayment.setToggleGroup(group); partialPayment.setToggleGroup(group);
         fullPayment.setSelected(true);

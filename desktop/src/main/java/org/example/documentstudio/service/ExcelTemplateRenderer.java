@@ -278,6 +278,7 @@ public final class ExcelTemplateRenderer {
         blocks.sort(Comparator.comparingInt(RepeatBlock::startRow).reversed());
         for (RepeatBlock block : blocks) {
             if (block.item()) {
+                removeDuplicateItemHighlighting(sheet, block);
                 clearStaleRepeatingValues(sheet, block, "{{item.");
                 expandItems(sheet, block, items == null ? List.of() : items, gstType);
             } else {
@@ -285,6 +286,62 @@ public final class ExcelTemplateRenderer {
                 expandCharges(sheet, block, charges == null ? List.of() : charges, gstType);
             }
         }
+    }
+
+    /**
+     * A user workbook may contain Excel's "Duplicate Values" conditional formatting on a mapped
+     * item column (commonly Product Description). Repeating ERP rows must keep the template's
+     * normal cell style even when item values repeat, so remove only duplicate-value rules that
+     * target mapped item columns. Other conditional formatting remains intact.
+     */
+    private static void removeDuplicateItemHighlighting(Sheet sheet, RepeatBlock block) {
+        if (sheet == null || block == null || !block.item()) return;
+        Set<Integer> itemColumns = new LinkedHashSet<>();
+        for (int r = block.startRow(); r <= block.endRow(); r++)
+            itemColumns.addAll(mappedColumns(sheet.getRow(r), "{{item."));
+        if (itemColumns.isEmpty()) return;
+
+        SheetConditionalFormatting sheetFormatting = sheet.getSheetConditionalFormatting();
+        for (int index = sheetFormatting.getNumConditionalFormattings() - 1; index >= 0; index--) {
+            ConditionalFormatting formatting = sheetFormatting.getConditionalFormattingAt(index);
+            if (formatting == null || !formattingTouchesItemRegion(formatting, sheet, block, itemColumns)) continue;
+
+            List<ConditionalFormattingRule> retained = new ArrayList<>();
+            boolean duplicateRemoved = false;
+            for (int ruleIndex = 0; ruleIndex < formatting.getNumberOfRules(); ruleIndex++) {
+                ConditionalFormattingRule rule = formatting.getRule(ruleIndex);
+                if (isDuplicateValueRule(rule)) duplicateRemoved = true;
+                else retained.add(rule);
+            }
+            if (!duplicateRemoved) continue;
+
+            CellRangeAddress[] ranges = formatting.getFormattingRanges();
+            if (!retained.isEmpty())
+                sheetFormatting.addConditionalFormatting(ranges, retained.toArray(new ConditionalFormattingRule[0]));
+            sheetFormatting.removeConditionalFormatting(index);
+        }
+    }
+
+    private static boolean formattingTouchesItemRegion(ConditionalFormatting formatting, Sheet sheet, RepeatBlock block, Set<Integer> itemColumns) {
+        int lastRelevantRow = Math.max(block.endRow(), sheet.getLastRowNum());
+        for (CellRangeAddress range : formatting.getFormattingRanges()) {
+            if (range.getLastRow() < block.startRow() || range.getFirstRow() > lastRelevantRow) continue;
+            for (int column : itemColumns)
+                if (column >= range.getFirstColumn() && column <= range.getLastColumn()) return true;
+        }
+        return false;
+    }
+
+    private static boolean isDuplicateValueRule(ConditionalFormattingRule rule) {
+        if (rule == null) return false;
+        try {
+            if (rule.getConditionType() == ConditionType.FILTER
+                    && rule.getConditionFilterType() == ConditionFilterType.DUPLICATE_VALUES) return true;
+        } catch (Exception ignored) { }
+        String formula = rule.getFormula1();
+        if (formula == null) return false;
+        String normalized = formula.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+        return normalized.contains("COUNTIF(") && (normalized.contains(">1") || normalized.contains(">=2"));
     }
 
     /** Clears literal sample values only in columns owned by the repeating ERP block. */

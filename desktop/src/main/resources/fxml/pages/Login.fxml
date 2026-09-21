@@ -93,7 +93,7 @@
                     </VBox>
 
                     <VBox spacing="5" maxWidth="620">
-                        <Label text="Authenticator code (non-Admin only)" styleClass="auth-field-label"/>
+                        <Label text="Authenticator code (when MFA is active)" styleClass="auth-field-label"/>
                         <TextField fx:id="txtResetTotp" promptText="Current 6-digit authenticator code" prefHeight="44" styleClass="auth-input"/>
                         <Label fx:id="lblResetTotpError" managed="false" visible="false" styleClass="field-error"/>
                     </VBox>

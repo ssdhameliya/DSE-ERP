@@ -6,7 +6,10 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.example.api.admin.AdminApiClient;
 import org.example.service.NotificationService;
+import org.example.service.SessionService;
+import org.example.util.OwnedAlert;
 import org.example.util.IconFactory;
+import org.example.util.UiTaskExecutor;
 
 import java.util.Locale;
 import java.util.LinkedHashMap;
@@ -17,20 +20,24 @@ import java.util.regex.Pattern;
 public class UserDialogController {
     private static final Pattern EMAIL = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
-    @FXML private Label lblTitle, lblSubtitle, lblMessage;
+    @FXML private Label lblTitle, lblSubtitle, lblMessage, lblMfaPolicy, lblMfaStatus;
     @FXML private TextField txtFullName, txtUsername, txtEmail, txtDepartment, txtBranch;
     @FXML private PasswordField txtPassword, txtConfirm;
     @FXML private TextField txtPasswordVisible, txtConfirmVisible;
     @FXML private ComboBox<String> cmbRole, cmbAccess;
     @FXML private CheckBox chkActive, chkLocked, chkMfa;
-    @FXML private Button btnSave, btnCancel, btnPasswordEye, btnConfirmEye;
+    @FXML private Button btnSave, btnCancel, btnPasswordEye, btnConfirmEye, btnResetMfa;
 
     private Integer editingUserId;
     private String originalUsername;
     private long editingRowVersion;
     private AdminApiClient.UserDto savedResult;
+    private boolean originalMfaEnabled;
+    private boolean reauthenticationRequired;
+    private AdminApiClient.MfaState currentMfaState;
 
     public AdminApiClient.UserDto getSavedResult() { return savedResult; }
+    public boolean isReauthenticationRequired() { return reauthenticationRequired; }
     private String mfaPolicy = "REQUIRED";
     private final AdminApiClient api = new AdminApiClient();
     private final Map<String,String> roleDisplay = new LinkedHashMap<>();
@@ -41,11 +48,9 @@ public class UserDialogController {
             @Override public String toString(String value) { return roleDisplay.getOrDefault(canonicalRole(value), displayRole(value)); }
             @Override public String fromString(String value) { return value; }
         });
-        loadRoles();
         cmbAccess.getItems().setAll("FULL ACCESS", "STANDARD", "LIMITED ACCESS", "READ ONLY");
         cmbAccess.setValue("STANDARD");
         chkActive.setSelected(true);
-        try { mfaPolicy = new org.example.api.support.SupportApiClient().setting("security.auth.mfa.policy", "REQUIRED").trim().toUpperCase(Locale.ROOT); } catch (Exception ignored) { mfaPolicy="REQUIRED"; }
 
         txtPasswordVisible.textProperty().bindBidirectional(txtPassword.textProperty());
         txtConfirmVisible.textProperty().bindBidirectional(txtConfirm.textProperty());
@@ -64,8 +69,10 @@ public class UserDialogController {
             clearInvalid(cmbRole);
             applyRoleSecurityPolicy();
         });
+        chkMfa.selectedProperty().addListener((o,a,b)->updateMfaStatus());
         installLiveValidation();
         applyRoleSecurityPolicy();
+        loadFormAsync(null);
     }
 
     public void editUser(int userId) {
@@ -77,42 +84,80 @@ public class UserDialogController {
         txtPasswordVisible.setPromptText("Leave blank to keep current password");
         txtConfirm.setPromptText("Confirm new password");
         txtConfirmVisible.setPromptText("Confirm new password");
-        try {
-            var u = api.user(userId);
-            originalUsername = u.username();
-            editingRowVersion = u.rowVersion();
-            txtFullName.setText(nvl(u.fullName()));
-            txtUsername.setText(nvl(u.username()));
-            txtEmail.setText(nvl(u.email()));
-            txtDepartment.setText(nvl(u.department()));
-            txtBranch.setText(nvl(u.branch()));
-            selectRole(nvl(u.role()));
-            cmbAccess.setValue(blank(u.accessLevel(), "STANDARD"));
-            chkActive.setSelected(u.active());
-            chkLocked.setSelected(u.locked());
-            chkMfa.setSelected(u.mfaEnabled());
-            applyRoleSecurityPolicy();
-        } catch (Exception e) {
-            message("Unable to load user: " + e.getMessage(), true);
-        }
+        loadFormAsync(userId);
     }
 
-    private void loadRoles() {
+    private void loadFormAsync(Integer userId) {
+        setFormLoading(true);
+        UiTaskExecutor.submitLatest("user-dialog-bootstrap",
+                () -> {
+                    var roles = api.roles().stream().filter(AdminApiClient.RoleDto::active).toList();
+                    String policy;
+                    try { policy = new org.example.api.support.SupportApiClient().setting("security.auth.mfa.policy", "REQUIRED").trim().toUpperCase(Locale.ROOT); }
+                    catch (Exception ignored) { policy = "REQUIRED"; }
+                    AdminApiClient.UserDto user = userId == null ? null : api.user(userId);
+                    AdminApiClient.MfaState mfaState = userId == null ? null : api.mfaState(userId);
+                    return new UserDialogBootstrap(roles, policy, user, mfaState);
+                },
+                snapshot -> {
+                    applyRoles(snapshot.roles());
+                    mfaPolicy = snapshot.mfaPolicy();
+                    if (snapshot.user() != null) applyUser(snapshot.user());
+                    currentMfaState = snapshot.mfaState();
+                    setFormLoading(false);
+                    applyRoleSecurityPolicy();
+                    updateMfaStatus();
+                },
+                failure -> {
+                    setFormLoading(false);
+                    message("Unable to load user settings: " + safeMessage(failure), true);
+                });
+    }
+
+    private void applyRoles(java.util.List<AdminApiClient.RoleDto> roles) {
+        String selected = canonicalRole(cmbRole.getValue());
         cmbRole.getItems().clear();
         roleDisplay.clear();
-        try {
-            var roles = api.roles().stream().filter(AdminApiClient.RoleDto::active).toList();
-            for (var role : roles) {
-                String code = canonicalRole(role.code());
-                if (code.isBlank()) continue;
-                roleDisplay.put(code, blank(role.displayName()) ? displayRole(code) : role.displayName().trim());
-                cmbRole.getItems().add(code);
-            }
-        } catch (Exception e) {
-            message("Unable to load roles from Role Master: " + e.getMessage(), true);
+        for (var role : roles) {
+            String code = canonicalRole(role.code());
+            if (code.isBlank()) continue;
+            roleDisplay.put(code, blank(role.displayName()) ? displayRole(code) : role.displayName().trim());
+            cmbRole.getItems().add(code);
         }
-        if (cmbRole.getItems().contains("SALES")) cmbRole.setValue("SALES");
+        if (!selected.isBlank() && cmbRole.getItems().contains(selected)) cmbRole.setValue(selected);
+        else if (cmbRole.getItems().contains("SALES")) cmbRole.setValue("SALES");
         else if (!cmbRole.getItems().isEmpty()) cmbRole.getSelectionModel().selectFirst();
+    }
+
+    private void applyUser(AdminApiClient.UserDto u) {
+        originalUsername = u.username();
+        editingRowVersion = u.rowVersion();
+        txtFullName.setText(nvl(u.fullName()));
+        txtUsername.setText(nvl(u.username()));
+        txtEmail.setText(nvl(u.email()));
+        txtDepartment.setText(nvl(u.department()));
+        txtBranch.setText(nvl(u.branch()));
+        selectRole(nvl(u.role()));
+        cmbAccess.setValue(blank(u.accessLevel(), "STANDARD"));
+        chkActive.setSelected(u.active());
+        chkLocked.setSelected(u.locked());
+        chkMfa.setSelected(u.mfaEnabled());
+        originalMfaEnabled = u.mfaEnabled();
+    }
+
+    private void setFormLoading(boolean loading) {
+        for (Control control : new Control[]{txtFullName, txtUsername, txtEmail, txtDepartment, txtBranch,
+                txtPassword, txtConfirm, txtPasswordVisible, txtConfirmVisible, cmbRole, cmbAccess,
+                chkActive, chkLocked, chkMfa, btnResetMfa}) {
+            if (control != null) control.setDisable(loading);
+        }
+        if (btnSave != null) btnSave.setDisable(loading);
+    }
+
+    private record UserDialogBootstrap(java.util.List<AdminApiClient.RoleDto> roles, String mfaPolicy, AdminApiClient.UserDto user, AdminApiClient.MfaState mfaState) { }
+
+    private static String safeMessage(Throwable error) {
+        return error == null || error.getMessage() == null || error.getMessage().isBlank() ? "Unexpected error" : error.getMessage();
     }
 
     private void selectRole(String role) {
@@ -123,17 +168,63 @@ public class UserDialogController {
 
     private void applyRoleSecurityPolicy() {
         boolean admin = "ADMIN".equals(canonicalRole(cmbRole.getValue()));
-        if ("ADMIN_CONTROLLED".equals(mfaPolicy)) {
+        String normalizedPolicy = mfaPolicy == null ? "REQUIRED" : mfaPolicy.trim().toUpperCase(Locale.ROOT).replace(' ', '_');
+        if (lblMfaPolicy != null) lblMfaPolicy.setText(switch (normalizedPolicy) {
+            case "ADMIN_CONTROLLED" -> "Admin Controlled";
+            case "DISABLED" -> "Disabled";
+            default -> "Required for non-Admin roles";
+        });
+        if ("ADMIN_CONTROLLED".equals(normalizedPolicy)) {
             chkMfa.setDisable(false);
-            chkMfa.setTooltip(new Tooltip("Administrator controlled: this user will require MFA when selected."));
+            chkMfa.setTooltip(new Tooltip("Require Google/Microsoft Authenticator for this user."));
+        } else {
+            boolean required = !"DISABLED".equals(normalizedPolicy) && !admin;
+            chkMfa.setSelected(required);
+            chkMfa.setDisable(true);
+            chkMfa.setTooltip(new Tooltip("DISABLED".equals(normalizedPolicy)
+                    ? "MFA is disabled by the server authentication policy."
+                    : required ? "MFA is required for this role by server policy." : "Admin is exempt while MFA policy is Required."));
+        }
+        updateMfaStatus();
+    }
+
+    private void updateMfaStatus() {
+        if (lblMfaStatus == null) return;
+        if (!chkMfa.isSelected()) {
+            lblMfaStatus.setText("Not required");
+            if (btnResetMfa != null) { btnResetMfa.setVisible(false); btnResetMfa.setManaged(false); }
             return;
         }
-        boolean required = !"DISABLED".equals(mfaPolicy) && !admin;
-        chkMfa.setSelected(required);
-        chkMfa.setDisable(true);
-        chkMfa.setTooltip(new Tooltip("DISABLED".equals(mfaPolicy)
-                ? "MFA is disabled by the server authentication policy."
-                : required ? "MFA is required for non-Admin users by server policy." : "Admin is exempt while MFA policy is Required."));
+        String status = currentMfaState == null ? "ENROLLMENT_REQUIRED" : currentMfaState.status();
+        boolean active = "ACTIVE".equalsIgnoreCase(status);
+        lblMfaStatus.setText(active ? "Active — Google / Microsoft Authenticator" : "Enrollment required at next sign-in");
+        if (btnResetMfa != null) {
+            boolean show = editingUserId != null && active;
+            btnResetMfa.setVisible(show); btnResetMfa.setManaged(show); btnResetMfa.setDisable(false);
+        }
+    }
+
+    @FXML
+    private void resetAuthenticator() {
+        if (editingUserId == null) return;
+        OwnedAlert confirm = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                "Reset Authenticator for " + (originalUsername == null ? "this user" : originalUsername) + "?\n\n" +
+                        "The existing authenticator will stop working. The user must scan a new QR code at the next sign-in.",
+                ButtonType.YES, ButtonType.NO);
+        if (confirm.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
+        btnResetMfa.setDisable(true);
+        UiTaskExecutor.submitAction("user-mfa-reset", () -> api.resetMfa(editingUserId), state -> {
+            currentMfaState = state;
+            updateMfaStatus();
+            message(state.message(), false);
+            if (SessionService.current() != null && SessionService.current().getId() == editingUserId) {
+                reauthenticationRequired = true;
+                close();
+            }
+        }, failure -> {
+            btnResetMfa.setDisable(false);
+            message("Authenticator could not be reset: " + safeMessage(failure), true);
+        });
     }
 
     @FXML private void togglePasswordVisibility() { togglePassword(txtPassword, txtPasswordVisible, btnPasswordEye, "password"); }
@@ -155,22 +246,28 @@ public class UserDialogController {
     private void save() {
         clearInvalid();
         if (!validateForm()) return;
-        try {
-            savedResult = api.saveUser(new AdminApiClient.UserSaveRequest(editingUserId, txtUsername.getText().trim(),
-                    blank(txtPassword.getText()) ? null : txtPassword.getText(), txtFullName.getText().trim(),
-                    txtEmail.getText().trim(), canonicalRole(cmbRole.getValue()), txtDepartment.getText().trim(),
-                    cmbAccess.getValue(), txtBranch.getText().trim(), chkActive.isSelected(), chkLocked.isSelected(),
-                    chkMfa.isSelected(), editingRowVersion));
+        AdminApiClient.UserSaveRequest request = new AdminApiClient.UserSaveRequest(editingUserId, txtUsername.getText().trim(),
+                blank(txtPassword.getText()) ? null : txtPassword.getText(), txtFullName.getText().trim(),
+                txtEmail.getText().trim(), canonicalRole(cmbRole.getValue()), txtDepartment.getText().trim(),
+                cmbAccess.getValue(), txtBranch.getText().trim(), chkActive.isSelected(), chkLocked.isSelected(),
+                chkMfa.isSelected(), editingRowVersion);
+        btnSave.setDisable(true);
+        UiTaskExecutor.submitAction("user-dialog-save", () -> api.saveUser(request), saved -> {
+            savedResult = saved;
+            if (editingUserId != null && SessionService.current() != null && SessionService.current().getId() == editingUserId
+                    && originalMfaEnabled != saved.mfaEnabled()) reauthenticationRequired = true;
             NotificationService.add(editingUserId == null
                     ? "User " + txtUsername.getText().trim() + " created with " + roleDisplay.getOrDefault(canonicalRole(cmbRole.getValue()), displayRole(cmbRole.getValue())) + " access."
                     : "User " + originalUsername + " updated.");
             close();
-        } catch (Exception e) {
-            String m = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
+        }, failure -> {
+            btnSave.setDisable(false);
+            String text = safeMessage(failure);
+            String m = text.toLowerCase(Locale.ROOT);
             if (m.contains("username") && (m.contains("already") || m.contains("duplicate") || m.contains("unique"))) invalid(txtUsername, "This username already exists.");
             else if (m.contains("email") && (m.contains("already") || m.contains("duplicate") || m.contains("unique"))) invalid(txtEmail, "This email address is already assigned to another user.");
-            else message("Unable to save user: " + e.getMessage(), true);
-        }
+            else message("Unable to save user: " + text, true);
+        });
     }
 
     private boolean validateForm() {

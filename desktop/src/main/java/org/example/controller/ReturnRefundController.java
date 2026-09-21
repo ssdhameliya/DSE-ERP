@@ -65,13 +65,19 @@ public class ReturnRefundController implements ScreenLifecycle {
     }
 
     private void refreshMasterLookups(){
-        String selectedMode=mode==null?null:mode.getValue(),selectedAccount=bankAccount==null?null:bankAccount.getValue();
-        List<String> modes=new ArrayList<>();try{modes.addAll(lookups.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
-        if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
-        mode.getItems().setAll(modes);if(selectedMode!=null&&modes.contains(selectedMode))mode.setValue(selectedMode);else if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer");else mode.getSelectionModel().selectFirst();
-        List<String> accounts=new ArrayList<>();try{for(var l:lookups.getByCategoryCode("BANK_ACCOUNT"))if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String d=l.getDescription()==null?"":l.getDescription().trim();accounts.add(d.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+d);}}catch(Exception ignored){}
-        if(accounts.isEmpty()){String bank=ConfigManager.get("payment.bankName","").trim(),acct=ConfigManager.get("payment.accountNumber","").trim();if(!acct.isBlank())accounts.add(bank.isBlank()?acct:acct+" - "+bank);}
-        bankAccount.getItems().setAll(accounts);if(selectedAccount!=null&&accounts.contains(selectedAccount))bankAccount.setValue(selectedAccount);else if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst();else bankAccount.setPromptText("Add BANK ACCOUNT in Masters");
+        UiTaskExecutor.submitLatest("return-refund-lookups",()->{
+            List<String> modes=new ArrayList<>();try{modes.addAll(lookups.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
+            if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
+            List<String> accounts=new ArrayList<>();try{for(var l:lookups.getByCategoryCode("BANK_ACCOUNT"))if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String d=l.getDescription()==null?"":l.getDescription().trim();accounts.add(d.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+d);}}catch(Exception ignored){}
+            if(accounts.isEmpty()){String bank=ConfigManager.get("payment.bankName","").trim(),acct=ConfigManager.get("payment.accountNumber","").trim();if(!acct.isBlank())accounts.add(bank.isBlank()?acct:acct+" - "+bank);}
+            return new RefundLookups(List.copyOf(modes),List.copyOf(accounts));
+        },loaded->{
+            String selectedMode=mode==null?null:mode.getValue(),selectedAccount=bankAccount==null?null:bankAccount.getValue();
+            List<String> modes=new ArrayList<>(loaded.modes());if(selectedMode!=null&&!selectedMode.isBlank()&&!modes.contains(selectedMode))modes.add(0,selectedMode);
+            mode.getItems().setAll(modes);if(selectedMode!=null&&modes.contains(selectedMode))mode.setValue(selectedMode);else if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer");else if(!modes.isEmpty())mode.getSelectionModel().selectFirst();
+            List<String> accounts=new ArrayList<>(loaded.accounts());if(selectedAccount!=null&&!selectedAccount.isBlank()&&!accounts.contains(selectedAccount))accounts.add(0,selectedAccount);
+            bankAccount.getItems().setAll(accounts);if(selectedAccount!=null&&accounts.contains(selectedAccount))bankAccount.setValue(selectedAccount);else if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst();else bankAccount.setPromptText("Add BANK ACCOUNT in Masters");
+        },failure->{});
     }
 
     private void configureHistory(){
@@ -81,9 +87,10 @@ public class ReturnRefundController implements ScreenLifecycle {
         cAction.setCellFactory(x->new TableCell<>(){private final MenuButton menu=new MenuButton("Actions");private final MenuItem preview=new MenuItem("Preview Proof",IconFactory.compactIcon("view",14));private final MenuItem remove=new MenuItem("Remove Proof",IconFactory.compactIcon("delete",14));{menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",14));menu.getItems().addAll(preview,remove);preview.setOnAction(e->previewRow(row()));remove.setOnAction(e->removeRowProof(row()));IconFactory.decorateActionMenu(menu);}private ReturnApiClient.RefundRow row(){int i=getIndex();return i<0||i>=getTableView().getItems().size()?null:getTableView().getItems().get(i);}@Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty){setGraphic(null);return;}var r=row();boolean none=r==null||safe(r.attachment()).isBlank();boolean bank=r!=null&&"BANK_RECONCILIATION".equalsIgnoreCase(r.refundType());preview.setDisable(none);remove.setDisable(none||bank);setGraphic(menu);}});
     }
 
-    private void load(){String no=ReturnRefundContext.value();if(no==null||no.isBlank())return;try{details=api.details(no);boolean sales="SALES RETURN".equalsIgnoreCase(details.type());pageTitle.setText(sales?"Sales Return Refund":"Purchase Return Refund");pageSubtitle.setText("Record refund • review history • manage proof documents");partyFieldLabel.setText(sales?"Refunded To *":"Received From *");amountFieldLabel.setText(sales?"Amount Refunded *":"Refund Received *");returnNo.setText(details.no());party.setText(details.party());originalDocument.setText(details.invoice());returnDate.setText(BusinessClock.formatDate(details.date()));refundedParty.setText(details.party());refreshAmounts();loadHistory();resetForm(false);}catch(Exception e){error(e);}}
+    private void load(){String no=ReturnRefundContext.value();if(no==null||no.isBlank())return;UiTaskExecutor.submitLatest("return-refund-load",()->{ReturnApiClient.Details loaded=api.details(no);List<ReturnApiClient.RefundRow> rows=api.refunds(no);return new RefundSnapshot(no,loaded,rows==null?List.of():List.copyOf(rows));},snapshot->{if(!Objects.equals(snapshot.returnNo(),ReturnRefundContext.value()))return;details=snapshot.details();boolean sales="SALES RETURN".equalsIgnoreCase(details.type());pageTitle.setText(sales?"Sales Return Refund":"Purchase Return Refund");pageSubtitle.setText("Record refund • review history • manage proof documents");partyFieldLabel.setText(sales?"Refunded To *":"Received From *");amountFieldLabel.setText(sales?"Amount Refunded *":"Refund Received *");returnNo.setText(details.no());party.setText(details.party());originalDocument.setText(details.invoice());returnDate.setText(BusinessClock.formatDate(details.date()));refundedParty.setText(details.party());refreshAmounts();applyHistory(snapshot.rows());resetForm(false);},this::error);}
     private void refreshAmounts(){double b=Math.max(0,details.total()-details.refund());total.setText(money(details.total()));refunded.setText(money(details.refund()));balance.setText(money(b));summaryTotal.setText(money(details.total()));summaryRefunded.setText(money(details.refund()));summaryBalance.setText(money(b));double pct=details.total()<=0?0:Math.min(1,details.refund()/details.total());refundProgress.setProgress(pct);refundPercent.setText(String.format(Locale.ROOT,"%.0f%% refunded",pct*100));updateAfter();}
-    private void loadHistory(){List<ReturnApiClient.RefundRow> rows=api.refunds(details.no());historyTable.getItems().setAll(rows);historyCount.setText(rows.size()+ (rows.size()==1?" Refund":" Refunds"));}
+    private void applyHistory(List<ReturnApiClient.RefundRow> rows){historyTable.getItems().setAll(rows);historyCount.setText(rows.size()+ (rows.size()==1?" Refund":" Refunds"));}
+    private void loadHistory(){if(details==null)return;String no=details.no();UiTaskExecutor.submitLatest("return-refund-history",()->api.refunds(no),rows->applyHistory(rows==null?List.of():rows),this::error);}
     private void selectFull(){if(details!=null)amount.setText(String.format(Locale.ROOT,"%.2f",Math.max(0,details.total()-details.refund())));}
     private void updateAfter(){if(details==null)return;after.setText(money(Math.max(0,details.total()-details.refund()-parse(amount.getText()))));}
 
@@ -98,6 +105,10 @@ public class ReturnRefundController implements ScreenLifecycle {
     private void removeRowProof(ReturnApiClient.RefundRow r){if(r==null)return;Alert a=new org.example.util.OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the saved proof from this refund?",ButtonType.YES,ButtonType.NO);a.setHeaderText("Remove Refund Proof");if(a.showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;try{support.deleteReturnRefundAttachment(r.id());loadHistory();}catch(Exception e){error(e);}}
 
     @FXML private void back(){NavigationManager.getInstance().loadPage("SALES RETURN".equalsIgnoreCase(details==null?"":details.type())?"/fxml/pages/SalesReturns.fxml":"/fxml/pages/PurchaseReturns.fxml");}
+    @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("return-refund-");}
     private static double parse(String x){try{return Double.parseDouble(safe(x).replace(",",""));}catch(Exception e){return 0;}}private static String money(double x){return String.format(Locale.ROOT,"₹ %,.2f",x);}private static String safe(String x){return x==null?"":x.trim();}private static String message(Throwable e){return e==null||e.getMessage()==null?"Unexpected error":e.getMessage();}
     private void info(String h,String m){new OwnedAlert(Alert.AlertType.INFORMATION,m).showAndWait();}private void error(Throwable e){new OwnedAlert(Alert.AlertType.ERROR,message(e)).showAndWait();}
+    private record RefundLookups(List<String> modes,List<String> accounts){}
+    private record RefundSnapshot(String returnNo,ReturnApiClient.Details details,List<ReturnApiClient.RefundRow> rows){}
+
 }

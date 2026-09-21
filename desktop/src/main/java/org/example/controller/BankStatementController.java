@@ -90,7 +90,7 @@ public class BankStatementController implements ScreenLifecycle {
         cmbPageSize.setValue(50);
         cmbHistoryStatus.setItems(FXCollections.observableArrayList("All Status","IMPORTED","PARTIALLY RECONCILED","FULLY RECONCILED"));
         cmbHistoryStatus.setValue("All Status");
-        configureBankAccountMaster();
+        refreshBankAccountMasterAsync();
         configureTable();
         configureBatchSelector();
         configureHistoryTable();
@@ -105,7 +105,7 @@ public class BankStatementController implements ScreenLifecycle {
     }
 
     @Override public void onScreenShown(boolean reusedFromCache) {
-        configureBankAccountMaster();
+        refreshBankAccountMasterAsync();
         org.example.util.OperationalUiSupport.focusWorkArea(table);
         LinkedRecordContext.Target target=LinkedRecordContext.consume("BANK_STATEMENT");
         if(target==null || target.recordId()==null) return;
@@ -257,18 +257,26 @@ public class BankStatementController implements ScreenLifecycle {
         };
         cmbBatch.setCellFactory(factory);cmbBatch.setButtonCell(factory.call(null));
     }
-    private void configureBankAccountMaster(){
-        List<BankAccountOption> options=new ArrayList<>();historyAccountTokens.clear();
+    private List<BankAccountOption> readBankAccountMaster(){
+        List<BankAccountOption> options=new ArrayList<>();
         try{
             for(var lookup:lookupService.getByCategoryCode("BANK_ACCOUNT")){
                 if(lookup==null||!lookup.isActive()||safe(lookup.getLookupValue()).isBlank())continue;
-                BankAccountOption option=new BankAccountOption(lookup.getLookupValue().trim(),safe(lookup.getDescription()).trim());
-                options.add(option);historyAccountTokens.put(option.toString(),option.accountNumber());
+                options.add(new BankAccountOption(lookup.getLookupValue().trim(),safe(lookup.getDescription()).trim()));
             }
         }catch(Exception ignored){}
-        bankAccountOptions=List.copyOf(options);
-        if(cmbHistoryAccount!=null){cmbHistoryAccount.getItems().setAll(options.stream().map(BankAccountOption::toString).toList());cmbHistoryAccount.setEditable(true);cmbHistoryAccount.setPromptText(options.isEmpty()?"Configure BANK ACCOUNT in Master Data":"All Bank Accounts");cmbHistoryAccount.setOnShowing(e->configureBankAccountMaster());}
+        return List.copyOf(options);
     }
+    private void applyBankAccountMaster(List<BankAccountOption> options){
+        String selected=cmbHistoryAccount==null?null:cmbHistoryAccount.getValue();
+        historyAccountTokens.clear();for(BankAccountOption option:options)historyAccountTokens.put(option.toString(),option.accountNumber());
+        bankAccountOptions=List.copyOf(options);
+        if(cmbHistoryAccount!=null){cmbHistoryAccount.getItems().setAll(options.stream().map(BankAccountOption::toString).toList());cmbHistoryAccount.setEditable(true);cmbHistoryAccount.setPromptText(options.isEmpty()?"Configure BANK ACCOUNT in Master Data":"All Bank Accounts");if(selected!=null&&cmbHistoryAccount.getItems().contains(selected))cmbHistoryAccount.setValue(selected);cmbHistoryAccount.setOnShowing(e->refreshBankAccountMasterAsync());}
+    }
+    private void refreshBankAccountMasterAsync(){
+        UiTaskExecutor.submitLatest("bank-statement-account-master",this::readBankAccountMaster,this::applyBankAccountMaster,failure->{});
+    }
+    private void configureBankAccountMaster(){applyBankAccountMaster(readBankAccountMaster());}
     private void configureHistoryTable(){
         if(tableHistory==null)return;
         colHistoryImported.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatTimestamp(v.getValue().importedAt())));
@@ -526,20 +534,28 @@ public class BankStatementController implements ScreenLifecycle {
         if(rows.isEmpty()){info("Move to Expense","Select one or more debit transactions.");return;}
         List<Row> invalid=rows.stream().filter(row->row.dto.debit()<=0||!Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))).toList();
         if(!invalid.isEmpty()){info("Move to Expense",invalid.size()+" selected transaction(s) are not eligible. Only open debit transactions can be moved together.");return;}
-        showBulkExpenseDialog(rows);
+        UiTaskExecutor.submitLatest(
+                "bank-statement-bulk-expense-lookups",
+                () -> new BulkDialogLookups(safeLookup("EXPENSE_CATEGORY"), safeLookup("PAYMENT_MODE")),
+                lookups -> showBulkExpenseDialog(rows, lookups.categories(), lookups.paymentModes()),
+                this::error
+        );
     }
     @FXML private void moveSelectedToBankEntry(){
         List<Row> rows=selectedRows();
         if(rows.isEmpty()){info("Move to Bank Entry","Select one or more open transactions.");return;}
         List<Row> invalid=rows.stream().filter(row->!Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))).toList();
         if(!invalid.isEmpty()){info("Move to Bank Entry",invalid.size()+" selected transaction(s) are not eligible. Only open transactions can be moved together.");return;}
-        showBulkBankEntryDialog(rows);
+        UiTaskExecutor.submitLatest(
+                "bank-statement-bulk-bank-lookups",
+                () -> safeLookup("PAYMENT_MODE"),
+                modes -> showBulkBankEntryDialog(rows, modes),
+                this::error
+        );
     }
 
-    private void showBulkExpenseDialog(List<Row> rows){
-        List<String> categories=safeLookup("EXPENSE_CATEGORY");
+    private void showBulkExpenseDialog(List<Row> rows,List<String> categories,List<String> modes){
         if(categories.isEmpty()){info("Move to Expense","No Expense Category is configured in Master Data. Configure a category before using bulk move.");return;}
-        List<String> modes=safeLookup("PAYMENT_MODE");
         Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Bulk Move to Expense");dialog.setHeaderText(rows.size()+" selected transactions • Total ₹ "+money(rows.stream().mapToDouble(r->r.dto.debit()).sum()));
         ComboBox<String> category=new ComboBox<>(FXCollections.observableArrayList(categories));category.setPromptText("Select category *");category.setMaxWidth(Double.MAX_VALUE);
         ComboBox<String> mode=new ComboBox<>(FXCollections.observableArrayList(modes));if(!modes.isEmpty())mode.getSelectionModel().selectFirst();mode.setMaxWidth(Double.MAX_VALUE);
@@ -554,8 +570,7 @@ public class BankStatementController implements ScreenLifecycle {
         });
     }
 
-    private void showBulkBankEntryDialog(List<Row> rows){
-        List<String> modes=safeLookup("PAYMENT_MODE");
+    private void showBulkBankEntryDialog(List<Row> rows,List<String> modes){
         Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Bulk Move to Bank Entry");dialog.setHeaderText(rows.size()+" selected transactions • Total ₹ "+money(rows.stream().mapToDouble(r->bankAmount(r.dto)).sum()));
         TextField account=new TextField(batchAccountName());ComboBox<String> mode=new ComboBox<>(FXCollections.observableArrayList(modes));if(!modes.isEmpty())mode.getSelectionModel().selectFirst();mode.setMaxWidth(Double.MAX_VALUE);
         TextArea notes=new TextArea();notes.setPromptText("Optional note applied to all selected transactions");notes.setPrefRowCount(2);
@@ -608,8 +623,9 @@ public class BankStatementController implements ScreenLifecycle {
     private void match(Row row){
         UiTaskExecutor.submitLatest(
             "bank-statement-suggest-"+row.dto.id(),
-            () -> api.suggest(row.dto.id()),
-            cs -> {
+            () -> new MatchWorkspaceData(api.suggest(row.dto.id()), bankMatchRoundingTolerance()),
+            workspace -> {
+                List<BankStatementApiClient.CandidateDto> cs=workspace.candidates();
                 if(cs.isEmpty()){info("Match Transaction","No eligible Sale, Purchase or Return refund transaction was found. You can move debit transactions to Expense or review later.");refresh();return;}
                 var top=cs.getFirst();
                 if(Boolean.getBoolean("dse.legacyBankMatchDialog")&&top.confidence()>=75&&Math.abs(top.outstanding()-bankAmount(row.dto))<=.01){
@@ -618,15 +634,14 @@ public class BankStatementController implements ScreenLifecycle {
                     ButtonType find=new ButtonType("Find Another",ButtonBar.ButtonData.OTHER);ButtonType confirm=new ButtonType("Confirm Match",ButtonBar.ButtonData.OK_DONE);a.getButtonTypes().setAll(confirm,find,ButtonType.CANCEL);
                     var r=a.showAndWait();if(r.isPresent()&&r.get()==confirm){confirm(row,List.of(top));return;}if(r.isEmpty()||r.get()==ButtonType.CANCEL)return;
                 }
-                showCandidateWorkspace(row,cs);
+                showCandidateWorkspace(row,cs,workspace.roundingTolerance());
             },
             this::error
         );
     }
 
-    private void showCandidateWorkspace(Row bankRow,List<BankStatementApiClient.CandidateDto> candidates){
+    private void showCandidateWorkspace(Row bankRow,List<BankStatementApiClient.CandidateDto> candidates,double tolerance){
         double bankValue=bankAmount(bankRow.dto);
-        double tolerance=bankMatchRoundingTolerance();
         List<CandidateRow> rows=new ArrayList<>();
         for(int i=0;i<candidates.size();i++){
             var candidate=candidates.get(i);
@@ -960,6 +975,8 @@ public class BankStatementController implements ScreenLifecycle {
     private void error(Throwable e){Alert a=new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?e.toString():e.getMessage());a.setHeaderText("Bank Statement operation failed");a.showAndWait();}
 
     private record BulkResult(int completed,int failed,String firstFailure) { }
+    private record BulkDialogLookups(List<String> categories,List<String> paymentModes) { }
+    private record MatchWorkspaceData(List<BankStatementApiClient.CandidateDto> candidates,double roundingTolerance) { }
 
     public static final class Row{
         final BankStatementApiClient.TransactionDto dto;final BooleanProperty selected=new SimpleBooleanProperty(false);final StringProperty date,valueDate,reference,description,status,match;final DoubleProperty debit,credit,balance;
@@ -977,4 +994,6 @@ public class BankStatementController implements ScreenLifecycle {
             total.set(dto.totalAmount());paid.set(dto.paidAmount());outstanding.set(dto.outstanding());this.allocation.set(allocation);selected.set(selectedInitially);
         }
     }
+    @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("bank-statement-");}
+
 }

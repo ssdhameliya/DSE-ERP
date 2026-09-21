@@ -51,6 +51,7 @@ import org.example.navigation.NavigationManager;
 import org.example.theme.ThemeManager;
 import org.example.util.ClockService;
 import org.example.util.PerformanceMonitor;
+import org.example.util.UiTaskExecutor;
 import org.example.util.ShellIndicatorBus;
 import org.example.util.PlatformUiSupport;
 
@@ -358,23 +359,44 @@ public class DashboardController {
         if (Platform.isFxApplicationThread()) apply.run(); else Platform.runLater(apply);
     }
 
-    /** Refreshes the shell footer from the current company configuration. */
+    /** Refreshes the shell footer from the current company configuration without blocking the JavaFX thread. */
     private void refreshCompanyFooter() {
         if (lblCompanyFooter == null) return;
-        String company = org.example.service.BrandingService.companyName();
-        String phone = ConfigManager.get("company.phone", "").trim();
-        String email = ConfigManager.get("company.email", "").trim();
-        String website = ConfigManager.get("company.website", "").trim();
-        String gstin = ConfigManager.get("company.gstin", "").trim();
-        String address = ConfigManager.get("company.address", "").trim();
-        List<String> details = new java.util.ArrayList<>();
-        if (!phone.isBlank()) details.add("Phone: " + phone);
-        if (!email.isBlank()) details.add("Email: " + email);
-        if (!website.isBlank()) details.add("Website: " + website);
-        if (!gstin.isBlank()) details.add("GSTIN: " + gstin);
-        if (!address.isBlank()) details.add("Address: " + address.replaceAll("[\\r\\n]+", ", "));
-        lblCompanyFooter.setText(company + (details.isEmpty() ? "" : "   •   " + String.join("   •   ", details)));
+        UiTaskExecutor.submitLatest("dashboard-company-footer",
+                DashboardController::readCompanyFooter,
+                this::applyCompanyFooter,
+                failure -> System.err.println("[Dashboard] Company footer unavailable: " + dashboardSafeMessage(failure)));
     }
+
+    private static CompanyFooter readCompanyFooter() {
+        String company = ConfigManager.get("company.name", "").trim();
+        if (company.isBlank()) company = ConfigManager.get("application.displayName", "").trim();
+        if (company.isBlank()) company = org.example.service.BrandingService.technicalProductName();
+        return new CompanyFooter(company,
+                ConfigManager.get("company.phone", "").trim(),
+                ConfigManager.get("company.email", "").trim(),
+                ConfigManager.get("company.website", "").trim(),
+                ConfigManager.get("company.gstin", "").trim(),
+                ConfigManager.get("company.address", "").trim());
+    }
+
+    private void applyCompanyFooter(CompanyFooter footer) {
+        if (lblCompanyFooter == null || footer == null) return;
+        List<String> details = new java.util.ArrayList<>();
+        if (!footer.phone().isBlank()) details.add("Phone: " + footer.phone());
+        if (!footer.email().isBlank()) details.add("Email: " + footer.email());
+        if (!footer.website().isBlank()) details.add("Website: " + footer.website());
+        if (!footer.gstin().isBlank()) details.add("GSTIN: " + footer.gstin());
+        if (!footer.address().isBlank()) details.add("Address: " + footer.address().replaceAll("[\r\n]+", ", "));
+        lblCompanyFooter.setText(footer.company() + (details.isEmpty() ? "" : "   •   " + String.join("   •   ", details)));
+    }
+
+    private static String dashboardSafeMessage(Throwable error) {
+        if (error == null || error.getMessage() == null || error.getMessage().isBlank()) return "Unexpected error";
+        return error.getMessage();
+    }
+
+    private record CompanyFooter(String company, String phone, String email, String website, String gstin, String address) { }
 
     /** Disables protected navigation modules when the signed-in role lacks VIEW access. */
     private void applyRolePermissions() {

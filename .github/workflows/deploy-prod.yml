@@ -200,15 +200,31 @@ jobs:
           print(f"PROD_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=preserved")
           PY
 
-      - name: Promote health-verified GitHub release to STABLE
+      - name: Promote health-verified GitHub release to STABLE and LATEST
         id: promote
         shell: bash
         run: |
           set -euo pipefail
-          gh release edit "$TAG" --repo '${{ github.repository }}' --prerelease=false
-          PRERELEASE="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.prerelease')"
-          [[ "$PRERELEASE" == "false" ]] || { echo "GitHub release $TAG was not promoted to STABLE" >&2; exit 1; }
-          echo "RELEASE_PROMOTED_TO_STABLE tag=$TAG"
+          gh release edit "$TAG" \
+            --repo '${{ github.repository }}' \
+            --prerelease=false \
+            --latest
+
+          for attempt in $(seq 1 12); do
+            PRERELEASE="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.prerelease' 2>/dev/null || true)"
+            LATEST_TAG="$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
+
+            if [[ "$PRERELEASE" == "false" && "$LATEST_TAG" == "$TAG" ]]; then
+              echo "RELEASE_STABLE_AND_LATEST_OK tag=$TAG"
+              exit 0
+            fi
+
+            echo "Waiting for GitHub release convergence: expected=$TAG latest=${LATEST_TAG:-UNKNOWN} prerelease=${PRERELEASE:-UNKNOWN} attempt=$attempt/12"
+            sleep 5
+          done
+
+          echo "GitHub did not expose $TAG as stable/latest within 60 seconds" >&2
+          exit 1
 
       - name: Verify PROD private GitHub update gateway
         id: prod_gateway
@@ -216,34 +232,50 @@ jobs:
         run: |
           set -euo pipefail
           UPDATE_BASE="${PROD_HEALTH_URL%/api/runtime/health}"
-          # PROD intentionally rejects prerelease access. Verify only after promotion,
-          # through the stable endpoint that real PROD desktops use.
+          # PROD intentionally rejects prerelease access. Verify only after GitHub
+          # confirms this exact tag is both stable and Latest.
           UPDATE_URL="${UPDATE_BASE}/api/updates/releases/latest"
-          BODY="$(curl --fail --silent --show-error --max-time 30 "$UPDATE_URL")"
-          python3 - "$VERSION" "$BODY" <<'PY'
+
+          for attempt in $(seq 1 12); do
+            if BODY="$(curl --fail --silent --show-error --max-time 30 "$UPDATE_URL")"; then
+              if python3 - "$VERSION" "$BODY" <<'PY'
           import json,sys
           version,body=sys.argv[1:]
           r=json.loads(body)
           tag=str(r.get('tagName','')).lstrip('vV')
           assets=r.get('assets')
           if tag != version:
-              raise SystemExit(f'Private PROD update gateway returned unexpected stable release: {r}')
+              raise SystemExit(1)
           if not isinstance(assets,list) or not assets:
-              raise SystemExit(f'Private PROD update gateway returned no release assets: {r}')
+              raise SystemExit(1)
           for asset in assets:
               url=str(asset.get('downloadUrl',''))
               if not url.startswith('/api/updates/assets/'):
-                  raise SystemExit(f'Private PROD update gateway exposed an unexpected asset URL: {asset}')
+                  raise SystemExit(1)
           print(f'PROD_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')
           PY
+              then
+                exit 0
+              fi
 
-      - name: Demote release if PROD update gateway verification fails
-        if: failure() && steps.promote.outcome == 'success' && steps.prod_gateway.outcome == 'failure'
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh release edit "$TAG" --repo '${{ github.repository }}' --prerelease=true
-          echo "RELEASE_DEMOTED_TO_PRERELEASE tag=$TAG reason=prod-update-gateway-verification"
+              ACTUAL_TAG="$(python3 - "$BODY" <<'PY'
+          import json,sys
+          try:
+              print(json.loads(sys.argv[1]).get('tagName','UNKNOWN'))
+          except Exception:
+              print('INVALID_RESPONSE')
+          PY
+              )"
+            else
+              ACTUAL_TAG="UNREACHABLE"
+            fi
+
+            echo "PROD gateway not converged yet: expected=v${VERSION} actual=${ACTUAL_TAG} attempt=$attempt/12"
+            sleep 5
+          done
+
+          echo "PROD update gateway failed to expose v${VERSION} after 60 seconds" >&2
+          exit 1
 
       - name: Clean remote upload staging
         if: always() && steps.ssh.outcome == 'success'

@@ -16,12 +16,19 @@ public class ServerResourceService {
     public ServerResourceService(JpaNativeRepository db) { this.db = db; }
 
 
-    /** API-facing operations enforce the business permission boundary; internal canonical services use list/get/put/delete. */
+    /** API-facing operations own the transaction boundary and enforce the business permission boundary. */
+    @Transactional(readOnly = true)
     public List<ResourceMeta> apiList(String type) { requireApiRead(type); return list(type); }
+
+    @Transactional(readOnly = true)
     public ResourceFile apiGet(String type,String key) { requireApiRead(type); return get(type,key); }
+
+    @Transactional
     public ResourceMeta apiPut(String type,String key,String fileName,String contentType,byte[] content,String expectedChecksum) {
         requireApiWrite(type); return put(type,key,fileName,contentType,content,expectedChecksum);
     }
+
+    @Transactional
     public void apiDelete(String type,String key) { requireApiWrite(type); delete(type,key); }
 
     private static void requireApiRead(String type) {

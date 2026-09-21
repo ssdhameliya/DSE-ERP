@@ -37,6 +37,7 @@ import org.example.util.RegisterDetailDrawer;
 import org.example.util.RegisterUiSupport;
 import org.example.util.OperationalUiSupport;
 import org.example.util.SemanticTableCells;
+import org.example.util.UiTaskExecutor;
 
 
 import java.time.LocalDate;
@@ -74,6 +75,7 @@ public class UserAccessController implements ScreenLifecycle {
     private FilteredList<UserRow> filtered;
     private RegisterDetailDrawer detailDrawer;
     private UserRow detailUser;
+    private boolean applyingAccessSnapshot;
 
     @FXML public void initialize(){
         if(userAccessPageIcon!=null)userAccessPageIcon.getChildren().setAll(IconFactory.icon("users",24));
@@ -85,7 +87,7 @@ public class UserAccessController implements ScreenLifecycle {
         installDetailDrawer();
         txtSearch.textProperty().addListener((o,a,b)->filter()); cmbRole.valueProperty().addListener((o,a,b)->filter());
         cmbStatus.valueProperty().addListener((o,a,b)->filter()); cmbBranch.valueProperty().addListener((o,a,b)->filter());
-        cmbPermissionRole.valueProperty().addListener((o,a,b)->loadPermissions(b));
+        cmbPermissionRole.valueProperty().addListener((o,a,b)->{if(!applyingAccessSnapshot)loadPermissions(b);});
         refresh();
     }
 
@@ -93,6 +95,8 @@ public class UserAccessController implements ScreenLifecycle {
     public void onScreenShown(boolean reusedFromCache) {
         if (reusedFromCache && ScreenRefreshPolicy.shouldRefresh("user-access", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) refresh();
     }
+
+    @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("user-access-");}
 
     private void configureUserTable(){
         colUser.setCellValueFactory(v->v.getValue().user); colEmail.setCellValueFactory(v->v.getValue().email); colRole.setCellValueFactory(v->v.getValue().role);
@@ -126,18 +130,21 @@ public class UserAccessController implements ScreenLifecycle {
         colPermissionAllowed.setCellFactory(CheckBoxTableCell.forTableColumn(colPermissionAllowed)); colPermissionAllowed.setEditable(true); permissionTable.setEditable(true);
     }
 
-    @FXML private void refresh(){ loadRoles(); loadUsers(); refreshFilters(); updateMetrics(); filter(); ScreenRefreshPolicy.markRefreshed("user-access"); }
-    private void loadUsers(){
-        closeDetails();
-        users.clear();
-        try{for(var u:adminApi.users())users.add(new UserRow(u,roleDisplayNames));}
-        catch(Exception e){error("Users could not be loaded",e);}
-    }
-    private void loadRoles(){
-        String selected=cmbPermissionRole.getValue(); roles.clear(); cmbPermissionRole.getItems().clear(); roleDisplayNames.clear();
-        try{for(var r:adminApi.roles()){RoleRow row=new RoleRow(r);roles.add(row);roleDisplayNames.put(row.code,row.name.get());cmbPermissionRole.getItems().add(row.code);}}
-        catch(Exception e){error("Roles could not be loaded",e);}
-        if(selected!=null&&cmbPermissionRole.getItems().contains(selected))cmbPermissionRole.setValue(selected); else if(!cmbPermissionRole.getItems().isEmpty())cmbPermissionRole.getSelectionModel().selectFirst();
+    @FXML private void refresh(){
+        String selectedPermissionRole=cmbPermissionRole.getValue();
+        UiTaskExecutor.submitLatest("user-access-refresh",()->new UserAccessSnapshot(adminApi.roles(),adminApi.users()),snapshot->{
+            closeDetails();
+            applyingAccessSnapshot=true;
+            try{
+                roles.clear();users.clear();roleDisplayNames.clear();cmbPermissionRole.getItems().clear();
+                for(var r:snapshot.roles()){RoleRow row=new RoleRow(r);roles.add(row);roleDisplayNames.put(row.code,row.name.get());cmbPermissionRole.getItems().add(row.code);}
+                for(var u:snapshot.users())users.add(new UserRow(u,roleDisplayNames));
+                if(selectedPermissionRole!=null&&cmbPermissionRole.getItems().contains(selectedPermissionRole))cmbPermissionRole.setValue(selectedPermissionRole);
+                else if(!cmbPermissionRole.getItems().isEmpty())cmbPermissionRole.getSelectionModel().selectFirst();
+            }finally{applyingAccessSnapshot=false;}
+            refreshFilters();updateMetrics();filter();ScreenRefreshPolicy.markRefreshed("user-access");
+            if(cmbPermissionRole.getValue()!=null)loadPermissions(cmbPermissionRole.getValue());
+        },failure->error("Users and roles could not be loaded",failure instanceof Exception e?e:new RuntimeException(failure)));
     }
     private void refreshFilters(){
         String selectedRole=cmbRole.getValue(),selectedBranch=cmbBranch.getValue(); cmbRole.getItems().setAll("All Roles");cmbBranch.getItems().setAll("All Branches");
@@ -151,11 +158,14 @@ public class UserAccessController implements ScreenLifecycle {
     }
 
     private void loadPermissions(String roleName){
-        permissions.clear(); permissionRowVersion=0L; if(roleName==null)return; boolean admin=org.example.service.SessionService.isAdminRole(roleName);
-        try{var set=adminApi.permissionSet(roleName);permissionRowVersion=set.rowVersion();for(var p:set.permissions())permissions.add(new PermissionRow(p));}
-        catch(Exception e){error("Permissions could not be loaded",e);}
-        lblRoleHint.setText(admin?"Administrator receives full access by system policy.":"Current saved permission picture for "+roleName+".");
-        permissionTable.setDisable(admin);
+        permissions.clear();permissionRowVersion=0L;if(roleName==null)return;boolean admin=org.example.service.SessionService.isAdminRole(roleName);
+        permissionTable.setDisable(true);
+        UiTaskExecutor.submitLatest("user-access-permissions",()->adminApi.permissionSet(roleName),set->{
+            if(!Objects.equals(roleName,cmbPermissionRole.getValue()))return;
+            permissionRowVersion=set.rowVersion();permissions.setAll(set.permissions().stream().map(PermissionRow::new).toList());
+            lblRoleHint.setText(admin?"Administrator receives full access by system policy.":"Current saved permission picture for "+roleName+".");
+            permissionTable.setDisable(admin);
+        },failure->{permissionTable.setDisable(admin);error("Permissions could not be loaded",failure instanceof Exception e?e:new RuntimeException(failure));});
     }
 
     @FXML private void savePermissions(){
@@ -172,7 +182,9 @@ public class UserAccessController implements ScreenLifecycle {
     private void edit(UserRow row){if(row!=null)openUserDialog(row.id);}
     private void openUserDialog(Integer userId){
         try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/UserDialog.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);UserDialogController controller=loader.getController();if(userId!=null)controller.editUser(userId);
-            Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage, table, userId==null?"Add New User":"Edit User", true);Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.setMinWidth(860);stage.setMinHeight(620);stage.showAndWait();var saved=controller.getSavedResult();refresh();if(saved!=null)selectSavedUser(saved.id());}
+            Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage, table, userId==null?"Add New User":"Edit User", true);Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.setMinWidth(860);stage.setMinHeight(620);stage.showAndWait();
+            if(controller.isReauthenticationRequired()){new OwnedAlert(Alert.AlertType.INFORMATION,"Your authenticator requirement changed. Sign in again to complete secure Authenticator enrollment.",ButtonType.OK).showAndWait();SessionService.clear();org.example.util.SceneManager.showLogin();return;}
+            var saved=controller.getSavedResult();refresh();if(saved!=null)selectSavedUser(saved.id());}
         catch(Exception e){error("User form could not be opened",e);}
     }
     private void selectSavedUser(int id){UserRow row=users.stream().filter(x->x.id==id).findFirst().orElse(null);if(row!=null){table.getSelectionModel().select(row);table.scrollTo(row);showDetails(row);}}
@@ -180,6 +192,15 @@ public class UserAccessController implements ScreenLifecycle {
     private void resetPassword(UserRow row){
         if(row==null){warning("Select a user first.");return;}TextInputDialog d=new OwnedTextInputDialog();d.setTitle("Reset Password");d.setHeaderText("Set a temporary password for "+row.user.get());d.setContentText("Temporary password:");
         d.showAndWait().map(String::trim).filter(x->x.length()>=6).ifPresent(password->{try{adminApi.resetPassword(row.id,password);audit(row.id,"PASSWORD_RESET",row.user.get());NotificationService.add("Password reset for "+row.user.get()+".");org.example.util.ToastManager.success(table,"Password reset","Temporary password was set for "+row.user.get()+".");refresh();}catch(Exception e){error("Password could not be reset",e);}});
+    }
+    private void resetAuthenticator(UserRow row){
+        if(row==null){warning("Select a user first.");return;}
+        if(!row.mfaEnabled){warning("Authenticator is not required for this user.");return;}
+        if(!confirm("Reset Authenticator for '"+row.user.get()+"'? The old phone will stop working and a new QR enrollment will be required at the next sign-in."))return;
+        UiTaskExecutor.submitAction("user-access-mfa-reset", () -> adminApi.resetMfa(row.id), state -> {
+            if(SessionService.current()!=null&&SessionService.current().getId()==row.id){new OwnedAlert(Alert.AlertType.INFORMATION,state.message()+" Sign in again to continue.",ButtonType.OK).showAndWait();SessionService.clear();org.example.util.SceneManager.showLogin();return;}
+            org.example.util.ToastManager.success(table,"Authenticator reset",state.message());refresh();
+        }, failure -> error("Authenticator could not be reset", failure instanceof Exception e ? e : new RuntimeException(failure)));
     }
     private void toggleLock(UserRow row){if(row==null)return;try{adminApi.setLocked(row.id,!row.locked);audit(row.id,row.locked?"USER_UNLOCKED":"USER_LOCKED",row.user.get());org.example.util.ToastManager.success(table,row.locked?"Account unlocked":"Account locked",row.user.get()+" was "+(row.locked?"unlocked":"locked")+" successfully.");refresh();}catch(Exception e){error("Lock status could not be changed",e);}}
     private void deleteUser(UserRow row){if(row==null)return;if("admin".equalsIgnoreCase(row.user.get())){warning("The primary administrator cannot be deleted.");return;}if(!confirm("Delete user '"+row.user.get()+"'?"))return;try{adminApi.deleteUser(row.id);org.example.util.ToastManager.success(table,"User deleted",row.user.get()+" was deleted successfully.");refresh();}catch(Exception e){error("User could not be deleted",e);}}
@@ -189,7 +210,7 @@ public class UserAccessController implements ScreenLifecycle {
     @FXML private void deleteRole(){openRoleMaster();}
     private void openRoleMaster(){ MasterDataController.requestCategory("ROLE"); DashboardController.navigateFromChildPage("Master Data", "/fxml/pages/Masterdata.fxml"); }
 
-    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("View User","view",e->{table.getSelectionModel().select(row);showDetails(row);}),mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.roleCode);showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
+    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("View User","view",e->{table.getSelectionModel().select(row);showDetails(row);}),mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi("Reset Authenticator","security",e->resetAuthenticator(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.roleCode);showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
     private void installDetailDrawer(){
         detailDrawer=new RegisterDetailDrawer();
         detailDrawer.attachBesideTable(table);
@@ -223,7 +244,11 @@ public class UserAccessController implements ScreenLifecycle {
         Button resetButton=new Button("Reset Password",IconFactory.compactIcon("lock",15));
         resetButton.getStyleClass().addAll("approved-button","approved-secondary-button");
         resetButton.setOnAction(e->resetPassword(row));
-        detailDrawer.setActions(editButton,resetButton);
+        Button resetMfaButton=new Button("Reset Authenticator",IconFactory.compactIcon("security",15));
+        resetMfaButton.getStyleClass().addAll("approved-button","approved-secondary-button");
+        resetMfaButton.setDisable(!row.mfaEnabled);
+        resetMfaButton.setOnAction(e->resetAuthenticator(row));
+        detailDrawer.setActions(editButton,resetButton,resetMfaButton);
     }
     private void closeDetails(){
         detailUser=null;
@@ -242,7 +267,7 @@ public class UserAccessController implements ScreenLifecycle {
     private void configureIcons(){
     }
 
-    public static final class UserRow{final int id;final String roleCode;final SimpleStringProperty user,email,role,department,access,branch,status,lastLogin,mfa;final String fullName;final boolean active,locked;final java.time.LocalDate lastLoginDate;UserRow(AdminApiClient.UserDto r,Map<String,String> roleNames){id=r.id();user=new SimpleStringProperty(r.username());fullName=blank(r.fullName(),r.username());email=new SimpleStringProperty(blank(r.email(),"—"));roleCode=blank(r.role(),"SALES").toUpperCase(Locale.ROOT);role=new SimpleStringProperty(roleNames.getOrDefault(roleCode,roleCode));department=new SimpleStringProperty(blank(r.department(),"—"));access=new SimpleStringProperty(blank(r.accessLevel(),"STANDARD"));branch=new SimpleStringProperty(blank(r.branch(),"—"));active=r.active();locked=r.locked();status=new SimpleStringProperty(locked?"Locked":active?"Active":"Inactive");lastLoginDate=BusinessClock.localDateOfTimestamp(r.lastLogin());lastLogin=new SimpleStringProperty(blank(r.lastLogin(),"Never").equals("Never")?"Never":BusinessClock.formatTimestamp(r.lastLogin()));mfa=new SimpleStringProperty(r.mfaEnabled()?"Enabled":"—");}}
+    public static final class UserRow{final int id;final String roleCode;final SimpleStringProperty user,email,role,department,access,branch,status,lastLogin,mfa;final String fullName;final boolean active,locked,mfaEnabled;final java.time.LocalDate lastLoginDate;UserRow(AdminApiClient.UserDto r,Map<String,String> roleNames){id=r.id();user=new SimpleStringProperty(r.username());fullName=blank(r.fullName(),r.username());email=new SimpleStringProperty(blank(r.email(),"—"));roleCode=blank(r.role(),"SALES").toUpperCase(Locale.ROOT);role=new SimpleStringProperty(roleNames.getOrDefault(roleCode,roleCode));department=new SimpleStringProperty(blank(r.department(),"—"));access=new SimpleStringProperty(blank(r.accessLevel(),"STANDARD"));branch=new SimpleStringProperty(blank(r.branch(),"—"));active=r.active();locked=r.locked();mfaEnabled=r.mfaEnabled();status=new SimpleStringProperty(locked?"Locked":active?"Active":"Inactive");lastLoginDate=BusinessClock.localDateOfTimestamp(r.lastLogin());lastLogin=new SimpleStringProperty(blank(r.lastLogin(),"Never").equals("Never")?"Never":BusinessClock.formatTimestamp(r.lastLogin()));mfa=new SimpleStringProperty(r.mfaEnabled()?"Enabled":"—");}}
     public static final class RoleRow{final int id;final String code;final SimpleStringProperty name,description,status;final SimpleIntegerProperty users;final boolean active;RoleRow(AdminApiClient.RoleDto r){id=r.id();code=blank(r.code(),"").toUpperCase(Locale.ROOT);name=new SimpleStringProperty(blank(r.displayName(),code));description=new SimpleStringProperty(blank(r.description(),"No description"));users=new SimpleIntegerProperty((int)r.userCount());active=r.active();status=new SimpleStringProperty(active?"Active":"Inactive");}}
     public static final class PermissionRow{final int id;final SimpleStringProperty module,action,description;final SimpleBooleanProperty allowed;PermissionRow(AdminApiClient.PermissionDto r){id=(int)r.id();module=new SimpleStringProperty(r.module());action=new SimpleStringProperty(r.action());description=new SimpleStringProperty(blank(r.description(),"—"));allowed=new SimpleBooleanProperty(r.allowed());}}
     private static String blank(String v,String fallback){return v==null||v.isBlank()?fallback:v;}
@@ -251,4 +276,6 @@ public class UserAccessController implements ScreenLifecycle {
         setKpiIcon(iconTotalUsers,"users");setKpiIcon(iconActiveUsers,"complete");setKpiIcon(iconRoles,"role");setKpiIcon(iconLocked,"lock");setKpiIcon(iconLogins,"login");
     }
     private void setKpiIcon(Label label,String semantic){if(label!=null){label.setText("");label.setGraphic(IconFactory.compactIcon(semantic,24));label.getProperties().put("erp-icon-preserve",true);}}
+    private record UserAccessSnapshot(List<AdminApiClient.RoleDto> roles,List<AdminApiClient.UserDto> users){}
+
 }

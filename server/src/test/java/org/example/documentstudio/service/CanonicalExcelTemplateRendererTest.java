@@ -1,11 +1,14 @@
 package org.example.documentstudio.service;
 
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.ConditionalFormatting;
+import org.apache.poi.ss.usermodel.ConditionalFormattingRule;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.SheetConditionalFormatting;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -115,6 +118,35 @@ class CanonicalExcelTemplateRendererTest {
             ExcelTemplateRenderer.fillWorkbook(workbook, data(), List.of());
             assertEquals(IndexedColors.WHITE.getIndex(), sheet.getRow(1).getCell(0).getCellStyle().getFillForegroundColor());
             assertEquals(FillPatternType.SOLID_FOREGROUND, sheet.getRow(1).getCell(0).getCellStyle().getFillPattern());
+        }
+    }
+
+    @Test
+    void serverRendererRemovesDuplicateHighlightFromMappedItemColumnsOnly() throws Exception {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Invoice");
+            Row template = sheet.createRow(0);
+            template.createCell(0).setCellValue("{{item.description}}");
+            template.createCell(1).setCellValue("{{item.quantity}}");
+            template.createCell(2).setCellValue("{{item.rate}}");
+            template.createCell(3).setCellValue("{{item.taxable}}");
+            sheet.createRow(3).createCell(0).setCellValue("Grand Total");
+
+            SheetConditionalFormatting conditional = sheet.getSheetConditionalFormatting();
+            ConditionalFormattingRule duplicate = conditional.createConditionalFormattingRule(
+                    "COUNTIF($A$1:$A$20,A1)>1");
+            ConditionalFormattingRule retained = conditional.createConditionalFormattingRule("B1>0");
+            conditional.addConditionalFormatting(
+                    new CellRangeAddress[]{new CellRangeAddress(0, 20, 0, 1)},
+                    new ConditionalFormattingRule[]{duplicate, retained});
+
+            ExcelTemplateRenderer.fillWorkbook(workbook, data(), List.of());
+
+            SheetConditionalFormatting after = sheet.getSheetConditionalFormatting();
+            assertEquals(1, after.getNumConditionalFormattings());
+            ConditionalFormatting remaining = after.getConditionalFormattingAt(0);
+            assertEquals(1, remaining.getNumberOfRules());
+            assertEquals("B1>0", remaining.getRule(0).getFormula1());
         }
     }
 

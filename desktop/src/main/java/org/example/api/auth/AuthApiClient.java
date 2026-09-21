@@ -58,11 +58,14 @@ public final class AuthApiClient {
             if (response.challengeId() == null || response.challengeId().isBlank()) {
                 throw new IllegalStateException("The authentication server did not return an MFA challenge");
             }
-            return new LoginAttempt(user, true, response.challengeId(), response.maskedDestination());
+            boolean enrollmentRequired = "Authenticator enrollment".equalsIgnoreCase(response.maskedDestination());
+            LoginMfaEnrollmentResponse enrollment = enrollmentRequired
+                    ? loginMfaEnrollmentAt(loginBase, response.challengeId()) : null;
+            return new LoginAttempt(user, true, response.challengeId(), response.maskedDestination(), enrollmentRequired, enrollment);
         }
         establishSession(response, loginBase);
         pendingLoginBaseUrl = null;
-        return new LoginAttempt(user, false, null, null);
+        return new LoginAttempt(user, false, null, null, false, null);
     }
 
     public AppUser completeLoginMfa(String challengeId, String otp) {
@@ -77,6 +80,16 @@ public final class AuthApiClient {
         establishSession(response, loginBase);
         pendingLoginBaseUrl = null;
         return toAppUser(response.user());
+    }
+
+    private LoginMfaEnrollmentResponse loginMfaEnrollmentAt(String loginBase, String challengeId) {
+        LoginMfaEnrollmentResponse response = postAt(loginBase, "/api/auth/login/mfa/enrollment",
+                new LoginMfaEnrollmentRequest(challengeId), LoginMfaEnrollmentResponse.class);
+        if (response == null || !response.success() || response.manualSecret() == null || response.manualSecret().isBlank()
+                || response.provisioningUri() == null || response.provisioningUri().isBlank()) {
+            throw new IllegalStateException(response == null ? "Authenticator enrollment could not be loaded" : response.message());
+        }
+        return response;
     }
 
     public LoginMfaChallengeResponse resendLoginMfa(String challengeId) {
@@ -418,6 +431,8 @@ public final class AuthApiClient {
     public record LoginRequest(String identity, String password) {}
     public record LoginMfaCompleteRequest(String challengeId, String otp) {}
     public record LoginMfaResendRequest(String challengeId) {}
+    public record LoginMfaEnrollmentRequest(String challengeId) {}
+    public record LoginMfaEnrollmentResponse(boolean success,String challengeId,String manualSecret,String provisioningUri,String message) {}
     public record UserIdRequest(int userId) {}
     public record ChangePasswordRequest(int userId, String currentPassword, String password) {}
     public record RegisterRequest(String username, String password, String fullName, String email, String role,
@@ -434,7 +449,8 @@ public final class AuthApiClient {
                                             String maskedDestination) {}
     public record LoginResponse(boolean success, UserPayload user, String message, String accessToken, String expiresAt,
                                 boolean mfaRequired, String challengeId, String maskedDestination) {}
-    public record LoginAttempt(AppUser user, boolean mfaRequired, String challengeId, String maskedDestination) {}
+    public record LoginAttempt(AppUser user, boolean mfaRequired, String challengeId, String maskedDestination,
+                               boolean enrollmentRequired, LoginMfaEnrollmentResponse enrollment) {}
     public record OperationResponse(boolean success, String message) {}
     public record EffectivePermission(String module, String action, String description) {}
     public record RoleOption(String code, String displayName) {

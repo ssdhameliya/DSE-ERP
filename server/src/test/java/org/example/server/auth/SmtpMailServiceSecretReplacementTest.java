@@ -52,6 +52,27 @@ class SmtpMailServiceSecretReplacementTest {
         });
     }
 
+    @Test
+    void settingsSummaryDoesNotDecryptUnreadableStoredPassword() {
+        withTemporaryHome(() -> {
+            MemorySettingsRepository db = new MemorySettingsRepository();
+            db.values.put("smtp.email", "accounts@gmail.com");
+            db.values.put("smtp.host", "smtp.gmail.com");
+            db.values.put("smtp.port", "587");
+            db.values.put("smtp.appPassword", "ENCv1:not-a-valid-payload");
+            SmtpMailService service = new SmtpMailService("", 587, "", "", "", db);
+
+            SmtpMailService.SettingsSummary summary = service.currentSettingsSummary();
+
+            assertEquals("accounts@gmail.com", summary.email());
+            assertEquals("smtp.gmail.com", summary.host());
+            assertEquals(587, summary.port());
+            assertTrue(summary.passwordConfigured());
+            assertThrows(IllegalStateException.class, service::currentSettings,
+                    "The normal send-time settings path should still reject an unreadable encrypted secret");
+        });
+    }
+
     private void withTemporaryHome(Runnable action) {
         String previous = System.getProperty("user.home");
         try {

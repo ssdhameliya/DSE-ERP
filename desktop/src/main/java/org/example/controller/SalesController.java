@@ -203,6 +203,7 @@ public class SalesController {
     //-------------------------------------------------------
 
     private Sales editingSale = null;
+    private String companyGstin = "";
     private Sales duplicateSource = null;
     private boolean loadingSaleForEdit = false;
     private File pendingAttachment;
@@ -522,7 +523,8 @@ public class SalesController {
         }
         items = loadOrDefault("Items", errors, itemService::getAll, List.of());
         String invoiceNo = loadOrDefault("Next Invoice No", errors, salesService::nextInvoiceNo, "");
-        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters, customers, items, invoiceNo, List.copyOf(errors));
+        String loadedCompanyGstin = loadOrDefault("Company GSTIN", errors, () -> ConfigManager.get("company.gstin", ""), "");
+        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters, customers, items, invoiceNo, loadedCompanyGstin, List.copyOf(errors));
     }
 
     private <T> T loadOrDefault(String label, List<String> errors, Supplier<T> loader, T fallback) {
@@ -537,6 +539,7 @@ public class SalesController {
 
     private void applySaleBootstrap(SaleBootstrap bootstrap) {
         if (bootstrap == null) return;
+        companyGstin = bootstrap.companyGstin() == null ? "" : bootstrap.companyGstin();
 
         cmbPaymentTerms.getItems().setAll(bootstrap.paymentTerms());
         availableChargeTypes.setAll(bootstrap.chargeTypes());
@@ -644,6 +647,7 @@ public class SalesController {
         List<Party> customers,
         List<Item> items,
         String invoiceNo,
+        String companyGstin,
         List<String> errors
     ) { }
 
@@ -655,7 +659,7 @@ public class SalesController {
     private void suggestGstTypeFromGstin() {
         if (cmbGstType == null || txtBillingGstin == null) return;
         DocumentLookupPolicy.suggestedGstType(
-            ConfigManager.get("company.gstin", ""), txtBillingGstin.getText(), cmbGstType.getItems()
+            companyGstin, txtBillingGstin.getText(), cmbGstType.getItems()
         ).ifPresent(cmbGstType::setValue);
     }
 

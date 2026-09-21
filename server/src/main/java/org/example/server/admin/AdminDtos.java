@@ -13,6 +13,7 @@ public final class AdminDtos { private AdminDtos(){}
  public record PermissionSaveRequest(String role,List<PermissionSave> permissions,long rowVersion){}
  public record PasswordRequest(String password){}
  public record LockRequest(boolean locked){}
+ public record MfaState(boolean required,String status,String message){}
  public record AuditRequest(int userId,String action,String detail){}
  public record RegistrationRequestDto(long id,String username,String fullName,String email,String requestedRole,boolean emailVerified,boolean mfaVerified,String status,String requestedAt,String reviewedBy,String reviewedAt,String rejectionReason,long rowVersion){}
  public record RegistrationDecisionRequest(String role,String reason,long rowVersion){}

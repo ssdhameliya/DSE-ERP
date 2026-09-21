@@ -39,7 +39,7 @@ need('RegistrationErrorPolicy.userMessage(e)' in reg, 'registration error saniti
 need('RegistrationErrorPolicy.isCaptchaFailure(e)' in reg, 'CAPTCHA-specific refresh missing')
 need('Verification email is temporarily unavailable' in policy and 'Verification email is temporarily unavailable' in mail, 'public email message missing')
 need('535' in mail and 'Google App Password' in mail, 'admin SMTP authentication guidance missing')
-need('new Settings(current.email(), "", current.host(), current.port(), !current.password().isBlank())' in emailctl, 'server settings still risk returning SMTP password')
+need(emailctl.count('mail.currentSettingsSummary()') >= 2 and 'saved.password()' not in emailctl and 'current.password()' not in emailctl, 'server settings still risk decrypting/returning SMTP password')
 need('txtSmtpPassword.clear()' in settings and 'leave blank to keep current password' in settings, 'desktop password configured-state handling missing')
 managed_pg = text('desktop/src/main/java/org/example/api/runtime/ManagedPostgresRuntime.java')
 shutdown = managed_pg.index('public static synchronized void shutdownForUpdate()')

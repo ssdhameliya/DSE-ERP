@@ -15,6 +15,8 @@ class SalesRegisterActionPerformanceContractTest {
         assertTrue(block.contains("final ContextMenu sharedMenu = new ContextMenu()"));
         assertTrue(block.contains("final Button button = new Button(\"Actions\")"));
         assertTrue(block.contains("getTableView().getSelectionModel().select(getIndex())"));
+        assertFalse(block.contains("getTableView().scrollTo(getIndex())"),
+                "Opening Actions must not move the clicked row to the top of the visible register");
         assertFalse(block.contains("new MenuButton"));
     }
 }

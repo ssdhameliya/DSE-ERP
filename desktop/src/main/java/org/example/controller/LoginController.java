@@ -4,9 +4,13 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import org.example.model.AppUser;
 import org.example.service.NotificationService;
 import org.example.service.NotificationPreferenceService;
@@ -21,6 +25,8 @@ import org.example.util.ClockService;
 import org.example.util.SceneManager;
 import org.example.util.UiActionIcons;
 import org.example.util.IconFactory;
+import org.example.util.OwnedDialog;
+import org.example.util.QrCodeImageFactory;
 import org.example.util.UiTaskExecutor;
 import org.example.util.PerformanceMonitor;
 import org.example.util.PerformanceBudgets;
@@ -122,6 +128,10 @@ public class LoginController {
         UiActionIcons.apply(btnLogin, ButtonAction.LOGIN);
         UiActionIcons.apply(btnRegister, ButtonAction.ADD);
         UiActionIcons.apply(btnEmailSettings, ButtonAction.EMAIL);
+        if (ConfigManager.isSharedClient() && btnEmailSettings != null) {
+            btnEmailSettings.setVisible(false);
+            btnEmailSettings.setManaged(false);
+        }
         UiActionIcons.apply(btnForgotPassword, "reset", "Reset forgotten password");
         if (btnResendOtp != null) UiActionIcons.apply(btnResendOtp, ButtonAction.EMAIL);
         // Keep the recovery affordance explicit: generic page decoration must not
@@ -299,6 +309,11 @@ public class LoginController {
 
             pendingUser = user;
             pendingMfaChallengeId = attempt.challengeId();
+            if (attempt.enrollmentRequired() && attempt.enrollment() != null) {
+                showAuthenticatorEnrollment(attempt.enrollment());
+                PerformanceMonitor.finish("login-click");
+                return;
+            }
             txtOtp.clear();
             txtOtp.setDisable(false);
             if (otpPanel != null) {
@@ -344,6 +359,100 @@ public class LoginController {
 
         if (!valid) message("Please correct the highlighted fields.", true);
         return valid;
+    }
+
+    private void showAuthenticatorEnrollment(org.example.api.auth.AuthApiClient.LoginMfaEnrollmentResponse setup) {
+        OwnedDialog<Boolean> dlg = new OwnedDialog<>(txtPassword);
+        dlg.setTitle("Set Up Authenticator");
+        ButtonType cancel = ButtonType.CANCEL;
+        ButtonType verify = new ButtonType("Verify & Continue", ButtonBar.ButtonData.OK_DONE);
+        dlg.getDialogPane().getButtonTypes().addAll(cancel, verify);
+        dlg.getDialogPane().getStyleClass().addAll("premium-entity-dialog", "approved-ui");
+
+        VBox content = new VBox(10);
+        content.getStyleClass().addAll("authenticator-setup-card", "form-section-card");
+        Label title = new Label("Secure this account with an authenticator");
+        title.getStyleClass().add("section-title");
+        Label help = new Label(setup.message() == null || setup.message().isBlank()
+                ? "Scan the QR code with Google or Microsoft Authenticator, then enter the current 6-digit code."
+                : setup.message());
+        help.setWrapText(true);
+        help.getStyleClass().add("auth-description");
+        ImageView qr = new ImageView();
+        qr.setFitWidth(240);
+        qr.setFitHeight(240);
+        qr.setPreserveRatio(true);
+        qr.getStyleClass().add("authenticator-qr-image");
+        try {
+            qr.setImage(QrCodeImageFactory.create(setup.provisioningUri(), 240));
+        } catch (Exception failure) {
+            help.setText(help.getText() + " QR rendering is unavailable; use the manual setup key below.");
+        }
+
+        TextField secret = new TextField(setup.manualSecret());
+        secret.setEditable(false);
+        secret.setFocusTraversable(false);
+        secret.getStyleClass().addAll("auth-input", "authenticator-secret", "readonly-field");
+        Button copy = new Button("Copy Setup Key");
+        copy.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        UiActionIcons.apply(copy, "copy", "Copy setup key");
+        copy.setOnAction(e -> {
+            ClipboardContent cc = new ClipboardContent();
+            cc.putString(setup.manualSecret());
+            Clipboard.getSystemClipboard().setContent(cc);
+        });
+        HBox secretRow = new HBox(8, secret, copy);
+        HBox.setHgrow(secret, Priority.ALWAYS);
+
+        TextField code = new TextField();
+        code.setPromptText("Current 6-digit authenticator code");
+        code.getStyleClass().add("auth-input");
+        code.setMaxWidth(Double.MAX_VALUE);
+        Label error = new Label();
+        error.setManaged(false);
+        error.setVisible(false);
+        error.getStyleClass().add("field-error");
+        content.getChildren().addAll(title, help, qr, new Label("Manual setup key"), secretRow,
+                new Label("Authenticator code"), code, error);
+        dlg.getDialogPane().setContent(content);
+
+        Button verifyButton = (Button) dlg.getDialogPane().lookupButton(verify);
+        UiActionIcons.apply(verifyButton, "security", "Verify authenticator and continue sign-in");
+        verifyButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+            String otp = code.getText() == null ? "" : code.getText().trim();
+            if (!otp.matches("\\d{6}")) {
+                error.setText("Enter the current 6-digit authenticator code.");
+                error.setManaged(true);
+                error.setVisible(true);
+                code.requestFocus();
+                return;
+            }
+            String challengeId = pendingMfaChallengeId;
+            verifyButton.setDisable(true);
+            UiTaskExecutor.submitAction("login-mfa-enrollment-verification",
+                    () -> users.completeLoginMfa(challengeId, otp), authenticated -> {
+                        pendingMfaChallengeId = null;
+                        pendingUser = null;
+                        dlg.setResult(Boolean.TRUE);
+                        dlg.close();
+                        completeLogin(authenticated);
+                    }, failure -> {
+                        verifyButton.setDisable(false);
+                        error.setText(failure.getMessage() == null ? "Authenticator verification failed." : failure.getMessage());
+                        error.setManaged(true);
+                        error.setVisible(true);
+                        code.requestFocus();
+                    });
+        });
+        dlg.setOnHidden(event -> {
+            if (!Boolean.TRUE.equals(dlg.getResult())) {
+                resetPendingLogin();
+                message("Authenticator enrollment is required before this account can sign in.", true);
+            }
+        });
+        javafx.application.Platform.runLater(code::requestFocus);
+        dlg.showAndWait();
     }
 
     private void verifyLoginOtp() {
@@ -661,7 +770,13 @@ public class LoginController {
     }
 
     @FXML private void register() { SceneManager.showRegistration(); }
-    @FXML private void openEmailSettings() { SceneManager.loadEmailSettings(); }
+    @FXML private void openEmailSettings() {
+        if (ConfigManager.isSharedClient()) {
+            message("Company email settings are managed after Admin sign-in under Settings → Email.", false);
+            return;
+        }
+        SceneManager.loadEmailSettings();
+    }
 
     private void installLiveClear(TextInputControl field, Label error) {
         field.textProperty().addListener((obs, oldValue, newValue) -> {

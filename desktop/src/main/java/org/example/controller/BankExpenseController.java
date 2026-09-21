@@ -155,28 +155,26 @@ public class BankExpenseController implements ScreenLifecycle {
     }
 
     private void loadMasterLookups() {
-        String selectedPaymentMode = paymentMode == null ? null : paymentMode.getValue();
-        List<String> paymentModes;
-        List<String> expenseCategories;
-        try {
-            paymentModes = lookupService.getValuesByCategoryCode("PAYMENT_MODE");
-            expenseCategories = lookupService.getValuesByCategoryCode("EXPENSE_CATEGORY");
-        } catch (Exception failure) {
-            System.err.println("Finance master lookup load failed: " + userMessage(failure));
-            paymentModes = List.of();
-            expenseCategories = List.of();
-        }
-
-        paymentMode.getItems().setAll(paymentModes);
-        expenseCategory.getItems().setAll(expenseCategories);
-
-        if (selectedPaymentMode != null && paymentModes.contains(selectedPaymentMode)) {
-            paymentMode.setValue(selectedPaymentMode);
-        } else if (!paymentModes.isEmpty()) {
-            paymentMode.getSelectionModel().selectFirst();
-        } else {
-            paymentMode.getSelectionModel().clearSelection();
-        }
+        UiTaskExecutor.submitLatest("finance-master-lookups",
+                () -> {
+                    List<String> paymentModes = lookupService.getValuesByCategoryCode("PAYMENT_MODE");
+                    List<String> expenseCategories = lookupService.getValuesByCategoryCode("EXPENSE_CATEGORY");
+                    return new FinanceMasterLookups(paymentModes == null ? List.of() : List.copyOf(paymentModes),
+                            expenseCategories == null ? List.of() : List.copyOf(expenseCategories));
+                },
+                lookups -> {
+                    String selectedPaymentMode = paymentMode == null ? null : paymentMode.getValue();
+                    List<String> paymentModes = new ArrayList<>(lookups.paymentModes());
+                    if (selectedPaymentMode != null && !selectedPaymentMode.isBlank() && !paymentModes.contains(selectedPaymentMode)) {
+                        paymentModes.add(0, selectedPaymentMode);
+                    }
+                    paymentMode.getItems().setAll(paymentModes);
+                    expenseCategory.getItems().setAll(lookups.expenseCategories());
+                    if (selectedPaymentMode != null && paymentModes.contains(selectedPaymentMode)) paymentMode.setValue(selectedPaymentMode);
+                    else if (!paymentModes.isEmpty()) paymentMode.getSelectionModel().selectFirst();
+                    else paymentMode.getSelectionModel().clearSelection();
+                },
+                failure -> System.err.println("Finance master lookup load failed: " + userMessage(failure)));
     }
 
     @Override
@@ -215,22 +213,38 @@ public class BankExpenseController implements ScreenLifecycle {
     }
 
     private void loadAccounts() {
-        List<String> accounts = new ArrayList<>();
-        try {
-            for (org.example.model.Lookup l : lookupService.getByCategoryCode("BANK_ACCOUNT")) {
-                if (!l.isActive() || l.getLookupValue()==null || l.getLookupValue().isBlank()) continue;
-                String bankName = l.getDescription()==null?"":l.getDescription().trim();
-                accounts.add(bankName.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+bankName);
-            }
-        } catch (Exception ignored) {}
-        if (accounts.isEmpty()) {
-            String bank = ConfigManager.get("payment.bankName", "").trim();
-            String number = ConfigManager.get("payment.accountNumber", "").trim();
-            if (!number.isBlank()) accounts.add(bank.isBlank()?number:number+" - "+bank);
-        }
-        if (accounts.isEmpty()) accounts.add("Cash / General");
-        bankAccount.getItems().setAll(accounts); expenseAccount.getItems().setAll(accounts);
-        if (!accounts.isEmpty()) { bankAccount.setValue(accounts.get(0)); expenseAccount.setValue(accounts.get(0)); }
+        UiTaskExecutor.submitLatest("finance-bank-accounts",
+                () -> {
+                    List<String> accounts = new ArrayList<>();
+                    try {
+                        for (org.example.model.Lookup l : lookupService.getByCategoryCode("BANK_ACCOUNT")) {
+                            if (!l.isActive() || l.getLookupValue() == null || l.getLookupValue().isBlank()) continue;
+                            String bankName = l.getDescription() == null ? "" : l.getDescription().trim();
+                            accounts.add(bankName.isBlank() ? l.getLookupValue().trim() : l.getLookupValue().trim() + " - " + bankName);
+                        }
+                    } catch (Exception ignored) { }
+                    if (accounts.isEmpty()) {
+                        String bank = ConfigManager.get("payment.bankName", "").trim();
+                        String number = ConfigManager.get("payment.accountNumber", "").trim();
+                        if (!number.isBlank()) accounts.add(bank.isBlank() ? number : number + " - " + bank);
+                    }
+                    if (accounts.isEmpty()) accounts.add("Cash / General");
+                    return List.copyOf(accounts);
+                },
+                loaded -> {
+                    String selectedBank = bankAccount.getValue();
+                    String selectedExpense = expenseAccount.getValue();
+                    List<String> accounts = new ArrayList<>(loaded);
+                    if (selectedBank != null && !selectedBank.isBlank() && !accounts.contains(selectedBank)) accounts.add(0, selectedBank);
+                    if (selectedExpense != null && !selectedExpense.isBlank() && !accounts.contains(selectedExpense)) accounts.add(0, selectedExpense);
+                    bankAccount.getItems().setAll(accounts);
+                    expenseAccount.getItems().setAll(accounts);
+                    if (selectedBank != null && accounts.contains(selectedBank)) bankAccount.setValue(selectedBank);
+                    else if (!accounts.isEmpty()) bankAccount.setValue(accounts.getFirst());
+                    if (selectedExpense != null && accounts.contains(selectedExpense)) expenseAccount.setValue(selectedExpense);
+                    else if (!accounts.isEmpty()) expenseAccount.setValue(accounts.getFirst());
+                },
+                failure -> System.err.println("Finance bank account lookup failed: " + userMessage(failure)));
     }
 
     @FXML private void showBankMode(){ applyMode(Mode.BANK); }
@@ -445,4 +459,6 @@ public class BankExpenseController implements ScreenLifecycle {
     private static LocalDate parseEntryDate(String value){if(value==null||value.isBlank())return BusinessClock.today();String text=value.trim();for(var pattern:List.of(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"),java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))){try{return LocalDate.parse(text.length()>=10?text.substring(0,10):text,pattern);}catch(Exception ignored){}}return BusinessClock.today();}
 
     public static final class EntryRow { final int id; final long rowVersion; final SimpleStringProperty date,type,description,account,paymentMode,reference,match; final SimpleDoubleProperty amount; final String rawType,linkedTargetType,linkedDocumentNo; final Long statementTransactionId; final Integer linkedTargetId; EntryRow(int id,String d,String t,String desc,String acc,String pm,String ref,double amt,String raw,Long statementId,String targetType,Integer targetId,String documentNo,long rowVersion){this.id=id;this.rowVersion=rowVersion;date=new SimpleStringProperty(d);type=new SimpleStringProperty(t);description=new SimpleStringProperty(desc);account=new SimpleStringProperty(acc);paymentMode=new SimpleStringProperty(pm);reference=new SimpleStringProperty(ref);amount=new SimpleDoubleProperty(amt);rawType=raw==null?"":raw.toUpperCase(Locale.ROOT);statementTransactionId=statementId;linkedTargetType=targetType==null?"":targetType;linkedTargetId=targetId;linkedDocumentNo=documentNo==null?"":documentNo;String display="";if(statementId!=null)display="Bank Statement";if(!linkedDocumentNo.isBlank())display=display.isBlank()?linkedDocumentNo:display+" • "+linkedDocumentNo;match=new SimpleStringProperty(display);} }
+    private record FinanceMasterLookups(List<String> paymentModes, List<String> expenseCategories) { }
+
 }

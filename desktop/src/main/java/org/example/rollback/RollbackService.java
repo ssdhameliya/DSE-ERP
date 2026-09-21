@@ -348,17 +348,24 @@ public final class RollbackService {
     private boolean wasVerifiedByUpdater(Path installer) {
         String fileName = installer == null ? "" : installer.getFileName().toString();
         if (fileName.isBlank() || !Files.isRegularFile(installer)) return false;
-        String actual = checksumCached(installer);
-        if (actual.isBlank()) return false;
-        return UpdateHistoryStore.read().stream().anyMatch(entry -> {
+
+        // History lookup is deliberately performed before reading the installer. Older
+        // macOS DMG/PKG files can be hundreds of MB; hashing one merely to discover that
+        // no updater verification record exists made Safe Rollback look stuck on first open.
+        List<String> expectedChecksums = UpdateHistoryStore.read().stream().filter(entry -> {
             if (!("VERIFIED".equalsIgnoreCase(entry.result())
                     || "READY".equalsIgnoreCase(entry.result())
                     || "INSTALLER_STARTED".equalsIgnoreCase(entry.result()))) return false;
-            String detail = Objects.requireNonNullElse(entry.detail(), "");
-            if (!detail.contains(fileName)) return false;
-            Matcher sha = Pattern.compile("(?i)(?:SHA256|SHA-256)=([0-9a-f]{64})").matcher(detail);
-            return sha.find() && actual.equalsIgnoreCase(sha.group(1));
-        });
+            return Objects.requireNonNullElse(entry.detail(), "").contains(fileName);
+        }).map(entry -> {
+            Matcher sha = Pattern.compile("(?i)(?:SHA256|SHA-256)=([0-9a-f]{64})")
+                    .matcher(Objects.requireNonNullElse(entry.detail(), ""));
+            return sha.find() ? sha.group(1) : "";
+        }).filter(value -> !value.isBlank()).distinct().toList();
+        if (expectedChecksums.isEmpty()) return false;
+
+        String actual = checksumCached(installer);
+        return !actual.isBlank() && expectedChecksums.stream().anyMatch(actual::equalsIgnoreCase);
     }
 
     private Candidate verifyBeforeRollback(Candidate candidate) throws Exception {
