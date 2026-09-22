@@ -13,13 +13,15 @@ def text(rel):
     return (ROOT / rel).read_text(encoding='utf-8')
 icon_factory = text('desktop/src/main/java/org/example/util/IconFactory.java')
 platform = text('desktop/src/main/java/org/example/util/PlatformUiSupport.java')
-dialog_presentation = text('desktop/src/main/java/org/example/util/DialogPresentation.java')
+dialog_renderer = text('desktop/src/main/java/org/example/util/AppDialogRenderer.java')
+dialog_service = text('desktop/src/main/java/org/example/util/AppDialogService.java')
 drawer = text('desktop/src/main/java/org/example/util/RegisterDetailDrawer.java')
 require('finance-field-label' in icon_factory, 'Finance field labels must participate in global semantic field decoration')
 require('applySemanticLabelColour' in icon_factory and 'erp-field-label-colour-' in icon_factory, 'Global field decoration must apply matching semantic colour to caption text as well as its icon')
 require('applySemanticLabelColour(caption, semantic)' in drawer, 'Canonical detail-drawer captions must use the same semantic icon/text colour contract')
 require('ProfessionalUiEnhancer.enhance(stage.getScene().getRoot())' in platform, 'FXML Stage dialogs must receive the global professional/semantic enhancer')
-require('ProfessionalUiEnhancer.enhance(scene.getRoot())' in dialog_presentation, 'OwnedDialog/DialogPresentation surfaces must receive the global professional/semantic enhancer')
+require('SemanticIconManager.compact' in dialog_renderer and 'dse-dialog-semantic-' in dialog_renderer, 'AppDialogRenderer must own dialog semantic/icon presentation')
+require('configureMessage' in dialog_renderer and 'inferPrimaryAction' in dialog_service, 'central dialog renderer/service contract missing')
 for token in ('class RegisterDetailDrawer', 'attachBesideTable', 'showRecord', 'erp-global-detail-drawer'):
     require(token in drawer, f'Missing canonical register drawer contract: {token}')
 controllers = ['BankExpenseController.java', 'ReconSupplierController.java', 'PurchaseReconController.java', 'PartyMasterController.java', 'ItemMasterController.java', 'InventoryController.java', 'UserAccessController.java', 'MasterDataController.java']

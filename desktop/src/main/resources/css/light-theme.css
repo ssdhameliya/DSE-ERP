@@ -483,10 +483,6 @@
 .context-menu .menu-item .label {
 -fx-padding: 0 6 0 6;
 }
-.dialog-pane, .app-dialog, .modern-dialog {
--fx-padding: 0;
-    -fx-background-insets: 0;
-}
 .dialog-pane .header-panel, .app-dialog .header-panel {
 -fx-padding: 14 18 14 18;
 }
@@ -2905,64 +2901,6 @@
 -fx-scale-x: 0.92;
     -fx-scale-y: 0.92;
 }
-.ultra-compact-shell .modern-dialog-content {
--fx-min-width: 330px;
-    -fx-max-width: 430px;
-    -fx-padding: 18px;
-}
-.small-display .modern-dialog-content {
--fx-min-width: 270px;
-    -fx-max-width: 330px;
-    -fx-padding: 14px;
-    -fx-spacing: 12px;
-}
-.ultra-compact-shell .modern-dialog-hero-icon {
--fx-min-height: 58px;
-    -fx-min-width: 58px;
-    -fx-pref-height: 58px;
-    -fx-pref-width: 58px;
-    -fx-max-height: 58px;
-    -fx-max-width: 58px;
-    -fx-background-radius: 29px;
-    -fx-border-radius: 29px;
-}
-.small-display .modern-dialog-hero {
--fx-spacing: 10px;
-}
-.small-display .modern-dialog-hero-icon {
--fx-min-height: 50px;
-    -fx-min-width: 50px;
-    -fx-pref-height: 50px;
-    -fx-pref-width: 50px;
-    -fx-max-height: 50px;
-    -fx-max-width: 50px;
-    -fx-background-radius: 25px;
-    -fx-border-radius: 25px;
-}
-.ultra-compact-shell .modern-dialog-copy, .ultra-compact-shell .modern-dialog-message, .ultra-compact-shell .modern-dialog-helper {
--fx-max-width: 310px;
-}
-.small-display .modern-dialog-copy, .small-display .modern-dialog-message, .small-display .modern-dialog-helper {
--fx-max-width: 200px;
-}
-.small-display .modern-dialog-heading {
--fx-font-size: 15px;
-}
-.small-display .modern-dialog-detail-card {
--fx-padding: 10px 11px;
-    -fx-spacing: 9px;
-}
-.small-display .modern-dialog-detail-message, .small-display .modern-dialog-detail-copy {
--fx-max-width: 230px;
-}
-.small-display .modern-dialog .modern-dialog-button {
--fx-min-width: 88px;
-    -fx-pref-width: 96px;
-}
-.small-display .erp-modern-dialog > .content.label {
--fx-wrap-text: true;
-    -fx-padding: 12px;
-}
 .small-display .erp-toast {
 -fx-padding: 9px 11px;
 }
@@ -3764,193 +3702,6 @@
 }
 .erp-status-glyph {
 -fx-padding: 0;
-}
-.modern-dialog {
--fx-background-color: transparent;
-    -fx-background-radius: 16px;
-    -fx-border-radius: 16px;
-    -fx-border-width: 1px;
-    -fx-padding: 0;
-    -fx-effect: dropshadow(gaussian, -erp-dialog-shadow, 32, .14, 0, 10);
-}
-.modern-dialog > .content {
--fx-padding: 0;
-    -fx-background-color: transparent;
-}
-.modern-dialog-shell {
--fx-padding: 0;
-    -fx-spacing: 0;
-    -fx-background-radius: 16px;
-}
-.modern-dialog-titlebar {
--fx-alignment: CENTER-LEFT;
-    -fx-background-radius: 16px 16px 0 0;
-    -fx-border-width: 0 0 1px 0;
-    -fx-padding: 14px 18px;
-    -fx-spacing: 12px;
-    -fx-min-height: 64px;
-}
-.modern-dialog-title-icon {
--fx-alignment: CENTER;
-    -fx-min-height: 42px;
-    -fx-min-width: 42px;
-    -fx-pref-height: 42px;
-    -fx-pref-width: 42px;
-    -fx-max-height: 42px;
-    -fx-max-width: 42px;
-    -fx-background-radius: 21px;
-    -fx-border-radius: 21px;
-    -fx-border-width: 1px;
-}
-.modern-dialog-title {
--fx-font-size: 16px;
-    -fx-font-weight: 800;
-}
-.modern-dialog-close {
--fx-font-size: 20px;
-    -fx-font-weight: 600;
-    -fx-min-height: 34px;
-    -fx-min-width: 34px;
-    -fx-pref-height: 34px;
-    -fx-pref-width: 34px;
-    -fx-max-height: 34px;
-    -fx-max-width: 34px;
-    -fx-padding: 0;
-    -fx-background-radius: 9px;
-    -fx-border-radius: 9px;
-    -fx-border-width: 1px;
-}
-.modern-dialog-content {
--fx-alignment: CENTER-LEFT;
-    -fx-min-width: 430px;
-    -fx-max-width: 520px;
-    -fx-padding: 20px;
-    -fx-spacing: 8px;
-}
-.modern-dialog-message-body {
--fx-min-width: 550px;
-    -fx-max-width: 590px;
-    -fx-padding: 24px 28px 22px 28px;
-    -fx-spacing: 18px;
-}
-.modern-dialog-hero {
--fx-alignment: TOP-LEFT;
-    -fx-spacing: 18px;
-}
-.modern-dialog-hero-icon {
--fx-alignment: CENTER;
-    -fx-min-height: 72px;
-    -fx-min-width: 72px;
-    -fx-pref-height: 72px;
-    -fx-pref-width: 72px;
-    -fx-max-height: 72px;
-    -fx-max-width: 72px;
-    -fx-background-radius: 36px;
-    -fx-border-radius: 36px;
-    -fx-border-width: 1px;
-}
-.modern-dialog-copy {
--fx-spacing: 7px;
-    -fx-max-width: 430px;
-}
-.modern-dialog-heading {
--fx-font-size: 17px;
-    -fx-font-weight: 800;
-    -fx-line-spacing: 1px;
-}
-.modern-dialog-message {
--fx-font-size: 13px;
-    -fx-line-spacing: 2px;
-    -fx-max-width: 430px;
-}
-.modern-dialog-helper {
--fx-font-size: 12px;
-    -fx-line-spacing: 2px;
-    -fx-max-width: 430px;
-    -fx-padding: 2px 0 0 0;
-}
-.modern-dialog-divider {
--fx-min-height: 1px;
-    -fx-pref-height: 1px;
-    -fx-max-height: 1px;
-}
-.modern-dialog-detail-card {
--fx-alignment: TOP-LEFT;
-    -fx-padding: 13px 15px;
-    -fx-spacing: 12px;
-    -fx-background-radius: 10px;
-    -fx-border-radius: 10px;
-    -fx-border-width: 1px;
-}
-.modern-dialog-detail-icon {
--fx-alignment: CENTER;
-    -fx-min-height: 34px;
-    -fx-min-width: 34px;
-    -fx-pref-height: 34px;
-    -fx-pref-width: 34px;
-    -fx-max-height: 34px;
-    -fx-max-width: 34px;
-    -fx-background-radius: 17px;
-}
-.modern-dialog-detail-copy {
--fx-spacing: 3px;
-    -fx-max-width: 450px;
-}
-.modern-dialog-detail-title {
--fx-font-size: 12.5px;
-    -fx-font-weight: 800;
-}
-.modern-dialog-detail-message {
--fx-font-size: 12px;
-    -fx-line-spacing: 2px;
-    -fx-max-width: 440px;
-}
-.modern-dialog-workspace-body {
--fx-padding: 18px 20px 20px 20px;
-    -fx-spacing: 12px;
-}
-.modern-dialog-input {
--fx-min-width: 360px;
-    -fx-max-width: Infinity;
-}
-.modern-dialog .button-bar {
--fx-padding: 14px 18px 16px 18px;
-    -fx-border-width: 1px 0 0 0;
-    -fx-background-radius: 0 0 16px 16px;
-}
-.modern-dialog .button-bar > .container {
--fx-spacing: 10px;
-    -fx-alignment: CENTER-RIGHT;
-}
-.modern-dialog .modern-dialog-button {
--fx-background-radius: 8px;
-    -fx-border-radius: 8px;
-    -fx-min-width: 112px;
-    -fx-pref-width: -1;
-    -fx-max-width: Infinity;
-    -fx-min-height: 38px;
-    -fx-font-weight: 700;
-    -fx-padding: 8px 16px;
-}
-.erp-modern-dialog {
--fx-background-radius: 10px;
-    -fx-border-radius: 10px;
-    -fx-border-width: 1px;
-    -fx-padding: 0;
-}
-.erp-modern-dialog > .header-panel {
--fx-padding: 16px 20px;
-}
-.erp-modern-dialog > .header-panel .label {
--fx-font-size: 17px;
-    -fx-font-weight: 700;
-}
-.erp-modern-dialog > .content.label {
--fx-font-size: 13px;
-    -fx-padding: 20px;
-}
-.erp-modern-dialog > .button-bar > .container {
--fx-padding: 12px 18px;
 }
 .notification-center-dialog .notification-list {
 -fx-border-width: 1px 0;
@@ -4799,11 +4550,6 @@
     -fx-min-height: 28;
     -fx-min-width: 28;
 }
-.premium-entity-dialog {
--fx-background-radius: 14;
-    -fx-border-radius: 14;
-    -fx-border-width: 1;
-}
 .premium-dialog-header {
 -fx-border-width: 0 0 1 0;
     -fx-padding: 22 26 18 26;
@@ -4960,10 +4706,6 @@
 -fx-background-radius: 14;
     -fx-border-radius: 14;
     -fx-padding: 14 16;
-}
-.stock-premium-dialog {
--fx-background-radius: 14;
-    -fx-border-radius: 14;
 }
 .stock-dialog-heading {
 -fx-font-size: 18px;
@@ -5545,16 +5287,6 @@
 }
 .backup-page-scroll .scroll-bar:vertical {
 -fx-pref-width: 12px;
-}
-.dialog-action-button {
--fx-background-radius: 8px;
-    -fx-font-weight: 700;
-    -fx-graphic-text-gap: 8px;
-    -fx-min-height: 36px;
-    -fx-padding: 8px 14px;
-}
-.dialog-action-neutral {
--fx-border-radius: 8px;
 }
 .report-responsive-value {
 -fx-font-size: 16px;
@@ -6449,12 +6181,6 @@
 .bank-recon-how-panel {
 -fx-padding: 8px 12px;
 }
-.bank-workspace-dialog {
--fx-padding: 14px;
-}
-.bank-workspace-dialog > .content {
--fx-padding: 0;
-}
 .bank-dialog-hero {
 -fx-background-radius: 12px;
     -fx-border-radius: 12px;
@@ -6580,14 +6306,6 @@
 -fx-background-radius: 22px;
     -fx-border-radius: 22px;
     -fx-border-width: 2px;
-}
-.notification-dialog-content .modern-dialog-titlebar {
--fx-background-radius: 20px 20px 0 0;
-    -fx-padding: 22px 28px;
-}
-.notification-dialog-content .modern-dialog-title {
--fx-font-size: 26px;
-    -fx-font-weight: 900;
 }
 .notification-dialog-subtitle {
 -fx-font-size: 14px;
@@ -7580,9 +7298,6 @@
 .workspace-dialog > .content {
 -fx-padding: 0;
 }
-.bank-workspace-dialog .button-bar {
--fx-padding: 12 16 14 16;
-}
 .linked-transactions-dialog .linked-transaction-row {
 -fx-padding: 10 12; -fx-background-radius: 10; -fx-border-radius: 10;
 }
@@ -8426,12 +8141,6 @@
 }
 .register-column-chooser-menu .menu-item > .graphic {
 -fx-max-width: 100%;
-}
-.bank-statement-history-dialog {
--fx-background-radius: 14px;
-}
-.bank-statement-history-dialog > .content {
--fx-padding: 0;
 }
 .bank-statement-history-popup-content {
 -fx-padding: 14px;
@@ -10111,186 +9820,6 @@
 .erp-table-header-icon {
 -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.15), 2, 0.1, 0, 1);
 }
-.modern-dialog {
--fx-background-color: linear-gradient(to bottom, #ffffff 0%, #f8fbff 100%);
-    -fx-border-color: #cbd9e8;
-    -erp-dialog-shadow: rgba(15,23,42,.28);
-}
-.modern-dialog-error, .modern-dialog-delete {
--fx-border-color: #e69aa6;
-}
-.modern-dialog-warning {
--fx-border-color: #e0b45f;
-}
-.modern-dialog-complete {
--fx-border-color: #88caaa;
-}
-.modern-dialog-confirmation, .modern-dialog-notification, .modern-dialog-backup, .modern-dialog-restore {
--fx-border-color: #93b6df;
-}
-.modern-dialog-titlebar {
--fx-background-color: linear-gradient(to bottom, #fbfdff 0%, #f2f6fb 100%);
-    -fx-border-color: transparent transparent #d9e4ef transparent;
-}
-.modern-dialog-title-icon {
--fx-background-color: #e9f2ff;
-    -fx-border-color: #c7daf2;
-}
-.modern-dialog-title-icon .erp-action-glyph {
--fx-icon-color: #2563eb;
-}
-.modern-dialog-title-icon-error, .modern-dialog-title-icon-delete {
--fx-background-color: #fee9ec; -fx-border-color: #efb2bb;
-}
-.modern-dialog-title-icon-error .erp-action-glyph, .modern-dialog-title-icon-delete .erp-action-glyph {
--fx-icon-color: #dc3445;
-}
-.modern-dialog-title-icon-warning {
--fx-background-color: #fff3d6; -fx-border-color: #e7c875;
-}
-.modern-dialog-title-icon-warning .erp-action-glyph {
--fx-icon-color: #c77b08;
-}
-.modern-dialog-title-icon-confirmation {
--fx-background-color: #f0eaff; -fx-border-color: #cabcf1;
-}
-.modern-dialog-title-icon-confirmation .erp-action-glyph {
--fx-icon-color: #7357c9;
-}
-.modern-dialog-title-icon-complete {
--fx-background-color: #e8f7ee; -fx-border-color: #a6d7bb;
-}
-.modern-dialog-title-icon-complete .erp-action-glyph {
--fx-icon-color: #16834b;
-}
-.modern-dialog-title {
--fx-text-fill: #1f3147;
-}
-.modern-dialog-close {
--fx-background-color: #f8fafc;
-    -fx-border-color: #d7e1ec;
-    -fx-text-fill: #64748b;
-}
-.modern-dialog-close:hover {
--fx-background-color: #fff0f1;
-    -fx-border-color: #efb5bd;
-    -fx-text-fill: #cf3342;
-}
-.modern-dialog-hero-icon {
--fx-background-color: #f0f6fd;
-    -fx-border-color: #d4e0ed;
-}
-.modern-dialog-hero-icon .erp-action-glyph {
--fx-icon-color: #4d7fc3;
-}
-.modern-dialog-hero-icon-error, .modern-dialog-hero-icon-delete {
--fx-background-color: #fff0f2;
-    -fx-border-color: #f0c0c7;
-}
-.modern-dialog-hero-icon-error .erp-action-glyph, .modern-dialog-hero-icon-delete .erp-action-glyph {
--fx-icon-color: #dc3445;
-}
-.modern-dialog-hero-icon-warning {
--fx-background-color: #fff8e8;
-    -fx-border-color: #ebd291;
-}
-.modern-dialog-hero-icon-warning .erp-action-glyph {
--fx-icon-color: #c67d0b;
-}
-.modern-dialog-hero-icon-confirmation {
--fx-background-color: #f5f1ff;
-    -fx-border-color: #d6cbf2;
-}
-.modern-dialog-hero-icon-confirmation .erp-action-glyph {
--fx-icon-color: #7258c2;
-}
-.modern-dialog-hero-icon-complete {
--fx-background-color: #eefaf3;
-    -fx-border-color: #b8dfc8;
-}
-.modern-dialog-hero-icon-complete .erp-action-glyph {
--fx-icon-color: #16834b;
-}
-.modern-dialog-heading {
--fx-text-fill: #17263a;
-}
-.modern-dialog-message {
--fx-text-fill: #506176;
-}
-.modern-dialog-helper {
--fx-text-fill: #718096;
-}
-.modern-dialog-divider {
--fx-background-color: #dce6f0;
-}
-.modern-dialog-detail-card {
--fx-background-color: #f5f9fe;
-    -fx-border-color: #c9dcef;
-}
-.modern-dialog-detail-icon {
--fx-background-color: #e5effb;
-}
-.modern-dialog-detail-icon .erp-action-glyph {
--fx-icon-color: #3d72b9;
-}
-.modern-dialog-detail-title {
--fx-text-fill: #25384f;
-}
-.modern-dialog-detail-message {
--fx-text-fill: #65758a;
-}
-.modern-dialog .button-bar {
--fx-background-color: #f7fafe;
-    -fx-border-color: #dbe5ef;
-}
-.modern-dialog .modern-dialog-button {
--fx-background-color: linear-gradient(to bottom, #347cff 0%, #1f67e6 100%);
-    -fx-border-color: #2f73eb;
-    -fx-text-fill: white;
-}
-.modern-dialog .modern-dialog-button:hover {
--fx-background-color: linear-gradient(to bottom, #4388ff 0%, #2872ee 100%);
-}
-.modern-dialog .modern-dialog-button.dialog-action-neutral {
--fx-background-color: #ffffff;
-    -fx-border-color: #c8d5e3;
-    -fx-text-fill: #334155;
-}
-.modern-dialog .modern-dialog-button.dialog-action-neutral:hover {
--fx-background-color: #f1f5f9;
-}
-.modern-dialog .modern-dialog-button.dialog-action-warning {
--fx-background-color: #6d28d9;
-    -fx-border-color: #6d28d9;
-    -fx-text-fill: white;
-}
-.modern-dialog .modern-dialog-button.dialog-action-danger {
--fx-background-color: #d83a47;
-    -fx-border-color: #e95a66;
-    -fx-text-fill: white;
-}
-.modern-dialog .modern-dialog-button.dialog-action-success {
--fx-background-color: #1f9b5d;
-    -fx-border-color: #38af74;
-    -fx-text-fill: white;
-}
-.erp-modern-dialog {
--fx-background-color: #ffffff;
-    -fx-border-color: #dbe4f0;
-}
-.erp-modern-dialog > .header-panel {
--fx-background-color: #f8fafc;
-    -fx-border-color: transparent transparent #e2e8f0 transparent;
-}
-.erp-modern-dialog > .header-panel .label {
--fx-text-fill: #14213d;
-}
-.erp-modern-dialog > .content.label {
--fx-text-fill: #475569;
-}
-.erp-modern-dialog > .button-bar > .container {
--fx-background-color: #f8fafc;
-}
 .notification-row-time {
 -fx-text-fill: #7c8ba1;
 }
@@ -11765,10 +11294,6 @@
 -fx-background-color: #dbeafe;
     -fx-text-fill: #2563eb;
 }
-.premium-entity-dialog {
--fx-background-color: #f5f8fc;
-    -fx-border-color: #d7e0ec;
-}
 .premium-dialog-header {
 -fx-background-color: linear-gradient(to right, #ffffff, #f6f8ff);
     -fx-border-color: transparent transparent #dde5f0 transparent;
@@ -11959,10 +11484,6 @@
 .master-data-premium .kpi-card {
 -fx-background-color: #ffffff;
     -fx-border-color: #d8e2f0;
-}
-.stock-premium-dialog {
--fx-background-color: #ffffff;
-    -fx-border-color: #d5e0ee;
 }
 .stock-dialog-heading {
 -fx-text-fill: #14243a;
@@ -12625,31 +12146,6 @@
 }
 .backup-page-scroll .scroll-bar:vertical {
 -fx-opacity: 1;
-}
-.dialog-action-primary {
--fx-background-color: #2563eb;
-    -fx-text-fill: white;
-}
-.dialog-action-success {
--fx-background-color: #16a34a;
-    -fx-text-fill: white;
-}
-.dialog-action-warning {
--fx-background-color: #6d28d9;
-    -fx-text-fill: white;
-    -fx-border-color: #6d28d9;
-}
-.dialog-action-danger {
--fx-background-color: #dc2626;
-    -fx-text-fill: white;
-}
-.dialog-action-neutral {
--fx-background-color: #e2e8f0;
-    -fx-text-fill: #334155;
-    -fx-border-color: #cbd5e1;
-}
-.dialog-action-button:hover {
--fx-opacity: 0.90;
 }
 .erp-action-glyph {
 -fx-opacity: 1.0;
@@ -13693,9 +13189,6 @@
     -fx-border-color: #d7e2ef;
     -fx-effect: dropshadow(gaussian,rgba(15,23,42,.08),12,.08,0,3);
 }
-.bank-workspace-dialog {
--fx-background-color: #f5f8fc;
-}
 .bank-dialog-hero {
 -fx-background-color: linear-gradient(to right,#eff6ff,#f5f3ff);
     -fx-border-color: #c8daf3;
@@ -13754,9 +13247,6 @@
     -fx-border-color: #cbd8e8;
     -fx-text-fill: #334155;
 }
-.sales-charge-dialog {
--fx-background-color: #f6f8fc;
-}
 .sales-charge-editor-scroll, .sales-charge-editor-scroll > .viewport {
 -fx-background-color: transparent;
 }
@@ -13772,9 +13262,6 @@
 }
 .register-balance-settled {
 -fx-text-fill: #16a34a;
-}
-.invoice-payment-dialog {
--fx-background-color: #f5f8fc;
 }
 .payment-metric-total {
 -fx-text-fill: #2563eb;
@@ -14342,9 +13829,6 @@
 .reminder-center-page .reminder-detail-scroll {
 -fx-background-color: transparent;
     -fx-border-color: transparent;
-}
-.reminder-editor-dialog .dialog-pane, .reminder-editor-dialog {
--fx-background-color: #ffffff;
 }
 .reminder-editor-grid {
 -fx-background-color: #f6f9fd;
@@ -15610,16 +15094,6 @@
 -fx-font-weight: 800;
     -fx-text-fill: #6d28d9;
 }
-.warning-button, .button.erp-button-warning, .erp-button-warning, .dialog-action-warning, .modern-dialog .modern-dialog-button.dialog-action-warning, .backup-restore-page .backup-warning-button, .erp-action-button.erp-button-secondary.erp-semantic-orange {
--fx-background-color: #6d28d9;
-    -fx-border-color: #6d28d9;
-    -fx-text-fill: white;
-}
-.warning-button:hover, .button.erp-button-warning:hover, .erp-button-warning:hover, .dialog-action-warning:hover, .modern-dialog .modern-dialog-button.dialog-action-warning:hover, .backup-restore-page .backup-warning-button:hover, .erp-action-button.erp-button-secondary.erp-semantic-orange:hover {
--fx-background-color: #7c3aed;
-    -fx-border-color: #7c3aed;
-    -fx-text-fill: white;
-}
 .backup-restore-page .backup-warning-button:disabled {
 -fx-background-color: #6d28d9;
     -fx-border-color: #6d28d9;
@@ -16107,10 +15581,8 @@
 .password-reveal-button:hover, .button.user-password-eye:hover {
     -fx-background-color: rgba(37,99,235,.09);
     -fx-background-radius: 8px;
-}
+}/* DSE ERP 9.0.53 — session timeout + Sales Order availability */
 
-/* DSE ERP 9.0.53 — session timeout + Sales Order availability */
-.session-timeout-dialog .dialog-pane { -fx-border-width: 1.5px; }
 .session-timeout-countdown { -fx-font-size: 18px; -fx-font-weight: 800; -fx-padding: 6 0 0 0; }
 
 
@@ -16153,7 +15625,6 @@
 .customer-360-tabs > .tab-header-area .headers-region { -fx-spacing: 6; }
 .customer-360-tabs > .tab-header-area .headers-region .tab { -fx-padding: 5 14 5 14; -fx-background-insets: 0 3 0 0; }
 .customer-360-tab-content { -fx-padding: 6 0 0 0; }
-.customer-360-standard-dialog, .session-timeout-dialog { -fx-background-color: #ffffff; -fx-border-color: #c8d6e6; -fx-border-radius: 12; -fx-background-radius: 12; }
 .registration-no-scroll { -fx-padding: 18 24 18 24; }
 .registration-center-host { -fx-padding: 12 24 12 24; }
 .settings-info-strip { -fx-padding: 10 12 10 12; -fx-background-color: #f3f7fc; -fx-background-radius: 9; -fx-border-color: #cbd8e8; -fx-border-radius: 9; }
@@ -16299,20 +15770,8 @@
 .erp-ui-standard .erp-table-standard .table-row-cell:hover { -fx-background-color: -dse-surface-hover; }
 .erp-ui-standard .erp-table-standard .table-row-cell:selected { -fx-background-color: -dse-surface-selected; }
 .erp-ui-standard .erp-table-standard .table-row-cell:selected .text { -fx-fill: -dse-text; }
-.erp-ui-standard .erp-table-standard:focused { -fx-border-color: #b7a5f8; }
+.erp-ui-standard .erp-table-standard:focused { -fx-border-color: #b7a5f8; }/* One visual language for record drawers and popup workspaces. */
 
-/* One visual language for record drawers and popup workspaces. */
-.erp-ui-standard .erp-global-detail-drawer,
-.erp-ui-standard .erp-popup-workspace,
-.erp-ui-standard .erp-table-workspace-dialog,
-.erp-ui-standard .modern-dialog-shell,
-.erp-ui-standard.erp-modal-window-root {
-    -fx-background-color: -dse-surface-1;
-}
-.erp-ui-standard .erp-detail-drawer-header,
-.erp-ui-standard .erp-detail-drawer-actions,
-.erp-ui-standard .erp-popup-footer,
-.erp-ui-standard .modern-dialog-titlebar { -fx-background-color: -dse-surface-2; }
 .erp-ui-standard .erp-popup-metric-card { -fx-background-color: -dse-surface-1; -fx-border-color: -dse-border; -fx-border-radius: 10px; -fx-background-radius: 10px; }
 .erp-ui-standard .erp-link-standard { -fx-text-fill: -dse-primary; -fx-underline: false; }
 .erp-ui-standard .erp-link-standard:hover { -fx-underline: true; }
@@ -17217,29 +16676,6 @@
 }
 .shortcut-manager-root .shortcut-option-row { -fx-background-color: transparent; }
 
-/* v9.0.89 — dialog close control must remain visible above generic button styling. */
-.modern-dialog .modern-dialog-close,
-.modern-dialog-close {
-    -fx-background-color: #ffffff;
-    -fx-border-color: #cbd5e1;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
-    -fx-min-width: 36px;
-    -fx-pref-width: 36px;
-    -fx-max-width: 36px;
-    -fx-min-height: 36px;
-    -fx-pref-height: 36px;
-    -fx-max-height: 36px;
-    -fx-padding: 0;
-    -fx-opacity: 1;
-    -fx-effect: null;
-}
-.modern-dialog .modern-dialog-close .erp-action-glyph,
-.modern-dialog-close .erp-action-glyph { -fx-icon-color: #475569; }
-.modern-dialog .modern-dialog-close:hover,
-.modern-dialog-close:hover { -fx-background-color: #fff1f2; -fx-border-color: #e87987; }
-.modern-dialog .modern-dialog-close:hover .erp-action-glyph,
-.modern-dialog-close:hover .erp-action-glyph { -fx-icon-color: #be123c; }
 
 
 /* ========================================================================== */
@@ -17547,7 +16983,6 @@
 
 /* 10.0.13 centralized Audit Trail ------------------------------------------------ */
 .audit-page { -fx-background-color: -app-background; }
-.audit-dialog > .dialog-pane { -fx-pref-width: 980px; }
 .audit-title-icon { -fx-background-color: rgba(109,40,217,0.12); -fx-text-fill: #6d28d9; -fx-font-size: 24px; -fx-font-weight: 800; -fx-padding: 8 13; -fx-background-radius: 14; }
 .audit-title { -fx-font-size: 20px; -fx-font-weight: 800; }
 .audit-subtitle { -fx-text-fill: -app-text-secondary; -fx-font-size: 11px; }

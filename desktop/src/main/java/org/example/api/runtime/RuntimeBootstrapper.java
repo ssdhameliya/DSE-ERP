@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 
 /**
- * DSE ERP 9.0.20 managed runtime bootstrap.
+ * DSE ERP managed runtime bootstrap.
  *
  * Ensures managed PostgreSQL and the packaged Spring Boot backend are running before API-backed JavaFX screens open.
  */
@@ -207,7 +207,9 @@ public final class RuntimeBootstrapper {
      */
     private static Path locateOrBuildDevelopmentServer() {
         Path root = findProjectRoot();
-        if (root == null) return null;
+        if (root == null) {
+            throw new IllegalStateException("DSE ERP project root could not be located for the IntelliJ Spring backend build.");
+        }
 
         try {
             String fingerprint = developmentServerFingerprint(root);
@@ -221,22 +223,27 @@ public final class RuntimeBootstrapper {
             }
 
             return buildDevelopmentServer(root, finalName, cached);
+        } catch (IllegalStateException exception) {
+            throw exception;
         } catch (Exception exception) {
-            return null;
+            throw new IllegalStateException("The current Spring backend could not be prepared. Check "
+                    + serverLogPath() + ". Cause: " + rootCauseMessage(exception), exception);
         }
     }
 
     private static Path buildDevelopmentServer(Path root, String finalName, Path cached) {
+        List<List<String>> candidates = developmentMavenCommands(root, isWindows());
+        Path log = serverLogPath();
         try {
-            List<String> command = new ArrayList<>();
-            boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-            if (windows) {
-                command.add("cmd.exe");
-                command.add("/c");
-                command.add("mvn");
-            } else {
-                command.add("mvn");
-            }
+            Files.createDirectories(log.getParent());
+            org.example.util.WorkspaceLogRotation.rotateIfNeeded(log, 10L * 1024L * 1024L, "Server");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot prepare the Spring backend log at " + log, exception);
+        }
+
+        List<String> failures = new ArrayList<>();
+        for (List<String> launcher : candidates) {
+            List<String> command = new ArrayList<>(launcher);
             command.add("-q");
             command.add("-pl");
             command.add("server");
@@ -249,40 +256,87 @@ public final class RuntimeBootstrapper {
             command.add("-DskipTests");
             command.add("-Ddse.server.finalName=" + finalName);
 
-            Path log = serverLogPath();
-            Files.createDirectories(log.getParent());
-            org.example.util.WorkspaceLogRotation.rotateIfNeeded(log, 10L * 1024L * 1024L, "Server");
-            ProcessBuilder builder = new ProcessBuilder(command);
-            builder.directory(root.toFile());
-            builder.redirectErrorStream(true);
-            builder.redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
-            Process build = builder.start();
-            int exit = build.waitFor();
-
-            Path built = root.resolve("server/target/" + finalName + ".jar");
-            if (exit != 0 || !Files.isRegularFile(built) || !isExpectedDevelopmentServerJar(built)) return null;
-
-            // Never execute the development backend from Maven's target directory. Windows
-            // locks a running JAR, which previously made a later `mvn clean` fail. Copy the
-            // verified artifact to a project-specific runtime cache outside the source tree.
-            Files.createDirectories(cached.getParent());
-            Path staging = cached.resolveSibling(cached.getFileName() + ".tmp-" + ProcessHandle.current().pid());
-            Files.copy(built, staging, StandardCopyOption.REPLACE_EXISTING);
-            if (!isExpectedDevelopmentServerJar(staging)) {
-                Files.deleteIfExists(staging);
-                return null;
-            }
             try {
-                Files.move(staging, cached, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
-                Files.move(staging, cached, StandardCopyOption.REPLACE_EXISTING);
-            }
+                ProcessBuilder builder = new ProcessBuilder(command);
+                builder.directory(root.toFile());
+                builder.redirectErrorStream(true);
+                builder.redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
+                Process build = builder.start();
+                int exit = build.waitFor();
 
-            cleanupOldDevelopmentServerJars(cached);
-            return cached.toAbsolutePath().normalize();
-        } catch (Exception exception) {
-            return null;
+                Path built = root.resolve("server/target/" + finalName + ".jar");
+                if (exit != 0) {
+                    failures.add(commandLabel(launcher) + " exited with code " + exit);
+                    continue;
+                }
+                if (!Files.isRegularFile(built)) {
+                    failures.add(commandLabel(launcher) + " completed but did not create " + built.getFileName());
+                    continue;
+                }
+                if (!isExpectedDevelopmentServerJar(built)) {
+                    failures.add(commandLabel(launcher) + " created a backend JAR with the wrong release version");
+                    continue;
+                }
+
+                // Never execute the development backend from Maven's target directory. Windows
+                // locks a running JAR, which previously made a later `mvn clean` fail. Copy the
+                // verified artifact to a project-specific runtime cache outside the source tree.
+                Files.createDirectories(cached.getParent());
+                Path staging = cached.resolveSibling(cached.getFileName() + ".tmp-" + ProcessHandle.current().pid());
+                Files.copy(built, staging, StandardCopyOption.REPLACE_EXISTING);
+                if (!isExpectedDevelopmentServerJar(staging)) {
+                    Files.deleteIfExists(staging);
+                    failures.add(commandLabel(launcher) + " produced an invalid cached backend JAR");
+                    continue;
+                }
+                try {
+                    Files.move(staging, cached, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                    Files.move(staging, cached, StandardCopyOption.REPLACE_EXISTING);
+                }
+
+                cleanupOldDevelopmentServerJars(cached);
+                return cached.toAbsolutePath().normalize();
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while preparing the current Spring backend", exception);
+            } catch (Exception exception) {
+                failures.add(commandLabel(launcher) + " failed while preparing the backend: " + rootCauseMessage(exception));
+            }
         }
+
+        throw new IllegalStateException("The current Spring backend could not be prepared for desktop "
+                + org.example.update.BuildInfo.version() + ". Tried the project Maven Wrapper and system Maven. "
+                + String.join("; ", failures) + ". Check " + log);
+    }
+
+    static List<List<String>> developmentMavenCommands(Path root, boolean windows) {
+        List<List<String>> result = new ArrayList<>();
+        if (windows) {
+            if (Files.isRegularFile(root.resolve("mvnw.cmd"))) {
+                result.add(List.of("cmd.exe", "/d", "/c", "mvnw.cmd"));
+            }
+            result.add(List.of("cmd.exe", "/d", "/c", "mvn"));
+        } else {
+            Path wrapper = root.resolve("mvnw");
+            if (Files.isRegularFile(wrapper)) result.add(List.of(wrapper.toAbsolutePath().normalize().toString()));
+            result.add(List.of("mvn"));
+        }
+        return result;
+    }
+
+    private static String commandLabel(List<String> launcher) {
+        if (launcher == null || launcher.isEmpty()) return "Maven";
+        String joined = String.join(" ", launcher);
+        if (joined.contains("mvnw")) return "project Maven Wrapper";
+        return "system Maven";
+    }
+
+    private static String rootCauseMessage(Throwable failure) {
+        Throwable current = failure;
+        while (current.getCause() != null && current.getCause() != current) current = current.getCause();
+        String message = current.getMessage();
+        return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
     }
 
     private static Path developmentServerCacheDirectory(Path root) {
@@ -340,11 +394,12 @@ public final class RuntimeBootstrapper {
         if (handle.isAlive()) handle.destroyForcibly();
     }
 
-    private static String developmentServerFingerprint(Path root) throws Exception {
+    static String developmentServerFingerprint(Path root) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         List<Path> inputs = new ArrayList<>();
 
         for (Path fixed : List.of(
+                root.resolve(".mvn/maven.config"),
                 root.resolve("pom.xml"),
                 root.resolve("server/pom.xml"),
                 root.resolve("shared/pom.xml"))) {

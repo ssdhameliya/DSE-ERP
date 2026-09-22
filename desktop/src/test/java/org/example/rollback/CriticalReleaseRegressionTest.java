@@ -222,13 +222,16 @@ class CriticalReleaseRegressionTest {
     }
 
     @Test void everyCentralDialogHasVisibleCloseControlAndEscapePath() throws Exception {
-        String presentation = Files.readString(Path.of("src/main/java/org/example/util/DialogPresentation.java"));
-        assertTrue(presentation.contains("IconFactory.compactIcon(\"close\", 14)"));
-        assertTrue(presentation.contains("closeButton.setCancelButton(true)"));
+        String presentation = Files.readString(Path.of("src/main/java/org/example/util/AppDialogRenderer.java"));
+        assertTrue(presentation.contains("SemanticIconManager.compact(\"close\", 14)"));
+        assertTrue(presentation.contains("close.setCancelButton(true)"));
+        assertTrue(presentation.contains("close.setOnAction(event -> dialog.close())"));
+        String dialogCss = Files.readString(Path.of("src/main/resources/css/app-dialog.css"));
+        assertTrue(dialogCss.contains(".dse-dialog-close"));
         for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
             String css = Files.readString(Path.of("src/main/resources/css", theme));
-            assertTrue(css.contains("dialog close control must remain visible"));
-            assertTrue(css.contains(".modern-dialog-close .erp-action-glyph"));
+            assertFalse(css.contains(".dse-dialog-close"),
+                    "Dialog close styling must have one source of truth: app-dialog.css");
         }
     }
 
@@ -239,7 +242,7 @@ class CriticalReleaseRegressionTest {
         assertTrue(dialogs.contains("update.releaseNotesPending"));
         assertTrue(dialogs.contains("notes.setMinHeight(360)"));
         assertTrue(dialogs.contains("VBox.setVgrow(notes, Priority.ALWAYS)"));
-        String presentation = Files.readString(Path.of("src/main/java/org/example/util/DialogPresentation.java"));
+        String presentation = Files.readString(Path.of("src/main/java/org/example/util/AppDialogRenderer.java"));
         assertTrue(presentation.contains("VBox.setVgrow(customContent, Priority.ALWAYS)"));
         assertFalse(org.example.update.ReleaseHighlights.forVersion(org.example.update.BuildInfo.version())
                 .contains("unavailable offline"));

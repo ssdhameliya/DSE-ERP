@@ -55,8 +55,8 @@ class PdfStudioEditorLayoutContractTest {
     void jsonViewerUsesResponsiveWorkspaceGrowthInsteadOfFixedInnerPanel() throws Exception {
         String controller = Files.readString(Path.of("src/main/java/org/example/documentstudio/controller/PdfStudioController.java"));
         assertTrue(controller.contains("VBox.setVgrow(json, Priority.ALWAYS)"));
-        assertTrue(controller.contains("DialogPresentation.configureWorkspace(dialog, \"document\")")
-                || controller.contains("org.example.util.DialogPresentation.configureWorkspace(dialog, \"document\")"));
+        assertTrue(controller.contains("AppDialogRenderer.configureWorkspace(dialog, \"document\")")
+                || controller.contains("org.example.util.AppDialogRenderer.configureWorkspace(dialog, \"document\")"));
         assertTrue(controller.contains("json.getStyleClass().add(\"pdf-json-viewer\")"));
         assertFalse(controller.contains("json.setStyle(\"-fx-font-family"),
                 "JSON viewer styling belongs to the centralized light/dark themes");

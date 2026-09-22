@@ -800,7 +800,7 @@ public class BackupRestoreController {
         try {
             supportApi.setSetting("backup.schedule", cmbSchedule.getValue());
             supportApi.setSetting("backup.retention", String.valueOf(spRetention.getValue()));
-            NotificationService.add("Backup preferences saved."); updateScheduleSummary();
+            NotificationService.add("Backup preferences saved."); updateScheduleSummary(); org.example.navigation.UnsavedChangesManager.markClean(cmbSchedule);
             if (ConfigManager.isSharedClient()) {
                 refresh(); setStatus("Company-server backup preferences saved.");
             } else {
@@ -826,7 +826,7 @@ public class BackupRestoreController {
                     spRetention.getValueFactory().setValue(Math.max(1, Math.min(50, settings.retention())));
                     cmbSchedule.setDisable(false);
                     spRetention.setDisable(false);
-                    updateScheduleSummary();
+                    updateScheduleSummary(); org.example.navigation.UnsavedChangesManager.markClean(cmbSchedule);
                 },
                 failure -> {
                     cmbSchedule.setValue("MANUAL");

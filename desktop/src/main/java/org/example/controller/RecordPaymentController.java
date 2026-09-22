@@ -93,7 +93,7 @@ public class RecordPaymentController implements ScreenLifecycle {
             () -> new SalesService().getByInvoice(selected),
             loaded -> {
                 if (loaded == null) { new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected invoice: "+selected).showAndWait(); return; }
-                sale=loaded;allPayments.clear();configureInvoice();resetForm();refreshTimeline();loadHistory();
+                sale=loaded;allPayments.clear();configureInvoice();resetForm();refreshTimeline();loadHistory();javafx.application.Platform.runLater(()->org.example.navigation.UnsavedChangesManager.markClean(amount));
             },
             failure -> new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait()
         );
@@ -264,7 +264,7 @@ public class RecordPaymentController implements ScreenLifecycle {
                 int paymentId=supportApi.recordPaymentWithId(request);String proofWarning=null;
                 if(proof!=null){try{supportApi.uploadPaymentAttachment(paymentId,proof);}catch(Exception proofError){proofWarning="Payment was saved, but the proof could not be uploaded: "+message(proofError);}}
                 return proofWarning;
-            },proofWarning->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);NotificationService.add("Payment received for "+currentInvoice);org.example.util.ToastManager.success(amount,"Payment saved","Payment saved successfully.");org.example.util.ScreenRefreshPolicy.invalidate("sales-register");resetForm();refreshInvoiceAmounts();loadHistory();if(proofWarning!=null)new OwnedAlert(Alert.AlertType.WARNING,proofWarning).showAndWait();},failure->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait();});
+            },proofWarning->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);NotificationService.add("Payment received for "+currentInvoice);org.example.util.ToastManager.success(amount,"Payment saved","Payment saved successfully.");org.example.util.ScreenRefreshPolicy.invalidate("sales-register");resetForm();org.example.navigation.UnsavedChangesManager.markClean(amount);refreshInvoiceAmounts();loadHistory();if(proofWarning!=null)new OwnedAlert(Alert.AlertType.WARNING,proofWarning).showAndWait();},failure->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait();});
         } catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 
@@ -277,7 +277,7 @@ public class RecordPaymentController implements ScreenLifecycle {
             PaymentRow current=editingPayment;Path proof=selectedAttachment;boolean removeProof=proofRemovalPending;String currentInvoice=sale.getInvoiceNo();
             var request=new SupportApiClient.PaymentUpdateRequest(paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim(),current.rowVersion());
             if(btnSavePayment!=null)btnSavePayment.setDisable(true);
-            UiTaskExecutor.submitAction("record-payment-update-"+current.id(),()->{supportApi.updatePayment(current.id(),request);if(removeProof)supportApi.deletePaymentAttachment(current.id());else if(proof!=null)supportApi.uploadPaymentAttachment(current.id(),proof);return true;},ignored->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);NotificationService.add("Payment updated for "+currentInvoice);org.example.util.ToastManager.success(amount,"Payment updated","Payment updated and invoice totals recalculated.");org.example.util.ScreenRefreshPolicy.invalidate("sales-register");resetForm();refreshInvoiceAmounts();loadHistory();},failure->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait();});
+            UiTaskExecutor.submitAction("record-payment-update-"+current.id(),()->{supportApi.updatePayment(current.id(),request);if(removeProof)supportApi.deletePaymentAttachment(current.id());else if(proof!=null)supportApi.uploadPaymentAttachment(current.id(),proof);return true;},ignored->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);NotificationService.add("Payment updated for "+currentInvoice);org.example.util.ToastManager.success(amount,"Payment updated","Payment updated and invoice totals recalculated.");org.example.util.ScreenRefreshPolicy.invalidate("sales-register");resetForm();org.example.navigation.UnsavedChangesManager.markClean(amount);refreshInvoiceAmounts();loadHistory();},failure->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait();});
         }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 
@@ -344,7 +344,7 @@ public class RecordPaymentController implements ScreenLifecycle {
         FileChooser ch=new FileChooser(); ch.setTitle("Choose payment proof");
         ch.getExtensionFilters().add(new FileChooser.ExtensionFilter("Proof files","*.pdf","*.png","*.jpg","*.jpeg"));
         File f=ch.showOpenDialog(amount.getScene().getWindow());
-        if(f!=null){selectedAttachment=f.toPath();proofRemovalPending=false;attachmentName.setText(f.getName());}
+        if(f!=null){selectedAttachment=f.toPath();proofRemovalPending=false;attachmentName.setText(f.getName());org.example.navigation.UnsavedChangesManager.touch(amount);}
     }
 
     @FXML private void previewProof(){
@@ -359,7 +359,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     @FXML private void removeProof(){
         boolean hasSelected=selectedAttachment!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.receiptPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;
         if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
-        selectedAttachment=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");
+        selectedAttachment=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");org.example.navigation.UnsavedChangesManager.touch(amount);
     }
 
     private void openReceipt(PaymentRow row) {
@@ -439,6 +439,7 @@ public class RecordPaymentController implements ScreenLifecycle {
                 if (lower.endsWith(".pdf") || lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
                     selectedAttachment = candidate;
                     proofRemovalPending = false;
+                    org.example.navigation.UnsavedChangesManager.touch(amount);
                     attachmentName.setText(candidate.getFileName().toString());
                     completed = true;
                 } else {

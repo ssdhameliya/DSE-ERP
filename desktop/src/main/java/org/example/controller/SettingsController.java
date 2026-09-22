@@ -102,6 +102,7 @@ public class SettingsController implements ScreenLifecycle {
     private final EnumSet<Section> readySections = EnumSet.noneOf(Section.class);
     private final Map<String, PendingAsset> pendingAssets = new LinkedHashMap<>();
     private Section activeSection = Section.COMPANY;
+    private VBox trackedSettingsPanel;
     private final EnumMap<Action, String> shortcutDraftValues = new EnumMap<>(Action.class);
     private final EnumMap<Action, ShortcutRegistry.Scope> shortcutDraftScopes = new EnumMap<>(Action.class);
     private Action selectedShortcutAction;
@@ -591,6 +592,9 @@ public class SettingsController implements ScreenLifecycle {
                         applySectionSnapshot(section, snapshot);
                         readySections.add(section);
                         if (panel != null) panel.setDisable(false);
+                        if (section == activeSection && panel != null) {
+                            Platform.runLater(() -> installSettingsTracker(panel));
+                        }
                     } finally {
                         loadingSections.remove(section);
                         updateSectionReadyState();
@@ -1111,7 +1115,12 @@ private record AssetPreviewRequest(
        TAB NAVIGATION
        ========================================================= */
     private void selectSection(Section section, HBox selectedNavigation, VBox selectedPanel) {
-        activeSection = section == null ? Section.COMPANY : section;
+        Section target = section == null ? Section.COMPANY : section;
+        if (activeSection != null && target != activeSection && trackedSettingsPanel != null
+                && !org.example.navigation.UnsavedChangesManager.allowNavigation("Settings — " + saveLabel(target))) {
+            return;
+        }
+        activeSection = target;
         if (needsAsyncSectionData(activeSection) && !readySections.contains(activeSection) && !loadingSections.contains(activeSection)) {
             loadSectionDataAsync(activeSection);
         }
@@ -1136,7 +1145,23 @@ private record AssetPreviewRequest(
             panelScroll.setVbarPolicy(shortcutMode ? ScrollPane.ScrollBarPolicy.NEVER : ScrollPane.ScrollBarPolicy.AS_NEEDED);
             Platform.runLater(() -> panelScroll.setVvalue(0.0));
         }
+        if (readySections.contains(activeSection) || !needsAsyncSectionData(activeSection)) {
+            Platform.runLater(() -> installSettingsTracker(selectedPanel));
+        }
     }
+
+    private void installSettingsTracker(VBox panel) {
+        if (panel == null || panel.getScene() == null) return;
+        trackedSettingsPanel = panel;
+        org.example.navigation.UnsavedChangesManager.Tracker tracker = org.example.navigation.UnsavedChangesManager.track(
+                panel, "Settings — " + saveLabel(activeSection));
+        tracker.resetBaseline();
+    }
+
+    private void markActiveSettingsClean() {
+        if (trackedSettingsPanel != null) org.example.navigation.UnsavedChangesManager.markClean(trackedSettingsPanel);
+    }
+
     private void updateSaveButtonLabel() {
         if (btnSaveSettings == null) return;
         String label = switch (activeSection) {
@@ -1964,6 +1989,7 @@ private record AssetPreviewRequest(
                         ButtonType.OK);
                 done.setHeaderText("Company-server connection saved");
                 done.showAndWait();
+                markActiveSettingsClean();
                 Platform.exit();
                 return;
             }
@@ -1979,6 +2005,7 @@ private record AssetPreviewRequest(
             if (section == Section.NOTIFICATIONS && chkNotifications != null && chkNotifications.isSelected()) {
                 NotificationService.add("Notification settings were updated.");
             }
+            markActiveSettingsClean();
             org.example.util.ToastManager.success(panelHost, "Settings saved", saveLabel(section) + " saved successfully.");
         } catch (Exception exception) {
             if (section == Section.WORKSPACE) {

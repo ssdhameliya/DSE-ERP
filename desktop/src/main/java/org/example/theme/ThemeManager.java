@@ -11,6 +11,7 @@ import org.example.config.ConfigManager;
 public final class ThemeManager {
 
     private static final String APPLIED_THEME_KEY = "dse.theme.applied.url";
+    private static final String DIALOG_CSS = org.example.util.ResourceLocator.require("/css/app-dialog.css").toExternalForm();
 
     public enum Theme {
         LIGHT,
@@ -55,20 +56,16 @@ public final class ThemeManager {
 
     private static void applyResolvedTheme(Scene scene, String themeUrl) {
         Object alreadyApplied = scene.getProperties().get(APPLIED_THEME_KEY);
-        if (!themeUrl.equals(alreadyApplied) || scene.getStylesheets().size() != 1
-                || !themeUrl.equals(scene.getStylesheets().getFirst())) {
-            scene.getStylesheets().setAll(themeUrl);
+        if (!themeUrl.equals(alreadyApplied) || scene.getStylesheets().size() != 2
+                || !themeUrl.equals(scene.getStylesheets().getFirst())
+                || !DIALOG_CSS.equals(scene.getStylesheets().get(1))) {
+            scene.getStylesheets().setAll(themeUrl, DIALOG_CSS);
             scene.getProperties().put(APPLIED_THEME_KEY, themeUrl);
         }
         if (scene.getRoot() != null) {
+            scene.getRoot().getStyleClass().removeAll("dse-theme-light", "dse-theme-dark");
+            scene.getRoot().getStyleClass().add(themeUrl.contains("dark-theme.css") ? "dse-theme-dark" : "dse-theme-light");
             PlatformUiSupport.installResponsiveClasses(scene);
-            if (scene.getRoot() instanceof DialogPane pane
-                    && !Boolean.TRUE.equals(pane.getProperties().get("erp-dialog-custom"))
-                    && !pane.getStyleClass().contains("modern-dialog")
-                    && !pane.getStyleClass().contains("erp-modern-dialog")
-                    && !pane.getStyleClass().contains("app-dialog")) {
-                pane.getStyleClass().add("erp-modern-dialog");
-            }
         }
     }
 
