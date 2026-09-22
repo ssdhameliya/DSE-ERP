@@ -14,7 +14,7 @@ import org.example.service.NotificationService.NotificationItem;
 import org.example.service.NotificationService.ResolvedLink;
 import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -76,7 +76,7 @@ public final class NotificationCenterController implements ScreenLifecycle {
     @FXML private void markAllRead(){ NotificationService.markAllRead(); refresh(); }
     @FXML private void clearHistory(){
         if(all.isEmpty()) return;
-        if(!ModernDialog.confirm(listNotifications,"Clear My Notification History?","Remove all notifications from your history?","This clears notification history only for your signed-in user. Other users are not affected.")) return;
+        if(!AppDialogService.confirm(listNotifications,"Clear My Notification History?","Remove all notifications from your history?","This clears notification history only for your signed-in user. Other users are not affected.")) return;
         NotificationService.clear(); org.example.util.ToastManager.success(listNotifications,"Notifications cleared","Your notification history was cleared successfully."); refresh();
     }
     @FXML private void toggleRead(){ NotificationItem item=selected(); if(item==null)return; if(item.read())NotificationService.markUnread(item.id());else NotificationService.markRead(item.id()); org.example.util.ToastManager.success(listNotifications,item.read()?"Marked unread":"Marked read","Notification status was updated successfully."); refresh(); }

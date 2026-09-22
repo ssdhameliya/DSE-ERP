@@ -356,40 +356,15 @@ public final class ProfessionalUiEnhancer {
 
     /**
      * Applies the shared visual language to legacy JavaFX Alert/Dialog instances.
-     * New workflows use ModernDialog; this bridge keeps older controllers
+     * New workflows use AppDialogService; this bridge keeps older controllers
      * consistent without changing their business handlers.
      */
     private static void enhanceDialog(DialogPane pane) {
-        // Custom modern dialogs own their complete shell (title bar, graphic,
-        // content and action bar). Applying the legacy bridge on top of them
-        // creates duplicate icons, nested borders and conflicting padding.
-        if (isCustomDialog(pane)) {
-            return;
-        }
-
-        if (!pane.getStyleClass().contains("erp-modern-dialog")) {
-            pane.getStyleClass().add("erp-modern-dialog");
-        }
-        // Do not inject a generic DialogPane graphic. JavaFX renders pane graphics
-        // in a separate .graphic-container outside custom business content, which
-        // produced the stray bell/notification icon seen on Bank Statement and
-        // other owned dialogs. A dialog may still set its own graphic explicitly.
-
-        Platform.runLater(() -> pane.getButtonTypes().forEach(type -> {
-            Node button = pane.lookupButton(type);
-            if (button instanceof ButtonBase action) {
-                if (action.getText() == null || action.getText().isBlank()) action.setText(type.getText());
-                IconFactory.decorate(action);
-            }
-        }));
+        // Dialog presentation is exclusively owned by AppDialogRenderer.
+        // Generic UI enhancement must never add dialog shell classes, icons or button styles.
+        if (pane != null && Boolean.TRUE.equals(pane.getProperties().get(AppDialogRenderer.OWNED))) return;
     }
 
-
-    /** Returns true when a dialog explicitly owns its visual presentation. */
-    private static boolean isCustomDialog(DialogPane pane) {
-        return Boolean.TRUE.equals(pane.getProperties().get("erp-dialog-custom"))
-            || pane.getStyleClass().contains("modern-dialog");
-    }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void enhanceTable(TableView table) {

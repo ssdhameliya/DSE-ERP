@@ -39,10 +39,10 @@ import org.example.documentstudio.service.DocumentDataService;
 import org.example.documentstudio.service.ExcelTemplateStorageService;
 import org.example.documentstudio.service.TemplateFieldCatalog;
 import org.example.util.IconFactory;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
-import org.example.navigation.NavigationGuardRegistry;
+import org.example.navigation.UnsavedChangesManager;
 import org.example.shared.DocumentCalculationEngine;
 import org.example.theme.ThemeManager;
 
@@ -120,7 +120,7 @@ public class ExcelDesignerController {
         installButtonIcons();
         String id = ExcelStudioContext.consume();
         if (id == null) {
-            ModernDialog.error(root, "Excel Studio", "No Excel template was selected", "Return to Excel Studio and choose an Excel template.");
+            AppDialogService.error(root, "Excel Studio", "No Excel template was selected", "Return to Excel Studio and choose an Excel template.");
             return;
         }
         try {
@@ -149,12 +149,12 @@ public class ExcelDesignerController {
             IconFactory.decorate(root);
             Platform.runLater(() -> {
                 preserveAllButtonLabels(root);
-                NavigationGuardRegistry.install(root, this::allowNavigationAway);
+                UnsavedChangesManager.installGuard(root, this::allowNavigationAway);
             });
             updateUndoRedoButtons();
             updateFormatClipboardButtons();
         } catch (Exception error) {
-            ModernDialog.error(root, "Excel template could not be opened", "Excel Studio", rootMessage(error));
+            AppDialogService.error(root, "Excel template could not be opened", "Excel Studio", rootMessage(error));
         }
     }
 
@@ -510,7 +510,7 @@ public class ExcelDesignerController {
             editorSheet().autoSizeColumn(col);
             if(editorSheet().getColumnWidth(col)<256)editorSheet().setColumnWidth(col,256);
             renderSheet();
-        }catch(Exception error){ModernDialog.error(root,"Column could not be AutoFit","Excel Studio",rootMessage(error));}
+        }catch(Exception error){AppDialogService.error(root,"Column could not be AutoFit","Excel Studio",rootMessage(error));}
     }
 
     private void autoFitRow(int rowIndex) {
@@ -519,7 +519,7 @@ public class ExcelDesignerController {
             Sheet sheet=editorSheet();Row row=sheet.getRow(rowIndex);if(row==null)row=sheet.createRow(rowIndex);
             row.setHeightInPoints(ExcelDimensionPolicy.estimateAutoRowHeightPoints(sheet,rowIndex,this::cellText));
             renderSheet();
-        }catch(Exception error){ModernDialog.error(root,"Row could not be AutoFit","Excel Studio",rootMessage(error));}
+        }catch(Exception error){AppDialogService.error(root,"Row could not be AutoFit","Excel Studio",rootMessage(error));}
     }
 
     private void handleCellKeyPressed(TextField editor, int row, int col, KeyEvent event) {
@@ -810,7 +810,7 @@ public class ExcelDesignerController {
                 throw new IllegalArgumentException("Excel Studio currently displays A1:Z100.");
             setSelection(range,range.getFirstRow(),range.getFirstColumn());
             requestEditorFocus(range.getFirstRow(),range.getFirstColumn());
-        }catch(Exception e){ModernDialog.info(root,"Invalid range","Excel Studio","Enter a visible cell or range such as A1 or A1:D4 (up to Z100).");}
+        }catch(Exception e){AppDialogService.info(root,"Invalid range","Excel Studio","Enter a visible cell or range such as A1 or A1:D4 (up to Z100).");}
     }
 
     private String cellText(Cell cell) {
@@ -835,7 +835,7 @@ public class ExcelDesignerController {
         }catch(IllegalArgumentException error){
             editor.setText(before);
             if(txtFormula!=null&&rowIndex==focusedRow&&colIndex==focusedCol)txtFormula.setText(before);
-            ModernDialog.error(root,"Invalid Excel formula","Excel Studio",error.getMessage());
+            AppDialogService.error(root,"Invalid Excel formula","Excel Studio",error.getMessage());
             return;
         }
         if(trackHistory)recordUndoPoint();
@@ -907,7 +907,7 @@ public class ExcelDesignerController {
             byte[] previous=history.undo(workbook);
             restoreWorkbook(previous);
             dirty=true;
-        }catch(Exception e){ModernDialog.error(root,"Undo failed","Excel Studio",rootMessage(e));}
+        }catch(Exception e){AppDialogService.error(root,"Undo failed","Excel Studio",rootMessage(e));}
         updateUndoRedoButtons();
     }
 
@@ -919,7 +919,7 @@ public class ExcelDesignerController {
             byte[] next=history.redo(workbook);
             restoreWorkbook(next);
             dirty=true;
-        }catch(Exception e){ModernDialog.error(root,"Redo failed","Excel Studio",rootMessage(e));}
+        }catch(Exception e){AppDialogService.error(root,"Redo failed","Excel Studio",rootMessage(e));}
         updateUndoRedoButtons();
     }
 
@@ -973,8 +973,8 @@ public class ExcelDesignerController {
 
     @FXML private void insertField(){
         TemplateFieldDefinition field=fieldList.getSelectionModel().getSelectedItem();
-        if(field==null){ModernDialog.info(root,"Choose a field","Excel Studio","Select an ERP field from the field palette first.");return;}
-        if(focusedEditor==null){ModernDialog.info(root,"Choose a cell","Excel Studio","Select the workbook cell where the field should be inserted, or drag the field onto a cell.");return;}
+        if(field==null){AppDialogService.info(root,"Choose a field","Excel Studio","Select an ERP field from the field palette first.");return;}
+        if(focusedEditor==null){AppDialogService.info(root,"Choose a cell","Excel Studio","Select the workbook cell where the field should be inserted, or drag the field onto a cell.");return;}
         focusedEditor.setText("{{"+field.key()+"}}");commitCell(focusedRow,focusedCol,focusedEditor,true);refreshMappingUi();markImagePlaceholder(focusedEditor,field.key());focusedEditor.requestFocus();syncFormulaBar();
     }
 
@@ -984,15 +984,15 @@ public class ExcelDesignerController {
     }
 
     @FXML private void insertItemRow(){
-        if(!TemplateFieldCatalog.supportsItemRows(template.getDocumentType())){ModernDialog.info(root,"Items are not used","Excel Studio",template.getDocumentType().label()+" does not use repeating item rows.");return;}
-        if(focusedRow<0){ModernDialog.info(root,"Choose a row","Excel Studio","Select a cell in the row that should repeat for line items.");return;}
+        if(!TemplateFieldCatalog.supportsItemRows(template.getDocumentType())){AppDialogService.info(root,"Items are not used","Excel Studio",template.getDocumentType().label()+" does not use repeating item rows.");return;}
+        if(focusedRow<0){AppDialogService.info(root,"Choose a row","Excel Studio","Select a cell in the row that should repeat for line items.");return;}
         String[] values={"{{item.serial}}","{{item.code}}","{{item.descriptionWithRemarks}}","{{item.hsn}}","{{item.quantity}}","{{item.unit}}","{{item.rate}}","{{item.discountPercent}}","{{item.discountAmount}}","{{item.taxable}}","{{item.gstPercent}}","{{item.cgstPercent}}","{{item.cgstAmount}}","{{item.sgstPercent}}","{{item.sgstAmount}}","{{item.igstPercent}}","{{item.igstAmount}}","{{item.gstAmount}}","{{item.total}}"};
         placeRepeatingRow(values);
     }
 
     @FXML private void insertChargeRow(){
-        if(!TemplateFieldCatalog.supportsChargeRows(template.getDocumentType())){ModernDialog.info(root,"Charges are not used","Excel Studio",template.getDocumentType().label()+" does not expose repeating charge rows.");return;}
-        if(focusedRow<0){ModernDialog.info(root,"Choose a row","Excel Studio","Select a cell in the row that should repeat for additional charges.");return;}
+        if(!TemplateFieldCatalog.supportsChargeRows(template.getDocumentType())){AppDialogService.info(root,"Charges are not used","Excel Studio",template.getDocumentType().label()+" does not expose repeating charge rows.");return;}
+        if(focusedRow<0){AppDialogService.info(root,"Choose a row","Excel Studio","Select a cell in the row that should repeat for additional charges.");return;}
         String[] values={"{{charge.serial}}","{{charge.type}}","{{charge.amount}}","{{charge.taxable}}","{{charge.taxableAmount}}","{{charge.gstPercent}}","{{charge.cgstPercent}}","{{charge.cgstAmount}}","{{charge.sgstPercent}}","{{charge.sgstAmount}}","{{charge.igstPercent}}","{{charge.igstAmount}}","{{charge.taxAmount}}","{{charge.total}}"};
         placeRepeatingRow(values);
     }
@@ -1138,7 +1138,7 @@ public class ExcelDesignerController {
         commitActiveEdit();
         saveVisibleCells(false);
         CellRangeAddress range=currentRange();
-        if(range.getNumberOfCells()<=1){ModernDialog.info(root,"Select a range","Excel Studio","Select two or more cells with the mouse, Shift+Arrow, Shift+Click, or the Range box before merging.");return;}
+        if(range.getNumberOfCells()<=1){AppDialogService.info(root,"Select a range","Excel Studio","Select two or more cells with the mouse, Shift+Arrow, Shift+Click, or the Range box before merging.");return;}
         try{
             recordUndoPoint();
             editorSheet().addMergedRegion(copyRange(range));
@@ -1146,7 +1146,7 @@ public class ExcelDesignerController {
             renderSheet();
             setSelection(range,range.getFirstRow(),range.getFirstColumn());
             requestEditorFocus(range.getFirstRow(),range.getFirstColumn());
-        }catch(Exception e){ModernDialog.error(root,"Cells could not be merged","Excel Studio",rootMessage(e));}
+        }catch(Exception e){AppDialogService.error(root,"Cells could not be merged","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void unmergeCells(){
@@ -1167,34 +1167,34 @@ public class ExcelDesignerController {
 
     @FXML private void setRowHeight(){
         if(focusedRow<0)return;String value=ask("Row Height","Row height in points for selected row(s):",Double.toString(editorSheet().getRow(focusedRow)==null?15:editorSheet().getRow(focusedRow).getHeightInPoints()));if(value==null)return;
-        try{float height=Float.parseFloat(value);if(height<2||height>409)throw new IllegalArgumentException("Use a height between 2 and 409 points.");commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=editorSheet().getRow(r);if(row==null)row=editorSheet().createRow(r);row.setHeightInPoints(height);}renderSheet();}catch(Exception e){ModernDialog.error(root,"Invalid row height","Excel Studio",rootMessage(e));}
+        try{float height=Float.parseFloat(value);if(height<2||height>409)throw new IllegalArgumentException("Use a height between 2 and 409 points.");commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=editorSheet().getRow(r);if(row==null)row=editorSheet().createRow(r);row.setHeightInPoints(height);}renderSheet();}catch(Exception e){AppDialogService.error(root,"Invalid row height","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void decreaseRowHeight(){adjustRowHeight(-3f);}
     @FXML private void increaseRowHeight(){adjustRowHeight(3f);}
     private void adjustRowHeight(float delta){
         if(focusedRow<0)return;
-        try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=sheet.getRow(r);if(row==null)row=sheet.createRow(r);float current=row.getHeightInPoints()>0?row.getHeightInPoints():sheet.getDefaultRowHeightInPoints();row.setHeightInPoints(Math.max(2f,Math.min(409f,current+delta)));}renderSheet();setSelection(range,range.getFirstRow(),range.getFirstColumn());}catch(Exception e){ModernDialog.error(root,"Row height could not be changed","Excel Studio",rootMessage(e));}
+        try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=sheet.getRow(r);if(row==null)row=sheet.createRow(r);float current=row.getHeightInPoints()>0?row.getHeightInPoints():sheet.getDefaultRowHeightInPoints();row.setHeightInPoints(Math.max(2f,Math.min(409f,current+delta)));}renderSheet();setSelection(range,range.getFirstRow(),range.getFirstColumn());}catch(Exception e){AppDialogService.error(root,"Row height could not be changed","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void setColumnWidth(){
         if(focusedCol<0)return;String value=ask("Column Width","Column width in characters for selected column(s):",String.format(Locale.ROOT,"%.1f",editorSheet().getColumnWidth(focusedCol)/256d));if(value==null)return;
-        try{double width=Double.parseDouble(value);if(width<1||width>255)throw new IllegalArgumentException("Use a width between 1 and 255 characters.");commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();for(int c=range.getFirstColumn();c<=range.getLastColumn();c++)editorSheet().setColumnWidth(c,(int)Math.round(width*256));renderSheet();}catch(Exception e){ModernDialog.error(root,"Invalid column width","Excel Studio",rootMessage(e));}
+        try{double width=Double.parseDouble(value);if(width<1||width>255)throw new IllegalArgumentException("Use a width between 1 and 255 characters.");commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();for(int c=range.getFirstColumn();c<=range.getLastColumn();c++)editorSheet().setColumnWidth(c,(int)Math.round(width*256));renderSheet();}catch(Exception e){AppDialogService.error(root,"Invalid column width","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void decreaseColumnWidth(){adjustColumnWidth(-2d);}
     @FXML private void increaseColumnWidth(){adjustColumnWidth(2d);}
     private void adjustColumnWidth(double delta){
         if(focusedCol<0)return;
-        try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int c=range.getFirstColumn();c<=range.getLastColumn();c++){double current=sheet.getColumnWidth(c)/256d;sheet.setColumnWidth(c,(int)Math.round(Math.max(1d,Math.min(255d,current+delta))*256d));}renderSheet();setSelection(range,range.getFirstRow(),range.getFirstColumn());}catch(Exception e){ModernDialog.error(root,"Column width could not be changed","Excel Studio",rootMessage(e));}
+        try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int c=range.getFirstColumn();c<=range.getLastColumn();c++){double current=sheet.getColumnWidth(c)/256d;sheet.setColumnWidth(c,(int)Math.round(Math.max(1d,Math.min(255d,current+delta))*256d));}renderSheet();setSelection(range,range.getFirstRow(),range.getFirstColumn());}catch(Exception e){AppDialogService.error(root,"Column width could not be changed","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void autoFitRows(){
-        if(focusedRow<0)return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=sheet.getRow(r);if(row==null)row=sheet.createRow(r);row.setHeightInPoints(ExcelDimensionPolicy.estimateAutoRowHeightPoints(sheet,r,this::cellText));}renderSheet();}catch(Exception e){ModernDialog.error(root,"Rows could not be AutoFit","Excel Studio",rootMessage(e));}
+        if(focusedRow<0)return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=sheet.getRow(r);if(row==null)row=sheet.createRow(r);row.setHeightInPoints(ExcelDimensionPolicy.estimateAutoRowHeightPoints(sheet,r,this::cellText));}renderSheet();}catch(Exception e){AppDialogService.error(root,"Rows could not be AutoFit","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void autoFitColumns(){
-        if(focusedCol<0)return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int c=range.getFirstColumn();c<=range.getLastColumn();c++){sheet.autoSizeColumn(c);if(sheet.getColumnWidth(c)<256)sheet.setColumnWidth(c,256);}renderSheet();}catch(Exception e){ModernDialog.error(root,"Columns could not be AutoFit","Excel Studio",rootMessage(e));}
+        if(focusedCol<0)return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int c=range.getFirstColumn();c<=range.getLastColumn();c++){sheet.autoSizeColumn(c);if(sheet.getColumnWidth(c)<256)sheet.setColumnWidth(c,256);}renderSheet();}catch(Exception e){AppDialogService.error(root,"Columns could not be AutoFit","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void insertRow(){if(focusedRow<0)return;commitActiveEdit();saveVisibleCells(false);recordUndoPoint();Sheet sheet=editorSheet();if(sheet.getLastRowNum()>=focusedRow)sheet.shiftRows(focusedRow,sheet.getLastRowNum(),1,true,false);sheet.createRow(focusedRow);renderSheet();}
@@ -1222,13 +1222,13 @@ public class ExcelDesignerController {
         }
         formatClipboard=new FormatClipboard(source.getLastRow()-source.getFirstRow()+1,source.getLastColumn()-source.getFirstColumn()+1,List.copyOf(styles));
         updateFormatClipboardButtons();
-        ModernDialog.success(root,"Format copied","Select the destination cell or range, then choose Paste Format. Values and formulas will not be changed.");
+        AppDialogService.success(root,"Format copied","Select the destination cell or range, then choose Paste Format. Values and formulas will not be changed.");
     }
 
     /** Applies the copied format to the current target selection. Multi-cell source patterns tile across a larger target. */
     @FXML private void pasteFormat(){
         if(focusedRow<0||formatClipboard==null||workbook==null){
-            ModernDialog.info(root,"Copy a format first","Excel Studio","Select the source cell or range and choose Copy Format first.");
+            AppDialogService.info(root,"Copy a format first","Excel Studio","Select the source cell or range and choose Copy Format first.");
             return;
         }
         commitActiveEdit();saveVisibleCells(false);recordUndoPoint();
@@ -1249,17 +1249,17 @@ public class ExcelDesignerController {
         if(btnPasteFormat!=null)btnPasteFormat.setTooltip(new Tooltip(formatClipboard==null?"Copy a format first":"Apply copied formatting to the selected destination range"));
     }
 
-    @FXML private void freezePane(){if(focusedRow<0)return;commitActiveEdit();recordUndoPoint();editorSheet().createFreezePane(Math.max(0,focusedCol),Math.max(0,focusedRow));ModernDialog.success(root,"Freeze pane updated","Rows above and columns left of "+lblCell.getText()+" will remain visible.");}
-    @FXML private void unfreezePane(){commitActiveEdit();recordUndoPoint();editorSheet().createFreezePane(0,0);ModernDialog.success(root,"Freeze pane removed","The active worksheet is no longer frozen.");}
+    @FXML private void freezePane(){if(focusedRow<0)return;commitActiveEdit();recordUndoPoint();editorSheet().createFreezePane(Math.max(0,focusedCol),Math.max(0,focusedRow));AppDialogService.success(root,"Freeze pane updated","Rows above and columns left of "+lblCell.getText()+" will remain visible.");}
+    @FXML private void unfreezePane(){commitActiveEdit();recordUndoPoint();editorSheet().createFreezePane(0,0);AppDialogService.success(root,"Freeze pane removed","The active worksheet is no longer frozen.");}
 
     @FXML private void addSheet(){
         String name=ask("New Worksheet","Worksheet name:","Sheet"+(workbook.getNumberOfSheets()+1));if(name==null||name.isBlank())return;
-        try{commitActiveEdit();recordUndoPoint();workbook.createSheet(name.trim());cmbSheet.getItems().setAll(sheetNames());cmbSheet.setValue(name.trim());}catch(Exception e){ModernDialog.error(root,"Worksheet could not be added","Excel Studio",rootMessage(e));}
+        try{commitActiveEdit();recordUndoPoint();workbook.createSheet(name.trim());cmbSheet.getItems().setAll(sheetNames());cmbSheet.setValue(name.trim());}catch(Exception e){AppDialogService.error(root,"Worksheet could not be added","Excel Studio",rootMessage(e));}
     }
-    @FXML private void renameSheet(){String old=activeSheet().getSheetName();String name=ask("Rename Worksheet","Worksheet name:",old);if(name==null||name.isBlank()||name.equals(old))return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();int index=workbook.getSheetIndex(activeSheet());workbook.setSheetName(index,name.trim());renderedSheetName=name.trim();cmbSheet.getItems().setAll(sheetNames());cmbSheet.setValue(name.trim());}catch(Exception e){ModernDialog.error(root,"Worksheet could not be renamed","Excel Studio",rootMessage(e));}}
-    @FXML private void deleteSheet(){if(workbook.getNumberOfSheets()<=1){ModernDialog.info(root,"Worksheet required","Excel Studio","An Excel template must keep at least one worksheet.");return;}int index=workbook.getSheetIndex(activeSheet());if(!ModernDialog.confirm(root,"Delete Worksheet","Delete "+activeSheet().getSheetName()+"?","This removes the worksheet from this template."))return;commitActiveEdit();saveVisibleCells(false);recordUndoPoint();workbook.removeSheetAt(index);renderedSheetName=null;editors.clear();cmbSheet.getItems().setAll(sheetNames());cmbSheet.getSelectionModel().select(Math.max(0,index-1));}
+    @FXML private void renameSheet(){String old=activeSheet().getSheetName();String name=ask("Rename Worksheet","Worksheet name:",old);if(name==null||name.isBlank()||name.equals(old))return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();int index=workbook.getSheetIndex(activeSheet());workbook.setSheetName(index,name.trim());renderedSheetName=name.trim();cmbSheet.getItems().setAll(sheetNames());cmbSheet.setValue(name.trim());}catch(Exception e){AppDialogService.error(root,"Worksheet could not be renamed","Excel Studio",rootMessage(e));}}
+    @FXML private void deleteSheet(){if(workbook.getNumberOfSheets()<=1){AppDialogService.info(root,"Worksheet required","Excel Studio","An Excel template must keep at least one worksheet.");return;}int index=workbook.getSheetIndex(activeSheet());if(!AppDialogService.confirm(root,"Delete Worksheet","Delete "+activeSheet().getSheetName()+"?","This removes the worksheet from this template."))return;commitActiveEdit();saveVisibleCells(false);recordUndoPoint();workbook.removeSheetAt(index);renderedSheetName=null;editors.clear();cmbSheet.getItems().setAll(sheetNames());cmbSheet.getSelectionModel().select(Math.max(0,index-1));}
 
-    @FXML private void save(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "save an Excel template");try{commitActiveEdit();saveVisibleCells(false);ExcelTemplateStorageService.saveWorkbook(template,workbook);dirty=false;lblVersion.setText("v"+template.getVersion());ModernDialog.success(root,"Excel template saved",template.getName()+" was saved. Previous workbook versions remain in template history.");}catch(Exception e){ModernDialog.error(root,"Save failed","Excel Studio",rootMessage(e));}}
+    @FXML private void save(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "save an Excel template");try{commitActiveEdit();saveVisibleCells(false);ExcelTemplateStorageService.saveWorkbook(template,workbook);dirty=false;lblVersion.setText("v"+template.getVersion());AppDialogService.success(root,"Excel template saved",template.getName()+" was saved. Previous workbook versions remain in template history.");}catch(Exception e){AppDialogService.error(root,"Save failed","Excel Studio",rootMessage(e));}}
     @FXML private void saveDefault(){
         org.example.service.PermissionService.require("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "set the default Excel template");
         try{
@@ -1276,8 +1276,8 @@ public class ExcelDesignerController {
             ExcelTemplateStorageService.activateAndSetDefault(template);
             dirty=false;
             lblVersion.setText("v"+template.getVersion());
-            ModernDialog.success(root,"Default Excel template updated",template.getName()+" is now the validated default for "+template.getDocumentType().label()+". Document-type mapping, repeating rows, and ERP fields were rendered successfully.");
-        }catch(Exception e){ModernDialog.error(root,"Default could not be activated","Excel Studio",rootMessage(e));}
+            AppDialogService.success(root,"Default Excel template updated",template.getName()+" is now the validated default for "+template.getDocumentType().label()+". Document-type mapping, repeating rows, and ERP fields were rendered successfully.");
+        }catch(Exception e){AppDialogService.error(root,"Default could not be activated","Excel Studio",rootMessage(e));}
     }
     @FXML private void preview(){
         try{
@@ -1286,19 +1286,19 @@ public class ExcelDesignerController {
             Path tmp=org.example.config.WorkspaceManager.getTempFolder().resolve("excel-studio-preview-"+template.getId()+".xlsx");
             Path shadow=writeWorkingCopy("excel-studio-working-");
             try{ExcelTemplateRenderer.renderWorkbook(shadow,template.getDocumentType(),data,tmp);}finally{Files.deleteIfExists(shadow);}
-            if(Desktop.isDesktopSupported())Desktop.getDesktop().open(tmp.toFile());else ModernDialog.info(root,"Preview generated","Excel Studio",tmp.toString());
-        }catch(Exception e){ModernDialog.error(root,"Preview failed","Excel Studio",rootMessage(e));}
+            if(Desktop.isDesktopSupported())Desktop.getDesktop().open(tmp.toFile());else AppDialogService.info(root,"Preview generated","Excel Studio",tmp.toString());
+        }catch(Exception e){AppDialogService.error(root,"Preview failed","Excel Studio",rootMessage(e));}
     }
-    @FXML private void download(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "download an Excel template");try{commitActiveEdit();saveVisibleCells(false);FileChooser chooser=new FileChooser();chooser.setTitle("Save Excel Template");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook","*.xlsx"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._ -]","_")+".xlsx");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;Files.write(file.toPath(),snapshotWorkbook());ModernDialog.success(root,"Template exported",file.getName()+" was saved.");}catch(Exception e){ModernDialog.error(root,"Export failed","Excel Studio",rootMessage(e));}}
+    @FXML private void download(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "download an Excel template");try{commitActiveEdit();saveVisibleCells(false);FileChooser chooser=new FileChooser();chooser.setTitle("Save Excel Template");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook","*.xlsx"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._ -]","_")+".xlsx");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;Files.write(file.toPath(),snapshotWorkbook());AppDialogService.success(root,"Template exported",file.getName()+" was saved.");}catch(Exception e){AppDialogService.error(root,"Export failed","Excel Studio",rootMessage(e));}}
     @FXML private void back(){if(!allowNavigationAway("Excel Studio"))return;closeWorkbook();DocumentStudioContext.selectMode(DocumentStudioContext.Mode.EXCEL);DashboardController.navigateFromDocumentStudio("Excel Studio","/fxml/pages/DocumentStudio.fxml");}
 
     private boolean allowNavigationAway(String destination){
         commitActiveEdit();
         saveVisibleCells(false);
-        if(!dirty){NavigationGuardRegistry.clear(root);return true;}
+        if(!dirty){UnsavedChangesManager.clear(root);return true;}
         String target=destination==null||destination.isBlank()?"another screen":destination;
-        boolean leave=ModernDialog.confirm(root,"Leave Excel Studio?","Discard unsaved template changes?","You have changes that have not been saved. Choose Cancel to stay in Excel Studio and save them, or confirm to continue to "+target+" without saving.");
-        if(leave)NavigationGuardRegistry.clear(root);
+        boolean leave=AppDialogService.confirm(root,"Leave Excel Studio?","Discard unsaved template changes?","You have changes that have not been saved. Choose Cancel to stay in Excel Studio and save them, or confirm to continue to "+target+" without saving.");
+        if(leave)UnsavedChangesManager.clear(root);
         return leave;
     }
 
@@ -1942,7 +1942,7 @@ public class ExcelDesignerController {
     private CellRangeAddress copyRange(CellRangeAddress range){return new CellRangeAddress(range.getFirstRow(),range.getLastRow(),range.getFirstColumn(),range.getLastColumn());}
     private boolean intersects(CellRangeAddress a,CellRangeAddress b){return a.getFirstRow()<=b.getLastRow()&&a.getLastRow()>=b.getFirstRow()&&a.getFirstColumn()<=b.getLastColumn()&&a.getLastColumn()>=b.getFirstColumn();}
     private String ask(String title,String prompt,String initial){org.example.util.OwnedTextInputDialog d=new org.example.util.OwnedTextInputDialog(initial==null?"":initial);d.setTitle(title);d.setHeaderText(null);d.setContentText(prompt);return d.showAndWait().map(String::trim).orElse(null);}
-    private void closeWorkbook(){NavigationGuardRegistry.clear(root);Workbook current=workbook;workbook=null;try{if(current!=null)current.close();}catch(Exception ignored){}}
+    private void closeWorkbook(){UnsavedChangesManager.clear(root);Workbook current=workbook;workbook=null;try{if(current!=null)current.close();}catch(Exception ignored){}}
     private static String columnName(int c){return CellReference.convertNumToColString(c);}
     private static String number(double d){return Math.rint(d)==d?String.format(Locale.ROOT,"%.0f",d):String.format(Locale.ROOT,"%.4f",d).replaceAll("0+$","").replaceAll("\\.$","");}
     private static String descriptionWithRemarks(String description,String remarks){String d=description==null?"":description.trim(),r=remarks==null?"":remarks.trim();return d.isBlank()?r:r.isBlank()?d:d+"\n"+r;}

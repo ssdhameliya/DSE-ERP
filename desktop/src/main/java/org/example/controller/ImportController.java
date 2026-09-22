@@ -33,9 +33,9 @@ import org.example.api.recon.PurchaseReconApiClient;
 import org.example.util.IconFactory;
 import org.example.util.SpreadsheetLayoutDetector;
 import org.example.util.BusinessClock;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 import org.example.util.SemanticTableCells;
-import org.example.navigation.NavigationGuardRegistry;
+import org.example.navigation.UnsavedChangesManager;
 import org.example.navigation.NavigationManager;
 import org.example.config.WorkspaceManager;
 
@@ -187,7 +187,7 @@ public class ImportController {
         btnRunImport.setDisable(true);
 
         showWizardStep(1);
-        Platform.runLater(() -> NavigationGuardRegistry.install(btnRunImport, this::allowNavigationAway));
+        Platform.runLater(() -> UnsavedChangesManager.installGuard(btnRunImport, this::allowNavigationAway));
 
         cmbImportModule.valueProperty().addListener(
             (observable, oldValue, newValue) -> {
@@ -1361,7 +1361,7 @@ public class ImportController {
             Throwable exception =
                 task.getException();
 
-            ModernDialog.error(btnRunImport, "Import Error", "Import failed", safeMessage(exception));
+            AppDialogService.error(btnRunImport, "Import Error", "Import failed", safeMessage(exception));
         });
 
         Thread thread =
@@ -1634,15 +1634,15 @@ public class ImportController {
     private boolean allowNavigationAway(String destination) {
         if (destination != null && destination.endsWith("/Import.fxml")) return true;
         if (importRunning) {
-            ModernDialog.warning(btnRunImport, "Import in progress", "Please wait for the import to finish",
+            AppDialogService.warning(btnRunImport, "Import in progress", "Please wait for the import to finish",
                 "Navigation is temporarily locked so the import cannot be left in an uncertain state.");
             return false;
         }
         boolean hasProgress = currentWizardStep > 1 && selectedFile != null && !importCompleted;
-        if (!hasProgress) { NavigationGuardRegistry.clear(btnRunImport); return true; }
-        boolean leave = ModernDialog.confirm(btnRunImport, "Leave Data Import?", "Discard the current import setup?",
+        if (!hasProgress) { UnsavedChangesManager.clear(btnRunImport); return true; }
+        boolean leave = AppDialogService.confirm(btnRunImport, "Leave Data Import?", "Discard the current import setup?",
             "You are in step " + currentWizardStep + " of 4. Leaving now will discard the selected file, mappings and validation progress.");
-        if (leave) NavigationGuardRegistry.clear(btnRunImport);
+        if (leave) UnsavedChangesManager.clear(btnRunImport);
         return leave;
     }
 
@@ -1666,7 +1666,7 @@ public class ImportController {
         String module = completedModule == null ? cmbImportModule.getValue() : completedModule;
         ImportViewContext.request(module);
         String target = targetFor(module);
-        NavigationGuardRegistry.clear(btnRunImport);
+        UnsavedChangesManager.clear(btnRunImport);
         NavigationManager.navigateOrReport(target);
     }
 
@@ -1675,12 +1675,12 @@ public class ImportController {
         preflightPassed = false; lastPreflightResult = null; mappingControls.clear(); mappingStatusLabels.clear(); requiredStatusLabels.clear();
         lblChosenFile.setText("No file selected"); tblPreview.getItems().clear(); tblPreview.getColumns().clear();
         if (importCompletedPanel != null) { importCompletedPanel.setVisible(false); importCompletedPanel.setManaged(false); }
-        NavigationGuardRegistry.install(btnRunImport, this::allowNavigationAway);
+        UnsavedChangesManager.installGuard(btnRunImport, this::allowNavigationAway);
         showWizardStep(1); updateMappingSummary();
     }
 
     @FXML private void closeImport() {
-        NavigationGuardRegistry.clear(btnRunImport);
+        UnsavedChangesManager.clear(btnRunImport);
         NavigationManager.navigateOrReport("/fxml/pages/DashboardHome.fxml");
     }
 

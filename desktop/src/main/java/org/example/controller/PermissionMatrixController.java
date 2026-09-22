@@ -17,7 +17,7 @@ import org.example.api.admin.AdminApiClient;
 import org.example.service.PermissionService;
 import org.example.shared.PermissionCatalog;
 import org.example.util.IconFactory;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 import org.example.util.ToastManager;
 import org.example.util.UiTaskExecutor;
 import org.example.navigation.ScreenLifecycle;
@@ -52,6 +52,7 @@ public class PermissionMatrixController implements ScreenLifecycle {
     private final Map<String, String> roleDisplayNames = new HashMap<>();
     private final Map<String, CheckBox> headerToggles = new HashMap<>();
     private boolean loading;
+    private boolean permissionsDirty;
     private long permissionRowVersion;
 
     @FXML private void initialize() {
@@ -66,7 +67,20 @@ public class PermissionMatrixController implements ScreenLifecycle {
         cmbCopyRole.setConverter(roleConverter);
         cmbTemplate.getItems().setAll(PermissionCatalog.TEMPLATES);
         cmbRole.valueProperty().addListener((obs, oldRole, newRole) -> {
-            if (!loading) loadRole(newRole);
+            if (loading) return;
+            if (permissionsDirty && oldRole != null && newRole != null && !Objects.equals(oldRole, newRole)) {
+                String displayRole = roleDisplayNames.getOrDefault(oldRole.toUpperCase(Locale.ROOT), oldRole);
+                boolean leave = AppDialogService.unsaved(root, "Permission Matrix",
+                        "Permission changes for " + displayRole, "role " + roleDisplayNames.getOrDefault(newRole.toUpperCase(Locale.ROOT), newRole));
+                if (!leave) {
+                    loading = true;
+                    try { cmbRole.setValue(oldRole); }
+                    finally { loading = false; }
+                    return;
+                }
+                permissionsDirty = false;
+            }
+            loadRole(newRole);
         });
         loadRoles();
     }
@@ -291,6 +305,8 @@ public class PermissionMatrixController implements ScreenLifecycle {
         rebuildCopyRoles();
         cmbTemplate.getSelectionModel().clearSelection();
         rebuildVisibleRows();
+        permissionsDirty = false;
+        org.example.navigation.UnsavedChangesManager.markClean(root);
     }
 
     private void rebuildCopyRoles() {
@@ -349,6 +365,8 @@ public class PermissionMatrixController implements ScreenLifecycle {
 
     private void permissionsChanged() {
         if (loading) return;
+        permissionsDirty = true;
+        org.example.navigation.UnsavedChangesManager.touch(root);
         updateSummaryAndPreview();
         updateHeaderStates();
         table.refresh();
@@ -427,7 +445,7 @@ public class PermissionMatrixController implements ScreenLifecycle {
         if (!canEdit()) return;
         PermissionCatalog.Template template = cmbTemplate.getValue();
         if (template == null) {
-            ModernDialog.info(root, "Choose a template", "Permission Matrix", "Select a permission template first.");
+            AppDialogService.info(root, "Choose a template", "Permission Matrix", "Select a permission template first.");
             return;
         }
         loading = true;
@@ -468,7 +486,7 @@ public class PermissionMatrixController implements ScreenLifecycle {
         String role = cmbRole.getValue();
         if (!canEdit() || role == null) return;
         long users = roleUserCounts.getOrDefault(role.toUpperCase(Locale.ROOT), 0L);
-        if (!ModernDialog.confirm(root, "Save Permissions", "Apply permission changes to " + role + "?",
+        if (!AppDialogService.confirm(root, "Save Permissions", "Apply permission changes to " + role + "?",
                 "This updates access for " + users + (users == 1 ? " user" : " users") + " assigned to this role. The same server-owned matrix is used in LOCAL and company-server modes.")) return;
         List<AdminApiClient.PermissionSave> changes = modules.stream().flatMap(row -> row.permissions().stream())
                 .map(p -> new AdminApiClient.PermissionSave(p.id(), p.allowed().get())).toList();
@@ -479,6 +497,8 @@ public class PermissionMatrixController implements ScreenLifecycle {
                 savedSet -> {
                     permissionRowVersion = savedSet.rowVersion();
                     btnSave.setDisable(!canEdit());
+                    permissionsDirty = false;
+                    org.example.navigation.UnsavedChangesManager.markClean(root);
                     ToastManager.success(root, "Permissions saved", role + " access has been updated.");
                     lblHint.setText("Permissions saved for " + role + ".");
                 },
@@ -486,7 +506,12 @@ public class PermissionMatrixController implements ScreenLifecycle {
         );
     }
 
-    @FXML private void reset() { loadRole(cmbRole.getValue()); }
+    @FXML private void reset() {
+        if (permissionsDirty && !AppDialogService.destructive(root, "Reset Permission Changes",
+                "Discard unsaved permission changes?", "The selected role will be reloaded from the server and your unsaved permission changes will be lost.", "Discard Changes")) return;
+        permissionsDirty = false;
+        loadRole(cmbRole.getValue());
+    }
     @Override public void onScreenHidden() { UiTaskExecutor.cancelPrefix("permission-matrix-"); }
     @FXML private void back() { DashboardController.navigateFromChildPage("Role Management", "/fxml/pages/RoleManagement.fxml"); }
 
@@ -499,7 +524,7 @@ public class PermissionMatrixController implements ScreenLifecycle {
         Throwable rootCause = e;
         while (rootCause.getCause() != null) rootCause = rootCause.getCause();
         String message = rootCause.getMessage();
-        ModernDialog.error(root, title, "Permission Matrix", message == null || message.isBlank() ? rootCause.getClass().getSimpleName() : message);
+        AppDialogService.error(root, title, "Permission Matrix", message == null || message.isBlank() ? rootCause.getClass().getSimpleName() : message);
     }
 
     private static String permissionKey(String module, String action) {

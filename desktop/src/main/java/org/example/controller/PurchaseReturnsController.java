@@ -240,7 +240,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private String partyEmail(String returnNo){return supportApi.returnPartyEmail(returnNo);}
     private void recordRefund(Row row) {
         if(row==null)return;
-        if(!isApproved(row)){org.example.util.ModernDialog.warning(table,"Refund blocked","Return approval required","Refund/settlement can be recorded only after Admin approves the Return.");return;}
+        if(!isApproved(row)){org.example.util.AppDialogService.warning(table,"Refund blocked","Return approval required","Refund/settlement can be recorded only after Admin approves the Return.");return;}
         ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");
     }
     private void approveReturn(Row row){
@@ -279,9 +279,9 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private String csv(String value) { String text=spreadsheetSafe(value); return '"' + text.replace("\"", "\"\"") + '"'; }
     private String spreadsheetSafe(String value) { String text=safe(value),t=text.stripLeading(); if(t.isEmpty())return text; char c=t.charAt(0); boolean numericNegative=c=='-'&&t.matches("-\\d+(?:\\.\\d+)?"); return c=='='||c=='+'||c=='@'||(c=='-'&&!numericNegative)?"'"+text:text; }
     private String money(double value) { return String.format("₹ %,.2f", value); }
-    private boolean confirm(String text) { return org.example.util.ModernDialog.confirm(table, "Confirmation", "Are you sure?", text); }
+    private boolean confirm(String text) { return org.example.util.AppDialogService.confirm(table, "Confirmation", "Are you sure?", text); }
     private void info(String value) { org.example.util.ToastManager.success(table, "Completed", value); }
-    private void error(Exception e) { org.example.util.ModernDialog.error(table, "Operation failed", "Something went wrong", e.getMessage() == null ? "Operation failed" : e.getMessage()); }
+    private void error(Exception e) { org.example.util.AppDialogService.error(table, "Operation failed", "Something went wrong", e.getMessage() == null ? "Operation failed" : e.getMessage()); }
     private void installKpiIcons(){setKpi(iconTotal,"return");setKpi(iconMonth,"calendar");setKpi(iconCount,"document");setKpi(iconRefund,"payment");setKpi(iconAverage,"currency");}
     private void setKpi(StackPane pane,String semantic){if(pane!=null)pane.getChildren().setAll(IconFactory.compactIcon(semantic,22));}
 

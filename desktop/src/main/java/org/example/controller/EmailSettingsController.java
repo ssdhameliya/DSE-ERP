@@ -86,7 +86,7 @@ public class EmailSettingsController {
         if(!port.matches("\\d{1,5}")){error(txtSmtpPort,lblPortError,"Enter a valid SMTP port.");ok=false;}else{int value=Integer.parseInt(port);if(value<1||value>65535){error(txtSmtpPort,lblPortError,"SMTP port must be between 1 and 65535.");ok=false;}}
         if(!ok){message("Please correct the highlighted fields.",true);return false;}
         ConfigManager.setWithoutSaving("smtp.email",email);ConfigManager.setWithoutSaving("smtp.appPassword",password);ConfigManager.setWithoutSaving("smtp.host",host);ConfigManager.setWithoutSaving("smtp.port",port);ConfigManager.save();
-        txtSmtpPassword.setText(password);return true;
+        txtSmtpPassword.setText(password);org.example.navigation.UnsavedChangesManager.markClean(txtSmtpEmail);return true;
     }
     @FXML private void back(){leaveSettings();}
     private void leaveSettings(){SceneManager.showLogin();}

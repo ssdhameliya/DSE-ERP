@@ -618,6 +618,7 @@ public class PurchaseController implements ScreenLifecycle {
                 attachmentRemovals.clear();
                 if(saved != null && saved.getInvoiceNo() != null) txtInvoiceNo.setText(saved.getInvoiceNo());
                 org.example.util.ToastManager.success(tableLines,"Purchase saved","Purchase saved successfully.");
+                org.example.navigation.UnsavedChangesManager.clear(tableLines);
                 ScreenRefreshPolicy.invalidate("purchase-register");
                 NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
             },
@@ -745,6 +746,7 @@ public class PurchaseController implements ScreenLifecycle {
             if(!duplicate)attachmentEntries.add(new PurchaseAttachmentEntry(0,file.getName(),file));
         }
         updateAttachmentButtons();
+        org.example.navigation.UnsavedChangesManager.touch(tableLines);
     }
 
     /** Applies staged attachment additions/removals only after the Purchase itself has saved successfully. */
@@ -811,6 +813,7 @@ public class PurchaseController implements ScreenLifecycle {
         if(!entry.pending())attachmentRemovals.add(entry.id());
         attachmentEntries.remove(entry);
         updateAttachmentButtons();
+        org.example.navigation.UnsavedChangesManager.touch(tableLines);
     }
 
     private void loadAttachmentEntries(Purchase purchase){
@@ -1266,9 +1269,6 @@ public class PurchaseController implements ScreenLifecycle {
 
     @FXML
     private void cancel(){
-        boolean dirty = !tableLines.getItems().isEmpty() || !attachmentEntries.isEmpty() || !attachmentRemovals.isEmpty();
-        if (dirty && !confirmAction("Discard changes", "Discard unsaved changes and return to the Purchase register?")) return;
-
         NavigationManager.getInstance()
             .loadPage(
                 "/fxml/pages/PurchaseList.fxml"

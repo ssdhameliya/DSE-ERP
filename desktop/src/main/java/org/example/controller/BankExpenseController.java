@@ -205,7 +205,7 @@ public class BankExpenseController implements ScreenLifecycle {
         Integer id=requestedLinkedEntryId;if(id==null)return;
         requestedLinkedEntryId=null;
         UiTaskExecutor.submitLatest("finance-linked-entry",()->financeService.get(id),entry->{
-            if(entry==null){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Expense / Bank entry not found","The linked finance entry is no longer available.");return;}
+            if(entry==null){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Expense / Bank entry not found","The linked finance entry is no longer available.");return;}
             String raw=safe(entry.voucherType(),"").toUpperCase(Locale.ROOT);Mode entryMode=raw.contains("EXPENSE")?Mode.EXPENSE:Mode.BANK;if(mode!=entryMode)applyMode(entryMode);
             EntryRow row=toRow(entry);table.getItems().setAll(row);filtered.clear();filtered.add(row);totalRows=1;totalPages=1;currentPage=0;renderPage();table.getSelectionModel().select(row);table.scrollTo(row);showEntryDetails(row);
             org.example.util.PerformanceMonitor.event("linked-navigation",(entryMode==Mode.EXPENSE?"EXPENSE":"BANK_ENTRY")+" -> "+id);

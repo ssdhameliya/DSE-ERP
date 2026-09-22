@@ -17,6 +17,6 @@ public class OwnedChoiceDialog<T> extends ChoiceDialog<T> {
         initStyle(PlatformUiSupport.isMac() ? StageStyle.UTILITY : StageStyle.TRANSPARENT);
         if (owner != null) { initOwner(owner); initModality(Modality.WINDOW_MODAL); }
         else initModality(Modality.APPLICATION_MODAL);
-        DialogPresentation.install(this);
+        AppDialogRenderer.install(this);
     }
 }

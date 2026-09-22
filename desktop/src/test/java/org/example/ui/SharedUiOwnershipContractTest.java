@@ -186,11 +186,11 @@ class SharedUiOwnershipContractTest {
             assertFalse(baseDrawer.contains("-fx-max-width"), theme + " base drawer must not override screen geometry");
         }
 
-        String dialogs = Files.readString(Path.of("src/main/java/org/example/util/DialogPresentation.java"));
+        String dialogs = Files.readString(Path.of("src/main/java/org/example/util/AppDialogRenderer.java"));
         assertTrue(dialogs.contains("pane.sceneProperty().addListener"),
                 "Dialog theme must be attached before first visible frame");
-        assertTrue(dialogs.contains("applyOwnerTheme(dialog"),
-                "Dialogs must inherit the owner scene theme instead of snapping later");
+        assertTrue(dialogs.contains("ThemeManager.applyTheme(scene, owner)"),
+                "Dialogs must inherit the owner scene theme through the centralized ThemeManager");
         String themes = Files.readString(Path.of("src/main/java/org/example/theme/ThemeManager.java"));
         assertTrue(themes.contains("public static void applyTheme(Scene scene, Window owner)"));
         assertTrue(themes.contains("ownerThemeUrl(owner)"));

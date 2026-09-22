@@ -30,7 +30,7 @@ public final class InvoicePaymentDetailsDialog {
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>(owner);
         dialog.setTitle("Invoice Payment Details");
         dialog.setHeaderText(null);
-        dialog.getDialogPane().getStyleClass().addAll("invoice-payment-dialog", "modern-dialog");
+        dialog.getDialogPane().getStyleClass().addAll("invoice-payment-dialog");
         dialog.getDialogPane().setPrefSize(920, 590);
 
         Label title = new Label("Invoice Payment Details");

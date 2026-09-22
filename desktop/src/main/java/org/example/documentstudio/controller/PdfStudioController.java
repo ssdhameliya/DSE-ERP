@@ -27,7 +27,7 @@ import org.example.documentstudio.util.PdfPreviewSupport;
 import org.example.navigation.ScreenLifecycle;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -129,7 +129,7 @@ public class PdfStudioController implements ScreenLifecycle {
         template = TemplateStorageService.find(id).orElse(null);
         if (template == null) {
             Platform.runLater(() -> {
-                ModernDialog.error(root, "Template unavailable", "PDF Studio", "The selected template could not be found.");
+                AppDialogService.error(root, "Template unavailable", "PDF Studio", "The selected template could not be found.");
                 backToLibrary();
             });
             return;
@@ -141,7 +141,7 @@ public class PdfStudioController implements ScreenLifecycle {
             var size = PdfPreviewSupport.pageSize(sourcePdf, 0);
             pageWidth = size.width(); pageHeight = size.height(); sourcePageCount = size.pageCount();
         } catch (Exception error) {
-            Platform.runLater(() -> ModernDialog.error(root, "PDF could not be opened", "PDF Studio", rootMessage(error)));
+            Platform.runLater(() -> AppDialogService.error(root, "PDF could not be opened", "PDF Studio", rootMessage(error)));
             return;
         }
 
@@ -432,12 +432,12 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void reviewIssues() {
         TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
         if (result.issues().isEmpty()) {
-            ModernDialog.success(root, "Template mapping is ready", "All required mappings are complete. You can preview, publish and make this template Default.");
+            AppDialogService.success(root, "Template mapping is ready", "All required mappings are complete. You can preview, publish and make this template Default.");
             return;
         }
         String body = result.issues().stream().map(issue ->
                 (issue.error() ? "ERROR — " : "WARNING — ") + issue.userMessage()).collect(Collectors.joining("\n\n"));
-        ModernDialog.info(root, "Template issues", "PDF Studio", body);
+        AppDialogService.info(root, "Template issues", "PDF Studio", body);
     }
 
     @FXML private void applySuggestedBinding() {
@@ -690,7 +690,7 @@ public class PdfStudioController implements ScreenLifecycle {
                 .exceptionally(error -> { Platform.runLater(() -> {
                     if (generation != previewLoadGeneration.get()) return;
                     currentPreviewData = null;
-                    ModernDialog.error(root, "Record could not be loaded", "PDF Studio", rootMessage(error));
+                    AppDialogService.error(root, "Record could not be loaded", "PDF Studio", rootMessage(error));
                 }); return null; });
     }
 
@@ -721,14 +721,14 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void autoMapNow() {
         if (template == null || previewMode) return;
         if (!template.getDocumentType().isErpConnected()) {
-            ModernDialog.info(root, "ERP data is not connected", "Auto Map", "Connect this template to an ERP document type before using Auto Map.");
+            AppDialogService.info(root, "ERP data is not connected", "Auto Map", "Connect this template to an ERP document type before using Auto Map.");
             return;
         }
         List<TemplateElement> current = new ArrayList<>(template.getElements());
         boolean repeatableRegion = wouldAddItemRepeater(current) || wouldAddChargeRepeater(current);
         if (currentMappingAnalysis.mappings().isEmpty() && !repeatableRegion) {
             analyzeMapping(false);
-            ModernDialog.info(root, "Mapping analyzed", "Auto Map", "No mappable printed ERP values or repeating item/charge regions were found yet. Choose a real preview record and run Auto Map again.");
+            AppDialogService.info(root, "Mapping analyzed", "Auto Map", "No mappable printed ERP values or repeating item/charge regions were found yet. Choose a real preview record and run Auto Map again.");
             return;
         }
         applyAutoMappings(currentMappingAnalysis, false);
@@ -1371,7 +1371,7 @@ public class PdfStudioController implements ScreenLifecycle {
             if (e.isInheritParentStyle()) PdfStyleResolver.updateOverrides(template, e);
             autosave(); populateInspector(e); renderCanvas();
         } catch (Exception error) {
-            if (showError) ModernDialog.error(root,"Properties could not be applied","PDF Studio",rootMessage(error));
+            if (showError) AppDialogService.error(root,"Properties could not be applied","PDF Studio",rootMessage(error));
         }
     }
 
@@ -1522,7 +1522,7 @@ public class PdfStudioController implements ScreenLifecycle {
             TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,region.pageIndex(),region.x(),region.y(),region.width(),region.height());mask.setFillColor(sampleBackgroundColor(region.pageIndex(),region.x(),region.y(),region.width(),region.height()));mask.setStrokeColor(mask.getFillColor());mask.setLocked(true);mask.setReplacementGroupId(group);mask.setReplacementSourceKey(key);list.add(mask);
             TemplateElement image=TemplateElement.of(ElementType.IMAGE,region.pageIndex(),region.x(),region.y(),region.width(),region.height());image.setImagePath(TemplateStorageService.importAsset(template,region.extractedImage()));image.setReplacementGroupId(group);image.setReplacementSourceKey(key);image.setFillEnabled(false);image.setStrokeEnabled(false);list.add(image);
             template.setElements(list);autosave();return image;
-        } catch(Exception error){ModernDialog.error(root,"Image could not be converted","PDF Studio",rootMessage(error));return null;}
+        } catch(Exception error){AppDialogService.error(root,"Image could not be converted","PDF Studio",rootMessage(error));return null;}
     }
 
     private TemplateElement materializeSourceVector(PdfImageExtractionService.VectorRegion region) {
@@ -1646,14 +1646,14 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private void chooseImageForNewObject(){
         FileChooser chooser=imageChooser("Add Image");var file=chooser.showOpenDialog(root.getScene().getWindow());if(file==null)return;
-        try{TemplateElement e=newElement(ElementType.IMAGE,180,100);e.setImagePath(TemplateStorageService.importAsset(template,file.toPath()));e.setFillEnabled(false);e.setStrokeEnabled(false);addElement(e,null);}catch(Exception error){ModernDialog.error(root,"Image could not be added","PDF Studio",rootMessage(error));}
+        try{TemplateElement e=newElement(ElementType.IMAGE,180,100);e.setImagePath(TemplateStorageService.importAsset(template,file.toPath()));e.setFillEnabled(false);e.setStrokeEnabled(false);addElement(e,null);}catch(Exception error){AppDialogService.error(root,"Image could not be added","PDF Studio",rootMessage(error));}
     }
 
     @FXML private void replaceSelectedImage(){
         TemplateElement e=editableSelectionFromSource();if(e==null)return;
-        if(e.getType()!=ElementType.IMAGE&&e.getType()!=ElementType.IMAGE_FIELD){ModernDialog.info(root,"Select an image","Replace Image","Click an imported image or Studio image first.");return;}
+        if(e.getType()!=ElementType.IMAGE&&e.getType()!=ElementType.IMAGE_FIELD){AppDialogService.info(root,"Select an image","Replace Image","Click an imported image or Studio image first.");return;}
         FileChooser chooser=imageChooser("Replace Image");var file=chooser.showOpenDialog(root.getScene().getWindow());if(file==null)return;
-        try{checkpoint();e.setType(ElementType.IMAGE);e.setFieldKey("");e.setImagePath(TemplateStorageService.importAsset(template,file.toPath()));autosave();populateInspector(e);renderCanvas();}catch(Exception error){ModernDialog.error(root,"Image could not be replaced","PDF Studio",rootMessage(error));}
+        try{checkpoint();e.setType(ElementType.IMAGE);e.setFieldKey("");e.setImagePath(TemplateStorageService.importAsset(template,file.toPath()));autosave();populateInspector(e);renderCanvas();}catch(Exception error){AppDialogService.error(root,"Image could not be replaced","PDF Studio",rootMessage(error));}
     }
     private FileChooser imageChooser(String title){FileChooser c=new FileChooser();c.setTitle(title);c.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images","*.png","*.jpg","*.jpeg"));return c;}
 
@@ -1811,7 +1811,7 @@ public class PdfStudioController implements ScreenLifecycle {
         org.example.util.OwnedDialog<Void> dialog = new org.example.util.OwnedDialog<>();
         dialog.setTitle("PDF Studio JSON Data");
         dialog.setHeaderText(template.getDocumentType().label() + " • JSON contract v" + ErpDocumentJsonService.SCHEMA_VERSION);
-        org.example.util.DialogPresentation.configureWorkspace(dialog, "document");
+        org.example.util.AppDialogRenderer.configureWorkspace(dialog, "document");
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().setPrefSize(900, 700);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
@@ -1823,14 +1823,14 @@ public class PdfStudioController implements ScreenLifecycle {
         TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
         refreshRequirementUi();
         if (result.issues().isEmpty()) {
-            ModernDialog.success(root, "Template mapping is ready",
+            AppDialogService.success(root, "Template mapping is ready",
                     result.requiredMapped() + " / " + result.requiredCount() + " required fields are mapped. " +
                             "The template can be previewed and published.");
             return;
         }
         if (result.errorCount() == 0) {
             String body = result.issues().stream().map(TemplateValidationIssue::userMessage).collect(Collectors.joining("\n\n"));
-            ModernDialog.info(root, "Template mapping is ready with warnings", "PDF Studio",
+            AppDialogService.info(root, "Template mapping is ready with warnings", "PDF Studio",
                     "All required mappings are complete. Review these optional items before production use:\n\n" + body);
             return;
         }
@@ -1846,14 +1846,14 @@ public class PdfStudioController implements ScreenLifecycle {
     private void showValidationIssues(String title, TemplateMappingValidationService.Result result) {
         String body = result.issues().stream().map(issue ->
                 (issue.error() ? "ERROR — " : "WARNING — ") + issue.userMessage()).collect(Collectors.joining("\n\n"));
-        ModernDialog.error(root, title, "PDF Studio", body);
+        AppDialogService.error(root, title, "PDF Studio", body);
     }
 
     private boolean allowWarnings(String action, TemplateMappingValidationService.Result result) {
         List<TemplateValidationIssue> warnings = result.issues().stream().filter(issue -> !issue.error()).toList();
         if (warnings.isEmpty()) return true;
         String body = warnings.stream().map(TemplateValidationIssue::userMessage).collect(Collectors.joining("\n\n"));
-        return ModernDialog.confirm(root, action + " with warnings?",
+        return AppDialogService.confirm(root, action + " with warnings?",
                 warnings.size() + " optional warning" + (warnings.size() == 1 ? "" : "s") + " remain.",
                 body + "\n\nThese warnings do not block the document, but review them before using this template in production.");
     }
@@ -1862,7 +1862,7 @@ public class PdfStudioController implements ScreenLifecycle {
         org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "publish and activate a PDF template");
         if (template == null) return;
         if (template.getDocumentType().isGeneral() || !DocumentFlowRegistry.isAutomatic(template.getDocumentType())) {
-            ModernDialog.info(root, "Design-only template", "PDF Studio", "Choose an automatic ERP document type before setting a system default.");
+            AppDialogService.info(root, "Design-only template", "PDF Studio", "Choose an automatic ERP document type before setting a system default.");
             return;
         }
         TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
@@ -1872,7 +1872,7 @@ public class PdfStudioController implements ScreenLifecycle {
             return;
         }
         if (!allowWarnings("Publish & Set as Default", readiness)) return;
-        if (!ModernDialog.confirm(root, "Publish & Set as Default",
+        if (!AppDialogService.confirm(root, "Publish & Set as Default",
                 "Publish " + template.getName() + " and activate it for " + template.getDocumentType().label() + "?",
                 "All required mappings are complete. The published snapshot will be certified for multi-page flow before activation. Standard document generation remains the safety fallback.")) return;
         try {
@@ -1881,10 +1881,10 @@ public class PdfStudioController implements ScreenLifecycle {
             TemplateStorageService.activateAndSetDefault(template);
             refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("ACTIVE runtime v" + template.getActiveVersion());
-            ModernDialog.success(root, "Template is now the default",
+            AppDialogService.success(root, "Template is now the default",
                     template.getName() + " passed mapping and document-flow validation and is active for " + template.getDocumentType().label() + ".");
         } catch (Exception error) {
-            ModernDialog.error(root, "Template could not become Default", "PDF Studio", activationFriendlyMessage(error));
+            AppDialogService.error(root, "Template could not become Default", "PDF Studio", activationFriendlyMessage(error));
         }
     }
 
@@ -1894,8 +1894,8 @@ public class PdfStudioController implements ScreenLifecycle {
             TemplateStorageService.saveDraft(template);
             refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("Draft saved • production unchanged");
-            ModernDialog.success(root,"Draft saved",template.getName()+" was saved as a working draft. Current PDF/Print/Preview/Email generation is unchanged.");
-        }catch(Exception e){ModernDialog.error(root,"Save failed","PDF Studio",rootMessage(e));}
+            AppDialogService.success(root,"Draft saved",template.getName()+" was saved as a working draft. Current PDF/Print/Preview/Email generation is unchanged.");
+        }catch(Exception e){AppDialogService.error(root,"Save failed","PDF Studio",rootMessage(e));}
     }
 
     @FXML private void publishTemplate(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "publish a PDF template");
@@ -1911,18 +1911,18 @@ public class PdfStudioController implements ScreenLifecycle {
             TemplateStorageService.publish(template);
             refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("Published candidate v"+template.getPublishedVersion()+" • production unchanged");
-            ModernDialog.success(root,"Template published",template.getName()+" passed required mapping validation and is ready for preview/default certification. Publishing does not change current document generation.");
-        }catch(Exception e){ModernDialog.error(root,"Publish failed","PDF Studio",rootMessage(e));}
+            AppDialogService.success(root,"Template published",template.getName()+" passed required mapping validation and is ready for preview/default certification. Publishing does not change current document generation.");
+        }catch(Exception e){AppDialogService.error(root,"Publish failed","PDF Studio",rootMessage(e));}
     }
 
     @FXML private void markDefault(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "activate a default PDF template");
         if(template==null)return;
         if(template.getDocumentType().isGeneral()||!DocumentFlowRegistry.isAutomatic(template.getDocumentType())){
-            ModernDialog.info(root,"Design-only template","PDF Studio","Choose an ERP document type before marking this template as a system default.");
+            AppDialogService.info(root,"Design-only template","PDF Studio","Choose an ERP document type before marking this template as a system default.");
             return;
         }
         if(template.getPublishedVersion()<=0||template.isUnpublishedChanges()){
-            ModernDialog.info(root,"Publish required","PDF Studio","Publish the current design first. Draft and preview changes never affect production.");
+            AppDialogService.info(root,"Publish required","PDF Studio","Publish the current design first. Draft and preview changes never affect production.");
             return;
         }
         TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
@@ -1932,15 +1932,15 @@ public class PdfStudioController implements ScreenLifecycle {
             return;
         }
         if (!allowWarnings("Mark as Default", readiness)) return;
-        if(!ModernDialog.confirm(root,"Mark as System Default",
+        if(!AppDialogService.confirm(root,"Mark as System Default",
                 "Activate "+template.getName()+" for "+template.getDocumentType().label()+"?",
                 "The published snapshot will be certified for required mappings and multi-page behavior. Later draft edits remain isolated until you explicitly publish and activate again."))return;
         try{
             TemplateStorageService.activateAndSetDefault(template);
             refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("ACTIVE runtime v"+template.getActiveVersion());
-            ModernDialog.success(root,"System default activated",template.getName()+" v"+template.getActiveVersion()+" is now active for "+template.getDocumentType().label()+". Standard generation remains the automatic fallback if Studio rendering fails.");
-        }catch(Exception e){ModernDialog.error(root,"Default could not be activated","PDF Studio",activationFriendlyMessage(e));}
+            AppDialogService.success(root,"System default activated",template.getName()+" v"+template.getActiveVersion()+" is now active for "+template.getDocumentType().label()+". Standard generation remains the automatic fallback if Studio rendering fails.");
+        }catch(Exception e){AppDialogService.error(root,"Default could not be activated","PDF Studio",activationFriendlyMessage(e));}
     }
 
     private String activationFriendlyMessage(Throwable error) {
@@ -1972,7 +1972,7 @@ public class PdfStudioController implements ScreenLifecycle {
             configurePages(size.pageCount()); clearSelection(); updateModeButtons(); renderCanvas();
         }catch(Exception e){
             previewMode=false; dataPreviewMode=false; previewPdf=null; updateModeButtons();
-            ModernDialog.error(root,"Record preview failed","PDF Studio",rootMessage(e));
+            AppDialogService.error(root,"Record preview failed","PDF Studio",rootMessage(e));
         }
     }
 
@@ -1986,7 +1986,7 @@ public class PdfStudioController implements ScreenLifecycle {
             configurePages(size.pageCount()); clearSelection(); updateModeButtons(); renderCanvas();
         }catch(Exception e){
             previewMode=false; dataPreviewMode=false; updateModeButtons();
-            ModernDialog.error(root,"Final PDF preview failed","PDF Studio",rootMessage(e));
+            AppDialogService.error(root,"Final PDF preview failed","PDF Studio",rootMessage(e));
         }
     }
 
@@ -1996,13 +1996,13 @@ public class PdfStudioController implements ScreenLifecycle {
         if(btnFinalMode!=null)btnFinalMode.setDisable(previewMode&&!dataPreviewMode);
     }
 
-    @FXML private void exportPdf(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EXPORT_PDF", "export PDF output");if(template==null)return;FileChooser chooser=new FileChooser();chooser.setTitle("Export PDF");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files","*.pdf"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._-]","-")+".pdf");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;try{PdfStudioRenderer.render(template,previewData(),file.toPath());ModernDialog.success(root,"Test PDF exported",file.getAbsolutePath()+" • Production templates were not changed.");}catch(Exception e){ModernDialog.error(root,"Export failed","PDF Studio",rootMessage(e));}}
+    @FXML private void exportPdf(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EXPORT_PDF", "export PDF output");if(template==null)return;FileChooser chooser=new FileChooser();chooser.setTitle("Export PDF");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files","*.pdf"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._-]","-")+".pdf");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;try{PdfStudioRenderer.render(template,previewData(),file.toPath());AppDialogService.success(root,"Test PDF exported",file.getAbsolutePath()+" • Production templates were not changed.");}catch(Exception e){AppDialogService.error(root,"Export failed","PDF Studio",rootMessage(e));}}
 
     private TemplateData previewData(){DocumentSample sample=cmbSampleDocument.getValue();if(sample==null)return currentPreviewData==null?DocumentDataService.sample(template.getDocumentType()):currentPreviewData;try{TemplateData data=DocumentDataService.load(template.getDocumentType(),sample.id());currentPreviewData=data;return data;}catch(Exception e){currentPreviewData=null;throw new IllegalStateException("Selected ERP record "+sample.id()+" could not be loaded. Preview/export cancelled.",e);}}
 
-    @FXML private void appendBlankPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}try{sourcePageCount=TemplateStorageService.appendBlankPage(template,pageIndex);history.clear();configurePages(sourcePageCount);pageIndex=sourcePageCount-1;lstPages.getSelectionModel().select(pageIndex);clearObjectCaches();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be added","PDF Studio",rootMessage(e));}}
-    @FXML private void deleteCurrentPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}if(!ModernDialog.confirm(root,"Delete Page","Delete page "+(pageIndex+1)+"?","Only the workspace template copy is changed."))return;try{sourcePageCount=TemplateStorageService.deletePage(template,pageIndex);history.clear();pageIndex=Math.max(0,Math.min(pageIndex,sourcePageCount-1));configurePages(sourcePageCount);clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be deleted","PDF Studio",rootMessage(e));}}
-    @FXML private void rotatePageLeft(){rotate(-90);}@FXML private void rotatePageRight(){rotate(90);}private void rotate(int degrees){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page rotation cannot be changed; import a new PDF template instead.");return;}try{TemplateStorageService.rotatePage(template,pageIndex,degrees);history.clear();var size=PdfPreviewSupport.pageSize(sourcePdf,pageIndex);pageWidth=size.width();pageHeight=size.height();clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be rotated","PDF Studio",rootMessage(e));}}
+    @FXML private void appendBlankPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){AppDialogService.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}try{sourcePageCount=TemplateStorageService.appendBlankPage(template,pageIndex);history.clear();configurePages(sourcePageCount);pageIndex=sourcePageCount-1;lstPages.getSelectionModel().select(pageIndex);clearObjectCaches();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){AppDialogService.error(root,"Page could not be added","PDF Studio",rootMessage(e));}}
+    @FXML private void deleteCurrentPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){AppDialogService.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}if(!AppDialogService.confirm(root,"Delete Page","Delete page "+(pageIndex+1)+"?","Only the workspace template copy is changed."))return;try{sourcePageCount=TemplateStorageService.deletePage(template,pageIndex);history.clear();pageIndex=Math.max(0,Math.min(pageIndex,sourcePageCount-1));configurePages(sourcePageCount);clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){AppDialogService.error(root,"Page could not be deleted","PDF Studio",rootMessage(e));}}
+    @FXML private void rotatePageLeft(){rotate(-90);}@FXML private void rotatePageRight(){rotate(90);}private void rotate(int degrees){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){AppDialogService.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page rotation cannot be changed; import a new PDF template instead.");return;}try{TemplateStorageService.rotatePage(template,pageIndex,degrees);history.clear();var size=PdfPreviewSupport.pageSize(sourcePdf,pageIndex);pageWidth=size.width();pageHeight=size.height();clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){AppDialogService.error(root,"Page could not be rotated","PDF Studio",rootMessage(e));}}
 
     @FXML private void fitWidth(){Platform.runLater(()->{double available=Math.max(260,canvasScroll.getViewportBounds().getWidth()-70);setZoomForScale(available/Math.max(1,pageWidth));});}
     @FXML private void fitPage(){Platform.runLater(()->{double w=Math.max(260,canvasScroll.getViewportBounds().getWidth()-70),h=Math.max(260,canvasScroll.getViewportBounds().getHeight()-70);setZoomForScale(Math.min(w/Math.max(1,pageWidth),h/Math.max(1,pageHeight)));});}

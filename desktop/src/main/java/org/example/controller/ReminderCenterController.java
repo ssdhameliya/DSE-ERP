@@ -6,7 +6,7 @@ import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -784,7 +784,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         String detail = exception.getMessage() == null || exception.getMessage().isBlank()
                 ? "The request could not be completed."
                 : exception.getMessage().trim();
-        ModernDialog.error(table, "Reminder Center", title, detail);
+        AppDialogService.error(table, "Reminder Center", title, detail);
     }
 
     public static final class ReminderRow {

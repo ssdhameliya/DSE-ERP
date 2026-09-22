@@ -38,7 +38,13 @@ public final class WindowUtilsFx {
             PlatformUiSupport.installResponsiveClasses(stage.getScene());
             if (restoreMaximized) stage.setMaximized(true);
         }));
-        stage.setOnCloseRequest(ev -> save(stage));
+        stage.setOnCloseRequest(ev -> {
+            if (!org.example.navigation.UnsavedChangesManager.allowExit("close the application")) {
+                ev.consume();
+                return;
+            }
+            save(stage);
+        });
     }
 
     /**
