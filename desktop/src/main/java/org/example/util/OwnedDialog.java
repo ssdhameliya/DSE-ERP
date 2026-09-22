@@ -20,6 +20,6 @@ public class OwnedDialog<R> extends Dialog<R> {
         } else {
             initModality(Modality.APPLICATION_MODAL);
         }
-        DialogPresentation.install(this);
+        AppDialogRenderer.install(this);
     }
 }

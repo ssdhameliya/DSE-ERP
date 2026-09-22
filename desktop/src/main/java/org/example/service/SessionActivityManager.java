@@ -135,7 +135,7 @@ public final class SessionActivityManager {
         warning = dialog;
         dialog.setTitle("Session Expiring");
         dialog.setHeaderText("Your " + BrandingService.applicationName() + " session is about to expire");
-        dialog.getDialogPane().getStyleClass().addAll("modern-dialog", "session-timeout-dialog", "approved-dialog");
+        dialog.getDialogPane().getStyleClass().addAll("session-timeout-dialog", "approved-dialog");
         warningCountdown = new Label();
         warningCountdown.getStyleClass().add("session-timeout-countdown");
         Label message = new Label("You have been inactive. Unsaved changes may be lost if the session expires.");

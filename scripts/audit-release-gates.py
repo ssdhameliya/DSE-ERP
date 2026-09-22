@@ -73,8 +73,8 @@ if "stored.equals(raw)" in auth:
     extra.append("plaintext password comparison remains enabled")
 if "FOR UPDATE" not in pay or "effectivePaid" not in pay:
     extra.append("payment serialization/authoritative paid guard missing")
-if css != ["dark-theme.css", "light-theme.css"]:
-    extra.append(f"central two-theme CSS contract changed: {css}")
+if css != ["app-dialog.css", "dark-theme.css", "light-theme.css"]:
+    extra.append(f"central theme + dialog CSS contract changed: {css}")
 
 config_manager = text("desktop/src/main/java/org/example/config/ConfigManager.java")
 if 'getEffectiveUpdateChannel()' not in config_manager or 'managedSharedClientUpdateChannel()' not in config_manager:
@@ -171,7 +171,7 @@ if extra:
         print("FAIL -", item)
     failed.extend(extra)
 else:
-    print("\nRELEASE_GATE_EXTRA_OK bigdecimal=yes server_totals=yes plaintext_compare=no payment_lock=yes css=2")
+    print("\nRELEASE_GATE_EXTRA_OK bigdecimal=yes server_totals=yes plaintext_compare=no payment_lock=yes css=3")
 
 if failed:
     print("\nRELEASE_GATES_FAIL")

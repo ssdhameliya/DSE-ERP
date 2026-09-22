@@ -88,8 +88,8 @@ jobs:
               ET.parse(path)
 
           css_files = sorted(path.name for path in (root / 'css').glob('*.css'))
-          if css_files != ['dark-theme.css', 'light-theme.css']:
-              raise SystemExit(f'Exactly two canonical CSS files required, found {css_files}')
+          if css_files != ['app-dialog.css', 'dark-theme.css', 'light-theme.css']:
+              raise SystemExit(f'Canonical CSS contract requires app-dialog.css plus light/dark themes, found {css_files}')
           for css_name in css_files:
               text = (root / 'css' / css_name).read_text(encoding='utf-8')
               if text.count('{') != text.count('}'):
@@ -179,8 +179,8 @@ jobs:
               ET.parse(path)
 
           css_files = sorted(path.name for path in (root / 'css').glob('*.css'))
-          if css_files != ['dark-theme.css', 'light-theme.css']:
-              raise SystemExit(f'Exactly two canonical CSS files required, found {css_files}')
+          if css_files != ['app-dialog.css', 'dark-theme.css', 'light-theme.css']:
+              raise SystemExit(f'Canonical CSS contract requires app-dialog.css plus light/dark themes, found {css_files}')
           for css_name in css_files:
               text = (root / 'css' / css_name).read_text(encoding='utf-8')
               if text.count('{') != text.count('}'):

@@ -471,7 +471,7 @@ public class ReportsController implements ScreenLifecycle {
     }
 
     private void showScheduleDialog(ScheduleRow existing,List<SavedReportOption> options,String preferredSavedReport){
-        OwnedDialog<ScheduleRequest> dialog=new OwnedDialog<>(tblSchedules);dialog.setTitle(existing==null?"New Schedule":"Edit Schedule");DialogPresentation.configureWorkspace(dialog,"info");
+        OwnedDialog<ScheduleRequest> dialog=new OwnedDialog<>(tblSchedules);dialog.setTitle(existing==null?"New Schedule":"Edit Schedule");AppDialogRenderer.configureWorkspace(dialog,"info");
         DialogPane pane=dialog.getDialogPane();ButtonType saveType=new ButtonType(existing==null?"Create Schedule":"Save Changes",ButtonBar.ButtonData.OK_DONE);pane.getButtonTypes().setAll(ButtonType.CANCEL,saveType);
         GridPane grid=new GridPane();grid.setHgap(12);grid.setVgap(10);grid.setPadding(new javafx.geometry.Insets(8));
         ColumnConstraints a=new ColumnConstraints();a.setMinWidth(145);ColumnConstraints b=new ColumnConstraints();b.setHgrow(Priority.ALWAYS);grid.getColumnConstraints().addAll(a,b);
@@ -522,7 +522,7 @@ public class ReportsController implements ScreenLifecycle {
         if(row==null)return;UiTaskExecutor.submitLatest("report-schedule-history-"+row.id(),()->scheduleApi.history(row.id()),history->showHistoryDialog(row,history),e->error("Could not load schedule history: "+root(e)));
     }
     private void showHistoryDialog(ScheduleRow row,List<RunHistory> history){
-        OwnedDialog<Void> dialog=new OwnedDialog<>(tblSchedules);dialog.setTitle("Schedule History — "+row.name());DialogPresentation.configureWorkspace(dialog,"info");dialog.getDialogPane().getButtonTypes().setAll(ButtonType.CLOSE);
+        OwnedDialog<Void> dialog=new OwnedDialog<>(tblSchedules);dialog.setTitle("Schedule History — "+row.name());AppDialogRenderer.configureWorkspace(dialog,"info");dialog.getDialogPane().getButtonTypes().setAll(ButtonType.CLOSE);
         ListView<String> list=new ListView<>();list.setPrefSize(850,420);list.getStyleClass().add("approved-list");
         if(history==null||history.isEmpty())list.getItems().add("No runs have been recorded yet.");else for(RunHistory h:history){String line=h.startedAt()+"  •  "+h.status()+"  •  "+h.reportTitle()+"  •  "+h.rowCount()+" rows  •  "+h.triggeredBy();if(h.error()!=null&&!h.error().isBlank())line+="\n    "+h.error();list.getItems().add(line);}
         VBox box=new VBox(8,new Label("Latest 100 runs"),list);box.setPadding(new javafx.geometry.Insets(8));VBox.setVgrow(list,Priority.ALWAYS);dialog.getDialogPane().setContent(box);dialog.showAndWait();

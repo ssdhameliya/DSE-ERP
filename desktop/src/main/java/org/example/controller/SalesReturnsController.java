@@ -257,7 +257,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void original(Row row) { if(row==null)return; LinkedRecordContext.open("SALE",null,row.invoice(),"VIEW","Sales Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
     private void recordRefund(Row row) {
         if(row==null)return;
-        if(!isApproved(row)){org.example.util.ModernDialog.warning(table,"Refund blocked","Return approval required","Refund/settlement can be recorded only after Admin approves the Return.");return;}
+        if(!isApproved(row)){org.example.util.AppDialogService.warning(table,"Refund blocked","Return approval required","Refund/settlement can be recorded only after Admin approves the Return.");return;}
         ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");
     }
     private void approveReturn(Row row){
@@ -315,9 +315,9 @@ public class SalesReturnsController implements ScreenLifecycle {
     private String spreadsheetSafe(String value) { String text=safe(value),t=text.stripLeading(); if(t.isEmpty())return text; char c=t.charAt(0); boolean numericNegative=c=='-'&&t.matches("-\\d+(?:\\.\\d+)?"); return c=='='||c=='+'||c=='@'||(c=='-'&&!numericNegative)?"'"+text:text; }
     private String money(double value) { return String.format("₹ %,.2f", value); }
     private String safe(String value) { return value == null ? "" : value; }
-    private boolean confirm(String text) { return org.example.util.ModernDialog.confirm(table, "Confirmation", "Are you sure?", text); }
+    private boolean confirm(String text) { return org.example.util.AppDialogService.confirm(table, "Confirmation", "Are you sure?", text); }
     private void info(String value) { org.example.util.ToastManager.success(table, "Completed", value); }
-    private void error(Exception e) { org.example.util.ModernDialog.error(table, "Operation failed", "Something went wrong", e.getMessage() == null ? "Operation failed" : e.getMessage()); }
+    private void error(Exception e) { org.example.util.AppDialogService.error(table, "Operation failed", "Something went wrong", e.getMessage() == null ? "Operation failed" : e.getMessage()); }
     private Exception asException(Throwable failure){return failure instanceof Exception e?e:new RuntimeException(failure);}
     private static String str(Object v){return v==null?"":String.valueOf(v);}
 

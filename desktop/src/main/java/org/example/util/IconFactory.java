@@ -125,8 +125,8 @@ public final class IconFactory {
         // Do not infer icons from button text inside that shell, otherwise
         // labels such as "Mark all read" can become generic ellipsis icons.
         if (node instanceof DialogPane pane
-                && (Boolean.TRUE.equals(pane.getProperties().get("erp-dialog-custom"))
-                    || pane.getStyleClass().contains("modern-dialog"))) {
+                && (Boolean.TRUE.equals(pane.getProperties().get(AppDialogRenderer.OWNED))
+                    || pane.getStyleClass().contains(AppDialogRenderer.PANE_CLASS))) {
             // Custom dialogs own their buttons/action presentation, but field labels
             // still participate in the shared semantic icon vocabulary. Walk only
             // labels here so automatic button inference cannot regress dialog actions.

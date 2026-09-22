@@ -1,0 +1,258 @@
+/*
+ * DSE ERP 10.0.23 — single application dialog system.
+ * This file is the only CSS source allowed to style modal dialogs.
+ */
+.dse-dialog-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-border-width: 0;
+}
+.dse-dialog-pane > .content {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+.dse-dialog-pane .dse-dialog-shell {
+    -fx-background-radius: 14 14 0 0;
+    -fx-border-radius: 14 14 0 0;
+    -fx-border-width: 1 1 0 1;
+    -fx-min-width: 520;
+    -fx-pref-width: 590;
+}
+.dse-dialog-pane .dse-dialog-accent {
+    -fx-background-radius: 14 14 0 0;
+}
+.dse-dialog-pane .dse-dialog-header {
+    -fx-padding: 20 22 13 22;
+}
+.dse-dialog-pane .dse-dialog-icon-box {
+    -fx-min-width: 48;
+    -fx-pref-width: 48;
+    -fx-max-width: 48;
+    -fx-min-height: 48;
+    -fx-pref-height: 48;
+    -fx-max-height: 48;
+    -fx-background-radius: 12;
+    -fx-alignment: center;
+}
+.dse-dialog-pane .dse-dialog-kicker {
+    -fx-font-size: 10.5px;
+    -fx-font-weight: 800;
+}
+.dse-dialog-pane .dse-dialog-title {
+    -fx-font-size: 19px;
+    -fx-font-weight: 800;
+}
+.dse-dialog-pane .dse-dialog-close {
+    -fx-min-width: 34;
+    -fx-pref-width: 34;
+    -fx-max-width: 34;
+    -fx-min-height: 34;
+    -fx-pref-height: 34;
+    -fx-max-height: 34;
+    -fx-padding: 0;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-content-display: graphic-only;
+}
+.dse-dialog-pane .dse-dialog-body {
+    -fx-padding: 0 22 22 84;
+    -fx-spacing: 14;
+}
+.dse-dialog-pane .dse-dialog-message {
+    -fx-font-size: 13px;
+    -fx-line-spacing: 2px;
+    -fx-wrap-text: true;
+}
+.dse-dialog-pane .dse-dialog-detail-card {
+    -fx-padding: 12 14;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-border-width: 1;
+}
+.dse-dialog-pane .dse-dialog-detail-icon {
+    -fx-min-width: 28;
+    -fx-pref-width: 28;
+    -fx-min-height: 28;
+    -fx-pref-height: 28;
+    -fx-background-radius: 8;
+    -fx-alignment: center;
+}
+.dse-dialog-pane .dse-dialog-detail-value {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+.dse-dialog-pane .dse-dialog-input {
+    -fx-min-height: 38;
+    -fx-pref-height: 38;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+}
+.dse-dialog-pane > .button-bar {
+    -fx-padding: 14 20 16 20;
+    -fx-background-radius: 0 0 14 14;
+    -fx-border-radius: 0 0 14 14;
+    -fx-border-width: 1 1 1 1;
+}
+.dse-dialog-pane > .button-bar > .container {
+    -fx-spacing: 10;
+    -fx-alignment: center-right;
+}
+.dse-dialog-pane .dse-dialog-action {
+    -fx-min-height: 38;
+    -fx-padding: 8 15;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-graphic-text-gap: 7;
+}
+.dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell {
+    -fx-min-width: 720;
+    -fx-pref-width: 900;
+    -fx-min-height: 520;
+}
+.dse-dialog-pane.dse-dialog-workspace .dse-dialog-body {
+    -fx-padding: 0 20 18 20;
+}
+
+/* Light presentation */
+.dse-theme-light.dse-dialog-pane .dse-dialog-shell,
+.dse-theme-light .dse-dialog-pane .dse-dialog-shell {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e2e8f0;
+    -fx-effect: dropshadow(gaussian, rgba(15,23,42,.25), 34, .14, 0, 12);
+}
+.dse-theme-light.dse-dialog-pane .dse-dialog-title,
+.dse-theme-light .dse-dialog-pane .dse-dialog-title { -fx-text-fill: #0f172a; }
+.dse-theme-light.dse-dialog-pane .dse-dialog-message,
+.dse-theme-light .dse-dialog-pane .dse-dialog-message { -fx-text-fill: #475569; }
+.dse-theme-light.dse-dialog-pane .dse-dialog-close,
+.dse-theme-light .dse-dialog-pane .dse-dialog-close {
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #e2e8f0;
+}
+.dse-theme-light.dse-dialog-pane .dse-dialog-close:hover,
+.dse-theme-light .dse-dialog-pane .dse-dialog-close:hover { -fx-background-color: #eef2f7; }
+.dse-theme-light.dse-dialog-pane .dse-dialog-detail-card,
+.dse-theme-light .dse-dialog-pane .dse-dialog-detail-card {
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #e2e8f0;
+}
+.dse-theme-light.dse-dialog-pane .dse-dialog-detail-value,
+.dse-theme-light .dse-dialog-pane .dse-dialog-detail-value { -fx-text-fill: #334155; }
+.dse-theme-light.dse-dialog-pane > .button-bar,
+.dse-theme-light .dse-dialog-pane > .button-bar {
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #e2e8f0;
+}
+.dse-theme-light.dse-dialog-pane .dse-dialog-action-secondary,
+.dse-theme-light .dse-dialog-pane .dse-dialog-action-secondary {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cbd5e1;
+    -fx-text-fill: #334155;
+}
+
+/* Dark presentation */
+.dse-theme-dark.dse-dialog-pane .dse-dialog-shell,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-shell {
+    -fx-background-color: #111827;
+    -fx-border-color: #334155;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,.58), 34, .14, 0, 12);
+}
+.dse-theme-dark.dse-dialog-pane .dse-dialog-title,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-title { -fx-text-fill: #f8fafc; }
+.dse-theme-dark.dse-dialog-pane .dse-dialog-message,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-message { -fx-text-fill: #cbd5e1; }
+.dse-theme-dark.dse-dialog-pane .dse-dialog-close,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-close {
+    -fx-background-color: #172033;
+    -fx-border-color: #334155;
+}
+.dse-theme-dark.dse-dialog-pane .dse-dialog-close:hover,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-close:hover { -fx-background-color: #253247; }
+.dse-theme-dark.dse-dialog-pane .dse-dialog-detail-card,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-detail-card {
+    -fx-background-color: #0f172a;
+    -fx-border-color: #334155;
+}
+.dse-theme-dark.dse-dialog-pane .dse-dialog-detail-value,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-detail-value { -fx-text-fill: #dbeafe; }
+.dse-theme-dark.dse-dialog-pane > .button-bar,
+.dse-theme-dark .dse-dialog-pane > .button-bar {
+    -fx-background-color: #0f172a;
+    -fx-border-color: #334155;
+}
+.dse-theme-dark.dse-dialog-pane .dse-dialog-action-secondary,
+.dse-theme-dark .dse-dialog-pane .dse-dialog-action-secondary {
+    -fx-background-color: #172033;
+    -fx-border-color: #475569;
+    -fx-text-fill: #e2e8f0;
+}
+
+/* Semantic system: one meaning = one colour + one icon family. */
+.dse-dialog-semantic-notification .dse-dialog-accent,
+.dse-dialog-semantic-confirmation .dse-dialog-accent,
+.dse-dialog-semantic-security .dse-dialog-accent { -fx-background-color: #2563eb; }
+.dse-dialog-semantic-notification .dse-dialog-kicker,
+.dse-dialog-semantic-confirmation .dse-dialog-kicker,
+.dse-dialog-semantic-security .dse-dialog-kicker { -fx-text-fill: #2563eb; }
+.dse-dialog-semantic-notification .dse-dialog-icon-box,
+.dse-dialog-semantic-confirmation .dse-dialog-icon-box,
+.dse-dialog-semantic-security .dse-dialog-icon-box { -fx-background-color: rgba(37,99,235,.12); }
+
+.dse-dialog-semantic-warning .dse-dialog-accent,
+.dse-dialog-semantic-unsaved .dse-dialog-accent,
+.dse-dialog-semantic-restore .dse-dialog-accent { -fx-background-color: #d97706; }
+.dse-dialog-semantic-warning .dse-dialog-kicker,
+.dse-dialog-semantic-unsaved .dse-dialog-kicker,
+.dse-dialog-semantic-restore .dse-dialog-kicker { -fx-text-fill: #d97706; }
+.dse-dialog-semantic-warning .dse-dialog-icon-box,
+.dse-dialog-semantic-unsaved .dse-dialog-icon-box,
+.dse-dialog-semantic-restore .dse-dialog-icon-box { -fx-background-color: rgba(217,119,6,.14); }
+
+.dse-dialog-semantic-error .dse-dialog-accent,
+.dse-dialog-semantic-delete .dse-dialog-accent { -fx-background-color: #dc2626; }
+.dse-dialog-semantic-error .dse-dialog-kicker,
+.dse-dialog-semantic-delete .dse-dialog-kicker { -fx-text-fill: #dc2626; }
+.dse-dialog-semantic-error .dse-dialog-icon-box,
+.dse-dialog-semantic-delete .dse-dialog-icon-box { -fx-background-color: rgba(220,38,38,.12); }
+
+.dse-dialog-semantic-complete .dse-dialog-accent { -fx-background-color: #16a34a; }
+.dse-dialog-semantic-complete .dse-dialog-kicker { -fx-text-fill: #16a34a; }
+.dse-dialog-semantic-complete .dse-dialog-icon-box { -fx-background-color: rgba(22,163,74,.13); }
+
+.dse-dialog-pane .dse-dialog-action-primary {
+    -fx-background-color: #2563eb;
+    -fx-border-color: #2563eb;
+    -fx-text-fill: white;
+}
+.dse-dialog-pane .dse-dialog-action-primary:hover { -fx-background-color: #1d4ed8; -fx-border-color: #1d4ed8; }
+.dse-dialog-pane .dse-dialog-action-danger {
+    -fx-background-color: #dc2626;
+    -fx-border-color: #dc2626;
+    -fx-text-fill: white;
+}
+.dse-dialog-pane .dse-dialog-action-danger:hover { -fx-background-color: #b91c1c; -fx-border-color: #b91c1c; }
+.dse-dialog-pane .dse-dialog-action-warning {
+    -fx-background-color: #d97706;
+    -fx-border-color: #d97706;
+    -fx-text-fill: white;
+}
+.dse-dialog-pane .dse-dialog-action-warning:hover { -fx-background-color: #b45309; -fx-border-color: #b45309; }
+.dse-dialog-pane .dse-dialog-action-success {
+    -fx-background-color: #16a34a;
+    -fx-border-color: #16a34a;
+    -fx-text-fill: white;
+}
+.dse-dialog-pane .dse-dialog-action-success:hover { -fx-background-color: #15803d; -fx-border-color: #15803d; }
+
+.small-display .dse-dialog-pane .dse-dialog-shell,
+.ultra-compact-shell .dse-dialog-pane .dse-dialog-shell {
+    -fx-min-width: 430;
+    -fx-pref-width: 500;
+}
+.small-display .dse-dialog-pane .dse-dialog-header,
+.ultra-compact-shell .dse-dialog-pane .dse-dialog-header { -fx-padding: 16 17 10 17; }
+.small-display .dse-dialog-pane .dse-dialog-body,
+.ultra-compact-shell .dse-dialog-pane .dse-dialog-body { -fx-padding: 0 17 17 17; }

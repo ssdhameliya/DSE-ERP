@@ -131,6 +131,7 @@ public class RegistrationController {
             if(!otp.matches("\\d{6}")){e.consume();error.setText("Enter the current 6-digit authenticator code.");error.setManaged(true);error.setVisible(true);code.requestFocus();return;}
             try{
                 users.completeRegistrationMfa(registrationId,otp);
+                org.example.navigation.UnsavedChangesManager.markClean(txtName);
                 lblAuthenticatorStatus.setText("✓ Authenticator verified. Registration is pending Administrator approval.");
                 message("Registration submitted successfully. You cannot sign in until an Administrator approves the account.",false);
                 btnSendOtp.setDisable(true);btnVerifyEmail.setDisable(true);txtOtp.setDisable(true);

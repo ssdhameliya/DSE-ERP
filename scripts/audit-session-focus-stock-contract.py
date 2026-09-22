@@ -30,7 +30,7 @@ fxml = list((R / 'desktop/src/main/resources/fxml').rglob('*.fxml'))
 need(len(fxml) == 61, f'expected 61 FXML, got {len(fxml)}')
 for f in fxml:
     ET.parse(f)
-need(sorted((x.name for x in (R / 'desktop/src/main/resources/css').glob('*.css'))) == ['dark-theme.css', 'light-theme.css'], 'exactly two runtime CSS files')
+need(sorted((x.name for x in (R / 'desktop/src/main/resources/css').glob('*.css'))) == ['app-dialog.css', 'dark-theme.css', 'light-theme.css'], 'theme CSS plus centralized dialog CSS only')
 for name in ['light-theme.css', 'dark-theme.css']:
     need('session-timeout-countdown' in t('desktop/src/main/resources/css/' + name), name + ' missing session rules')
 print('SESSION_FOCUS_CONTRACT_OK timeout=10m warning=2m focus=central')

@@ -19,6 +19,6 @@ public class OwnedTextInputDialog extends TextInputDialog {
         } else {
             initModality(Modality.APPLICATION_MODAL);
         }
-        DialogPresentation.install(this);
+        AppDialogRenderer.install(this);
     }
 }
