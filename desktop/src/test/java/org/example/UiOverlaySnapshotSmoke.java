@@ -11,7 +11,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
 import org.example.theme.ThemeManager;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -58,7 +58,7 @@ public final class UiOverlaySnapshotSmoke extends Application {
                 }
             }));
         capture.play();
-        ModernDialog.confirm(
+        AppDialogService.confirm(
             owner,
             "Confirm cancellation",
             "Are you sure?",

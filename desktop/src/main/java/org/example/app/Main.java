@@ -2,7 +2,7 @@ package org.example.app;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
-import org.example.util.DialogPresentation;
+import org.example.util.AppDialogRenderer;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -158,10 +158,17 @@ public final class Main {
                             + "\n\nThe Shared Client does not start or replace the remote company server."
                     : BrandingService.applicationName() + " services could not start automatically.\n\n" + exception.getMessage()
                             + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath();
-            Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(
-                    stage,
-                    BrandingService.applicationName() + " startup failed",
-                    startupMessage));
+            if (ConfigManager.isSharedClient()) {
+                Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(
+                        stage,
+                        BrandingService.applicationName() + " startup failed",
+                        startupMessage));
+            } else {
+                Platform.runLater(() -> showLocalBackendStartupFailure(
+                        stage,
+                        BrandingService.applicationName() + " startup failed",
+                        startupMessage));
+            }
             return;
         }
         RuntimeApiClient.RuntimeStatus verifiedRuntime = startupRuntime;
@@ -207,6 +214,51 @@ public final class Main {
     }
 
     /** SetupWizardController has created the workspace and bootstrapped company/admin data through the Spring API. */
+    private void showLocalBackendStartupFailure(Stage stage, String header, String message) {
+        ButtonType retry = new ButtonType("Retry Startup", ButtonBar.ButtonData.OK_DONE);
+        ButtonType openLog = new ButtonType("Open Server Log", ButtonBar.ButtonData.OTHER);
+        ButtonType existing = new ButtonType("Select Existing Workspace", ButtonBar.ButtonData.OTHER);
+        ButtonType exit = new ButtonType("Exit", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
+                message + "\n\nYour current workspace and database have not been replaced or recreated.",
+                retry, openLog, existing, exit);
+        alert.setHeaderText(header);
+        ButtonType choice = alert.showAndWait().orElse(exit);
+        if (choice == retry) {
+            initializeConfiguredApplication(stage);
+        } else if (choice == openLog) {
+            openStartupServerLog();
+            showLocalBackendStartupFailure(stage, header, message);
+        } else if (choice == existing) {
+            SceneManager.showSetupWizard(() -> completeFirstRun(stage));
+        } else {
+            Platform.exit();
+        }
+    }
+
+    private void openStartupServerLog() {
+        Path log = RuntimeBootstrapper.serverLogPath();
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.nio.file.Files.isRegularFile(log)) {
+                java.awt.Desktop.getDesktop().open(log.toFile());
+                return;
+            }
+            Path folder = log.getParent();
+            if (folder != null && java.awt.Desktop.isDesktopSupported() && java.nio.file.Files.isDirectory(folder)) {
+                java.awt.Desktop.getDesktop().open(folder.toFile());
+                return;
+            }
+            throw new IllegalStateException("Server log is not available yet: " + log);
+        } catch (Exception failure) {
+            OwnedAlert error = new OwnedAlert(Alert.AlertType.ERROR,
+                    "The server log could not be opened automatically.\n\n" + log
+                            + "\n\n" + failure.getMessage());
+            error.setHeaderText("Server log unavailable");
+            error.showAndWait();
+        }
+    }
+
     private void showStartupFailureWithWorkspaceRecovery(Stage stage, String header, String message) {
         ButtonType exit = new ButtonType("Exit", ButtonBar.ButtonData.CANCEL_CLOSE);
         if (ConfigManager.isSharedClient()) {
@@ -242,7 +294,7 @@ public final class Main {
     private boolean configureSharedClientConnectionAtStartup(Stage stage) {
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Company Server Connection");
-        DialogPresentation.configureWorkspace(dialog, "notification");
+        AppDialogRenderer.configureWorkspace(dialog, "notification");
 
         ComboBox<String> environment = new ComboBox<>(FXCollections.observableArrayList("UAT", "PROD"));
         String currentEnvironment = ConfigManager.getConfiguredDeploymentEnvironment();

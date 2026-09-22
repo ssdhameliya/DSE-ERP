@@ -18,7 +18,7 @@ import org.example.documentstudio.service.ExcelTemplateStorageService;
 import org.example.documentstudio.service.ExcelTemplateRenderer;
 import org.example.documentstudio.util.PdfPreviewSupport;
 import org.example.navigation.ScreenLifecycle;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 import org.example.util.IconFactory;
 import org.example.util.UiTaskExecutor;
 
@@ -90,7 +90,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         UiTaskExecutor.submitLatest("document-studio-refresh",
                 () -> readStudioSnapshot(requestedExcelMode),
                 this::applyStudioSnapshot,
-                error -> ModernDialog.error(root, "Document library could not be refreshed", "Document Studio", rootMessage(error)));
+                error -> AppDialogService.error(root, "Document library could not be refreshed", "Document Studio", rootMessage(error)));
     }
 
     private StudioSnapshot readStudioSnapshot(boolean requestedExcelMode) {
@@ -200,9 +200,9 @@ public class DocumentStudioController implements ScreenLifecycle {
     @FXML private void importExcel(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.CREATE", "create or import Document Studio content");
         FileChooser chooser=new FileChooser();chooser.setTitle("Upload Excel Template");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook","*.xlsx"));var file=chooser.showOpenDialog(root.getScene().getWindow());if(file==null)return;
         DocumentType type=chooseExcelType();if(type==null)return;String name=askName(stripExtension(file.getName()),type.label()+" Excel");if(name==null)return;
-        try{openExcelDesigner(ExcelTemplateStorageService.importWorkbook(file.toPath(),name,type));}catch(Exception e){ModernDialog.error(root,"Excel upload failed","Document Studio",rootMessage(e));}
+        try{openExcelDesigner(ExcelTemplateStorageService.importWorkbook(file.toPath(),name,type));}catch(Exception e){AppDialogService.error(root,"Excel upload failed","Document Studio",rootMessage(e));}
     }
-    @FXML private void createExcelTemplate(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.CREATE", "create or import Document Studio content");DocumentType type=chooseExcelType();if(type==null)return;String name=askName("New "+type.label()+" Excel",type.label()+" Excel");if(name==null)return;try{openExcelDesigner(ExcelTemplateStorageService.createBlank(name,type));}catch(Exception e){ModernDialog.error(root,"Excel template could not be created","Document Studio",rootMessage(e));}}
+    @FXML private void createExcelTemplate(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.CREATE", "create or import Document Studio content");DocumentType type=chooseExcelType();if(type==null)return;String name=askName("New "+type.label()+" Excel",type.label()+" Excel");if(name==null)return;try{openExcelDesigner(ExcelTemplateStorageService.createBlank(name,type));}catch(Exception e){AppDialogService.error(root,"Excel template could not be created","Document Studio",rootMessage(e));}}
     private DocumentType chooseExcelType(){
         List<DocumentType> types=Arrays.stream(DocumentType.values()).filter(DocumentType::isErpConnected).toList();
         org.example.util.OwnedDialog<DocumentType> dialog=new org.example.util.OwnedDialog<>();
@@ -237,7 +237,7 @@ public class DocumentStudioController implements ScreenLifecycle {
             DocumentTemplate template = importPdfWithSecurity(file.toPath(), name, type);
             if (template != null) openDesigner(template);
         } catch (Exception error) {
-            ModernDialog.error(root, "Import failed", "The PDF could not be imported", rootMessage(error));
+            AppDialogService.error(root, "Import failed", "The PDF could not be imported", rootMessage(error));
         }
     }
 
@@ -250,7 +250,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         try {
             openDesigner(TemplateStorageService.createBlank(name, type));
         } catch (Exception error) {
-            ModernDialog.error(root, "Document could not be created", "Document Studio", rootMessage(error));
+            AppDialogService.error(root, "Document could not be created", "Document Studio", rootMessage(error));
         }
     }
 
@@ -298,7 +298,7 @@ public class DocumentStudioController implements ScreenLifecycle {
                 openDesigner(TemplateStorageService.createBlank(name, type));
             }
         } catch (Exception error) {
-            ModernDialog.error(root, "Template could not be created", "Document Studio", rootMessage(error));
+            AppDialogService.error(root, "Template could not be created", "Document Studio", rootMessage(error));
         }
     }
 
@@ -416,14 +416,14 @@ public class DocumentStudioController implements ScreenLifecycle {
         HBox badges=new HBox(6,badge(template.getStatus().name(),"doc-template-status-"+template.getStatus().name().toLowerCase()),badge(automatic?"AUTOMATIC":"DESIGN ONLY",automatic?"doc-template-status-active":"doc-template-version"),badge("v"+template.getVersion(),"doc-template-version"));if(automatic&&template.isDefaultTemplate())badges.getChildren().add(badge("★ DEFAULT","doc-template-default"));
         Button edit=new Button("Edit",IconFactory.compactIcon("edit",15));edit.setOnAction(e->openExcelDesigner(template));edit.getStyleClass().addAll("approved-button","approved-primary-button","doc-template-action-button");
         Button previewButton=new Button("Preview",IconFactory.compactIcon("view",15));previewButton.getStyleClass().addAll("approved-button","approved-secondary-button","doc-template-action-button");previewButton.setOnAction(e->previewExcel(template));
-        MenuButton more=new MenuButton("Actions",IconFactory.compactIcon("actions",15));MenuItem setDefault=new MenuItem("Set as Default");setDefault.setDisable(!automatic);setDefault.setOnAction(e->setExcelDefault(template));MenuItem duplicate=new MenuItem("Duplicate");duplicate.setOnAction(e->{org.example.service.PermissionService.require("DOCUMENT_STUDIO.CREATE", "duplicate an Excel template");try{ExcelTemplateStorageService.duplicate(template);refresh();}catch(Exception ex){ModernDialog.error(root,"Could not duplicate","Excel Studio",rootMessage(ex));}});MenuItem download=new MenuItem("Download Template");download.setOnAction(e->downloadExcelTemplate(template));MenuItem archive=new MenuItem("Archive");archive.setDisable(template.getStatus()==TemplateStatus.ARCHIVED);archive.setOnAction(e->{org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "archive an Excel template");try{ExcelTemplateStorageService.archive(template);refresh();}catch(Exception ex){ModernDialog.error(root,"Could not archive","Excel Studio",rootMessage(ex));}});MenuItem delete=new MenuItem("Delete");delete.setOnAction(e->deleteExcel(template));more.getItems().addAll(setDefault,duplicate,download,archive,new SeparatorMenuItem(),delete);more.getStyleClass().addAll("approved-menu-button","doc-template-more-button");
+        MenuButton more=new MenuButton("Actions",IconFactory.compactIcon("actions",15));MenuItem setDefault=new MenuItem("Set as Default");setDefault.setDisable(!automatic);setDefault.setOnAction(e->setExcelDefault(template));MenuItem duplicate=new MenuItem("Duplicate");duplicate.setOnAction(e->{org.example.service.PermissionService.require("DOCUMENT_STUDIO.CREATE", "duplicate an Excel template");try{ExcelTemplateStorageService.duplicate(template);refresh();}catch(Exception ex){AppDialogService.error(root,"Could not duplicate","Excel Studio",rootMessage(ex));}});MenuItem download=new MenuItem("Download Template");download.setOnAction(e->downloadExcelTemplate(template));MenuItem archive=new MenuItem("Archive");archive.setDisable(template.getStatus()==TemplateStatus.ARCHIVED);archive.setOnAction(e->{org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "archive an Excel template");try{ExcelTemplateStorageService.archive(template);refresh();}catch(Exception ex){AppDialogService.error(root,"Could not archive","Excel Studio",rootMessage(ex));}});MenuItem delete=new MenuItem("Delete");delete.setOnAction(e->deleteExcel(template));more.getItems().addAll(setDefault,duplicate,download,archive,new SeparatorMenuItem(),delete);more.getStyleClass().addAll("approved-menu-button","doc-template-more-button");
         HBox actions=new HBox(7,edit,previewButton,more);HBox.setHgrow(edit,Priority.ALWAYS);HBox.setHgrow(previewButton,Priority.ALWAYS);edit.setMaxWidth(Double.MAX_VALUE);previewButton.setMaxWidth(Double.MAX_VALUE);card.getChildren().addAll(preview,name,identity,badges,actions);return card;
     }
     private void openExcelDesigner(ExcelTemplate template){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "edit an Excel template");ExcelStudioContext.open(template.getId());DashboardController.navigateFromDocumentStudio("Excel Studio","/fxml/pages/ExcelDesigner.fxml");}
-    private void previewExcel(ExcelTemplate template){try{Path out=org.example.config.WorkspaceManager.getTempFolder().resolve("excel-studio-sample-"+template.getId()+".xlsx");ExcelTemplateRenderer.renderSample(template,out);if(Desktop.isDesktopSupported())Desktop.getDesktop().open(out.toFile());}catch(Exception e){ModernDialog.error(root,"Excel preview failed","Document Studio",rootMessage(e));}}
-    private void setExcelDefault(ExcelTemplate template){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "activate a default Excel template");if(!ModernDialog.confirm(root,"Activate Default Excel Template","Use "+template.getName()+" as the default "+template.getDocumentType().label()+" Excel template?","If this workbook becomes unavailable or invalid, " + org.example.service.BrandingService.applicationName() + " automatically falls back to its built-in Excel output."))return;try{ExcelTemplateStorageService.activateAndSetDefault(template);ModernDialog.success(root,"Default Excel template updated",template.getName()+" is now active. Built-in Excel remains the automatic fallback.");refresh();}catch(Exception e){ModernDialog.error(root,"Could not set Excel default","Document Studio",rootMessage(e));}}
-    private void downloadExcelTemplate(ExcelTemplate template){org.example.service.PermissionService.require("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "download an Excel template");try{FileChooser chooser=new FileChooser();chooser.setTitle("Download Excel Template");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook","*.xlsx"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._ -]","_")+".xlsx");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file!=null)java.nio.file.Files.copy(ExcelTemplateStorageService.sourceWorkbook(template),file.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);}catch(Exception e){ModernDialog.error(root,"Excel download failed","Document Studio",rootMessage(e));}}
-    private void deleteExcel(ExcelTemplate template){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "delete an Excel template");if(template.isDefaultTemplate()){ModernDialog.info(root,"Default template","Excel Studio","Choose another default or archive this template first. Runtime Excel will otherwise use its built-in fallback.");return;}if(!ModernDialog.confirm(root,"Delete Excel Template","Delete "+template.getName()+"?","This removes the Document Studio copy and its version history."))return;try{ExcelTemplateStorageService.delete(template);refresh();}catch(Exception e){ModernDialog.error(root,"Could not delete","Excel Studio",rootMessage(e));}}
+    private void previewExcel(ExcelTemplate template){try{Path out=org.example.config.WorkspaceManager.getTempFolder().resolve("excel-studio-sample-"+template.getId()+".xlsx");ExcelTemplateRenderer.renderSample(template,out);if(Desktop.isDesktopSupported())Desktop.getDesktop().open(out.toFile());}catch(Exception e){AppDialogService.error(root,"Excel preview failed","Document Studio",rootMessage(e));}}
+    private void setExcelDefault(ExcelTemplate template){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "activate a default Excel template");if(!AppDialogService.confirm(root,"Activate Default Excel Template","Use "+template.getName()+" as the default "+template.getDocumentType().label()+" Excel template?","If this workbook becomes unavailable or invalid, " + org.example.service.BrandingService.applicationName() + " automatically falls back to its built-in Excel output."))return;try{ExcelTemplateStorageService.activateAndSetDefault(template);AppDialogService.success(root,"Default Excel template updated",template.getName()+" is now active. Built-in Excel remains the automatic fallback.");refresh();}catch(Exception e){AppDialogService.error(root,"Could not set Excel default","Document Studio",rootMessage(e));}}
+    private void downloadExcelTemplate(ExcelTemplate template){org.example.service.PermissionService.require("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "download an Excel template");try{FileChooser chooser=new FileChooser();chooser.setTitle("Download Excel Template");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook","*.xlsx"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._ -]","_")+".xlsx");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file!=null)java.nio.file.Files.copy(ExcelTemplateStorageService.sourceWorkbook(template),file.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);}catch(Exception e){AppDialogService.error(root,"Excel download failed","Document Studio",rootMessage(e));}}
+    private void deleteExcel(ExcelTemplate template){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "delete an Excel template");if(template.isDefaultTemplate()){AppDialogService.info(root,"Default template","Excel Studio","Choose another default or archive this template first. Runtime Excel will otherwise use its built-in fallback.");return;}if(!AppDialogService.confirm(root,"Delete Excel Template","Delete "+template.getName()+"?","This removes the Document Studio copy and its version history."))return;try{ExcelTemplateStorageService.delete(template);refresh();}catch(Exception e){AppDialogService.error(root,"Could not delete","Excel Studio",rootMessage(e));}}
 
     private void loadThumbnail(DocumentTemplate template, StackPane preview) {
         CompletableFuture.supplyAsync(() -> {
@@ -453,9 +453,9 @@ public class DocumentStudioController implements ScreenLifecycle {
         try {
             DocumentTemplate imported = TemplateStorageService.importPackage(file.toPath());
             refresh();
-            ModernDialog.success(root, "Template imported", imported.getName() + " was imported with its PDF, mappings and assets. It is a draft until you publish it.");
+            AppDialogService.success(root, "Template imported", imported.getName() + " was imported with its PDF, mappings and assets. It is a draft until you publish it.");
         } catch (Exception error) {
-            ModernDialog.error(root, "Template import failed", "PDF Studio", rootMessage(error));
+            AppDialogService.error(root, "Template import failed", "PDF Studio", rootMessage(error));
         }
     }
 
@@ -473,9 +473,9 @@ public class DocumentStudioController implements ScreenLifecycle {
             output = output.resolveSibling(output.getFileName() + ".dsetemplate");
         try {
             TemplateStorageService.exportPackage(template, output);
-            ModernDialog.success(root, "Template exported", "PDF + complete mapping + assets exported to:\n" + output);
+            AppDialogService.success(root, "Template exported", "PDF + complete mapping + assets exported to:\n" + output);
         } catch (Exception error) {
-            ModernDialog.error(root, "Template export failed", "PDF Studio", rootMessage(error));
+            AppDialogService.error(root, "Template export failed", "PDF Studio", rootMessage(error));
         }
     }
 
@@ -489,51 +489,51 @@ public class DocumentStudioController implements ScreenLifecycle {
         org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "publish a PDF template");
         try {
             TemplateStorageService.publish(template);
-            ModernDialog.success(root,"Template published",template.getName()+" is a validated candidate. Current PDF/Print/Preview/Email generation is unchanged until Mark as Default is used.");
+            AppDialogService.success(root,"Template published",template.getName()+" is a validated candidate. Current PDF/Print/Preview/Email generation is unchanged until Mark as Default is used.");
             refresh();
-        } catch (Exception error) { ModernDialog.error(root,"Could not publish","PDF Studio",rootMessage(error)); }
+        } catch (Exception error) { AppDialogService.error(root,"Could not publish","PDF Studio",rootMessage(error)); }
     }
 
     private void setDefault(DocumentTemplate template) {
         org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "activate a default PDF template");
         if (!DocumentFlowRegistry.isAutomatic(template.getDocumentType())) {
-            ModernDialog.info(root, "Design-only template", "No automatic ERP binding",
+            AppDialogService.info(root, "Design-only template", "No automatic ERP binding",
                     template.getDocumentType().label() + " can be designed and previewed, but it is not connected to a live automatic document flow yet.");
             return;
         }
         if(template.getPublishedVersion()<=0 || template.isUnpublishedChanges()){
-            ModernDialog.info(root,"Publish required","PDF Studio","Publish the current design first. Draft and published-candidate work cannot affect existing document generation.");
+            AppDialogService.info(root,"Publish required","PDF Studio","Publish the current design first. Draft and published-candidate work cannot affect existing document generation.");
             return;
         }
         String fallback = DocumentFlowRegistry.builtInLabel(template.getDocumentType());
-        if (!ModernDialog.confirm(root, "Mark as System Default",
+        if (!AppDialogService.confirm(root, "Mark as System Default",
                 "Activate " + template.getName() + " v"+template.getPublishedVersion()+" for " + template.getDocumentType().label() + "?",
                 "This is the ONLY PDF Studio action that changes runtime routing. A separate active snapshot will be created. Later edits and publishing remain isolated until Mark as Default is used again. " + fallback + " remains the safety fallback.")) return;
         try {
             TemplateStorageService.setDefault(template.getId());
-            ModernDialog.success(root, "System default activated", template.getName() + " is now the active default for " + template.getDocumentType().label() + ".");
+            AppDialogService.success(root, "System default activated", template.getName() + " is now the active default for " + template.getDocumentType().label() + ".");
             refresh();
-        } catch (Exception error) { ModernDialog.error(root, "Could not set default", "Document Studio", rootMessage(error)); }
+        } catch (Exception error) { AppDialogService.error(root, "Could not set default", "Document Studio", rootMessage(error)); }
     }
 
     private void duplicate(DocumentTemplate template) {
         org.example.service.PermissionService.require("DOCUMENT_STUDIO.CREATE", "duplicate a PDF template");
-        try { DocumentTemplate copy = TemplateStorageService.duplicate(template); refresh(); ModernDialog.success(root, "Document duplicated", copy.getName() + " is ready to edit."); }
-        catch (Exception error) { ModernDialog.error(root, "Could not duplicate", "Document Studio", rootMessage(error)); }
+        try { DocumentTemplate copy = TemplateStorageService.duplicate(template); refresh(); AppDialogService.success(root, "Document duplicated", copy.getName() + " is ready to edit."); }
+        catch (Exception error) { AppDialogService.error(root, "Could not duplicate", "Document Studio", rootMessage(error)); }
     }
 
     private void archive(DocumentTemplate template) {
         org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "archive a PDF template");
-        if (!ModernDialog.confirm(root, "Archive Document", "Archive " + template.getName() + "?", "It remains in the library history but cannot be used as the default.")) return;
+        if (!AppDialogService.confirm(root, "Archive Document", "Archive " + template.getName() + "?", "It remains in the library history but cannot be used as the default.")) return;
         try { TemplateStorageService.archive(template); refresh(); }
-        catch (Exception error) { ModernDialog.error(root, "Could not archive", "Document Studio", rootMessage(error)); }
+        catch (Exception error) { AppDialogService.error(root, "Could not archive", "Document Studio", rootMessage(error)); }
     }
 
     private void delete(DocumentTemplate template) {
         org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "delete a PDF template");
-        if (!ModernDialog.confirm(root, "Delete Document", "Delete " + template.getName() + "?", "This removes the workspace copy, designer metadata and assets. The original PDF you imported outside " + org.example.service.BrandingService.applicationName() + " is not touched.")) return;
+        if (!AppDialogService.confirm(root, "Delete Document", "Delete " + template.getName() + "?", "This removes the workspace copy, designer metadata and assets. The original PDF you imported outside " + org.example.service.BrandingService.applicationName() + " is not touched.")) return;
         try { TemplateStorageService.delete(template); refresh(); }
-        catch (Exception error) { ModernDialog.error(root, "Could not delete", "Document Studio", rootMessage(error)); }
+        catch (Exception error) { AppDialogService.error(root, "Could not delete", "Document Studio", rootMessage(error)); }
     }
 
     private void previewTemplate(DocumentTemplate template) {
@@ -541,8 +541,8 @@ public class DocumentStudioController implements ScreenLifecycle {
             Path output = org.example.config.WorkspaceManager.getTempFolder().resolve("document-studio-sample-" + template.getId() + ".pdf");
             PdfTemplateRenderer.renderSample(template, output);
             if (Desktop.isDesktopSupported()) Desktop.getDesktop().open(output.toFile());
-            else ModernDialog.info(root, "Preview generated", "PDF ready", output.toString());
-        } catch (Exception error) { ModernDialog.error(root, "Preview failed", "The document could not be rendered", rootMessage(error)); }
+            else AppDialogService.info(root, "Preview generated", "PDF ready", output.toString());
+        } catch (Exception error) { AppDialogService.error(root, "Preview failed", "The document could not be rendered", rootMessage(error)); }
     }
 
     private static String stripExtension(String value) { int dot = value.lastIndexOf('.'); return dot > 0 ? value.substring(0, dot) : value; }

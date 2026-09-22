@@ -1414,6 +1414,7 @@ public class DashboardController {
 
     @FXML
     private void logout() {
+        if (!org.example.navigation.UnsavedChangesManager.allowExit("sign out")) return;
         try { new org.example.service.UserService().logout(); }
         finally { SessionService.clear(); }
         org.example.util.SceneManager.showLogin();

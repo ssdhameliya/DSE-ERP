@@ -91,6 +91,7 @@ public class RoleManagementController implements ScreenLifecycle {
                 ()->api.setRegistrationRole(code),
                 saved->{
                     if(lblRegistrationRoleStatus!=null)lblRegistrationRoleStatus.setText("Current: "+displayRole(saved.displayName(),saved.code())+" • Saved for public registration.");
+                    org.example.navigation.UnsavedChangesManager.markClean(cmbRegistrationRole);
                     alert(Alert.AlertType.INFORMATION,"Registration role updated","New public registrations will use "+displayRole(saved.displayName(),saved.code())+". Existing users are unchanged.");
                 },
                 failure->alert(Alert.AlertType.ERROR,"Registration role was not saved",message(failure))

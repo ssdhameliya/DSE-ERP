@@ -20,7 +20,7 @@ maint = text('server/src/main/java/org/example/server/support/StorageMaintenance
 support = text('server/src/main/java/org/example/server/support/SupportService.java')
 fxml = text('desktop/src/main/resources/fxml/pages/settings/WorkspaceSettingsPanel.fxml')
 report = text('server/src/main/java/org/example/server/reporting/ReportScheduleService.java')
-protected = {'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c', 'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8', 'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082'}
+protected = {'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '0bb413a5666585af1c67beac15e54bb45112eb8cbc3ffcb36dccf70ea0c837f0', 'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8', 'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082'}
 check('storage-manager-present', 'class WorkspaceStorageManager' in wm)
 check('financial-year-storage', 'financialYear' in wm and '"Sales"' in wm and ('"Purchase"' in wm))
 check('workspace-structure-folders', all((x in ws for x in ['Documents/Sales', 'Reports/Scheduled', 'Exports/Diagnostics', 'Logs/Desktop', 'Logs/Server', 'Logs/PostgreSQL', 'Imports/Results'])))
@@ -48,7 +48,7 @@ check('operational-cleanup-covered', all((x in maint for x in ['workspace.resolv
 check('admin-cleanup-only', 'Storage cleanup can be run only by an administrator' in maint)
 check('retention-ui', all((x in fxml for x in ['txtLogRetentionDays', 'txtReportRetentionDays', 'txtExportRetentionDays', 'txtImportResultRetentionDays', 'txtTempRetentionDays', 'Clean Now', 'Preview Cleanup'])))
 check('open-folder-ui', all((x in fxml for x in ['Open Documents', 'Open Reports', 'Open Logs'])))
-check('two-css-only', len(list((root / 'desktop/src/main/resources/css').glob('*.css'))) == 2, str([p.name for p in (root / 'desktop/src/main/resources/css').glob('*.css')]))
+check('central-css-contract', sorted(p.name for p in (root / 'desktop/src/main/resources/css').glob('*.css')) == ['app-dialog.css', 'dark-theme.css', 'light-theme.css'], str([p.name for p in (root / 'desktop/src/main/resources/css').glob('*.css')]))
 failed = [c for c in checks if not c[1]]
 print(f"PHASE4B_STORAGE_RETENTION_AUDIT {('PASS' if not failed else 'FAIL')} checks={len(checks)} failed={len(failed)}")
 sys.exit(1 if failed else 0)

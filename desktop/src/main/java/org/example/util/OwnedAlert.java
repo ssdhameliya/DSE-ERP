@@ -7,7 +7,7 @@ import javafx.stage.Modality;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
 
-/** Alert owned by the active ERP window and rendered only by DialogPresentation. */
+/** Alert owned by the active ERP window and rendered only by AppDialogRenderer. */
 public class OwnedAlert extends Alert {
     public OwnedAlert(AlertType alertType) {
         super(alertType);
@@ -28,6 +28,6 @@ public class OwnedAlert extends Alert {
         } else {
             initModality(Modality.APPLICATION_MODAL);
         }
-        DialogPresentation.install(this);
+        AppDialogRenderer.install(this);
     }
 }

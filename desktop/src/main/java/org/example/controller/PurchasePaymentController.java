@@ -110,7 +110,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         if (!invoice.isBlank()) PurchaseScreenContext.select(invoice);
         configureInvoice();
         resetForm();
-        Platform.runLater(this::loadHistory);
+        Platform.runLater(() -> { loadHistory(); org.example.navigation.UnsavedChangesManager.markClean(amount); });
     }
 
     private void configureInvoice() {
@@ -352,7 +352,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                         setSaveBusy(false);
                         org.example.util.ToastManager.success(amount, "Payment saved", "Supplier payment saved successfully.");
                         org.example.util.ScreenRefreshPolicy.invalidate("purchase-register");
-                        refreshInvoiceAmounts(); resetForm(); loadHistory();
+                        refreshInvoiceAmounts(); resetForm(); org.example.navigation.UnsavedChangesManager.markClean(amount); loadHistory();
                         if (warning != null) new OwnedAlert(Alert.AlertType.WARNING, warning).showAndWait();
                     },
                     failure -> { setSaveBusy(false); new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait(); }
@@ -395,7 +395,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                         setSaveBusy(false);
                         org.example.util.ToastManager.success(amount, "Payment updated", "Payment updated and purchase totals recalculated.");
                         org.example.util.ScreenRefreshPolicy.invalidate("purchase-register");
-                        refreshInvoiceAmounts(); resetForm(); loadHistory();
+                        refreshInvoiceAmounts(); resetForm(); org.example.navigation.UnsavedChangesManager.markClean(amount); loadHistory();
                     },
                     failure -> { setSaveBusy(false); new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait(); }
             );
@@ -487,7 +487,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         chooser.setTitle("Choose supplier payment proof");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Proof files", "*.pdf", "*.png", "*.jpg", "*.jpeg"));
         File file = chooser.showOpenDialog(amount.getScene().getWindow());
-        if (file != null) { proofRemovalPending=false; setSelectedProof(file.toPath()); }
+        if (file != null) { proofRemovalPending=false; setSelectedProof(file.toPath()); org.example.navigation.UnsavedChangesManager.touch(amount); }
     }
 
     private void wireProofDropZone() {
@@ -502,7 +502,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             boolean completed = false;
             if (event.getDragboard().hasFiles() && event.getDragboard().getFiles().size() == 1) {
                 Path path = event.getDragboard().getFiles().getFirst().toPath();
-                if (isAllowedProof(path)) { proofRemovalPending=false; setSelectedProof(path); completed = true; }
+                if (isAllowedProof(path)) { proofRemovalPending=false; setSelectedProof(path); org.example.navigation.UnsavedChangesManager.touch(amount); completed = true; }
             }
             event.setDropCompleted(completed);
             event.consume();
@@ -528,7 +528,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                 this::openProofPath,
                 failure -> new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
     }
-    @FXML private void removeProof(){boolean hasSelected=selectedProof!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.proofPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;selectedProof=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");}
+    @FXML private void removeProof(){boolean hasSelected=selectedProof!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.proofPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;selectedProof=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");org.example.navigation.UnsavedChangesManager.touch(amount);}
 
     private void editPayment(PaymentRow row) {
         if (row == null) return;

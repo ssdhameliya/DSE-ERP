@@ -12,7 +12,7 @@ def check(name, ok, detail=''):
     checks.append((name, bool(ok), detail))
     print(('PASS' if ok else 'FAIL') + ': ' + name + (f' — {detail}' if detail else ''))
 css_files = sorted(CSS.glob('*.css'))
-check('exactly two runtime CSS files', [p.name for p in css_files] == ['dark-theme.css', 'light-theme.css'], ', '.join((p.name for p in css_files)))
+check('central runtime CSS files', [p.name for p in css_files] == ['app-dialog.css', 'dark-theme.css', 'light-theme.css'], ', '.join((p.name for p in css_files)))
 mgr = (JAVA / 'org/example/util/DynamicTableLayoutManager.java').read_text(encoding='utf-8')
 check('normal table minimum remains readable', 'MIN_READABLE_COLUMN = 58.0' in mgr)
 check('semantic + no-break readable minimum policy exists', 'readableMinimum(' in mgr and 'longestHeaderTokenWidth(' in mgr and ('FontWeight.EXTRA_BOLD' in mgr) and ('semanticFloor = 86.0' in mgr))
@@ -26,7 +26,8 @@ settings_files = [FXML / 'pages/settings/CompanySettingsPanel.fxml', FXML / 'pag
 combined = '\n'.join((p.read_text(encoding='utf-8') for p in settings_files))
 check('settings asset controls use wrapping action rows', combined.count('styleClass="settings-asset-actions"') == 5, str(combined.count('styleClass="settings-asset-actions"')))
 check('legacy non-wrapping asset action rows removed', not re.search('<HBox spacing="8">\\s*<Button text="Add / Replace"', combined, re.S))
-for theme in css_files:
+theme_css_files = [CSS / 'dark-theme.css', CSS / 'light-theme.css']
+for theme in theme_css_files:
     text = theme.read_text(encoding='utf-8')
     check(f'{theme.name}: Phase 3 ownership layer present', 'PHASE 3 READABILITY + RESPONSIVE TABLE OWNERSHIP' in text)
     check(f'{theme.name}: 52px readable header row', '-fx-pref-height: 52px;' in text)

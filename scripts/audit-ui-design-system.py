@@ -12,7 +12,7 @@ def need(cond,msg):
 fxml=list((ROOT/'desktop/src/main/resources/fxml').rglob('*.fxml'))
 need(len(fxml)==61,f'FXML count changed: {len(fxml)}')
 css=sorted(p.name for p in (ROOT/'desktop/src/main/resources/css').glob('*.css'))
-need(css==['dark-theme.css','light-theme.css'],f'CSS contract changed: {css}')
+need(css==['app-dialog.css','dark-theme.css','light-theme.css'],f'CSS contract changed: {css}')
 
 # FXML remains layout-only: no inline CSS and no fixed TableColumn widths.
 inline=[]; fixed=[]
@@ -34,7 +34,7 @@ need('ResponsiveKpiLayoutManager.KPI_SECTION_STYLE' in popup and 'erp-kpi-single
 ui=t('desktop/src/main/java/org/example/util/UiDesignSystem.java')
 for token in ['erp-unified-surface','erp-control-button','erp-control-input','erp-realtime-search','erp-table-standard']:
     need(token in ui,f'UI design-system semantic missing: {token}')
-for theme in css:
+for theme in ['dark-theme.css','light-theme.css']:
     s=t('desktop/src/main/resources/css/'+theme)
     for token in ['DSE ERP 9.0.79 — FINAL UI DESIGN SYSTEM','-dse-surface-1','erp-button-role-primary','erp-realtime-search','erp-table-standard']:
         need(token in s,f'{theme} missing final design-system token {token}')
@@ -53,16 +53,32 @@ need('ACTION_CONTROL_MIN_WIDTH' in table_layout and 'allocateDense' in table_lay
      'dynamic table layout no longer protects the visible Actions column')
 need('lookupAll(".table-cell")' not in table_layout and 'SAMPLED_CONTENT_WIDTH' not in table_layout,
      'dynamic table layout regressed to realized-cell/content scanning')
-for theme in css:
+for theme in ['dark-theme.css','light-theme.css']:
     theme_text=t('desktop/src/main/resources/css/'+theme)
     need('-fx-pref-width: 124px;' not in theme_text,
          f'{theme} still forces dialog action labels into a fixed width')
-    need('.modern-dialog .modern-dialog-button' in theme_text and '-fx-pref-width: -1;' in theme_text,
-         f'{theme} dialog actions are not content-sized')
 
-# Dialog/window unification.
+# Dialog/window unification: one renderer, one CSS source, no legacy presentation path.
+app_dialog=t('desktop/src/main/resources/css/app-dialog.css')
+renderer=t('desktop/src/main/java/org/example/util/AppDialogRenderer.java')
+service=t('desktop/src/main/java/org/example/util/AppDialogService.java')
+unsaved=t('desktop/src/main/java/org/example/navigation/UnsavedChangesManager.java')
+need('.dse-dialog-pane .dse-dialog-action-primary' in app_dialog and '.dse-dialog-semantic-unsaved' in app_dialog,
+     'central dialog CSS is missing semantic/action presentation')
+need('SemanticIconManager.compact' in renderer and 'styleActions' in renderer,
+     'central dialog renderer must own semantic icons and action styling')
+need('inferPrimaryAction' in service and 'Discard & Leave' in service,
+     'central dialog service must own meaningful action labels')
+need('allowNavigation' in unsaved and 'AppDialogService.unsaved' in unsaved,
+     'global unsaved-work manager is not connected to central dialogs')
+for legacy in ['ModernDialog.java','DialogPresentation.java','DialogActionStyler.java']:
+    need(not (ROOT/'desktop/src/main/java/org/example/util'/legacy).exists(), f'legacy dialog presentation source remains: {legacy}')
 for cls in ['OwnedDialog.java','OwnedTextInputDialog.java','OwnedChoiceDialog.java']:
-    need('DialogPresentation.install(this)' in t('desktop/src/main/java/org/example/util/'+cls),f'{cls} bypasses DialogPresentation')
+    need('AppDialogRenderer.install(this)' in t('desktop/src/main/java/org/example/util/'+cls),f'{cls} bypasses AppDialogRenderer')
+for theme in ['dark-theme.css','light-theme.css']:
+    theme_text=t('desktop/src/main/resources/css/'+theme)
+    need('modern-dialog' not in theme_text and 'erp-modern-dialog' not in theme_text,
+         f'{theme} still contains legacy dialog presentation CSS')
 platform=t('desktop/src/main/java/org/example/util/PlatformUiSupport.java')
 need('erp-modal-window-root' in platform,'secondary Stage windows do not use the shared modal root')
 
@@ -105,4 +121,4 @@ for p in fxml:
         if not live: missing.append(f'{p.name}:{fid}')
 need(not missing,'non-realtime search controls: '+', '.join(missing))
 
-print(f'UI_DESIGN_SYSTEM_OK fxml={len(fxml)} css=2 realtime_search=yes kpi_single_row=yes modal_unified=yes')
+print(f'UI_DESIGN_SYSTEM_OK fxml={len(fxml)} css=3 realtime_search=yes kpi_single_row=yes dialog_renderer=centralized unsaved_guard=global')

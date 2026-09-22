@@ -212,7 +212,7 @@ public class DashboardHomeController implements ScreenLifecycle {
         });
         task.setOnFailed(event -> {
             dashboardLoadRunning.set(false); hideLoading();
-            org.example.util.ModernDialog.error(dashboardRoot, "Dashboard could not refresh",
+            org.example.util.AppDialogService.error(dashboardRoot, "Dashboard could not refresh",
                 "The ERP remains available", task.getException() == null ? "Unknown dashboard error" : task.getException().getMessage());
         });
         Thread thread = new Thread(task, "dse-dashboard-loader");
@@ -367,7 +367,7 @@ public class DashboardHomeController implements ScreenLifecycle {
             PartyDialogController controller=loader.getController();controller.configure(type,null);
             Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage,actionOwner(event),title,false);
             Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.showAndWait();reload();
-        }catch(Exception e){org.example.util.ModernDialog.error(actionOwner(event),title+" could not open","Dashboard remains available",e.getMessage()==null?e.toString():e.getMessage());}
+        }catch(Exception e){org.example.util.AppDialogService.error(actionOwner(event),title+" could not open","Dashboard remains available",e.getMessage()==null?e.toString():e.getMessage());}
     }
     private void openItemCreateDialog(ActionEvent event){
         try{
@@ -375,7 +375,7 @@ public class DashboardHomeController implements ScreenLifecycle {
             Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);
             Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage,actionOwner(event),"Add Item Master",false);
             Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.showAndWait();reload();
-        }catch(Exception e){org.example.util.ModernDialog.error(actionOwner(event),"Item Master could not open","Dashboard remains available",e.getMessage()==null?e.toString():e.getMessage());}
+        }catch(Exception e){org.example.util.AppDialogService.error(actionOwner(event),"Item Master could not open","Dashboard remains available",e.getMessage()==null?e.toString():e.getMessage());}
     }
 
     private void open(ActionEvent event, String fxml) {

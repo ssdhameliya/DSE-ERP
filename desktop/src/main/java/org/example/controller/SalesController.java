@@ -1127,11 +1127,14 @@ public class SalesController {
             try { persistAttachmentAfterSave(sale); }
             catch (Exception attachmentError) { attachmentWarning = rootMessage(attachmentError); }
 
-            new OwnedAlert(
-                attachmentWarning == null ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
-                attachmentWarning == null ? "Sales saved successfully" : "Sales saved successfully, but the attachment could not be updated.\n\n" + attachmentWarning
-            ).showAndWait();
+            if (attachmentWarning == null) {
+                org.example.util.AppDialogService.success(tableLines, "Sale saved", "Sales invoice saved successfully.");
+            } else {
+                org.example.util.AppDialogService.warning(tableLines, "Sale saved with attachment warning",
+                    "The invoice was saved", "The attachment could not be updated. " + attachmentWarning);
+            }
 
+            org.example.navigation.UnsavedChangesManager.clear(tableLines);
             ScreenRefreshPolicy.invalidate("sales-register");
             NavigationManager.getInstance()
                 .loadPage("/fxml/pages/SalesList.fxml");
@@ -1440,6 +1443,7 @@ public class SalesController {
         if(file==null)return;
         pendingAttachment=file;
         attachmentRemovalPending=false;
+        org.example.navigation.UnsavedChangesManager.touch(tableLines);
         if(txtAttachment!=null)txtAttachment.setText(file.getAbsolutePath());
         refreshAttachmentUi();
     }
@@ -1465,6 +1469,7 @@ public class SalesController {
         if (hasAttachment && !confirmAction("Remove attachment", "Remove the selected sales attachment?")) return;
         pendingAttachment=null;
         attachmentRemovalPending=true;
+        org.example.navigation.UnsavedChangesManager.touch(tableLines);
         if(txtAttachment!=null)txtAttachment.clear();
         refreshAttachmentUi();
     }
@@ -1563,9 +1568,6 @@ public class SalesController {
 
     @FXML
     private void cancel() {
-        boolean dirty = !tableLines.getItems().isEmpty() || pendingAttachment != null || attachmentRemovalPending;
-        if (dirty && !confirmAction("Discard changes", "Discard unsaved changes and return to the Sales register?")) return;
-
         NavigationManager.getInstance()
             .loadPage("/fxml/pages/SalesList.fxml");
 

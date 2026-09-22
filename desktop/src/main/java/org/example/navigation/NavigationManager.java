@@ -9,7 +9,7 @@ import javafx.scene.Scene;
 import javafx.stage.Window;
 import javafx.application.Platform;
 import org.example.util.ProfessionalUiEnhancer;
-import org.example.util.ModernDialog;
+import org.example.util.AppDialogService;
 import org.example.util.PerformanceMonitor;
 import org.example.util.ScreenRefreshPolicy;
 import org.example.util.PerformanceBudgets;
@@ -42,10 +42,24 @@ public class NavigationManager {
     private static final Map<String, CachedPage> pageCache = new LinkedHashMap<>(16, 0.75f, true);
     private static final int MAX_CACHED_PAGES = 16;
     private static final java.util.Set<String> NON_CACHEABLE = java.util.Set.of(
-        "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/QuotationEditor.fxml", "/fxml/pages/Registration.fxml",
-        "/fxml/pages/SetupWizard.fxml", "/fxml/pages/Import.fxml",
-        "/fxml/pages/EmailSettings.fxml", "/fxml/pages/PdfDesigner.fxml",
-        "/fxml/pages/ExcelDesigner.fxml"
+        "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/QuotationEditor.fxml",
+        "/fxml/pages/RecordPayment.fxml", "/fxml/pages/PurchasePayment.fxml", "/fxml/pages/ReturnRefund.fxml",
+        "/fxml/pages/PermissionMatrix.fxml", "/fxml/pages/Settings.fxml", "/fxml/pages/Profile.fxml",
+        "/fxml/pages/RoleManagement.fxml", "/fxml/pages/BackupRestore.fxml",
+        "/fxml/pages/Registration.fxml", "/fxml/pages/SetupWizard.fxml", "/fxml/pages/Import.fxml",
+        "/fxml/pages/EmailSettings.fxml", "/fxml/pages/PdfDesigner.fxml", "/fxml/pages/ExcelDesigner.fxml"
+    );
+    private static final java.util.Map<String,String> EDITABLE_PAGES = java.util.Map.ofEntries(
+        java.util.Map.entry("/fxml/pages/Sale.fxml", "Create Sale"),
+        java.util.Map.entry("/fxml/pages/Purchase.fxml", "Create Purchase"),
+        java.util.Map.entry("/fxml/pages/QuotationEditor.fxml", "Quotation Editor"),
+        java.util.Map.entry("/fxml/pages/RecordPayment.fxml", "Record Payment"),
+        java.util.Map.entry("/fxml/pages/PurchasePayment.fxml", "Purchase Payment"),
+        java.util.Map.entry("/fxml/pages/ReturnRefund.fxml", "Return Refund"),
+        java.util.Map.entry("/fxml/pages/PermissionMatrix.fxml", "Permission Matrix"),
+        java.util.Map.entry("/fxml/pages/Profile.fxml", "Profile"),
+        java.util.Map.entry("/fxml/pages/RoleManagement.fxml", "Role Management"),
+        java.util.Map.entry("/fxml/pages/BackupRestore.fxml", "Backup & Restore")
     );
 
     public NavigationManager(StackPane contentPane) {
@@ -160,7 +174,7 @@ public class NavigationManager {
             Platform.runLater(() -> loadPage(fxml));
             return true;
         }
-        if (!NavigationGuardRegistry.allow(fxml)) {
+        if (!UnsavedChangesManager.allowNavigation(fxml)) {
             logNavigationEvent("CANCELLED", fxml, "Blocked by active workflow guard");
             return false;
         }
@@ -242,6 +256,11 @@ public class NavigationManager {
             }
             currentCachedPage = cached;
             currentPage = fxml;
+            String editableScreen = EDITABLE_PAGES.get(fxml);
+            if (editableScreen != null) {
+                UnsavedChangesManager.Tracker tracker = UnsavedChangesManager.track(cached.node(), editableScreen);
+                Platform.runLater(tracker::resetBaseline);
+            }
             PerformanceMonitor.event("navigation-cache", fxml + " | " + (reused ? "hit" : "miss")
                 + " | size=" + pageCache.size());
             PerformanceMonitor.sampleGc("navigation:"+fxml);
@@ -251,7 +270,7 @@ public class NavigationManager {
             error.printStackTrace();
             logFailure(fxml, error);
             logNavigationEvent("FAILED", fxml, rootMessage(error));
-            ModernDialog.error(contentPane, "Screen could not be opened",
+            AppDialogService.error(contentPane, "Screen could not be opened",
                 "The ERP remains open", "Unable to open this screen.\n\n" + rootMessage(error));
             return false;
         } finally {
@@ -295,6 +314,10 @@ public class NavigationManager {
             reportNavigationFailure("The active ERP workspace could not be resolved. Please retry the action.");
             return false;
         }
+        if (!UnsavedChangesManager.allowNavigation(fxml)) {
+            logNavigationEvent("CANCELLED", fxml, "Prepared page blocked by active workflow guard");
+            return false;
+        }
         if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) {
             logNavigationEvent("DEFERRED", fxml, "Another navigation is in progress");
             Platform.runLater(() -> showPreparedPage(fxml, page, controller));
@@ -313,12 +336,17 @@ public class NavigationManager {
             notifyShown(controller, false);
             currentCachedPage = prepared;
             currentPage = fxml;
+            String editableScreen = EDITABLE_PAGES.get(fxml);
+            if (editableScreen != null) {
+                UnsavedChangesManager.Tracker tracker = UnsavedChangesManager.track(page, editableScreen);
+                Platform.runLater(tracker::resetBaseline);
+            }
             logNavigationEvent("SUCCESS", fxml, "prepared-page");
             return true;
         } catch (Throwable error) {
             logFailure(fxml, error);
             logNavigationEvent("FAILED", fxml, rootMessage(error));
-            ModernDialog.error(contentPane, "Screen could not be opened", "The ERP remains open",
+            AppDialogService.error(contentPane, "Screen could not be opened", "The ERP remains open",
                 "Unable to open this screen.\n\n" + rootMessage(error));
             return false;
         } finally {
@@ -430,7 +458,7 @@ public class NavigationManager {
     private void reportNavigationFailure(String message) {
         if (isPaneActive(contentPane)) {
             try {
-                ModernDialog.error(contentPane, "Navigation Error", "The ERP remains open", message);
+                AppDialogService.error(contentPane, "Navigation Error", "The ERP remains open", message);
                 return;
             } catch (Throwable ignored) {
                 // Fall through to the global owned alert.
@@ -443,7 +471,7 @@ public class NavigationManager {
         try {
             StackPane pane = findActiveContentPane();
             if (pane != null) {
-                ModernDialog.error(pane, "Navigation Error", "The ERP remains open", message);
+                AppDialogService.error(pane, "Navigation Error", "The ERP remains open", message);
                 return;
             }
             org.example.util.OwnedAlert alert = new org.example.util.OwnedAlert(

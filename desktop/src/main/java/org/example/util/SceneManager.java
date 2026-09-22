@@ -11,6 +11,7 @@ import org.example.service.BrandingService;
 import org.example.service.SessionActivityManager;
 import org.example.service.SessionService;
 import org.example.config.ConfigManager;
+import org.example.navigation.UnsavedChangesManager;
 
 import java.io.IOException;
 
@@ -131,6 +132,7 @@ public class SceneManager {
 
     private static void load(String fxml) {
 
+        if (primaryStage != null && primaryStage.isShowing() && !UnsavedChangesManager.allowNavigation(fxml)) return;
         try {
 
             System.out.println("Loading FXML: " + fxml);
@@ -159,6 +161,13 @@ public class SceneManager {
 
             PlatformUiSupport.installResponsiveClasses(scene);
             primaryStage.setScene(scene);
+            if ("/fxml/pages/Registration.fxml".equals(fxml)) {
+                var tracker = UnsavedChangesManager.track(root, "Registration");
+                javafx.application.Platform.runLater(tracker::resetBaseline);
+            } else if ("/fxml/pages/EmailSettings.fxml".equals(fxml)) {
+                var tracker = UnsavedChangesManager.track(root, "Email / OTP Settings");
+                javafx.application.Platform.runLater(tracker::resetBaseline);
+            }
             if (SessionService.current() != null && "/fxml/pages/Dashboard.fxml".equals(fxml)) SessionActivityManager.install(scene);
             else if (SessionService.current() == null) SessionActivityManager.stop();
             if (!"/fxml/pages/Splash.fxml".equals(fxml)) {
