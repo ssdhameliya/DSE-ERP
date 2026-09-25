@@ -24,11 +24,13 @@ import org.example.controller.DashboardController;
 import org.example.documentstudio.model.*;
 import org.example.documentstudio.service.*;
 import org.example.documentstudio.util.PdfPreviewSupport;
+import org.example.documentstudio.view.PdfMappingReviewWorkspace;
 import org.example.navigation.ScreenLifecycle;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
 import org.example.util.AppDialogService;
 
+import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -63,7 +65,8 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private Button btnDesignMode, btnDataPreviewMode, btnFinalMode, btnPublish, btnSaveDefault, btnPublishDefault, btnFixNext, btnMapSelectedField;
     @FXML private ToggleButton tglRequired, tglAll, tglMapped;
     @FXML private ComboBox<DocumentSample> cmbSampleDocument;
-    @FXML private ComboBox<String> cmbFontFamily, cmbTextFit, cmbTextAlignment, cmbImageFit, cmbPageRule;
+    @FXML private ComboBox<String> cmbFontFamily, cmbTextFit, cmbTextAlignment, cmbImageFit, cmbPageRule,
+            cmbFlowAnchorMode, cmbGrowthDirection, cmbOverflowPolicy;
     @FXML private TextField txtFieldSearch, txtInspectorFieldSearch;
     @FXML private ListView<TemplateFieldDefinition> lstFields, lstInspectorFieldSuggestions;
     @FXML private ListView<TemplateRequirementState> lstRequirements;
@@ -79,7 +82,8 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private TextArea txtContent;
     @FXML private TextField txtFontSize, txtLineSpacing, txtX, txtY, txtWidth, txtHeight, txtRotation, txtOpacity,
             txtStrokeWidth, txtRadius, txtPadTop, txtPadRight, txtPadBottom, txtPadLeft,
-            txtTableColumns, txtRowHeight, txtHeaderHeight;
+            txtTableColumns, txtRowHeight, txtHeaderHeight, txtFlowAnchorId, txtFlowGap, txtFlowGroupId, txtFlowRole;
+    @FXML private CheckBox chkAutoHeight;
     @FXML private VBox textSection, imageSection, repeaterSection;
     @FXML private TabPane leftTabs;
 
@@ -97,9 +101,13 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private final LinkedHashSet<String> selectedIds = new LinkedHashSet<>();
     private PdfTextRegion selectedSourceText;
+    /** Visual sub-region selected inside a source text line (for example only the GSTIN value after the fixed label). */
+    private PdfTextRegion selectedSourceTextHit;
+    private PdfFormFieldRegion selectedSourceForm;
     private PdfImageRegion selectedSourceImage;
     private PdfImageExtractionService.VectorRegion selectedSourceVector;
     private final Map<Integer,List<PdfTextRegion>> textCache = new HashMap<>();
+    private final Map<Integer,List<PdfFormFieldRegion>> formCache = new HashMap<>();
     private final Map<Integer,List<PdfImageRegion>> imageCache = new HashMap<>();
     private final Map<Integer,List<PdfImageExtractionService.VectorRegion>> vectorCache = new HashMap<>();
     private final Map<Integer,Image> sourcePageImages = new HashMap<>();
@@ -212,11 +220,17 @@ public class PdfStudioController implements ScreenLifecycle {
         cmbTextAlignment.setItems(FXCollections.observableArrayList("LEFT", "CENTER", "RIGHT"));
         cmbImageFit.setItems(FXCollections.observableArrayList("FIT", "FILL", "STRETCH"));
         cmbPageRule.setItems(FXCollections.observableArrayList("AUTO", "FIXED", "FIRST", "EVERY", "CONTINUATION", "LAST"));
+        cmbFlowAnchorMode.setItems(FXCollections.observableArrayList("ABSOLUTE", "TOP", "BOTTOM", "AFTER", "BEFORE"));
+        cmbGrowthDirection.setItems(FXCollections.observableArrayList("FIXED", "DOWN", "UP", "BOTH"));
+        cmbOverflowPolicy.setItems(FXCollections.observableArrayList("ERROR", "PAGINATE", "SHRINK", "CLIP"));
         cmbFontFamily.getSelectionModel().select("HELVETICA");
         cmbTextFit.getSelectionModel().select("SHRINK");
         cmbTextAlignment.getSelectionModel().select("LEFT");
         cmbImageFit.getSelectionModel().select("FIT");
         cmbPageRule.getSelectionModel().select("AUTO");
+        cmbFlowAnchorMode.getSelectionModel().select("ABSOLUTE");
+        cmbGrowthDirection.getSelectionModel().select("FIXED");
+        cmbOverflowPolicy.getSelectionModel().select("ERROR");
         clearInspector();
     }
 
@@ -322,8 +336,8 @@ public class PdfStudioController implements ScreenLifecycle {
         if (btnMapSelectedField == null) return;
         TemplateFieldDefinition field = lstInspectorFieldSuggestions == null ? null : lstInspectorFieldSuggestions.getSelectionModel().getSelectedItem();
         TemplateElement selected = selectedElement();
-        boolean textTarget = selectedSourceText != null || (selected != null && isTextLike(selected));
-        boolean imageTarget = selectedSourceImage != null || (selected != null && isImageLike(selected));
+        boolean textTarget = selectedSourceText != null || selectedSourceForm != null || (selected != null && isTextLike(selected));
+        boolean imageTarget = selectedSourceImage != null || selectedSourceVector != null || (selected != null && isImageLike(selected));
         boolean compatibleTarget = field != null && (field.image() ? imageTarget : textTarget);
         boolean enabled = !previewMode && compatibleTarget;
         btnMapSelectedField.setDisable(!enabled);
@@ -378,7 +392,10 @@ public class PdfStudioController implements ScreenLifecycle {
         if (lblIssueBar != null) lblIssueBar.setText(result.readyForDefault()
                 ? (result.warningCount() == 0 ? "Template mapping is ready" : result.warningCount() + " warning(s) to review")
                 : result.errorCount() + " required issue(s) must be fixed before Publish / Default");
-        if (btnFixNext != null) btnFixNext.setDisable(result.readyForDefault());
+        if (btnFixNext != null) {
+            btnFixNext.setDisable(result.issues().isEmpty());
+            btnFixNext.setText(result.readyForDefault() && result.warningCount() > 0 ? "Fix Next Issue" : "Fix Next Required");
+        }
         refreshFieldList(txtFieldSearch == null ? "" : txtFieldSearch.getText());
     }
 
@@ -413,20 +430,198 @@ public class PdfStudioController implements ScreenLifecycle {
         TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
         Optional<TemplateRequirementState> missing = result.requirements().stream()
                 .filter(s -> s.requirement().level() == TemplateMappingRequirement.Level.REQUIRED && !s.satisfied()).findFirst();
-        if (missing.isEmpty()) { reviewIssues(); return; }
-        if (tglRequired != null) tglRequired.setSelected(true);
-        refreshRequirementUi();
-        lstRequirements.getItems().stream().filter(s -> s.requirement().id().equals(missing.get().requirement().id()))
-                .findFirst().ifPresent(s -> lstRequirements.getSelectionModel().select(s));
-        focusSelectedRequirement();
+        if (missing.isPresent()) {
+            if (tglRequired != null) tglRequired.setSelected(true);
+            refreshRequirementUi();
+            lstRequirements.getItems().stream().filter(s -> s.requirement().id().equals(missing.get().requirement().id()))
+                    .findFirst().ifPresent(s -> lstRequirements.getSelectionModel().select(s));
+            focusSelectedRequirement();
+            return;
+        }
+        if (focusFirstActionableIssue(result)) return;
+        reviewIssues();
     }
 
     private void focusSelectedRequirement() {
         TemplateMappingRequirement requirement = selectedRequirement();
         if (requirement == null) return;
-        if (txtFieldSearch != null) { txtFieldSearch.clear(); txtFieldSearch.requestFocus(); }
-        refreshFieldList("");
-        if (!lstFields.getItems().isEmpty()) lstFields.getSelectionModel().selectFirst();
+        TemplateFieldDefinition preferred = requirement.acceptedFields().stream()
+                .map(key -> TemplateFieldCatalog.findPdf(template.getDocumentType(), key))
+                .filter(Objects::nonNull)
+                .findFirst().orElse(null);
+        String query = preferred == null ? requirement.label() : preferred.label();
+        if (txtFieldSearch != null) {
+            txtFieldSearch.setText(query);
+            txtFieldSearch.requestFocus();
+        }
+        refreshFieldList(query);
+        if (preferred != null) {
+            lstFields.getItems().stream().filter(f -> preferred.key().equals(f.key())).findFirst()
+                    .ifPresent(f -> lstFields.getSelectionModel().select(f));
+        } else if (!lstFields.getItems().isEmpty()) {
+            lstFields.getSelectionModel().selectFirst();
+        }
+        if (lblInspectorHint != null) {
+            String suggested = preferred == null ? requirement.label() : preferred.label() + " (" + preferred.key() + ")";
+            lblInspectorHint.setText("Next required mapping: " + requirement.label() + ". Suggested ERP field: " + suggested
+                    + ". Click the matching printed PDF value, then click Map. The field list has been filtered for you.");
+        }
+    }
+
+    private boolean focusFirstActionableIssue(TemplateMappingValidationService.Result result) {
+        if (result == null) return false;
+        // Required errors remain first priority, but actionable warnings must not become dead-end
+        // information dialogs once all required mappings are complete.
+        for (boolean errorsFirst : new boolean[]{true, false}) {
+            for (TemplateValidationIssue issue : result.issues()) {
+                if (issue.error() != errorsFirst) continue;
+                if ("ITEM_HEADER_MAPPING".equals(issue.requirementId())) {
+                    if (focusFirstUnmappedItemHeader()) return true;
+                }
+                if ("ITEM_TABLE_PAGE_FLOW".equals(issue.requirementId())) {
+                    Optional<TemplateElement> table = template.getElements().stream()
+                            .filter(e -> e != null && e.getType() == ElementType.ITEM_TABLE && PdfStyleResolver.effectivelyVisible(template, e))
+                            .findFirst();
+                    if (table.isPresent()) {
+                        selectOnlyWithoutRender(table.get());
+                        populateInspector(table.get());
+                        renderCanvas();
+                        if (lblInspectorHint != null) lblInspectorHint.setText(
+                                "Item Table flow capacity needs attention. PDF Studio has selected the table for you. "
+                                        + "Increase the table body area or reduce Row Height, then use Preview with Selected Record. "
+                                        + "FLOW_FIXED templates are validated against the same usable closing region as runtime.");
+                        return true;
+                    }
+                }
+                if (issue.requirementId()!=null && issue.requirementId().startsWith("MULTILINE_")) {
+                    Optional<TemplateElement> flowField = template.getElements().stream()
+                            .filter(e -> e != null && PdfStyleResolver.effectivelyVisible(template, e))
+                            .filter(e -> {
+                                TemplateFieldDefinition def=pdfField(e.getFieldKey());
+                                return def!=null&&def.multiline();
+                            }).findFirst();
+                    if (flowField.isPresent()) {
+                        selectOnlyWithoutRender(flowField.get());
+                        populateInspector(flowField.get());
+                        renderCanvas();
+                        if (lblInspectorHint != null) lblInspectorHint.setText(
+                                "Multiline flow needs review. PDF Studio selected the detected flow field. "
+                                        + "Review Mapping shows Wrap, Auto Height, Grow direction and its source block before publishing.");
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean focusFirstUnmappedItemHeader() {
+        for (TemplateElement table : template.getElements()) {
+            if (table == null || table.getType() != ElementType.ITEM_TABLE || !PdfStyleResolver.effectivelyVisible(template, table)) continue;
+            List<TemplateColumnBinding> bindings = table.getTableColumnBindings();
+            for (int i = 0; i < bindings.size(); i++) {
+                TemplateColumnBinding binding = bindings.get(i);
+                if (binding != null && !ManualTemplateMappingService.normalizeItemColumn(binding.getFieldKey()).isBlank()) continue;
+                String label = binding == null ? "" : binding.getSourceLabel();
+                String suggestedKey = suggestedItemFieldForHeader(label);
+                TemplateFieldDefinition suggested = suggestedKey.isBlank() ? null : TemplateFieldCatalog.findPdf(template.getDocumentType(), suggestedKey);
+                selectOnlyWithoutRender(table);
+                populateInspector(table);
+                renderCanvas();
+                if (txtFieldSearch != null) {
+                    String query = suggested == null ? label : suggested.label();
+                    txtFieldSearch.setText(query == null ? "" : query);
+                    refreshFieldList(txtFieldSearch.getText());
+                    if (suggested != null) {
+                        lstFields.getItems().stream().filter(f -> suggested.key().equals(f.key())).findFirst()
+                                .ifPresent(f -> lstFields.getSelectionModel().select(f));
+                    }
+                }
+                if (lblInspectorHint != null) {
+                    lblInspectorHint.setText("Unmapped Item header: “" + (label == null || label.isBlank() ? "column " + (i + 1) : label) + "”. "
+                            + (suggested == null ? "Choose the matching item.* ERP field" : "Suggested ERP field: " + suggested.label() + " (" + suggested.key() + ")")
+                            + ", then drag it onto that physical header cell. You do not map item rows individually.");
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String suggestedItemFieldForHeader(String sourceLabel) {
+        String n = sourceLabel == null ? "" : sourceLabel.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+        return switch (n) {
+            case "sr. no.", "sr no", "serial", "#" -> "item.serial";
+            case "hsn code", "hsn", "hsn/sac", "hsn / sac" -> "item.hsn";
+            case "product description", "description", "particulars", "item description" -> "item.descriptionWithRemarks";
+            case "qty", "quantity", "nos", "nos." -> "item.quantity";
+            case "unit rate", "rate", "unit price", "price" -> "item.rate";
+            case "unit", "uom" -> "item.unit";
+            case "amount (inr)", "amount", "taxable", "net value" -> "item.taxable";
+            default -> "";
+        };
+    }
+
+
+    @FXML private void reviewMapping() {
+        showMappingReview(null, null, buildDetectedReviewBlocks(currentMappingAnalysis, false));
+    }
+
+    private boolean showMappingReview(PdfMappingReviewSession.Section initialSection, List<TemplateElement> rollbackSnapshot) {
+        return showMappingReview(initialSection, rollbackSnapshot, List.of());
+    }
+
+    private boolean showMappingReview(PdfMappingReviewSession.Section initialSection, List<TemplateElement> rollbackSnapshot,
+                                      List<PdfMappingReviewSession.DetectedBlock> detectedBlocks) {
+        if (template == null || previewMode) return false;
+        PdfMappingReviewSession session = PdfMappingReviewSession.from(template, detectedBlocks, detectFinancialReviewRoles());
+        if (session.entries().isEmpty()) {
+            AppDialogService.info(root, "Nothing to review", "Review Auto Mapping",
+                    "No detected or mapped ERP values are available yet. Choose a real Preview Record, run Auto Map, Detect Item Headers, or map a printed value first.");
+            return false;
+        }
+        PdfMappingReviewWorkspace workspace = new PdfMappingReviewWorkspace(session, initialSection);
+        ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType save = new ButtonType("Save Mapping", ButtonBar.ButtonData.OK_DONE);
+        Optional<ButtonType> result = AppDialogService.workspace(root, "mapping", "Review Auto Mapping",
+                "Review detected ERP mappings",
+                "Auto detection is a suggestion layer. Confirm, change, keep static or reset mappings here; source PDF geometry stays protected.",
+                workspace, 1180, 760, cancel, save);
+        if (result.isPresent() && result.get().equals(save)) {
+            Map<String,String> beforeFields = template.getElements().stream().filter(Objects::nonNull)
+                    .collect(Collectors.toMap(TemplateElement::getId, TemplateElement::getFieldKey, (a,b)->a, LinkedHashMap::new));
+            checkpoint();
+            session.commit();
+            materializePendingReviewEntries(session.pendingEntries());
+            // If a reviewed scalar field changed semantic meaning, rebuild its protected source-value
+            // geometry (e.g. Billing Address becomes multiline) without changing the source artwork.
+            List<PdfTextRegion> allText = null;
+            for (TemplateElement element : new ArrayList<>(template.getElements())) {
+                if (element == null || element.getFieldKey().isBlank() || element.getReplacementSourceKey().isBlank()) continue;
+                String before = beforeFields.getOrDefault(element.getId(), "");
+                if (Objects.equals(before, element.getFieldKey())) continue;
+                if (!(element.getType()==ElementType.TEXT || element.getType()==ElementType.FIELD)) continue;
+                if (allText == null) allText = extractAllText();
+                PdfTextRegion source = allText.stream().filter(r -> sourceKey(r).equals(element.getReplacementSourceKey())).findFirst().orElse(null);
+                if (source != null) remapSourceTextGeometry(element, source, element.getFieldKey());
+            }
+            autosave(); refreshRequirementUi(); refreshLayers(); renderCanvas(); analyzeMapping(false);
+            if (lblSaveState != null) lblSaveState.setText("Reviewed mapping saved ✓");
+            if (lblInspectorHint != null) lblInspectorHint.setText("Review Mapping saved. Confirmed/manual mappings are preserved if Auto Detect runs again.");
+            return true;
+        }
+        if (rollbackSnapshot != null) {
+            template.setElements(rollbackSnapshot.stream().map(TemplateElement::snapshotCopy).collect(Collectors.toCollection(ArrayList::new)));
+            autosave(); refreshRequirementUi(); refreshLayers(); renderCanvas(); analyzeMapping(false);
+            if (lblSaveState != null) lblSaveState.setText("Auto-detection review cancelled — previous mapping restored");
+        }
+        return false;
+    }
+
+    private List<TemplateElement> snapshotElements() {
+        if (template == null) return List.of();
+        return template.getElements().stream().filter(Objects::nonNull).map(TemplateElement::snapshotCopy)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @FXML private void reviewIssues() {
@@ -437,7 +632,14 @@ public class PdfStudioController implements ScreenLifecycle {
         }
         String body = result.issues().stream().map(issue ->
                 (issue.error() ? "ERROR — " : "WARNING — ") + issue.userMessage()).collect(Collectors.joining("\n\n"));
-        AppDialogService.info(root, "Template issues", "PDF Studio", body);
+        if (result.errorCount() == 0) {
+            boolean fix = AppDialogService.warningConfirm(root, "Template issues", "PDF Studio",
+                    body + "\n\nChoose Fix Next Issue and PDF Studio will take you to the affected mapping/layout control.",
+                    "Fix Next Issue", "Close");
+            if (fix) focusFirstActionableIssue(result);
+        } else {
+            AppDialogService.error(root, "Template issues", "PDF Studio", body);
+        }
     }
 
     @FXML private void applySuggestedBinding() {
@@ -449,20 +651,27 @@ public class PdfStudioController implements ScreenLifecycle {
         selectedBindingKey = field.key();
         TemplateMappingValidationService.Result before = TemplateMappingValidationService.evaluate(template);
         PdfTextRegion mappedSourceText = selectedSourceText;
-        TemplateElement e = editableSelectionFromSource();
+        PdfFormFieldRegion mappedSourceForm = selectedSourceForm;
+        PdfImageExtractionService.VectorRegion mappedSourceVector = selectedSourceVector;
+        TemplateElement e;
+        if(field.image() && mappedSourceVector!=null){
+            checkpoint();
+            e=mapSourceVectorToImageField(mappedSourceVector,field);
+        }else e = editableSelectionFromSource();
         boolean compatible = e != null && (field.image() ? isImageLike(e) : isTextLike(e));
         if (!compatible) {
             if (lblInspectorHint != null) {
                 lblInspectorHint.setText(field.image()
-                        ? "Click the PDF image you want to replace, then choose an ERP image field such as Authorized Signature or UPI Payment QR."
+                        ? "Click the PDF image or signature/vector artwork you want to replace, then choose an ERP image field such as Authorized Signature or UPI Payment QR."
                         : "Click the PDF text you want to replace, then choose an ERP field. The Map button will enable when both are selected.");
             }
             updateManualMappingState();
             return;
         }
-        checkpoint();
+        if(!(field.image() && mappedSourceVector!=null)) checkpoint();
         ManualTemplateMappingService.mapField(e, field);
         if (mappedSourceText != null && !field.image()) remapSourceTextGeometry(e, mappedSourceText, field.key());
+        if (mappedSourceForm != null && !field.image()) configureFlowIdentity(e, field.key());
         autosave();
         TemplateMappingValidationService.Result after = TemplateMappingValidationService.evaluate(template);
         populateInspector(e);
@@ -608,6 +817,9 @@ public class PdfStudioController implements ScreenLifecycle {
         cmbTextAlignment.setOnAction(e -> applyInspectorSilently());
         cmbImageFit.setOnAction(e -> applyInspectorSilently());
         cmbPageRule.setOnAction(e -> applyInspectorSilently());
+        cmbGrowthDirection.setOnAction(e -> applyInspectorSilently());
+        cmbOverflowPolicy.setOnAction(e -> applyInspectorSilently());
+        chkAutoHeight.setOnAction(e -> applyInspectorSilently());
         colorText.setOnAction(e -> applyInspectorSilently());
         colorFill.setOnAction(e -> applyInspectorSilently());
         colorStroke.setOnAction(e -> applyInspectorSilently());
@@ -710,7 +922,7 @@ public class PdfStudioController implements ScreenLifecycle {
         }).thenAccept(analysis -> Platform.runLater(() -> {
             currentMappingAnalysis = analysis;
             updateMappingUi(analysis);
-            if (allowAutoApply && shouldApplyInitialAutoMap(analysis)) applyAutoMappings(analysis, true);
+            if (allowAutoApply && shouldApplyInitialAutoMap(analysis)) applyAutoMappings(analysis, true, false);
         }));
     }
 
@@ -731,34 +943,288 @@ public class PdfStudioController implements ScreenLifecycle {
             AppDialogService.info(root, "Mapping analyzed", "Auto Map", "No mappable printed ERP values or repeating item/charge regions were found yet. Choose a real preview record and run Auto Map again.");
             return;
         }
-        applyAutoMappings(currentMappingAnalysis, false);
+        List<TemplateElement> reviewRollback = snapshotElements();
+        List<PdfMappingReviewSession.DetectedBlock> detectedBlocks = buildDetectedReviewBlocks(currentMappingAnalysis, false);
+        // Structural repeaters need to exist for review because their geometry is a real template object.
+        // Scalar detections stay detached until Save Mapping.
+        applyAutoMappings(currentMappingAnalysis, false, false);
+        showMappingReview(null, reviewRollback, detectedBlocks);
     }
 
     private void applyAutoMappings(PdfAutoMappingService.Analysis analysis, boolean highOnly) {
+        applyAutoMappings(analysis, highOnly, true);
+    }
+
+    private void applyAutoMappings(PdfAutoMappingService.Analysis analysis, boolean highOnly, boolean includeScalarMappings) {
         List<PdfAutoMappingService.Mapping> mappings = analysis.mappings().stream()
                 .filter(m -> !highOnly || m.confidence() >= .90)
                 .filter(m -> !hasReplacementFor(sourceKey(m.region())))
+                .filter(m -> !isDynamicFinancialMapping(m.fieldKey()))
                 .toList();
         List<TemplateElement> list = new ArrayList<>(template.getElements());
         boolean itemRepeaterAdded = wouldAddItemRepeater(list);
         boolean chargeRepeaterAdded = wouldAddChargeRepeater(list);
-        if (mappings.isEmpty() && !itemRepeaterAdded && !chargeRepeaterAdded) return;
+        if ((mappings.isEmpty() || !includeScalarMappings) && !itemRepeaterAdded && !chargeRepeaterAdded) return;
 
         checkpoint();
-        for (PdfAutoMappingService.Mapping mapping : mappings) {
-            addSourceTextReplacement(list, mapping.region(), mapping.expression(), mapping.fieldKey());
+        if (includeScalarMappings) for (PdfAutoMappingService.Mapping mapping : mappings) {
+            TemplateElement mapped = addSourceTextReplacement(list, mapping.region(), mapping.expression(), mapping.fieldKey());
+            mapped.markAutoDetectedMapping(mapping.region().text(), mapping.fieldKey(), mapping.confidence());
         }
         itemRepeaterAdded = autoCreateItemRepeaterIfDetected(list);
         chargeRepeaterAdded = autoCreateChargeRepeaterIfDetected(list);
+        assignDetectedReviewBlocks(list);
         template.setElements(list);
         autosave();
         renderCanvas();
         updateMappingUi(analysis);
         List<String> summary = new ArrayList<>();
-        if (!mappings.isEmpty()) summary.add(mappings.size() + " field" + (mappings.size() == 1 ? "" : "s"));
+        if (includeScalarMappings && !mappings.isEmpty()) summary.add(mappings.size() + " field" + (mappings.size() == 1 ? "" : "s"));
         if (itemRepeaterAdded) summary.add("item repeater");
         if (chargeRepeaterAdded) summary.add("charge repeater");
         lblSaveState.setText("Auto mapped " + String.join(" + ", summary) + " ✓");
+    }
+
+
+    /**
+     * Converts reviewed-but-uncommitted source detections into real template elements only after the
+     * user chooses Save Mapping. This is deliberately one generic materialization path for every
+     * scalar/label-value block; adding a future Export/XYZ block never needs another controller.
+     */
+    private void materializePendingReviewEntries(List<PdfMappingReviewSession.Entry> pendingEntries) {
+        if (pendingEntries == null || pendingEntries.isEmpty()) return;
+        List<TemplateElement> list = new ArrayList<>(template.getElements());
+        Set<String> materializedSourceKeys = list.stream().filter(Objects::nonNull)
+                .map(TemplateElement::getReplacementSourceKey).filter(v -> v != null && !v.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        for (PdfMappingReviewSession.Entry entry : pendingEntries) {
+            if (entry == null || entry.detectedRegion() == null) continue;
+            if (entry.fieldKey().isBlank() || "STATIC".equals(entry.state()) || "UNMAPPED".equals(entry.state())) continue;
+            if (!entry.detectedSourceKey().isBlank() && materializedSourceKeys.contains(entry.detectedSourceKey())) continue;
+            String expression = entry.detectedExpression();
+            if (expression == null || expression.isBlank() || !Objects.equals(entry.fieldKey(), entry.autoFieldKey())) {
+                expression = "{{" + entry.fieldKey() + "}}";
+            }
+            TemplateElement mapped = addSourceTextReplacement(list, entry.detectedRegion(), expression, entry.fieldKey());
+            mapped.markAutoDetectedMapping(entry.sourceLabel().isBlank() ? entry.sourceValue() : entry.sourceLabel(),
+                    entry.autoFieldKey(), entry.confidence());
+            mapped.setMappingState(entry.state());
+            mapped.setMappingBlockId(entry.blockId());
+            mapped.setMappingBlockLabel(entry.blockLabel());
+            mapped.setMappingBlockType(reviewBlockType(entry.section()));
+            TemplateFieldDefinition definition = pdfField(entry.fieldKey());
+            if (definition != null) ManualTemplateMappingService.applyDetectedFlowBlock(mapped, definition, entry.blockId());
+            if (!entry.detectedSourceKey().isBlank()) materializedSourceKeys.add(entry.detectedSourceKey());
+        }
+        assignDetectedReviewBlocks(list);
+        template.setElements(list);
+    }
+
+    /** Build a detached source model from Auto Map candidates before scalar TemplateElements exist. */
+    private List<PdfMappingReviewSession.DetectedBlock> buildDetectedReviewBlocks(PdfAutoMappingService.Analysis analysis, boolean highOnly) {
+        if (analysis == null || template == null) return List.of();
+        List<PdfTextRegion> allText = extractAllText();
+        List<PdfAutoMappingService.SourceCandidate> candidates = PdfAutoMappingService.detectReviewCandidates(
+                        template.getDocumentType(), allText, currentPreviewData, analysis.mappings()).stream()
+                .filter(Objects::nonNull).filter(c -> c.region() != null)
+                .filter(c -> !highOnly || c.confidence() >= .90)
+                .filter(c -> !hasReplacementFor(sourceKey(c.region())))
+                .filter(c -> !isDynamicFinancialMapping(c.suggestedField()))
+                .filter(c -> c.suggestedField().isBlank()
+                        || (!c.suggestedField().startsWith("item.") && !c.suggestedField().startsWith("charge.")))
+                .toList();
+        if (candidates.isEmpty()) return List.of();
+
+        Map<String,List<PdfAutoMappingService.SourceCandidate>> groups = new LinkedHashMap<>();
+        List<PdfAutoMappingService.SourceCandidate> loose = new ArrayList<>();
+        for (PdfAutoMappingService.SourceCandidate candidate : candidates) {
+            String flow = sourceFlowGroup(candidate.region());
+            if (flow.isBlank()) loose.add(candidate);
+            else groups.computeIfAbsent(flow, k -> new ArrayList<>()).add(candidate);
+        }
+
+        // Borderless blocks are grouped by actual proximity. This is structural and has no fixed
+        // 10/20-field business cap; a large non-repeating block remains a block.
+        loose.sort(Comparator.comparingInt((PdfAutoMappingService.SourceCandidate c) -> c.region().pageIndex())
+                .thenComparingDouble(c -> c.region().y()).thenComparingDouble(c -> c.region().x()));
+        int cluster = 0;
+        List<PdfAutoMappingService.SourceCandidate> current = new ArrayList<>();
+        double clusterMinX = 0, clusterMaxX = 0, clusterBottom = 0;
+        int clusterPage = -1;
+        for (PdfAutoMappingService.SourceCandidate candidate : loose) {
+            PdfTextRegion r = candidate.region();
+            boolean samePage = clusterPage == r.pageIndex();
+            double horizontalGap = current.isEmpty() ? 0 : Math.max(0,
+                    Math.max(clusterMinX, r.x()) - Math.min(clusterMaxX, r.x() + r.width()));
+            double verticalGap = current.isEmpty() ? 0 : r.y() - clusterBottom;
+            boolean nearby = samePage && verticalGap <= Math.max(55, r.height() * 4.0) && horizontalGap <= 110;
+            if (!current.isEmpty() && !nearby) {
+                groups.put("PROX|" + clusterPage + "|" + cluster++, new ArrayList<>(current));
+                current.clear();
+            }
+            if (current.isEmpty()) {
+                clusterPage = r.pageIndex(); clusterMinX = r.x(); clusterMaxX = r.x() + r.width();
+                clusterBottom = r.y() + r.height();
+            } else {
+                clusterMinX = Math.min(clusterMinX, r.x()); clusterMaxX = Math.max(clusterMaxX, r.x() + r.width());
+                clusterBottom = Math.max(clusterBottom, r.y() + r.height());
+            }
+            current.add(candidate);
+        }
+        if (!current.isEmpty()) groups.put("PROX|" + clusterPage + "|" + cluster, new ArrayList<>(current));
+
+        List<PdfMappingReviewSession.DetectedBlock> blocks = new ArrayList<>();
+        int blockSequence = 0;
+        for (var grouped : groups.entrySet()) {
+            List<PdfAutoMappingService.SourceCandidate> values = grouped.getValue();
+            if (values.isEmpty()) continue;
+            Set<String> types = values.stream().map(c -> reviewBlockType(c.suggestedField(), c.sourceLabel()))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            String type;
+            if (types.size() == 1) type = types.iterator().next();
+            else if (types.stream().allMatch(v -> v.equals("BILLING") || v.equals("DELIVERY")))
+                type = types.contains("DELIVERY") ? "DELIVERY" : "BILLING";
+            else if (types.contains("TRANSPORT") && types.stream().allMatch(v -> v.equals("TRANSPORT") || v.equals("HEADER")))
+                type = "TRANSPORT";
+            else type = "GENERIC";
+
+            List<PdfTextRegion> regions = values.stream().map(PdfAutoMappingService.SourceCandidate::region).toList();
+            String heading = "GENERIC".equals(type) ? inferSourceRegionBlockHeading(regions, allText) : reviewBlockLabel(type);
+            if (heading == null || heading.isBlank()) heading = "Detected Source Block";
+            int page = regions.getFirst().pageIndex();
+            double minX = regions.stream().mapToDouble(PdfTextRegion::x).min().orElse(0);
+            double minY = regions.stream().mapToDouble(PdfTextRegion::y).min().orElse(0);
+            double maxX = regions.stream().mapToDouble(r -> r.x() + r.width()).max().orElse(minX);
+            double maxY = regions.stream().mapToDouble(r -> r.y() + r.height()).max().orElse(minY);
+            String blockId = "DETECTED|" + page + "|" + blockSequence++ + "|" + normalizeDetectedHeading(heading);
+            List<PdfMappingReviewSession.DetectedBlockEntry> entries = new ArrayList<>();
+            int entryIndex = 0;
+            for (PdfAutoMappingService.SourceCandidate candidate : values) {
+                PdfTextRegion r = candidate.region();
+                String label = candidate.sourceLabel().isBlank()
+                        ? inferDetectedSourceLabel(r, candidate.suggestedField(), allText) : candidate.sourceLabel();
+                entries.add(new PdfMappingReviewSession.DetectedBlockEntry(
+                        blockId + "|" + entryIndex++, label, candidate.sourceValue(), candidate.suggestedField(),
+                        candidate.confidence(), r, candidate.expression(), sourceKey(r)));
+            }
+            blocks.add(new PdfMappingReviewSession.DetectedBlock(blockId, heading, type, page, minX, minY,
+                    Math.max(1, maxX - minX), Math.max(1, maxY - minY), entries));
+        }
+        return List.copyOf(blocks);
+    }
+
+    private String inferDetectedSourceLabel(PdfTextRegion value, String fieldKey, List<PdfTextRegion> allText) {
+        if (value == null) return "Detected PDF value";
+        List<PdfTextRegion> page = allText == null ? List.of() : allText.stream()
+                .filter(Objects::nonNull).filter(r -> r.pageIndex() == value.pageIndex())
+                .filter(r -> !sourceKey(r).equals(sourceKey(value))).toList();
+        double valueMidY = value.y() + value.height() / 2.0;
+        Optional<PdfTextRegion> left = page.stream().filter(r -> r.x() + r.width() <= value.x() + 8)
+                .filter(r -> Math.abs((r.y() + r.height() / 2.0) - valueMidY) <= Math.max(9, value.height()))
+                .filter(r -> usableDetectedLabel(r.text()))
+                .min(Comparator.comparingDouble(r -> value.x() - (r.x() + r.width())));
+        if (left.isPresent()) return cleanDetectedLabel(left.get().text());
+        Optional<PdfTextRegion> above = page.stream().filter(r -> r.y() + r.height() <= value.y() + 5)
+                .filter(r -> value.y() - (r.y() + r.height()) <= 42)
+                .filter(r -> rangesOverlap(value.x(), value.x() + value.width(), r.x(), r.x() + r.width(), 8))
+                .filter(r -> usableDetectedLabel(r.text()))
+                .min(Comparator.comparingDouble(r -> value.y() - (r.y() + r.height())));
+        if (above.isPresent()) return cleanDetectedLabel(above.get().text());
+        TemplateFieldDefinition def = TemplateFieldCatalog.findPdf(template.getDocumentType(), fieldKey);
+        return def == null ? cleanDetectedLabel(value.text()) : def.label();
+    }
+
+    private boolean usableDetectedLabel(String text) {
+        String t = text == null ? "" : text.trim();
+        if (t.length() < 2 || t.length() > 80) return false;
+        String normalized = PdfAutoMappingService.normalize(t);
+        if (normalized.isBlank()) return false;
+        return !t.matches("[₹$€£]?\\s*[0-9,./:%+\\-() ]+");
+    }
+
+    private String cleanDetectedLabel(String text) {
+        if (text == null) return "";
+        return text.trim().replaceAll("\\s*[:\\-–—]+\\s*$", "").trim();
+    }
+
+    private boolean rangesOverlap(double a1, double a2, double b1, double b2, double tolerance) {
+        return Math.min(a2, b2) - Math.max(a1, b1) >= -Math.max(0, tolerance);
+    }
+
+    private String normalizeDetectedHeading(String text) {
+        String n = text == null ? "" : text.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_").replaceAll("^_+|_+$", "");
+        return n.isBlank() ? "BLOCK" : n;
+    }
+
+    private String reviewBlockType(PdfMappingReviewSession.Section section) {
+        if (section == null) return "HEADER";
+        return switch (section) {
+            case BILLING -> "BILLING"; case DELIVERY -> "DELIVERY"; case TRANSPORT -> "TRANSPORT";
+            case PAYMENT -> "PAYMENT"; case TERMS_FOOTER -> "TERMS_FOOTER"; case DETECTED_BLOCKS -> "GENERIC";
+            case ITEMS -> "ITEMS"; case FINANCIAL -> "FINANCIAL"; default -> "HEADER";
+        };
+    }
+
+    private boolean isDynamicFinancialMapping(String fieldKey) {
+        String k = fieldKey == null ? "" : fieldKey.toLowerCase(Locale.ROOT);
+        return k.startsWith("totals.") || k.startsWith("tax.") || k.startsWith("charge.");
+    }
+
+    /** Detect the literal labels printed inside each dynamic financial block for transparent review. */
+    private Map<String,List<PdfMappingReviewSession.FinancialRoleDetection>> detectFinancialReviewRoles() {
+        if (template == null) return Map.of();
+        List<TemplateElement> summaries = template.getElements().stream().filter(Objects::nonNull)
+                .filter(e -> e.getType() == ElementType.BLOCK && "DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId())).toList();
+        if (summaries.isEmpty()) return Map.of();
+        List<PdfTextRegion> all = extractAllText();
+        Map<String,List<PdfMappingReviewSession.FinancialRoleDetection>> result = new LinkedHashMap<>();
+        for (TemplateElement summary : summaries) {
+            List<PdfTextRegion> inside = all.stream().filter(r -> r.pageIndex() == summary.getPageIndex())
+                    .filter(r -> r.y() + r.height() >= summary.getY() - 15 && r.y() <= summary.getY() + summary.getHeight() + 15)
+                    .filter(r -> rangesOverlap(summary.getX(), summary.getX() + summary.getWidth(), r.x(), r.x() + r.width(), 10))
+                    .sorted(Comparator.comparingDouble(PdfTextRegion::y).thenComparingDouble(PdfTextRegion::x)).toList();
+            List<PdfMappingReviewSession.FinancialRoleDetection> roles = new ArrayList<>();
+            Set<String> seen = new LinkedHashSet<>();
+            for (PdfTextRegion region : inside) {
+                String source = cleanFinancialSourceLabel(region.text());
+                String n = PdfAutoMappingService.normalize(source);
+                if (n.isBlank()) continue;
+                String label = "", key = "";
+                if (n.contains("basic amount") || n.equals("subtotal") || n.contains("sub total")) { label="Basic / Sub Total"; key="totals.basicAmount"; }
+                else if (n.startsWith("discount")) { label="Discount"; key="totals.discountAmount"; }
+                else if (n.contains("taxable amount") || n.contains("gross before tax")) { label="Taxable Amount"; key="totals.taxableAmount"; }
+                else if (n.contains("cgst")) { label="Automatic CGST Row"; key="tax.cgstLabel / tax.primaryAmount"; }
+                else if (n.contains("sgst")) { label="Automatic SGST Row"; key="tax.sgstLabel / tax.secondaryAmount"; }
+                else if (n.contains("igst")) { label="Automatic IGST Row"; key="tax.igstLabel / tax.primaryAmount"; }
+                else if (n.contains("round off") || n.equals("rounding")) { label="Rounding"; key="totals.roundOff"; }
+                else if (n.contains("grand total") || n.contains("net total") || n.contains("amount payable")) { label="Rounded Grand Total"; key="totals.roundedGrandTotal"; }
+                else if (matchesChargeSource(n)) { label="Dynamic Charge Rows"; key="charge.* (dynamic rows)"; }
+                if (!key.isBlank() && seen.add(key.startsWith("charge.*") ? key + "|" + n : key)) {
+                    roles.add(new PdfMappingReviewSession.FinancialRoleDetection(source, label, key, .99));
+                }
+            }
+            result.put(summary.getId(), List.copyOf(roles));
+        }
+        return Map.copyOf(result);
+    }
+
+    private boolean matchesChargeSource(String normalized) {
+        if (normalized == null || normalized.isBlank()) return false;
+        if (currentPreviewData != null) {
+            for (TemplateCharge charge : currentPreviewData.charges()) {
+                String type = PdfAutoMappingService.normalize(charge.type());
+                if (!type.isBlank() && (normalized.contains(type) || type.contains(normalized))) return true;
+            }
+        }
+        return normalized.contains("packing") || normalized.contains("forwarding") || normalized.contains("freight")
+                || normalized.contains("additional charge") || normalized.contains("other charge") || normalized.contains("handling charge");
+    }
+
+    private String cleanFinancialSourceLabel(String text) {
+        if (text == null) return "";
+        String cleaned = text.trim().replaceAll("\\s*[:=]\\s*[₹$€£]?\\s*[-+]?\\d[\\d,]*(?:\\.\\d+)?%?\\s*$", "")
+                .replaceAll("\\s+[₹$€£]?\\s*[-+]?\\d[\\d,]*(?:\\.\\d+)?%?\\s*$", "").trim();
+        return cleanDetectedLabel(cleaned.isBlank() ? text : cleaned);
     }
 
     private boolean wouldAddItemRepeater(List<TemplateElement> list) {
@@ -777,49 +1243,166 @@ public class PdfStudioController implements ScreenLifecycle {
         if (list.stream().anyMatch(e -> e.getType() == ElementType.ITEM_TABLE)) return false;
         if (currentPreviewData == null || currentPreviewData.items().isEmpty()) return false;
         List<PdfTextRegion> allRegions = extractAllText();
-        Optional<PdfTextRegion> headerOpt = PdfAutoMappingService.detectItemHeader(allRegions);
-        if (headerOpt.isEmpty()) return false;
-        PdfTextRegion header = headerOpt.get();
+        Optional<PdfAutoMappingService.ItemHeaderLayout> layoutOpt = PdfAutoMappingService.detectItemHeaderLayout(allRegions);
+        if (layoutOpt.isEmpty()) return false;
+        PdfAutoMappingService.ItemHeaderLayout header = layoutOpt.get();
         List<PdfTextRegion> regions = allRegions.stream().filter(r -> r.pageIndex() == header.pageIndex()).toList();
         double[] page = pageSizeFor(header.pageIndex());
-        double localPageWidth = page[0], localPageHeight = page[1];
-        double x = Math.max(0, header.x());
-        double width = Math.max(header.width(), localPageWidth - x - 8);
-        double bottom = Math.min(localPageHeight - 8, header.y() + Math.max(160, localPageHeight * .38));
-        for (PdfTextRegion r : regions) {
-            String n = PdfAutoMappingService.normalize(r.text());
-            if (r.y() > header.y() + 40 && (n.contains("basic amount") || n.contains("subtotal") || n.contains("bank name") || n.contains("gross total"))) {
-                bottom = Math.min(bottom, Math.max(header.y() + 70, r.y() - 5));
-                break;
-            }
+        double localPageHeight = page[1];
+
+        PdfImageExtractionService.VectorRegion grid = sourceGridFor(header);
+        double x = grid == null ? Math.max(0, header.x()) : Math.max(0, grid.x());
+        double width = grid == null ? Math.max(80, header.width()) : Math.max(80, grid.width());
+        double top = grid == null ? header.y() : Math.min(header.y(), grid.y());
+        double bottom = grid == null
+                ? Math.min(localPageHeight - 8, top + Math.max(160, localPageHeight * .38))
+                : Math.min(localPageHeight - 8, grid.y() + grid.height());
+        if (grid == null) {
+            bottom = PdfSourceTableDetectionService.inferPhysicalTableBottom(header, regions, localPageHeight);
         }
-        TemplateElement table = TemplateElement.of(ElementType.ITEM_TABLE, header.pageIndex(), x, header.y(), width, Math.max(70, bottom - header.y()));
+
+        TemplateElement table = TemplateElement.of(ElementType.ITEM_TABLE, header.pageIndex(), x, top, width, Math.max(70, bottom - top));
+        String replacementGroup="item-table-"+UUID.randomUUID();
+        table.setReplacementGroupId(replacementGroup);
+        table.setSourceReplacementMode("OBJECT");
         table.setUseSourceTableDesign(true);
-        table.setHeaderHeight(Math.max(16, header.height() + 3));
-        table.setRowHeight(20);
-        table.setFontSize(7.5);
-        table.setTableColumns(List.of("serial","hsn","descriptionWithRemarks","quantity","rate","unit","taxable"));
-        table.setFillEnabled(false);
-        table.setStrokeEnabled(false);
+        table.setSourceStyleCaptured(false);
+        table.setFlowRole("ITEM_TABLE");
+        table.setGrowthDirection("DOWN");
+        table.setOverflowPolicy("PAGINATE");
+        table.setHeaderHeight(Math.max(14, (header.y() + header.height()) - top + 2));
+        table.setRowHeight(inferSourceRowHeight(grid, header, regions));
+
+        PdfTextRegion headerStyle = nearestHeaderStyle(header, regions);
+        if (headerStyle != null) {
+            table.setFontSize(Math.max(5, headerStyle.fontSize()));
+            table.setFontFamily(fontHint(headerStyle.fontName()));
+            table.setTextColor(headerStyle.textColor());
+            table.setBold(headerStyle.bold());
+        } else table.setFontSize(7.5);
+
+        String bodyColor = sampleBackgroundColor(header.pageIndex(), x + 2, header.y() + header.height() + 2,
+                Math.max(8, width - 4), Math.max(8, Math.min(30, bottom - header.y() - header.height() - 4)));
+        table.setFillColor(bodyColor);
+        table.setFillEnabled(true);
+        table.setSourceMaskSafe(isBackgroundUniform(header.pageIndex(), x, header.y() + header.height(), width,
+                Math.max(8, Math.min(40, bottom - header.y() - header.height()))));
+        if (grid != null) applySourceGridStyle(table, grid);
+        else { table.setStrokeEnabled(false); table.setStrokeWidth(0); }
+
+        if (grid != null) PdfSourceTableDetectionService.applySourceTableGeometry(table, grid, header);
+        List<TemplateColumnBinding> bindings = sourceColumnBindings(header, table, grid);
+        table.setTableColumnBindings(bindings);
+        ManualTemplateMappingService.syncLegacyColumns(table);
         list.add(table);
-        maskPrintedFirstItemValues(list, header, bottom, regions);
+        maskPrintedItemBody(list, table, regions);
         return true;
     }
 
-    private void maskPrintedFirstItemValues(List<TemplateElement> list, PdfTextRegion header, double bottom, List<PdfTextRegion> regions) {
-        if (currentPreviewData == null || currentPreviewData.items().isEmpty()) return;
-        var item = currentPreviewData.items().getFirst();
-        Set<String> values = new HashSet<>();
-        addNorm(values, item.getHsn()); addNorm(values, item.getDescription()); addNorm(values, item.getRemarks());
-        addNorm(values, item.getUnit()); addNorm(values, String.valueOf(item.getQuantity())); addNorm(values, String.valueOf(item.getRate()));
-        addNorm(values, String.valueOf(item.getTaxableAmount())); addNorm(values, String.valueOf(item.getTotalAmount()));
-        for (PdfTextRegion r : regions) {
-            if (r.y() <= header.y()+header.height() || r.y() >= bottom) continue;
-            String n = PdfAutoMappingService.normalize(r.text());
-            if (n.isBlank() || values.stream().noneMatch(v -> !v.isBlank() && (n.equals(v) || n.contains(v)))) continue;
-            String key = sourceKey(r);
-            if (hasReplacementFor(key) || list.stream().anyMatch(e -> key.equals(e.getReplacementSourceKey()))) continue;
-            list.add(sourceMask(r, key));
+    /** Detect source item-header geometry and auto-bind only clear ERP meanings; users correct ambiguous headers manually. */
+    @FXML private void detectItemHeaders() {
+        if (previewMode || template == null) return;
+        List<TemplateElement> reviewRollback = snapshotElements();
+        try {
+            checkpoint();
+            List<PdfTextRegion> regions = extractAllText();
+            Optional<PdfAutoMappingService.ItemHeaderLayout> header = PdfAutoMappingService.detectItemHeaderLayout(regions);
+            if (header.isEmpty()) {
+                if (lblInspectorHint != null) lblInspectorHint.setText("No reliable item header row was detected on this page. Create an Item Table manually or select a clearer source PDF.");
+                return;
+            }
+
+            List<TemplateElement> list = new ArrayList<>(template.getElements());
+            TemplateElement table = list.stream()
+                    .filter(e -> e.getType() == ElementType.ITEM_TABLE && e.getPageIndex() == pageIndex)
+                    .findFirst().orElse(null);
+            if (table == null) {
+                boolean added = autoCreateItemRepeaterIfDetected(list);
+                if (!added) {
+                    if (lblInspectorHint != null) lblInspectorHint.setText("The item header was detected but an Item Table could not be created safely. Review the source table area and try again.");
+                    return;
+                }
+                table = list.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE && e.getPageIndex() == pageIndex).reduce((a,b)->b).orElse(null);
+            } else {
+                PdfImageExtractionService.VectorRegion sourceGrid = sourceGridFor(header.get());
+                if (sourceGrid != null) PdfSourceTableDetectionService.applySourceTableGeometry(table, sourceGrid, header.get());
+                List<TemplateColumnBinding> detected = sourceColumnBindings(header.get(), table, sourceGrid);
+                table.setTableColumnBindings(ManualTemplateMappingService.mergeDetectedColumnBindings(table.getTableColumnBindings(), detected));
+                ManualTemplateMappingService.syncLegacyColumns(table);
+                if (sourceGrid != null) {
+                    applySourceGridStyle(table, sourceGrid);
+                    table.setSourceMaskSafe(isBackgroundUniform(table.getPageIndex(), table.getX(),
+                            table.getY() + table.getHeaderHeight(), table.getWidth(),
+                            Math.max(8, Math.min(40, table.getHeight() - table.getHeaderHeight()))));
+                }
+            }
+
+            template.setElements(list);
+            autosave();
+            if (table != null) selectOnlyWithoutRender(table);
+            refreshRequirementUi();
+            if (table != null) populateInspector(table);
+            renderCanvas();
+            long missing = table == null ? 0 : table.getTableColumnBindings().stream().filter(b -> b.getFieldKey() == null || b.getFieldKey().isBlank()).count();
+            if (lblSaveState != null) lblSaveState.setText(missing == 0
+                    ? "Item headers detected and auto-mapped ✓"
+                    : "Item headers detected ✓ • " + missing + " column(s) need confirmation");
+            if (lblInspectorHint != null) lblInspectorHint.setText(missing == 0
+                    ? "All clear item headers were auto-mapped from the printed PDF. Review Mapping shows every detected header and lets you amend the ERP meaning without changing its geometry."
+                    : "Clear item headers were auto-mapped. Review Mapping opens the detected header list so ambiguous columns can be corrected without moving the PDF grid.");
+            showMappingReview(PdfMappingReviewSession.Section.ITEMS, reviewRollback);
+        } catch (Exception error) {
+            AppDialogService.error(root,"Item headers could not be detected","PDF Studio",rootMessage(error));
+        }
+    }
+
+    private List<TemplateColumnBinding> sourceColumnBindings(PdfAutoMappingService.ItemHeaderLayout header, TemplateElement table) {
+        PdfImageExtractionService.VectorRegion grid = sourceGridFor(header);
+        if (grid != null) PdfSourceTableDetectionService.applySourceTableGeometry(table, grid, header);
+        return PdfSourceTableDetectionService.sourceColumnBindings(header, table, grid);
+    }
+
+    private List<TemplateColumnBinding> sourceColumnBindings(PdfAutoMappingService.ItemHeaderLayout header, TemplateElement table,
+                                                              PdfImageExtractionService.VectorRegion grid) {
+        return PdfSourceTableDetectionService.sourceColumnBindings(header, table, grid);
+    }
+
+    private String headerAlignment(String fieldKey) {
+        String k=fieldKey==null?"":fieldKey;
+        if(k.endsWith("quantity")||k.endsWith("unit")||k.contains("Percent")||k.endsWith("serial"))return "CENTER";
+        if(k.endsWith("rate")||k.endsWith("total")||k.contains("Amount")||k.endsWith("taxable"))return "RIGHT";
+        return "LEFT";
+    }
+
+    private PdfTextRegion nearestHeaderStyle(PdfAutoMappingService.ItemHeaderLayout header,List<PdfTextRegion> regions){
+        return regions.stream().filter(r->r.pageIndex()==header.pageIndex())
+                .filter(r->Math.abs((r.y()+r.height()/2)-(header.y()+header.height()/2))<=Math.max(8,header.height()))
+                .min(Comparator.comparingDouble(r->Math.abs(r.x()-header.x()))).orElse(null);
+    }
+
+    private PdfImageExtractionService.VectorRegion sourceGridFor(PdfAutoMappingService.ItemHeaderLayout header){
+        List<PdfImageExtractionService.VectorRegion> vectors=vectorCache.computeIfAbsent(header.pageIndex(),page->{
+            try{return PdfImageExtractionService.extractVectors(sourcePdf,page);}catch(Exception ignored){return List.of();}
+        });
+        return PdfSourceTableDetectionService.sourceGridFor(header,vectors).orElse(null);
+    }
+
+    private double inferSourceRowHeight(PdfImageExtractionService.VectorRegion grid,PdfAutoMappingService.ItemHeaderLayout header,List<PdfTextRegion> regions){
+        return PdfSourceTableDetectionService.inferSourceRowHeight(grid,header,regions);
+    }
+
+    private void applySourceGridStyle(TemplateElement table,PdfImageExtractionService.VectorRegion grid){
+        PdfSourceTableDetectionService.captureSourceStyle(table, grid);
+    }
+
+    private void maskPrintedItemBody(List<TemplateElement> list,TemplateElement table,List<PdfTextRegion> regions){
+        double headerBottom=table.getY()+table.getHeaderHeight(), bottom=table.getY()+table.getHeight();
+        for(PdfTextRegion r:regions){
+            if(r.y()+r.height()<=headerBottom+1||r.y()>=bottom-1)continue;
+            if(r.x()+r.width()<table.getX()+1||r.x()>table.getX()+table.getWidth()-1)continue;
+            String key=sourceKey(r);
+            if(hasReplacementFor(key)||list.stream().anyMatch(e->key.equals(e.getReplacementSourceKey())))continue;
+            TemplateElement mask=sourceMask(r,key); mask.setSourceMaskSafe(table.isSourceMaskSafe()); mask.setReplacementGroupId(table.getReplacementGroupId()); list.add(mask);
         }
     }
 
@@ -830,6 +1413,8 @@ public class PdfStudioController implements ScreenLifecycle {
         if (detected.isEmpty()) return false;
         PdfAutoMappingService.ChargeRegion region = detected.get();
         TemplateElement table = TemplateElement.of(ElementType.CHARGE_TABLE, region.pageIndex(), region.x(), region.y(), region.width(), Math.max(region.height(), region.rowHeight()));
+        String replacementGroup="charge-table-"+UUID.randomUUID();
+        table.setReplacementGroupId(replacementGroup);table.setSourceReplacementMode("OBJECT");
         table.setUseSourceTableDesign(true);
         table.setHeaderHeight(0);
         table.setRowHeight(region.rowHeight());
@@ -841,7 +1426,7 @@ public class PdfStudioController implements ScreenLifecycle {
         for (PdfTextRegion source : region.sourceRegions()) {
             String key = sourceKey(source);
             if (hasReplacementFor(key) || list.stream().anyMatch(e -> key.equals(e.getReplacementSourceKey()))) continue;
-            list.add(sourceMask(source, key));
+            TemplateElement mask=sourceMask(source,key);mask.setReplacementGroupId(replacementGroup);list.add(mask);
         }
         return true;
     }
@@ -900,12 +1485,15 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private void ensurePageObjects(int page) {
         if (previewMode || loadingPages.contains(page)) return;
-        if (textCache.containsKey(page) && imageCache.containsKey(page) && vectorCache.containsKey(page)) return;
+        if (textCache.containsKey(page) && formCache.containsKey(page) && imageCache.containsKey(page) && vectorCache.containsKey(page)) return;
         loadingPages.add(page);
         CompletableFuture.runAsync(() -> {
             try {
                 textCache.computeIfAbsent(page, p -> {
                     try { return PdfTextExtractionService.extract(sourcePdf, p); } catch (Exception e) { return List.of(); }
+                });
+                formCache.computeIfAbsent(page, p -> {
+                    try { return PdfFormFieldExtractionService.extract(originalPdf, p); } catch (Exception e) { return List.of(); }
                 });
                 imageCache.computeIfAbsent(page, p -> {
                     try { return PdfImageExtractionService.extract(sourcePdf, p, WorkspaceManager.getTempFolder().resolve("pdf-studio-v3-images")); }
@@ -915,9 +1503,27 @@ public class PdfStudioController implements ScreenLifecycle {
                     try { return PdfImageExtractionService.extractVectors(sourcePdf, p); } catch (Exception e) { return List.of(); }
                 });
             } finally {
-                Platform.runLater(() -> { loadingPages.remove(page); if (pageIndex == page && !previewMode) renderCanvas(); });
+                Platform.runLater(() -> {
+                    loadingPages.remove(page);
+                    if (pageIndex == page && !previewMode) { updateSourceCapability(page); renderCanvas(); }
+                });
             }
         });
+    }
+
+    private PdfSourceCapabilityService.Capability sourceCapability(int page) {
+        return PdfSourceCapabilityService.analyze(pageWidth, pageHeight,
+                textCache.getOrDefault(page, List.of()), formCache.getOrDefault(page, List.of()),
+                imageCache.getOrDefault(page, List.of()), vectorCache.getOrDefault(page, List.of()));
+    }
+
+    private void updateSourceCapability(int page) {
+        if (lblPageWarning == null || previewMode) return;
+        PdfSourceCapabilityService.Capability capability = sourceCapability(page);
+        lblPageWarning.setText(capability.userMessage());
+        if (lblInspectorHint != null && !capability.exactValueReplacementSupported()
+                && selectedIds.isEmpty() && selectedSourceText == null && selectedSourceForm == null)
+            lblInspectorHint.setText(capability.userMessage());
     }
 
     private void renderCanvas() {
@@ -948,24 +1554,39 @@ public class PdfStudioController implements ScreenLifecycle {
             background.setFitWidth(canvasW); background.setFitHeight(canvasH); background.setMouseTransparent(true);
             canvasPane.getChildren().add(background);
             if (!previewMode) {
-                addDetectedTargets();
+                // Keep broad PDF vector/grid hit areas behind Studio objects, but place the
+                // precise text/form/image hit targets above those objects. This prevents a
+                // transparent Section/Block or Item Table from swallowing clicks intended for
+                // source values such as CONTACT DETAILS : <name/number>.
+                addDetectedVectorTargets();
                 for (TemplateElement e : template.getElements()) if (e.getPageIndex() == pageIndex && PdfStyleResolver.effectivelyVisible(template,e)) canvasPane.getChildren().add(elementNode(e));
+                addDetectedValueTargets();
             }
             refreshLayers();
             updatePageWarning();
         }));
     }
 
-    private void addDetectedTargets() {
-        // Large vector/table regions can overlap text. Put them behind image/text targets so the
-        // most specific object under the pointer wins without needing an edit mode.
+    private void addDetectedVectorTargets() {
+        // Broad vector/table regions are deliberately behind Studio objects. Precise source
+        // values are added later by addDetectedValueTargets() so they always win hit-testing.
         for (PdfImageExtractionService.VectorRegion region : vectorCache.getOrDefault(pageIndex,List.of())) {
             if (hasReplacementFor(region.sourceKey())) continue;
             canvasPane.getChildren().add(sourceVectorNode(region));
         }
+    }
+
+    private void addDetectedValueTargets() {
+        // These are the user's primary Guided Mapping click targets. They must stay above
+        // transparent Blocks/Sections/Item Tables; otherwise a broad object can swallow the
+        // click and make a visible value appear impossible to map.
         for (PdfImageRegion region : imageCache.getOrDefault(pageIndex,List.of())) {
             if (hasReplacementFor(sourceKey(region))) continue;
             canvasPane.getChildren().add(sourceImageNode(region));
+        }
+        for (PdfFormFieldRegion region : formCache.getOrDefault(pageIndex,List.of())) {
+            if (hasReplacementFor(sourceKey(region))) continue;
+            canvasPane.getChildren().add(sourceFormNode(region));
         }
         for (PdfTextRegion region : textCache.getOrDefault(pageIndex,List.of())) {
             if (hasReplacementFor(sourceKey(region))) continue;
@@ -974,16 +1595,73 @@ public class PdfStudioController implements ScreenLifecycle {
     }
 
     private Node sourceTextNode(PdfTextRegion region) {
-        Region hit = new Region();
-        hit.getStyleClass().add("pdf-v2-source-text-target");
-        if (Objects.equals(selectedSourceText, region)) hit.getStyleClass().add("pdf-v2-source-selected");
-        place(hit, region.x(), region.y(), region.width(), region.height());
-        Tooltip.install(hit, new Tooltip("Detected PDF text • click to inspect • double-click to edit\n" + region.text()));
-        hit.setOnMouseClicked(event -> {
+        Optional<PdfTextRegion> valueHit = PdfTextExtractionService.valueHitRegion(region);
+        if (valueHit.isEmpty()) {
+            Region hit = new Region();
+            hit.getStyleClass().add("pdf-v2-source-text-target");
+            if (Objects.equals(selectedSourceText, region)) hit.getStyleClass().add("pdf-v2-source-selected");
+            place(hit, region.x(), region.y(), region.width(), region.height());
+            Tooltip.install(hit, new Tooltip("Detected PDF text • click to inspect • double-click to edit\n" + region.text()));
+            hit.setOnMouseClicked(event -> {
+                if (event.getClickCount() >= 2) {
+                    TemplateElement e = materializeSourceText(region);
+                    if (e != null) { selectOnly(e); Platform.runLater(() -> beginInlineEdit(e)); }
+                } else selectSourceText(region);
+                event.consume();
+            });
+            return hit;
+        }
+
+        // A common PDF source pattern stores "GST-IN : 24..." (and similar label/value rows)
+        // as one native text object. Keep the full source object for safe replacement, but expose
+        // separate click targets so the user can click the actual changing value instead of the label.
+        PdfTextRegion value = valueHit.get();
+        Pane group = new Pane();
+        place(group, region.x(), region.y(), region.width(), region.height());
+        group.setPickOnBounds(false);
+        double valueOffset = Math.max(0, (value.x()-region.x())*scale);
+        double fullW = Math.max(1, region.width()*scale), fullH = Math.max(1, region.height()*scale);
+
+        Region labelHit = new Region();
+        labelHit.getStyleClass().add("pdf-v2-source-text-target");
+        labelHit.setLayoutX(0); labelHit.setLayoutY(0);
+        labelHit.setPrefSize(Math.max(1,valueOffset),fullH);
+        labelHit.setMinSize(Math.max(1,valueOffset),fullH); labelHit.setMaxSize(Math.max(1,valueOffset),fullH);
+        if (Objects.equals(selectedSourceText, region) && Objects.equals(selectedSourceTextHit, region)) labelHit.getStyleClass().add("pdf-v2-source-selected");
+        String label = region.text().substring(0, Math.max(0, region.text().indexOf(':')+1)).trim();
+        Tooltip.install(labelHit, new Tooltip("Fixed PDF label • normally leave untouched\n" + label));
+        labelHit.setOnMouseClicked(event -> { selectSourceText(region, region); event.consume(); });
+
+        Region valueTarget = new Region();
+        valueTarget.getStyleClass().add("pdf-v2-source-text-target");
+        valueTarget.setLayoutX(valueOffset); valueTarget.setLayoutY(0);
+        valueTarget.setPrefSize(Math.max(1,fullW-valueOffset),fullH);
+        valueTarget.setMinSize(Math.max(1,fullW-valueOffset),fullH); valueTarget.setMaxSize(Math.max(1,fullW-valueOffset),fullH);
+        if (Objects.equals(selectedSourceText, region) && Objects.equals(selectedSourceTextHit, value)) valueTarget.getStyleClass().add("pdf-v2-source-selected");
+        Tooltip.install(valueTarget, new Tooltip("Detected PDF value • click to map\n" + value.text()));
+        valueTarget.setOnMouseClicked(event -> {
             if (event.getClickCount() >= 2) {
                 TemplateElement e = materializeSourceText(region);
                 if (e != null) { selectOnly(e); Platform.runLater(() -> beginInlineEdit(e)); }
-            } else selectSourceText(region);
+            } else selectSourceText(region, value);
+            event.consume();
+        });
+        group.getChildren().addAll(labelHit,valueTarget);
+        return group;
+    }
+
+    private Node sourceFormNode(PdfFormFieldRegion region) {
+        Region hit = new Region();
+        hit.getStyleClass().add("pdf-v2-source-text-target");
+        if (Objects.equals(selectedSourceForm, region)) hit.getStyleClass().add("pdf-v2-source-selected");
+        place(hit, region.x(), region.y(), region.width(), region.height());
+        String sample = region.sampleValue().isBlank() ? "" : "\nSample: " + abbreviate(region.sampleValue(), 80);
+        Tooltip.install(hit, new Tooltip("PDF form field • click to map\n" + region.displayName() + sample));
+        hit.setOnMouseClicked(event -> {
+            if (event.getClickCount() >= 2) {
+                TemplateElement e = materializeSourceForm(region);
+                if (e != null) selectOnly(e);
+            } else selectSourceForm(region);
             event.consume();
         });
         return hit;
@@ -1110,7 +1788,7 @@ public class PdfStudioController implements ScreenLifecycle {
     }
 
     private String displayText(TemplateElement e) {
-        if (e.getType()==ElementType.ITEM_TABLE) return "ITEM REPEATER\n" + e.getTableColumns().stream().map(String::toUpperCase).collect(Collectors.joining("  |  "));
+        if (e.getType()==ElementType.ITEM_TABLE) return itemRepeaterDisplayText(e);
         if (e.getType()==ElementType.CHARGE_TABLE) return "CHARGE REPEATER\n" + e.getTableColumns().stream().map(String::toUpperCase).collect(Collectors.joining("  |  "));
         if (e.getType()==ElementType.RECTANGLE) return "";
         if (e.getType()==ElementType.BLOCK && "DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId())) return "FINANCIAL SUMMARY\nAutomatic GST / IGST / Charges";
@@ -1119,6 +1797,32 @@ public class PdfStudioController implements ScreenLifecycle {
         String text = e.getText();
         if (dataPreviewMode && currentPreviewData != null) text = resolveExpression(text, currentPreviewData);
         return text;
+    }
+
+
+    private String itemRepeaterDisplayText(TemplateElement e) {
+        if (e == null) return "ITEM REPEATER";
+        // A source-designed table already has its physical headers/grid in the protected PDF.
+        // Do not paint engineering/debug text across the user's source rows; Mapping Coach/Inspector
+        // remains the place to review physical header -> ERP semantics.
+        if (e.isUseSourceTableDesign()) return "";
+        List<TemplateColumnBinding> bindings = e.getTableColumnBindings();
+        if (bindings != null && !bindings.isEmpty()) {
+            String mapped = bindings.stream().map(binding -> {
+                String label = binding == null || binding.getSourceLabel() == null || binding.getSourceLabel().isBlank()
+                        ? "COLUMN" : binding.getSourceLabel().trim();
+                String key = binding == null ? "" : ManualTemplateMappingService.normalizeItemColumn(binding.getFieldKey());
+                String semantic = key == null || key.isBlank() ? "?" : switch (key) {
+                    case "descriptionWithRemarks" -> "description+remarks";
+                    case "discountPercent" -> "discount%";
+                    case "gstPercent" -> "gst%";
+                    default -> key;
+                };
+                return label.toUpperCase(Locale.ROOT) + "→" + semantic;
+            }).collect(Collectors.joining("  |  "));
+            return "ITEM REPEATER • PHYSICAL HEADERS\n" + mapped;
+        }
+        return "ITEM REPEATER\n" + e.getTableColumns().stream().map(String::toUpperCase).collect(Collectors.joining("  |  "));
     }
 
     private String styleFor(TemplateElement e) {
@@ -1201,23 +1905,28 @@ public class PdfStudioController implements ScreenLifecycle {
         refreshSelectionInspector(); renderCanvas();
     }
 
-    private void selectSourceText(PdfTextRegion region) {
-        selectedIds.clear(); selectedSourceText=region; selectedSourceImage=null; selectedSourceVector=null;
+    private void selectSourceText(PdfTextRegion region) { selectSourceText(region, region); }
+    private void selectSourceText(PdfTextRegion region, PdfTextRegion hitRegion) {
+        selectedIds.clear(); selectedSourceText=region; selectedSourceTextHit=hitRegion==null?region:hitRegion; selectedSourceForm=null; selectedSourceImage=null; selectedSourceVector=null;
+        populateInspector(selectedSourceTextHit); renderCanvas(); updateManualMappingState();
+    }
+    private void selectSourceForm(PdfFormFieldRegion region) {
+        selectedIds.clear(); selectedSourceText=null; selectedSourceForm=region; selectedSourceImage=null; selectedSourceVector=null;
         populateInspector(region); renderCanvas(); updateManualMappingState();
     }
     private void selectSourceImage(PdfImageRegion region) {
-        selectedIds.clear(); selectedSourceText=null; selectedSourceImage=region; selectedSourceVector=null;
+        selectedIds.clear(); selectedSourceText=null; selectedSourceForm=null; selectedSourceImage=region; selectedSourceVector=null;
         populateInspector(region); renderCanvas();
     }
     private void selectSourceVector(PdfImageExtractionService.VectorRegion region) {
-        selectedIds.clear(); selectedSourceText=null; selectedSourceImage=null; selectedSourceVector=region;
+        selectedIds.clear(); selectedSourceText=null; selectedSourceForm=null; selectedSourceImage=null; selectedSourceVector=region;
         populateInspector(region); renderCanvas();
     }
 
     private void clearSelection() {
         selectedIds.clear(); clearSourceSelection(); clearInspector(); refreshLayers(); renderCanvas();
     }
-    private void clearSourceSelection() { selectedSourceText=null; selectedSourceImage=null; selectedSourceVector=null; }
+    private void clearSourceSelection() { selectedSourceText=null; selectedSourceTextHit=null; selectedSourceForm=null; selectedSourceImage=null; selectedSourceVector=null; }
 
     private void refreshSelectionInspector() {
         if (selectedIds.size()==1) populateInspector(selectedElement());
@@ -1237,10 +1946,17 @@ public class PdfStudioController implements ScreenLifecycle {
         inspectorSync=true;
         try {
             lblInspectorType.setText(displayName(e));
-            String inheritance = e.getParentId().isBlank() ? "Editable Studio object"
-                    : "Child of block " + e.getParentId().substring(0,Math.min(8,e.getParentId().length()))
-                    + (e.isInheritParentStyle() ? " • inheriting style" + (e.getStyleOverrides().isEmpty() ? "" : " • " + e.getStyleOverrides().size() + " override(s)") : "");
-            lblInspectorHint.setText(inheritance);
+            String guidance;
+            if (e.getType() == ElementType.ITEM_TABLE) {
+                guidance = "Item Table selected. Map each detected physical header once with an item.* ERP field. Use Validate Mapping to find any unmapped header; use Advanced Design only if Validate reports row-capacity or layout problems.";
+            } else if (e.getReplacementGroupId() != null && e.getReplacementGroupId().equals("DYNAMIC_FINANCIAL_SUMMARY")) {
+                guidance = "Financial Summary selected. ERP controls the dynamic Discount / Charges / GST / IGST / Round Off rows automatically. Do not map those calculation rows individually.";
+            } else if (e.getFieldKey() != null && !e.getFieldKey().isBlank()) {
+                guidance = "Mapped to " + e.getFieldKey() + ". Preview with a real record to confirm the value. Source position/style is preserved; open Advanced Design only if Preview shows a real correction is needed.";
+            } else {
+                guidance = "Studio object selected. If this is intended to show ERP data, choose the matching ERP field below and Map. Otherwise leave protected PDF artwork untouched.";
+            }
+            lblInspectorHint.setText(guidance);
             txtContent.setText(e.getText());
             selectBinding(e.getFieldKey());
             cmbFontFamily.setValue(style.getFontFamily()); cmbTextFit.setValue(style.getTextFit()); cmbTextAlignment.setValue(style.getTextAlignment());
@@ -1252,6 +1968,8 @@ public class PdfStudioController implements ScreenLifecycle {
             chkFillEnabled.setSelected(style.isFillEnabled()); chkStrokeEnabled.setSelected(style.isStrokeEnabled());
             cmbImageFit.setValue(e.getImageFit()); chkPreserveRatio.setSelected(e.isPreserveAspectRatio());
             txtTableColumns.setText(String.join(",",e.getTableColumns())); txtRowHeight.setText(fmt(e.getRowHeight())); txtHeaderHeight.setText(fmt(e.getHeaderHeight())); chkUseSourceTableDesign.setSelected(e.isUseSourceTableDesign());
+            cmbFlowAnchorMode.setValue(e.getFlowAnchorMode()); txtFlowAnchorId.setText(e.getFlowAnchorId()); txtFlowGap.setText(fmt(e.getFlowGap()));
+            cmbGrowthDirection.setValue(e.getGrowthDirection()); cmbOverflowPolicy.setValue(e.getOverflowPolicy()); txtFlowGroupId.setText(e.getFlowGroupId()); txtFlowRole.setText(e.getFlowRole()); chkAutoHeight.setSelected(e.isAutoHeight());
             chkLocked.setSelected(e.isLocked()); chkVisible.setSelected(e.isVisible()); cmbPageRule.setValue(e.getPageRule());
             boolean image=isImageLike(e), repeater=isRepeater(e), text=isTextLike(e) || e.getType()==ElementType.BLOCK;
             textSection.setVisible(text); textSection.setManaged(text);
@@ -1264,13 +1982,71 @@ public class PdfStudioController implements ScreenLifecycle {
     private void populateInspector(PdfTextRegion r) {
         clearInspectorFieldsOnly(); inspectorSync=true;
         try {
-            lblInspectorType.setText("Detected PDF Text"); lblInspectorHint.setText("PDF text selected. Search for the ERP field below, then click Map. No double-click is required.");
+            lblInspectorType.setText("Detected PDF Text"); lblInspectorHint.setText(mappingCoachHint(r));
             txtContent.setText(r.text()); txtX.setText(fmt(r.x())); txtY.setText(fmt(r.y())); txtWidth.setText(fmt(r.width())); txtHeight.setText(fmt(r.height()));
             txtFontSize.setText(fmt(r.fontSize())); cmbFontFamily.setValue(fontHint(r.fontName())); chkBold.setSelected(r.bold()); chkItalic.setSelected(r.italic()); colorText.setValue(color(r.textColor(),Color.web("#172033"))); txtRotation.setText(fmt(r.rotation())); txtOpacity.setText("100");
             txtLineSpacing.setText("1.22"); txtStrokeWidth.setText("0"); txtRadius.setText("0"); txtPadTop.setText("0"); txtPadRight.setText("0"); txtPadBottom.setText("0"); txtPadLeft.setText("0");
             chkFillEnabled.setSelected(false); chkStrokeEnabled.setSelected(false); chkInheritParent.setSelected(false); chkLocked.setSelected(false); chkVisible.setSelected(true); cmbPageRule.setValue("AUTO");
             textSection.setVisible(true);textSection.setManaged(true);imageSection.setVisible(false);imageSection.setManaged(false);repeaterSection.setVisible(false);repeaterSection.setManaged(false);
             lblSelection.setText("Detected text: " + abbreviate(r.text(),42));
+        } finally { inspectorSync=false; }
+    }
+
+    private String mappingCoachHint(PdfTextRegion r) {
+        String raw = r == null || r.text() == null ? "" : r.text().trim();
+        String n = raw.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+        String fullRaw = selectedSourceText != null && selectedSourceText.text() != null ? selectedSourceText.text().trim() : raw;
+        String full = fullRaw.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+
+        if (full.contains("contact details"))
+            return "Contact value selected: “" + abbreviate(raw, 42) + "”. Recommended ERP field: Transport Contact (transport.contact). The fixed CONTACT DETAILS : label stays untouched; map only this changing value.";
+        if (full.startsWith("transporter") || full.contains("transporter :"))
+            return "Transporter value selected. Recommended ERP field: Transporter Name (transport.name). The printed TRANSPORTER : label stays untouched.";
+        if (full.contains("vehicle") && full.contains(":"))
+            return "Vehicle value selected. Recommended ERP field: Vehicle Number (transport.vehicleNumber). Keep the printed VEHICLE : label untouched.";
+
+        if (template != null && currentPreviewData != null && r != null) {
+            try {
+                PdfAutoMappingService.Analysis analysis = PdfAutoMappingService.analyze(template.getDocumentType(), List.of(r), currentPreviewData);
+                Optional<PdfAutoMappingService.Mapping> exact = analysis.mappings().stream()
+                        .filter(m -> m.confidence() >= .90 && m.fieldKey() != null && !m.fieldKey().isBlank())
+                        .findFirst();
+                if (exact.isPresent()) {
+                    String key = exact.get().fieldKey();
+                    return "Selected PDF value: “" + abbreviate(raw, 48) + "”. Suggested ERP field: "
+                            + friendlyFieldName(key) + " (" + key + "). Next: select that ERP field below, then click Map. PDF Studio will preserve the source position/style.";
+                }
+            } catch (Exception ignored) { }
+        }
+
+        if (n.matches(".*(gstin|gst-in|gst no|gst number).*"))
+            return "GST value selected. Choose Billing GSTIN or Delivery GSTIN for the section you clicked, then click Map. Keep the printed GST-IN label as source artwork.";
+        String itemHeaderField = suggestedItemFieldForHeader(n);
+        if (!itemHeaderField.isBlank())
+            return "Item header selected: “" + abbreviate(raw, 34) + "”. Recommended ERP field: " + itemHeaderField
+                    + ". Next: use Detect Item Headers if needed, select this ERP field below, then Map it to this physical header. Map each column once - never map individual item rows.";
+        if (n.contains("terms") || n.contains("condition"))
+            return "Terms text selected. Map the first real terms line to company.terms; PDF Studio will treat connected lines as one wrapped Auto Height block. Do not map every line separately.";
+        if (n.length() >= 35 || n.contains(","))
+            return "This may be a multi-line value such as an address. If it is Billing/Delivery Address, choose party.billingAddress or party.deliveryAddress and map the first real address line only; connected lines are captured automatically.";
+        if (n.contains("basic amount") || n.contains("taxable amount") || n.contains("grand total") || n.contains("cgst") || n.contains("sgst") || n.contains("igst") || n.contains("round off"))
+            return "Calculation text selected. Do not map calculation rows one by one. Select the complete calculation grid/block and use Financial Summary so GST/IGST/charges remain dynamic.";
+        return "Selected PDF value: “" + abbreviate(raw, 48) + "”. Next: search for the ERP field that represents this value, select it, then click Map. Drop/map onto existing source text to preserve alignment; use + Text only for a genuinely blank area.";
+    }
+
+    private void populateInspector(PdfFormFieldRegion r) {
+        clearInspectorFieldsOnly(); inspectorSync=true;
+        try {
+            lblInspectorType.setText("Detected PDF Form Field");
+            lblInspectorHint.setText("Fillable PDF field selected. Choose the ERP field below and click Map. The source widget is already cleared safely in the Studio working copy.");
+            txtContent.setText(r.sampleValue()); txtX.setText(fmt(r.x())); txtY.setText(fmt(r.y())); txtWidth.setText(fmt(r.width())); txtHeight.setText(fmt(r.height()));
+            txtFontSize.setText(fmt(Math.max(7, Math.min(11, r.height()*.55)))); cmbFontFamily.setValue("HELVETICA"); chkBold.setSelected(false); chkItalic.setSelected(false); colorText.setValue(Color.web("#172033")); txtRotation.setText("0"); txtOpacity.setText("100");
+            txtLineSpacing.setText("1.22"); txtStrokeWidth.setText("0"); txtRadius.setText("0"); txtPadTop.setText("0"); txtPadRight.setText("0"); txtPadBottom.setText("0"); txtPadLeft.setText("0");
+            chkFillEnabled.setSelected(false); chkStrokeEnabled.setSelected(false); chkInheritParent.setSelected(false); chkLocked.setSelected(false); chkVisible.setSelected(true); cmbPageRule.setValue("AUTO");
+            textSection.setVisible(true);textSection.setManaged(true);imageSection.setVisible(false);imageSection.setManaged(false);repeaterSection.setVisible(false);repeaterSection.setManaged(false);
+            lblSelection.setText("Form field: " + abbreviate(r.displayName(),42));
+            if (txtInspectorFieldSearch != null) txtInspectorFieldSearch.setText(r.displayName().replace('_',' '));
+            refreshInspectorSuggestions(r.displayName().replace('_',' '));
         } finally { inspectorSync=false; }
     }
 
@@ -1289,7 +2065,11 @@ public class PdfStudioController implements ScreenLifecycle {
     private void populateInspector(PdfImageExtractionService.VectorRegion r) {
         clearInspectorFieldsOnly(); inspectorSync=true;
         try {
-            lblInspectorType.setText("Detected " + r.kind()); lblInspectorHint.setText("Change any property to convert this imported PDF object into editable vector/block geometry.");
+            boolean signatureLike=likelySignatureVector(r);
+            lblInspectorType.setText("Detected " + r.kind());
+            lblInspectorHint.setText(signatureLike
+                    ? "This looks like signature/vector artwork. To make the signature dynamic, choose Company → Authorized Signature (company.signature) below and click Map. PDF Studio will replace this vector artwork with the configured ERP signature image."
+                    : "This is PDF artwork / grid geometry, not a normal ERP value. Usually leave it untouched. If this is the calculation grid, select the complete calculation area and use Financial Summary; otherwise click the actual printed value you want to map.");
             txtX.setText(fmt(r.x()));txtY.setText(fmt(r.y()));txtWidth.setText(fmt(r.width()));txtHeight.setText(fmt(r.height()));txtRotation.setText("0");txtOpacity.setText("100");
             var primitive = r.primitives().isEmpty() ? null : r.primitives().getFirst();
             if (primitive != null) { colorFill.setValue(color(primitive.fillColor(),Color.WHITE)); colorStroke.setValue(color(primitive.strokeColor(),Color.web("#94A3B8"))); txtStrokeWidth.setText(fmt(primitive.strokeWidth())); chkFillEnabled.setSelected(primitive.filled()); chkStrokeEnabled.setSelected(primitive.stroked()); }
@@ -1297,7 +2077,26 @@ public class PdfStudioController implements ScreenLifecycle {
             txtRadius.setText("0");txtPadTop.setText("0");txtPadRight.setText("0");txtPadBottom.setText("0");txtPadLeft.setText("0");chkInheritParent.setSelected(false);chkLocked.setSelected(false);chkVisible.setSelected(true);cmbPageRule.setValue("AUTO");
             textSection.setVisible(false);textSection.setManaged(false);imageSection.setVisible(false);imageSection.setManaged(false);repeaterSection.setVisible(false);repeaterSection.setManaged(false);
             lblSelection.setText(r.kind());
+            if(signatureLike && txtInspectorFieldSearch!=null){
+                txtInspectorFieldSearch.setText("signature");
+                refreshInspectorSuggestions("signature");
+                if(lstInspectorFieldSuggestions!=null) lstInspectorFieldSuggestions.getItems().stream()
+                        .filter(f->"company.signature".equals(f.key())).findFirst()
+                        .ifPresent(f->lstInspectorFieldSuggestions.getSelectionModel().select(f));
+            }
         } finally { inspectorSync=false; }
+        updateManualMappingState();
+    }
+
+    private boolean likelySignatureVector(PdfImageExtractionService.VectorRegion r){
+        if(r==null||r.pageIndex()<0)return false;
+        double padX=Math.max(24,r.width()*.55), padY=Math.max(18,r.height()*1.8);
+        return textCache.getOrDefault(r.pageIndex(),List.of()).stream().anyMatch(t->{
+            String n=PdfAutoMappingService.normalize(t.text());
+            if(!(n.contains("authorized signatory")||n.contains("authorised signatory")||n.startsWith("for ")))return false;
+            double cx=t.x()+t.width()/2.0,cy=t.y()+t.height()/2.0;
+            return cx>=r.x()-padX&&cx<=r.x()+r.width()+padX&&cy>=r.y()-padY&&cy<=r.y()+r.height()+padY;
+        });
     }
 
     private void populateMixedInspector(int count) {
@@ -1308,15 +2107,16 @@ public class PdfStudioController implements ScreenLifecycle {
         } finally { inspectorSync=false; }
     }
 
-    private void clearInspector() { clearInspectorFieldsOnly(); lblInspectorType.setText("Select any text, image, block or table"); lblInspectorHint.setText("Properties appear automatically."); lblSelection.setText("Nothing selected"); updateManualMappingState(); }
+    private void clearInspector() { clearInspectorFieldsOnly(); lblInspectorType.setText("Guided Mapping"); lblInspectorHint.setText("Step 1: click the existing printed PDF value you want to replace. Step 2: choose the matching ERP field below. Step 3: click Map. For item columns use Detect Item Headers; for calculations use Financial Summary."); lblSelection.setText("Nothing selected"); updateManualMappingState(); }
     private void clearInspectorFieldsOnly() {
         inspectorSync=true;
         try {
-            for (TextField f : List.of(txtFontSize,txtLineSpacing,txtX,txtY,txtWidth,txtHeight,txtRotation,txtOpacity,txtStrokeWidth,txtRadius,txtPadTop,txtPadRight,txtPadBottom,txtPadLeft,txtTableColumns,txtRowHeight,txtHeaderHeight)) f.clear();
+            for (TextField f : List.of(txtFontSize,txtLineSpacing,txtX,txtY,txtWidth,txtHeight,txtRotation,txtOpacity,txtStrokeWidth,txtRadius,txtPadTop,txtPadRight,txtPadBottom,txtPadLeft,txtTableColumns,txtRowHeight,txtHeaderHeight,txtFlowAnchorId,txtFlowGap,txtFlowGroupId,txtFlowRole)) f.clear();
             txtContent.clear(); selectedBindingKey=""; if(txtInspectorFieldSearch!=null)txtInspectorFieldSearch.clear(); if(lstInspectorFieldSuggestions!=null)lstInspectorFieldSuggestions.getSelectionModel().clearSelection(); chkBold.setSelected(false);chkItalic.setSelected(false);chkInheritParent.setSelected(false);chkFillEnabled.setSelected(false);chkStrokeEnabled.setSelected(false);chkLocked.setSelected(false);chkVisible.setSelected(true);
             chkPaddingLinked.setSelected(true);chkPreserveRatio.setSelected(true);chkUseSourceTableDesign.setSelected(false);
             colorText.setValue(Color.web("#172033"));colorFill.setValue(Color.WHITE);colorStroke.setValue(Color.web("#94A3B8"));
             cmbFontFamily.setValue("HELVETICA");cmbTextFit.setValue("SHRINK");cmbTextAlignment.setValue("LEFT");cmbImageFit.setValue("FIT");cmbPageRule.setValue("AUTO");
+            cmbFlowAnchorMode.setValue("ABSOLUTE");cmbGrowthDirection.setValue("FIXED");cmbOverflowPolicy.setValue("ERROR");chkAutoHeight.setSelected(false);
             textSection.setVisible(false);textSection.setManaged(false);imageSection.setVisible(false);imageSection.setManaged(false);repeaterSection.setVisible(false);repeaterSection.setManaged(false);
         } finally { inspectorSync=false; }
     }
@@ -1364,10 +2164,18 @@ public class PdfStudioController implements ScreenLifecycle {
             e.setFillEnabled(chkFillEnabled.isSelected());e.setStrokeEnabled(chkStrokeEnabled.isSelected());
             e.setImageFit(cmbImageFit.getValue());e.setPreserveAspectRatio(chkPreserveRatio.isSelected());
             if (isRepeater(e)) {
-                e.setTableColumns(Arrays.stream(txtTableColumns.getText().split(",")).map(String::trim).filter(s->!s.isBlank()).toList());
+                List<String> requested=Arrays.stream(txtTableColumns.getText().split(",")).map(String::trim).filter(s->!s.isBlank()).toList();
+                if(e.getType()==ElementType.ITEM_TABLE&&!e.getTableColumnBindings().isEmpty()){
+                    if(requested.size()!=e.getTableColumnBindings().size())throw new IllegalArgumentException("Source-aware Item Table columns are tied to the detected PDF header cells. Map fields by dropping them onto the physical headers instead of changing the column count.");
+                    List<TemplateColumnBinding> bindings=new ArrayList<>(e.getTableColumnBindings());
+                    for(int i=0;i<bindings.size();i++){TemplateColumnBinding b=bindings.get(i).copy();b.setFieldKey("item."+ManualTemplateMappingService.normalizeItemColumn(requested.get(i)));bindings.set(i,b);}
+                    e.setTableColumnBindings(bindings);ManualTemplateMappingService.syncLegacyColumns(e);
+                }else e.setTableColumns(requested);
                 e.setRowHeight(parse(txtRowHeight,e.getRowHeight()));e.setHeaderHeight(parse(txtHeaderHeight,e.getHeaderHeight()));e.setUseSourceTableDesign(chkUseSourceTableDesign.isSelected());
             }
             e.setLocked(chkLocked.isSelected());e.setVisible(chkVisible.isSelected());e.setPageRule(cmbPageRule.getValue());
+            e.setFlowAnchorMode(cmbFlowAnchorMode.getValue());e.setFlowAnchorId(txtFlowAnchorId.getText());e.setFlowGap(parse(txtFlowGap,e.getFlowGap()));
+            e.setGrowthDirection(cmbGrowthDirection.getValue());e.setOverflowPolicy(cmbOverflowPolicy.getValue());e.setFlowGroupId(txtFlowGroupId.getText());e.setFlowRole(txtFlowRole.getText());e.setAutoHeight(chkAutoHeight.isSelected());
             if (e.isInheritParentStyle()) PdfStyleResolver.updateOverrides(template, e);
             autosave(); populateInspector(e); renderCanvas();
         } catch (Exception error) {
@@ -1378,6 +2186,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private TemplateElement editableSelectionFromSource() {
         TemplateElement e=selectedElement(); if (e!=null) return e;
         if (selectedSourceText!=null) { e=materializeSourceText(selectedSourceText); if(e!=null)selectOnlyWithoutRender(e); return e; }
+        if (selectedSourceForm!=null) { e=materializeSourceForm(selectedSourceForm); if(e!=null)selectOnlyWithoutRender(e); return e; }
         if (selectedSourceImage!=null) { e=materializeSourceImage(selectedSourceImage); if(e!=null)selectOnlyWithoutRender(e); return e; }
         if (selectedSourceVector!=null) { e=materializeSourceVector(selectedSourceVector); if(e!=null)selectOnlyWithoutRender(e); return e; }
         return null;
@@ -1425,12 +2234,16 @@ public class PdfStudioController implements ScreenLifecycle {
         String key=sourceKey(region);String group="replace-"+UUID.randomUUID();
         List<PdfTextRegion> replacementRegions=replacementTextRegions(region,fieldKey);
         PdfTextRegion valueRegion=combinedReplacementRegion(region,replacementRegions,fieldKey);
+        boolean safe=replacementRegions.stream().map(r->valueOnlyRegion(r,fieldKey))
+                .allMatch(r->isBackgroundUniform(r.pageIndex(),r.x(),r.y(),r.width(),r.height()));
         for(PdfTextRegion source:replacementRegions){
             PdfTextRegion maskRegion=valueOnlyRegion(source,fieldKey);
-            TemplateElement mask=sourceMask(maskRegion,sourceKey(source));mask.setReplacementGroupId(group);list.add(mask);
+            TemplateElement mask=sourceMask(maskRegion,sourceKey(source));mask.setReplacementGroupId(group);mask.setSourceMaskSafe(safe);list.add(mask);
         }
         TemplateElement text=TemplateElement.of(ElementType.TEXT,valueRegion.pageIndex(),valueRegion.x(),valueRegion.y(),valueRegion.width(),Math.max(valueRegion.height(),valueRegion.fontSize()*1.25));
-        text.setText(expression);text.setFieldKey(fieldKey);text.setFontSize(valueRegion.fontSize());text.setFontFamily(fontHint(valueRegion.fontName()));text.setBold(valueRegion.bold());text.setItalic(valueRegion.italic());text.setTextColor(valueRegion.textColor());text.setRotation(valueRegion.rotation());text.setFillEnabled(false);text.setStrokeEnabled(false);text.setTextFit("SHRINK");text.setReplacementGroupId(group);text.setReplacementSourceKey(key);list.add(text);return text;
+        text.setText(sourceAwareExpression(region,expression,fieldKey));text.setFieldKey(fieldKey);text.setFontSize(valueRegion.fontSize());text.setFontFamily(fontHint(valueRegion.fontName()));text.setBold(valueRegion.bold());text.setItalic(valueRegion.italic());text.setTextColor(valueRegion.textColor());text.setRotation(valueRegion.rotation());text.setFillEnabled(false);text.setStrokeEnabled(false);text.setTextFit("SHRINK");text.setReplacementGroupId(group);text.setReplacementSourceKey(key);
+        text.setSourceStyleCaptured(true);text.setSourceMaskSafe(safe);text.setSourceReplacementMode("OBJECT");
+        ManualTemplateMappingService.configureMultilineMapping(text,fieldKey);configureFlowIdentity(text,fieldKey);list.add(text);return text;
     }
 
     /** Rebuild source masks after the user chooses the field so labels/borders stay protected. */
@@ -1443,76 +2256,246 @@ public class PdfStudioController implements ScreenLifecycle {
         int insert=Math.max(0,list.indexOf(element));
         for(PdfTextRegion printed:regions){
             PdfTextRegion maskRegion=valueOnlyRegion(printed,fieldKey);
-            TemplateElement mask=sourceMask(maskRegion,sourceKey(printed));mask.setReplacementGroupId(group);list.add(insert++,mask);
+            TemplateElement mask=sourceMask(maskRegion,sourceKey(printed));mask.setReplacementGroupId(group);
+            mask.setSourceMaskSafe(isBackgroundUniform(maskRegion.pageIndex(),maskRegion.x(),maskRegion.y(),maskRegion.width(),maskRegion.height()));list.add(insert++,mask);
         }
         PdfTextRegion box=combinedReplacementRegion(source,regions,fieldKey);
         element.setX(box.x());element.setY(box.y());element.setWidth(box.width());element.setHeight(Math.max(box.height(),box.fontSize()*1.25));
         element.setReplacementSourceKey(sourceKey(source));
-        ManualTemplateMappingService.configureMultilineMapping(element,fieldKey);
+        String liveExpression=sourceAwareExpression(source,"{{"+fieldKey+"}}",fieldKey);
+        if(!liveExpression.equals("{{"+fieldKey+"}}")){
+            element.setType(ElementType.TEXT);
+            element.setText(liveExpression);
+        }
+        element.setSourceStyleCaptured(true);element.setSourceReplacementMode("OBJECT");
+        element.setSourceMaskSafe(regions.stream().map(r->valueOnlyRegion(r,fieldKey)).allMatch(r->isBackgroundUniform(r.pageIndex(),r.x(),r.y(),r.width(),r.height())));
+        ManualTemplateMappingService.configureMultilineMapping(element,fieldKey);configureFlowIdentity(element,fieldKey);
         template.setElements(list);
     }
 
     private List<PdfTextRegion> replacementTextRegions(PdfTextRegion selected,String fieldKey){
         if(selected==null)return List.of();
-        String key=fieldKey==null?"":fieldKey.toLowerCase(Locale.ROOT);
-        if(!key.contains("address")||key.contains("gstin"))return List.of(selected);
+        TemplateFieldDefinition definition=pdfField(fieldKey);
+        if(definition==null||!definition.multiline())return List.of(selected);
         List<PdfTextRegion> pageRegions=textCache.computeIfAbsent(selected.pageIndex(),page->{
             try{return PdfTextExtractionService.extract(sourcePdf,page);}catch(Exception ignored){return List.of();}
         });
-        double effectivePageWidth=pageWidth;
-        try{effectivePageWidth=PdfPreviewSupport.pageSize(sourcePdf,selected.pageIndex()).width();}catch(Exception ignored){}
-        final double pageW=Math.max(1,effectivePageWidth);
-        final boolean selectedLeft=selected.x()+selected.width()/2.0<pageW/2.0;
-        java.util.function.Predicate<PdfTextRegion> sameColumn=r->{
-            double center=r.x()+r.width()/2.0;
-            return selectedLeft?center<pageW/2.0:center>=pageW/2.0;
+        Optional<PdfImageExtractionService.VectorRegion> container=sourceFlowContainer(selected);
+        java.util.function.Predicate<PdfTextRegion> sameBlock=r->{
+            if(r==null||r.pageIndex()!=selected.pageIndex())return false;
+            if(container.isPresent()){
+                var c=container.get();double cx=r.x()+r.width()/2.0,cy=r.y()+r.height()/2.0;
+                return cx>=c.x()-2&&cx<=c.x()+c.width()+2&&cy>=c.y()-2&&cy<=c.y()+c.height()+2;
+            }
+            double left=Math.max(0,selected.x()-16),right=selected.x()+Math.max(selected.width(),180);
+            double overlap=Math.min(right,r.x()+r.width())-Math.max(left,r.x());
+            return overlap>Math.min(24,Math.max(8,Math.min(selected.width(),r.width())*.22));
         };
-        double maxScan=selected.y()+Math.max(90.0,selected.height()*6.0);
-        double gstY=pageRegions.stream().filter(sameColumn)
-                .filter(r->r.y()>=selected.y()-0.5&&r.y()<maxScan)
-                .filter(r->{String t=PdfAutoMappingService.normalize(r.text());return t.contains("gst in")||t.contains("gstin");})
-                .mapToDouble(PdfTextRegion::y).min().orElse(maxScan);
-        final double cutoff=gstY;
-        List<PdfTextRegion> fragments=pageRegions.stream().filter(sameColumn)
-                .filter(r->r.y()>=selected.y()-0.5&&r.y()+r.height()<=cutoff+0.25)
-                .filter(r->{String t=PdfAutoMappingService.normalize(r.text());return !(t.contains("billing address")||t.contains("delivery address")||t.contains("gst in")||t.contains("gstin")||t.startsWith("transporter")||t.startsWith("transport"));})
+        double maxScan=container.map(c->Math.min(c.y()+c.height(),selected.y()+Math.max(220,selected.height()*14.0)))
+                .orElse(selected.y()+Math.max(180.0,selected.height()*12.0));
+
+        List<PdfAutoMappingService.Mapping> known=currentMappingAnalysis==null?List.of():currentMappingAnalysis.mappings();
+        List<PdfAutoMappingService.SourceCandidate> sourceCandidates=PdfAutoMappingService.detectReviewCandidates(
+                template.getDocumentType(),pageRegions,currentPreviewData,known);
+        double cutoff=sourceCandidates.stream().filter(c->c.region()!=null).filter(c->sameBlock.test(c.region()))
+                .filter(c->c.region().y()>selected.y()+Math.max(2,selected.height()*.45))
+                .filter(c->!Objects.equals(c.suggestedField(),fieldKey))
+                .mapToDouble(c->c.region().y()).min().orElse(maxScan);
+        final double scanCutoff=Math.min(maxScan,cutoff);
+
+        Set<String> knownBoundaryValues=sourceCandidates.stream().filter(c->c.region()!=null)
+                .filter(c->c.region().y()>=scanCutoff-.25).map(c->sourceKey(c.region())).collect(Collectors.toSet());
+        List<PdfTextRegion> candidates=pageRegions.stream().filter(sameBlock)
+                .filter(r->r.y()>=selected.y()-0.5&&r.y()+r.height()<=scanCutoff+0.25)
+                .filter(r->!knownBoundaryValues.contains(sourceKey(r))||sourceKey(r).equals(sourceKey(selected)))
                 .sorted(Comparator.comparingDouble(PdfTextRegion::y).thenComparingDouble(PdfTextRegion::x)).toList();
-        if(fragments.isEmpty())return List.of(selected);
-        List<PdfTextRegion> bounded=fragments.stream().filter(r->r.y()+0.5>=selected.y()).toList();
-        return bounded.isEmpty()?List.of(selected):bounded;
+        List<PdfTextRegion> out=new ArrayList<>();double previousBottom=selected.y();
+        for(PdfTextRegion r:candidates){
+            double gap=r.y()-previousBottom;
+            if(!out.isEmpty()&&gap>Math.max(24,selected.height()*2.8))break;
+            out.add(r);previousBottom=Math.max(previousBottom,r.y()+r.height());
+        }
+        if(out.isEmpty())return List.of(selected);
+        if(out.stream().noneMatch(r->sourceKey(r).equals(sourceKey(selected))))out.add(0,selected);
+        return out;
+    }
+
+    private TemplateFieldDefinition pdfField(String fieldKey){
+        if(fieldKey==null||fieldKey.isBlank())return null;
+        return template==null?TemplateFieldCatalog.find(fieldKey):TemplateFieldCatalog.findPdf(template.getDocumentType(),fieldKey);
+    }
+
+    private boolean isMultilineFieldKey(String key){
+        TemplateFieldDefinition field=pdfField(key);return field!=null&&field.multiline();
+    }
+
+    private boolean isPartyAddressField(String key){
+        TemplateFieldDefinition field=pdfField(key);return field!=null&&"PARTY_ADDRESS".equals(field.blockRole());
+    }
+
+    /**
+     * Annotate mapped values with logical source-block metadata for the centralized Review Auto Mapping workspace.
+     * The detector remains generic: it groups values that share the same imported-PDF container/flow geometry,
+     * prefers a semantic ERP block when the fields agree, and falls back to a generic Detected Block for mixed
+     * values (for example a future XYZ/Export/Dispatch section). No template name or coordinate is hard-coded.
+     */
+    private void assignDetectedReviewBlocks(List<TemplateElement> elements){
+        PdfStudioFlowBlockDetector.normalize(template, elements, sourcePdf);
+    }
+
+    private String reviewBlockType(String fieldKey,String sourceLabel){
+        return TemplateFieldCatalog.reviewBlockType(template==null?null:template.getDocumentType(),fieldKey,sourceLabel);
+    }
+
+    private String reviewBlockLabel(String type){
+        return switch(type==null?"":type){
+            case "BILLING"->"Billing / Bill To"; case "DELIVERY"->"Delivery / Ship To";
+            case "TRANSPORT"->"Transport Details"; case "PAYMENT"->"Bank / Payment";
+            case "TERMS_FOOTER"->"Terms & Conditions"; case "GENERIC"->"Detected Source Block";
+            default->"Document Header";
+        };
+    }
+
+    private String inferSourceBlockHeading(List<TemplateElement> values,List<PdfTextRegion> source){
+        if(values==null||values.isEmpty()||source==null||source.isEmpty())return "";
+        int page=values.getFirst().getPageIndex();
+        double minX=values.stream().mapToDouble(TemplateElement::getX).min().orElse(0);
+        double maxX=values.stream().mapToDouble(e->e.getX()+e.getWidth()).max().orElse(minX+1);
+        double minY=values.stream().mapToDouble(TemplateElement::getY).min().orElse(0);
+        return source.stream().filter(r->r.pageIndex()==page)
+                .filter(r->r.y()+r.height()<=minY+8&&r.y()>=Math.max(0,minY-55))
+                .filter(r->{double overlap=Math.min(maxX,r.x()+r.width())-Math.max(minX,r.x());return overlap>Math.min(30,Math.max(8,r.width()*.25));})
+                .filter(r->{String t=r.text()==null?"":r.text().trim();return t.length()>=3&&t.length()<=70;})
+                .sorted(Comparator.comparingDouble((PdfTextRegion r)->Math.abs(minY-(r.y()+r.height())))
+                        .thenComparing((PdfTextRegion r)->-r.fontSize()))
+                .map(PdfTextRegion::text).map(String::trim)
+                .filter(t->!t.isBlank()).findFirst().orElse("");
+    }
+
+
+    private String inferSourceRegionBlockHeading(List<PdfTextRegion> values,List<PdfTextRegion> source){
+        if(values==null||values.isEmpty()||source==null||source.isEmpty())return "";
+        int page=values.getFirst().pageIndex();
+        double minX=values.stream().mapToDouble(PdfTextRegion::x).min().orElse(0);
+        double maxX=values.stream().mapToDouble(r->r.x()+r.width()).max().orElse(minX+1);
+        double minY=values.stream().mapToDouble(PdfTextRegion::y).min().orElse(0);
+        Set<String> valueKeys=values.stream().map(this::sourceKey).collect(Collectors.toSet());
+        return source.stream().filter(r->r.pageIndex()==page).filter(r->!valueKeys.contains(sourceKey(r)))
+                .filter(r->r.y()+r.height()<=minY+8&&r.y()>=Math.max(0,minY-65))
+                .filter(r->{double overlap=Math.min(maxX,r.x()+r.width())-Math.max(minX,r.x());return overlap>Math.min(30,Math.max(8,r.width()*.20));})
+                .filter(r->{String t=r.text()==null?"":r.text().trim();return t.length()>=3&&t.length()<=70&&usableDetectedLabel(t);})
+                .sorted(Comparator.comparingDouble((PdfTextRegion r)->Math.abs(minY-(r.y()+r.height())))
+                        .thenComparing((PdfTextRegion r)->-r.fontSize()))
+                .map(PdfTextRegion::text).map(this::cleanDetectedLabel).filter(t->!t.isBlank()).findFirst().orElse("");
+    }
+
+    private Optional<PdfImageExtractionService.VectorRegion> sourceFlowContainer(PdfTextRegion region){
+        if(region==null)return Optional.empty();
+        List<PdfImageExtractionService.VectorRegion> vectors=vectorCache.computeIfAbsent(region.pageIndex(),page->{
+            try{return PdfImageExtractionService.extractVectors(sourcePdf,page);}catch(Exception ignored){return List.of();}
+        });
+        double cx=region.x()+region.width()/2.0,cy=region.y()+region.height()/2.0;
+        return vectors.stream().filter(v->("BLOCK".equals(v.kind())||"TABLE / GRID".equals(v.kind())))
+                .filter(v->cx>=v.x()-1&&cx<=v.x()+v.width()+1&&cy>=v.y()-1&&cy<=v.y()+v.height()+1)
+                .filter(v->v.width()>=region.width()*.75&&v.height()>=region.height())
+                .min(Comparator.comparingDouble(v->v.width()*v.height()));
+    }
+
+    private Optional<PdfImageExtractionService.VectorRegion> sourceFlowContainer(TemplateElement element){
+        if(element==null)return Optional.empty();
+        List<PdfImageExtractionService.VectorRegion> vectors=vectorCache.computeIfAbsent(element.getPageIndex(),page->{
+            try{return PdfImageExtractionService.extractVectors(sourcePdf,page);}catch(Exception ignored){return List.of();}
+        });
+        double cx=element.getX()+element.getWidth()/2.0,cy=element.getY()+element.getHeight()/2.0;
+        return vectors.stream().filter(v->("BLOCK".equals(v.kind())||"TABLE / GRID".equals(v.kind())))
+                .filter(v->cx>=v.x()-1&&cx<=v.x()+v.width()+1&&cy>=v.y()-1&&cy<=v.y()+v.height()+1)
+                .filter(v->v.width()>=element.getWidth()*.75&&v.height()>=element.getHeight())
+                .min(Comparator.comparingDouble(v->v.width()*v.height()));
+    }
+
+    private String sourceFlowGroup(PdfTextRegion region){
+        return sourceFlowContainer(region).map(v->"SRCFLOW|"+v.sourceKey()).orElse("");
+    }
+
+    private String sourceFlowGroup(TemplateElement element){
+        return sourceFlowContainer(element).map(v->"SRCFLOW|"+v.sourceKey()).orElse("");
+    }
+
+    private void configureFlowIdentity(TemplateElement element,String fieldKey){
+        if(element==null||fieldKey==null||fieldKey.isBlank())return;
+        TemplateFieldDefinition field=pdfField(fieldKey);
+        if(field==null)return;
+        String sourceGroup=sourceFlowGroup(element);
+        if(!sourceGroup.isBlank())element.setFlowGroupId(sourceGroup);
+        else if(!element.getMappingBlockId().isBlank())element.setFlowGroupId(element.getMappingBlockId());
+        if(field.multiline()){
+            ManualTemplateMappingService.applyFieldSemantics(element,field);
+            if(!field.blockRole().isBlank())element.setFlowRole(field.blockRole());
+        }else if(!sourceGroup.isBlank()&&element.getFlowRole().isBlank()){
+            element.setFlowRole("FLOW_MEMBER");
+        }
     }
 
     private PdfTextRegion combinedReplacementRegion(PdfTextRegion selected,List<PdfTextRegion> regions,String fieldKey){
         if(selected==null)return null;
-        String key=fieldKey==null?"":fieldKey.toLowerCase(Locale.ROOT);
-        if(!key.contains("address")||regions==null||regions.size()<=1)return valueOnlyRegion(selected,fieldKey);
-        double minX=regions.stream().mapToDouble(PdfTextRegion::x).min().orElse(selected.x());
-        double minY=regions.stream().mapToDouble(PdfTextRegion::y).min().orElse(selected.y());
-        double maxX=regions.stream().mapToDouble(r->r.x()+r.width()).max().orElse(selected.x()+selected.width());
-        double maxY=regions.stream().mapToDouble(r->r.y()+r.height()).max().orElse(selected.y()+selected.height());
-        return new PdfTextRegion(selected.pageIndex(),selected.text(),minX,minY,Math.max(8,maxX-minX),Math.max(selected.height(),maxY-minY),selected.fontSize(),selected.fontName(),selected.bold(),selected.italic(),selected.textColor(),selected.rotation());
+        TemplateFieldDefinition field=pdfField(fieldKey);
+        PdfTextRegion box;
+        if(field==null||!field.multiline()||regions==null||regions.size()<=1)box=valueOnlyRegion(selected,fieldKey);
+        else{
+            List<PdfTextRegion> valueRegions=regions.stream().map(r->valueOnlyRegion(r,fieldKey)).toList();
+            double minX=valueRegions.stream().mapToDouble(PdfTextRegion::x).min().orElse(selected.x());
+            double minY=valueRegions.stream().mapToDouble(PdfTextRegion::y).min().orElse(selected.y());
+            double maxX=valueRegions.stream().mapToDouble(r->r.x()+r.width()).max().orElse(selected.x()+selected.width());
+            double maxY=valueRegions.stream().mapToDouble(r->r.y()+r.height()).max().orElse(selected.y()+selected.height());
+            box=new PdfTextRegion(selected.pageIndex(),selected.text(),minX,minY,Math.max(8,maxX-minX),Math.max(selected.height(),maxY-minY),selected.fontSize(),selected.fontName(),selected.bold(),selected.italic(),selected.textColor(),selected.rotation());
+        }
+        return field!=null&&field.multiline()?expandMultilineReplacementWidth(box):box;
     }
 
-    /** Preserve fixed labels such as GST-IN : while replacing only the printed value. */
+    /** Expand only to the detected source container; no page-half/two-column assumption is allowed. */
+    private PdfTextRegion expandMultilineReplacementWidth(PdfTextRegion box){
+        if(box==null)return null;
+        Optional<PdfImageExtractionService.VectorRegion> container=sourceFlowContainer(box);
+        if(container.isEmpty())return box;
+        double blockRight=container.get().x()+container.get().width()-3;
+        double expanded=Math.max(box.width(),blockRight-box.x());
+        if(expanded<=box.width()+2)return box;
+        return new PdfTextRegion(box.pageIndex(),box.text(),box.x(),box.y(),expanded,box.height(),
+                box.fontSize(),box.fontName(),box.bold(),box.italic(),box.textColor(),box.rotation());
+    }
+
+    /** Preserve inline source labels generically while replacing their changing value. */
+    private String sourceAwareExpression(PdfTextRegion region,String expression,String fieldKey){
+        if(region==null||expression==null||fieldKey==null)return expression;
+        String raw=region.text()==null?"":region.text();int colon=raw.indexOf(':');
+        if(colon<0||colon>Math.min(55,raw.length()-1))return expression;
+        String prefix=raw.substring(0,colon+1);
+        return prefix+" {{"+fieldKey+"}}";
+    }
+
     private PdfTextRegion valueOnlyRegion(PdfTextRegion region,String fieldKey){
-        if(region==null||fieldKey==null)return region;
-        String k=fieldKey.toLowerCase(Locale.ROOT), raw=region.text()==null?"":region.text();
-        if((k.endsWith("gstin")||k.endsWith(".gstin")) && raw.contains(":")){
-            int colon=raw.indexOf(':');
-            int valueStart=colon+1; while(valueStart<raw.length()&&Character.isWhitespace(raw.charAt(valueStart)))valueStart++;
-            if(valueStart<raw.length()){
-                double ratio=Math.min(.82,Math.max(.12,valueStart/(double)Math.max(1,raw.length())));
-                double offset=region.width()*ratio;
-                return new PdfTextRegion(region.pageIndex(),raw.substring(valueStart),region.x()+offset,region.y(),Math.max(8,region.width()-offset),region.height(),region.fontSize(),region.fontName(),region.bold(),region.italic(),region.textColor(),region.rotation());
-            }
-        }
+        if(region==null)return null;
+        // Inline label:value rows become one movable source-aware text element. This keeps the fixed
+        // label visually attached when an earlier Auto Height field grows and moves followers.
+        String raw=region.text()==null?"":region.text();int colon=raw.indexOf(':');
+        if(colon>=1&&colon<=Math.min(55,raw.length()-1))return region;
         return region;
     }
 
     private TemplateElement sourceMask(PdfTextRegion region,String key){
         double inset=Math.min(.65,Math.max(.15,Math.min(region.width(),region.height())*.04));
         TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,region.pageIndex(),region.x()+inset,region.y()+inset,Math.max(1,region.width()-inset*2),Math.max(1,region.height()-inset*2));
-        mask.setFillColor(sampleBackgroundColor(region.pageIndex(), region.x(), region.y(), region.width(), region.height()));mask.setStrokeColor(mask.getFillColor());mask.setStrokeWidth(0);mask.setLocked(true);mask.setReplacementSourceKey(key);return mask;
+        mask.setFillColor(sampleBackgroundColor(region.pageIndex(), region.x(), region.y(), region.width(), region.height()));mask.setStrokeColor(mask.getFillColor());mask.setStrokeWidth(0);mask.setLocked(true);mask.setReplacementSourceKey(key);mask.setSourceMaskSafe(isBackgroundUniform(region.pageIndex(),region.x(),region.y(),region.width(),region.height()));return mask;
+    }
+
+    private TemplateElement materializeSourceForm(PdfFormFieldRegion region) {
+        if(region==null)return null;String key=sourceKey(region);TemplateElement existing=primaryReplacement(key);if(existing!=null)return existing;
+        checkpoint();
+        TemplateElement text=TemplateElement.of(ElementType.TEXT,region.pageIndex(),region.x(),region.y(),region.width(),region.height());
+        text.setText(region.sampleValue().isBlank()?region.displayName():region.sampleValue());
+        text.setFontFamily("HELVETICA");text.setFontSize(Math.max(7,Math.min(11,region.height()*.55)));text.setTextFit("SHRINK");
+        text.setFillEnabled(false);text.setStrokeEnabled(false);text.setReplacementSourceKey(key);text.setReplacementGroupId("form-"+UUID.randomUUID());text.setSourceReplacementMode("FORM");text.setSourceMaskSafe(true);
+        List<TemplateElement> list=new ArrayList<>(template.getElements());list.add(text);template.setElements(list);autosave();return text;
     }
 
     private TemplateElement materializeSourceImage(PdfImageRegion region) {
@@ -1538,9 +2521,35 @@ public class PdfStudioController implements ScreenLifecycle {
         template.setElements(list);autosave();return primary;
     }
 
+    private TemplateElement mapSourceVectorToImageField(PdfImageExtractionService.VectorRegion region, TemplateFieldDefinition field){
+        if(region==null||field==null||!field.image())return null;
+        String key=region.sourceKey();
+        TemplateElement existing=primaryReplacement(key);
+        if(existing!=null&&isImageLike(existing)){
+            existing.setType(ElementType.IMAGE_FIELD);existing.setFieldKey(field.key());existing.setText(field.label());
+            existing.setImageFit("FIT");existing.setPreserveAspectRatio(true);existing.setFillEnabled(false);existing.setStrokeEnabled(false);
+            return existing;
+        }
+        List<TemplateElement> list=new ArrayList<>(template.getElements());
+        list.removeIf(e->key.equals(e.getReplacementSourceKey()));
+        String group="vector-image-"+UUID.randomUUID();
+        double pad=.75;
+        double x=Math.max(0,region.x()-pad),y=Math.max(0,region.y()-pad),w=region.width()+pad*2,h=region.height()+pad*2;
+        boolean safe=isBackgroundUniform(region.pageIndex(),x,y,w,h);
+        TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,region.pageIndex(),x,y,w,h);
+        mask.setFillColor(sampleBackgroundColor(region.pageIndex(),x,y,w,h));mask.setStrokeColor(mask.getFillColor());mask.setStrokeWidth(0);mask.setLocked(true);
+        mask.setReplacementGroupId(group);mask.setReplacementSourceKey(key);mask.setSourceMaskSafe(safe);list.add(mask);
+        TemplateElement image=TemplateElement.of(ElementType.IMAGE_FIELD,region.pageIndex(),region.x(),region.y(),region.width(),region.height());
+        image.setFieldKey(field.key());image.setText(field.label());image.setImageFit("FIT");image.setPreserveAspectRatio(true);image.setFillEnabled(false);image.setStrokeEnabled(false);
+        image.setReplacementGroupId(group);image.setReplacementSourceKey(key);image.setSourceReplacementMode("MASK");image.setSourceMaskSafe(safe);image.setSourceStyleCaptured(true);
+        if("company.signature".equals(field.key()))image.setPageRule("LAST");
+        list.add(image);template.setElements(list);return image;
+    }
+
     private TemplateElement primaryReplacement(String sourceKey){return template.getElements().stream().filter(e->sourceKey.equals(e.getReplacementSourceKey())&&e.getType()!=ElementType.WHITEOUT).findFirst().orElse(null);}
     private boolean hasReplacementFor(String sourceKey){return template.getElements().stream().anyMatch(e->sourceKey.equals(e.getReplacementSourceKey()));}
     private String sourceKey(PdfTextRegion r){return "PDF_TEXT|"+r.pageIndex()+"|"+round(r.x())+"|"+round(r.y())+"|"+round(r.width())+"|"+round(r.height())+"|"+PdfAutoMappingService.normalize(r.text());}
+    private String sourceKey(PdfFormFieldRegion r){return "PDF_FORM|"+r.pageIndex()+"|"+r.fieldName()+"|"+round(r.x())+"|"+round(r.y())+"|"+round(r.width())+"|"+round(r.height());}
     private String sourceKey(PdfImageRegion r){return "PDF_IMAGE|"+r.pageIndex()+"|"+round(r.x())+"|"+round(r.y())+"|"+round(r.width())+"|"+round(r.height());}
     private String round(double v){return String.valueOf(Math.round(v*10.0)/10.0);}
 
@@ -1557,7 +2566,135 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void addImage(){chooseImageForNewObject();}
     @FXML private void addItemRepeater(){TemplateElement e=newElement(ElementType.ITEM_TABLE,Math.max(300,pageWidth-50),220);e.setTableColumns(List.of());e.setUseSourceTableDesign(false);e.setFontSize(8);addElement(e,null);if(lblInspectorHint!=null)lblInspectorHint.setText("Item Table created. Drag Item ERP fields onto it in the same left-to-right order as the PDF columns.");}
     @FXML private void addChargeRepeater(){TemplateElement e=newElement(ElementType.CHARGE_TABLE,Math.max(250,pageWidth*.48),120);e.setTableColumns(List.of("type","amount","gstPercent","taxAmount","total"));e.setUseSourceTableDesign(false);e.setFontSize(8);addElement(e,null);}
-    @FXML private void addFinancialSummary(){TemplateElement e=newElement(ElementType.BLOCK,Math.max(180,pageWidth*.32),150);e.setReplacementGroupId("DYNAMIC_FINANCIAL_SUMMARY");e.setPageRule("LAST");e.setFillEnabled(true);e.setFillColor("#FFFFFF");e.setStrokeEnabled(true);e.setStrokeColor("#AFC2D8");addElement(e,null);if(lblInspectorHint!=null)lblInspectorHint.setText("Financial Summary uses the Sale tax mode automatically: CGST+SGST, IGST, or no tax. Place it over the calculation box on the final page.");}
+    @FXML private void addFinancialSummary(){
+        List<TemplateElement> reviewRollback=snapshotElements();
+        PdfImageExtractionService.VectorRegion source=selectedSourceVector;
+        TemplateElement e;
+        if(source!=null&&source.pageIndex()==pageIndex){
+            e=TemplateElement.of(ElementType.BLOCK,pageIndex,source.x(),source.y(),source.width(),source.height());
+            e.setSourceStyleCaptured(true);
+            e.setSourceMaskSafe(isBackgroundUniform(pageIndex,source.x(),source.y(),source.width(),source.height()));
+            e.setFillEnabled(true);e.setFillColor(dominantFill(source,sampleBackgroundColor(pageIndex,source.x(),source.y(),source.width(),source.height())));
+            PdfImageExtractionService.VectorRegion grid=financialGridRegion(source).orElse(source);
+            applySourceGridStyle(e,grid);
+            e.setSummaryLabelRatio(inferSummaryLabelRatio(grid));
+            double sourceRowHeight=inferSummaryRowHeight(grid);if(sourceRowHeight>0)e.setRowHeight(sourceRowHeight);
+            Optional<PdfImageExtractionService.VectorRegion> totalBand=financialTotalBand(source);
+            if(totalBand.isPresent()){
+                PdfImageExtractionService.VectorRegion band=totalBand.get();
+                double bodyBottom=source.y()+source.height();
+                double gap=Math.max(0,band.y()-bodyBottom);
+                double combinedBottom=Math.max(bodyBottom,band.y()+band.height());
+                e.setHeight(combinedBottom-source.y());
+                e.setSummaryTotalHeight(band.height());
+                e.setSummaryTotalGap(gap);
+                e.setSummaryTotalFillColor(dominantFill(band,e.getFillColor()));
+            }else{
+                String totalFill=bottomAccentFill(source,e.getFillColor());if(!totalFill.equalsIgnoreCase(e.getFillColor()))e.setSummaryTotalFillColor(totalFill);
+            }
+            PdfTextRegion style=textCache.getOrDefault(pageIndex,List.of()).stream().filter(r->inside(source,r))
+                    .min(Comparator.comparingDouble(PdfTextRegion::y)).orElse(null);
+            if(style!=null){e.setFontFamily(fontHint(style.fontName()));e.setFontSize(Math.max(5,style.fontSize()));e.setTextColor(style.textColor());}
+        }else{
+            e=newElement(ElementType.BLOCK,Math.max(180,pageWidth*.32),150);e.setFillEnabled(true);e.setFillColor("#FFFFFF");e.setStrokeEnabled(true);e.setStrokeColor("#AFC2D8");
+        }
+        e.setReplacementGroupId("DYNAMIC_FINANCIAL_SUMMARY");e.setPageRule("LAST");e.setFlowRole("FINANCIAL_SUMMARY");e.setGrowthDirection("UP");e.setOverflowPolicy("ERROR");
+        e.setMappingSourceLabel("Financial Summary");e.setAutoDetectedFieldKey("DYNAMIC_FINANCIAL_SUMMARY");e.setAutoDetectedConfidence(source==null?0.0:0.96);e.setMappingState(source==null?"REVIEW_REQUIRED":"AUTO");
+        if(source!=null)e.setSourceReplacementMode("OBJECT");
+        addElement(e,null);
+        if(source!=null){
+            List<TemplateElement> list=new ArrayList<>(template.getElements());
+            double financialBottom=e.getY()+e.getHeight();
+            for(PdfTextRegion printed:textCache.getOrDefault(pageIndex,List.of())){
+                double cx=printed.x()+printed.width()/2.0,cy=printed.y()+printed.height()/2.0;
+                if(cx<e.getX()||cx>e.getX()+e.getWidth()||cy<e.getY()||cy>financialBottom)continue;
+                String key=sourceKey(printed);if(list.stream().anyMatch(existing->key.equals(existing.getReplacementSourceKey())))continue;
+                TemplateElement marker=sourceMask(printed,key);marker.setReplacementGroupId("DYNAMIC_FINANCIAL_SUMMARY");marker.setSourceMaskSafe(false);list.add(marker);
+            }
+            template.setElements(list);autosave();renderCanvas();
+        }
+        if(lblInspectorHint!=null)lblInspectorHint.setText(source==null
+                ?"Financial Summary added. Review Mapping lets you inspect/adjust the block geometry, label split, anchor and growth before publishing."
+                :"Financial Summary captured from the selected PDF calculation block. Review Mapping shows the detected geometry/style behavior while ERP remains responsible for dynamic rows.");
+        showMappingReview(PdfMappingReviewSession.Section.FINANCIAL,reviewRollback);
+    }
+
+
+    /**
+     * Find the grid that physically belongs to the selected Financial Summary block. Imported PDFs
+     * often expose the outer rounded rectangle as one vector region and its row/split rules as a
+     * second TABLE / GRID region. The source geometry, not a product/customer constant, is the
+     * authority for the row rhythm and label/value split.
+     */
+    private Optional<PdfImageExtractionService.VectorRegion> financialGridRegion(PdfImageExtractionService.VectorRegion source){
+        if(source==null)return Optional.empty();
+        if("TABLE / GRID".equals(source.kind()))return Optional.of(source);
+        return vectorCache.getOrDefault(source.pageIndex(),List.of()).stream()
+                .filter(v->"TABLE / GRID".equals(v.kind()))
+                .filter(v->horizontalOverlap(source,v)>=Math.min(source.width(),v.width())*.72)
+                .filter(v->verticalOverlap(source,v)>=Math.min(source.height(),v.height())*.55)
+                .min(Comparator.comparingDouble(v->Math.abs(v.x()-source.x())+Math.abs(v.y()-source.y())
+                        +Math.abs(v.width()-source.width())+Math.abs(v.height()-source.height())));
+    }
+
+    /** Detect a physically separate Grand Total/accent strip immediately below the calculation body. */
+    private Optional<PdfImageExtractionService.VectorRegion> financialTotalBand(PdfImageExtractionService.VectorRegion source){
+        if(source==null)return Optional.empty();
+        double bodyBottom=source.y()+source.height();
+        double maxGap=Math.max(16,Math.min(30,source.height()*.35));
+        return vectorCache.getOrDefault(source.pageIndex(),List.of()).stream()
+                .filter(v->!Objects.equals(v.sourceKey(),source.sourceKey()))
+                .filter(v->v.primitives().stream().anyMatch(PdfImageExtractionService.VectorPrimitive::filled))
+                .filter(v->v.height()>=5&&v.height()<=Math.max(38,source.height()*.60))
+                .filter(v->v.y()>=bodyBottom-1&&v.y()-bodyBottom<=maxGap)
+                .filter(v->horizontalOverlap(source,v)>=Math.min(source.width(),v.width())*.78)
+                .filter(v->Math.abs(v.width()-source.width())<=Math.max(18,source.width()*.14))
+                .min(Comparator.comparingDouble(v->Math.max(0,v.y()-bodyBottom)*4
+                        +Math.abs(v.x()-source.x())+Math.abs(v.width()-source.width())));
+    }
+
+    private double inferSummaryRowHeight(PdfImageExtractionService.VectorRegion region){
+        if(region==null)return 0;
+        List<Double> rules=region.primitives().stream()
+                .filter(p->p.width()>=region.width()*.55&&p.height()<=3.0)
+                .map(p->p.y()+p.height()/2.0).sorted().toList();
+        if(rules.size()<2)return 0;
+        List<Double> gaps=new ArrayList<>();
+        for(int i=1;i<rules.size();i++){
+            double gap=rules.get(i)-rules.get(i-1);
+            if(gap>=6&&gap<=32)gaps.add(gap);
+        }
+        if(gaps.isEmpty())return 0;
+        gaps.sort(Double::compareTo);
+        return gaps.get(gaps.size()/2);
+    }
+
+    private double horizontalOverlap(PdfImageExtractionService.VectorRegion a,PdfImageExtractionService.VectorRegion b){
+        return Math.max(0,Math.min(a.x()+a.width(),b.x()+b.width())-Math.max(a.x(),b.x()));
+    }
+    private double verticalOverlap(PdfImageExtractionService.VectorRegion a,PdfImageExtractionService.VectorRegion b){
+        return Math.max(0,Math.min(a.y()+a.height(),b.y()+b.height())-Math.max(a.y(),b.y()));
+    }
+
+    private boolean inside(PdfImageExtractionService.VectorRegion box,PdfTextRegion text){
+        double cx=text.x()+text.width()/2.0,cy=text.y()+text.height()/2.0;
+        return cx>=box.x()&&cx<=box.x()+box.width()&&cy>=box.y()&&cy<=box.y()+box.height();
+    }
+    private String dominantFill(PdfImageExtractionService.VectorRegion region,String fallback){
+        Map<String,Long> fills=region.primitives().stream().filter(PdfImageExtractionService.VectorPrimitive::filled)
+                .collect(Collectors.groupingBy(PdfImageExtractionService.VectorPrimitive::fillColor,Collectors.counting()));
+        return fills.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(fallback);
+    }
+    private String bottomAccentFill(PdfImageExtractionService.VectorRegion region,String fallback){
+        return region.primitives().stream().filter(PdfImageExtractionService.VectorPrimitive::filled)
+                .filter(p->p.y()+p.height()/2.0>=region.y()+region.height()*.65)
+                .max(Comparator.comparingDouble(p->p.width()*p.height())).map(PdfImageExtractionService.VectorPrimitive::fillColor).orElse(fallback);
+    }
+    private double inferSummaryLabelRatio(PdfImageExtractionService.VectorRegion region){
+        return region.primitives().stream().filter(p->p.width()<=3&&p.height()>=region.height()*.25)
+                .mapToDouble(p->(p.x()-region.x())/Math.max(1,region.width())).filter(v->v>=.35&&v<=.85)
+                .boxed().min(Comparator.comparingDouble(v->Math.abs(v-.66))).orElse(.66);
+    }
 
     @FXML private void dragCreateText(MouseEvent e){startCreateDrag(e,"TEXT");}
     @FXML private void dragCreateHeading(MouseEvent e){startCreateDrag(e,"HEADING");}
@@ -1592,7 +2729,7 @@ public class PdfStudioController implements ScreenLifecycle {
         if (field == null) return;
         TemplateElement repeater = repeaterAt(x,y);
         if (repeater == null && selectedIds.size() == 1 && isRepeater(selectedElement())) repeater = selectedElement();
-        if (repeater != null && addFieldToRepeater(repeater, field)) return;
+        if (repeater != null && addFieldToRepeater(repeater, field, x)) return;
 
         if (field.image()) {
             PdfImageRegion sourceImage = findSourceImageAt(x, y);
@@ -1612,10 +2749,32 @@ public class PdfStudioController implements ScreenLifecycle {
                     return;
                 }
             }
+            PdfImageExtractionService.VectorRegion sourceVector=findSourceVectorAt(x,y);
+            if(sourceVector!=null){
+                checkpoint();
+                TemplateElement e=mapSourceVectorToImageField(sourceVector,field);
+                if(e!=null){autosave();selectOnlyWithoutRender(e);populateInspector(e);renderCanvas();return;}
+            }
         }
+        PdfFormFieldRegion sourceForm=findSourceFormAt(x,y);
+        if(sourceForm!=null && !field.image()){TemplateElement e=materializeSourceForm(sourceForm);if(e!=null){checkpoint();ManualTemplateMappingService.mapField(e,field);configureFlowIdentity(e,field.key());autosave();selectOnlyWithoutRender(e);populateInspector(e);renderCanvas();}return;}
         PdfTextRegion source=findSourceTextAt(x,y);
         if(source!=null && !field.image()){checkpoint();List<TemplateElement> list=new ArrayList<>(template.getElements());TemplateElement e=addSourceTextReplacement(list,source,"{{"+field.key()+"}}",field.key());ManualTemplateMappingService.configureMultilineMapping(e, field.key());template.setElements(list);autosave();selectOnlyWithoutRender(e);populateInspector(e);renderCanvas();return;}
-        TemplateElement e=elementAt(field.image()?ElementType.IMAGE_FIELD:ElementType.TEXT,x-60,y-12,field.image()?150:140,field.image()?80:28);e.setFieldKey(field.key());e.setText(field.image()?field.label():"{{"+field.key()+"}}");e.setFillEnabled(false);e.setStrokeEnabled(false);addElement(e,null);
+        if(!field.image()){
+            PdfSourceCapabilityService.Capability capability=sourceCapability(pageIndex);
+            PdfImageRegion raster=findSourceImageAt(x,y);
+            if(raster!=null && capability.kind()==PdfSourceCapabilityService.Kind.FLATTENED_IMAGE){
+                AppDialogService.info(root,"Flattened PDF region","PDF Studio",
+                        "This printed value is part of a raster/scanned image, so PDF Studio cannot remove only the old text without damaging the artwork. Use an editable/native PDF, or place the ERP field in a clean blank area intentionally.");
+                if(lblInspectorHint!=null)lblInspectorHint.setText(capability.userMessage());
+                return;
+            }
+        }
+        TemplateElement e=elementAt(field.image()?ElementType.IMAGE_FIELD:ElementType.TEXT,x-60,y-12,field.image()?150:140,field.image()?80:28);e.setFieldKey(field.key());e.setText(field.image()?field.label():"{{"+field.key()+"}}");e.setFillEnabled(false);e.setStrokeEnabled(false);
+        e.setSourceReplacementMode("OVERLAY");
+        if(!field.image()){ManualTemplateMappingService.configureMultilineMapping(e,field.key());configureFlowIdentity(e,field.key());}
+        addElement(e,null);
+        if(lblInspectorHint!=null)lblInspectorHint.setText("Placed as an ERP overlay in an empty region. No source PDF value was removed. To replace printed content, drop the field directly on detected PDF text.");
     }
 
     private TemplateElement repeaterAt(double x,double y) {
@@ -1628,21 +2787,56 @@ public class PdfStudioController implements ScreenLifecycle {
         return null;
     }
 
-    private boolean addFieldToRepeater(TemplateElement repeater, TemplateFieldDefinition field) {
+    private boolean addFieldToRepeater(TemplateElement repeater, TemplateFieldDefinition field, double dropX) {
         String prefix = repeater.getType()==ElementType.ITEM_TABLE ? "item." : "charge.";
         if (!field.key().startsWith(prefix)) return false;
-        String column = field.key().substring(prefix.length());
-        List<String> columns = new ArrayList<>(repeater.getTableColumns());
-        if (!columns.contains(column)) { checkpoint(); columns.add(column); repeater.setTableColumns(columns); autosave(); }
+        checkpoint();
+        String mappedLabel = field.label();
+        if (repeater.getType()==ElementType.ITEM_TABLE && !repeater.getTableColumnBindings().isEmpty()) {
+            int index=sourceColumnAt(repeater,dropX);
+            if(index<0){
+                lblSaveState.setText("Drop the field inside a detected item header column");
+                return true;
+            }
+            TemplateColumnBinding before=repeater.getTableColumnBindings().get(index);
+            ManualTemplateMappingService.mapItemColumn(repeater,field.key(),index);
+            mappedLabel=(before.getSourceLabel().isBlank()?"Column "+(index+1):before.getSourceLabel())+" → "+field.label();
+        } else {
+            String column = field.key().substring(prefix.length());
+            List<String> columns = new ArrayList<>(repeater.getTableColumns());
+            if (!columns.contains(column)) columns.add(column);
+            repeater.setTableColumns(columns);
+        }
+        autosave();
         selectOnlyWithoutRender(repeater); populateInspector(repeater); renderCanvas();
-        lblSaveState.setText(columns.contains(column) ? "Repeater field mapped ✓" : "Ready");
+        lblSaveState.setText("Mapped " + mappedLabel + " ✓");
+        if(lblInspectorHint!=null && repeater.getType()==ElementType.ITEM_TABLE && !repeater.getTableColumnBindings().isEmpty())
+            lblInspectorHint.setText("Header mapped to ERP meaning. Drop another Item field onto its physical PDF header column; source order and widths are preserved.");
         return true;
+    }
+
+    private int sourceColumnAt(TemplateElement table,double pageX){
+        double local=pageX-table.getX();
+        List<TemplateColumnBinding> bindings=table.getTableColumnBindings();
+        for(int i=0;i<bindings.size();i++){
+            TemplateColumnBinding b=bindings.get(i);
+            if(local>=b.getXOffset()-1&&local<=b.getXOffset()+Math.max(1,b.getWidth())+1)return i;
+        }
+        return -1;
     }
 
     @FXML private void addSelectedField(){TemplateFieldDefinition f=lstFields.getSelectionModel().getSelectedItem();if(f!=null)dropField(f,pageWidth/2,pageHeight/2);}
 
+    private PdfFormFieldRegion findSourceFormAt(double x,double y){return formCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
     private PdfTextRegion findSourceTextAt(double x,double y){return textCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
     private PdfImageRegion findSourceImageAt(double x,double y){return imageCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
+    private PdfImageExtractionService.VectorRegion findSourceVectorAt(double x,double y){
+        return vectorCache.getOrDefault(pageIndex,List.of()).stream()
+                .filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height())
+                .sorted(Comparator.comparingInt((PdfImageExtractionService.VectorRegion r)->"PATH".equals(r.kind())?0:1)
+                        .thenComparingDouble(r->r.width()*r.height()))
+                .findFirst().orElse(null);
+    }
 
     private void chooseImageForNewObject(){
         FileChooser chooser=imageChooser("Add Image");var file=chooser.showOpenDialog(root.getScene().getWindow());if(file==null)return;
@@ -1720,6 +2914,7 @@ public class PdfStudioController implements ScreenLifecycle {
         if(previewMode)return;
         if(selectedIds.isEmpty()){
             if(selectedSourceText!=null){hideSourceText(selectedSourceText);return;}
+            if(selectedSourceForm!=null){TemplateElement e=materializeSourceForm(selectedSourceForm);if(e!=null)deleteSelected();return;}
             if(selectedSourceImage!=null){hideSourceImage(selectedSourceImage);return;}
             if(selectedSourceVector!=null){hideSourceVector(selectedSourceVector);return;}
             return;
@@ -1996,6 +3191,24 @@ public class PdfStudioController implements ScreenLifecycle {
         if(btnFinalMode!=null)btnFinalMode.setDisable(previewMode&&!dataPreviewMode);
     }
 
+    @FXML private void downloadMappingGuide(){
+        try {
+            Path guide = PdfStudioHelpService.exportToUserDownloadLocation();
+            boolean opened = false;
+            try {
+                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                    Desktop.getDesktop().open(guide.toFile());
+                    opened = true;
+                }
+            } catch (Exception ignored) { }
+            AppDialogService.success(root, "Mapping guide downloaded", "The PDF Studio mapping guide was saved to:\n" + guide
+                    + (opened ? "\n\nIt has also been opened in your PDF viewer so you can keep it beside PDF Studio while mapping."
+                              : "\n\nOpen this PDF from the saved location and keep it beside PDF Studio while mapping."));
+        } catch (Exception error) {
+            AppDialogService.error(root, "Mapping guide unavailable", "PDF Studio", rootMessage(error));
+        }
+    }
+
     @FXML private void exportPdf(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EXPORT_PDF", "export PDF output");if(template==null)return;FileChooser chooser=new FileChooser();chooser.setTitle("Export PDF");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files","*.pdf"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._-]","-")+".pdf");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;try{PdfStudioRenderer.render(template,previewData(),file.toPath());AppDialogService.success(root,"Test PDF exported",file.getAbsolutePath()+" • Production templates were not changed.");}catch(Exception e){AppDialogService.error(root,"Export failed","PDF Studio",rootMessage(e));}}
 
     private TemplateData previewData(){DocumentSample sample=cmbSampleDocument.getValue();if(sample==null)return currentPreviewData==null?DocumentDataService.sample(template.getDocumentType()):currentPreviewData;try{TemplateData data=DocumentDataService.load(template.getDocumentType(),sample.id());currentPreviewData=data;return data;}catch(Exception e){currentPreviewData=null;throw new IllegalStateException("Selected ERP record "+sample.id()+" could not be loaded. Preview/export cancelled.",e);}}
@@ -2052,12 +3265,18 @@ public class PdfStudioController implements ScreenLifecycle {
         if(btnPublishDefault!=null)btnPublishDefault.setDisable(template.getStatus()==TemplateStatus.ARCHIVED||!automatic);
     }
     private void updatePageWarning(){if(template==null)return;long outside=template.getElements().stream().filter(e->e.getPageIndex()==pageIndex&&PdfStyleResolver.effectivelyVisible(template,e)).filter(e->e.getX()<0||e.getY()<0||e.getX()+e.getWidth()>pageWidth||e.getY()+e.getHeight()>pageHeight).count();lblPageWarning.setText(outside==0?"":outside+" object(s) extend outside page • export will clip");}
-    private void clearObjectCaches(){textCache.clear();imageCache.clear();vectorCache.clear();sourcePageImages.clear();loadingPages.clear();}
+    private void clearObjectCaches(){textCache.clear();formCache.clear();imageCache.clear();vectorCache.clear();sourcePageImages.clear();loadingPages.clear();}
     private String displayName(TemplateElement e){if(e==null)return "Object";return switch(e.getType()){case TEXT->"Text • "+abbreviate(e.getText(),28);case FIELD->"ERP Field • "+e.getFieldKey();case IMAGE->"Image";case IMAGE_FIELD->"ERP Image • "+e.getFieldKey();case BLOCK->"DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId())?"Financial Summary":"Section / Group";case RECTANGLE->"Rectangle";case WHITEOUT->"Source Mask";case LINE->"Line";case PATH->"Vector Path";case ITEM_TABLE->"Item Repeater";case CHARGE_TABLE->"Charge Repeater";};}
     private boolean isTextLike(TemplateElement e){return e!=null&&(e.getType()==ElementType.TEXT||e.getType()==ElementType.FIELD);}
     private boolean isImageLike(TemplateElement e){return e!=null&&(e.getType()==ElementType.IMAGE||e.getType()==ElementType.IMAGE_FIELD);}
     private boolean isRepeater(TemplateElement e){return e!=null&&(e.getType()==ElementType.ITEM_TABLE||e.getType()==ElementType.CHARGE_TABLE);}
-    private String fontHint(String name){String n=name==null?"":name.toUpperCase(Locale.ROOT);if(n.contains("TIMES")||n.contains("SERIF"))return"TIMES";if(n.contains("COURIER")||n.contains("MONO"))return"COURIER";return"HELVETICA";}
+    private String fontHint(String name){
+        String n=name==null?"":name.toUpperCase(Locale.ROOT).replaceFirst("^[A-Z]{6}\\+","");
+        if(n.contains("TIMES"))return"TIMES";if(n.contains("COURIER")||n.contains("MONO"))return"COURIER";
+        if(n.contains("HELVETICA"))return"HELVETICA";if(n.contains("ARIAL"))return"ARIAL";
+        n=n.replaceAll("(?i)([-_ ]?(BOLD|SEMIBOLD|DEMI|BLACK|ITALIC|OBLIQUE|REGULAR|ROMAN|PSMT|MT))+$","").trim();
+        return n.isBlank()?"HELVETICA":n;
+    }
     private String bindingKey(String value){if(value==null||value.startsWith("—"))return"";int i=value.indexOf("  •");return i<0?value.trim():value.substring(0,i).trim();}
     private double parse(TextField f,double fallback){try{String s=f.getText()==null?"":f.getText().trim().replace(",","");return s.isBlank()?fallback:Double.parseDouble(s);}catch(Exception ignored){return fallback;}}
     private String fmt(double v){return Math.abs(v-Math.rint(v))<.0001?Long.toString(Math.round(v)):String.format(Locale.ENGLISH,"%.2f",v);}
@@ -2080,6 +3299,19 @@ public class PdfStudioController implements ScreenLifecycle {
     private void translateDescendants(TemplateElement root,double dx,double dy){
         if(root==null)return; Set<String> ids=idsWithDescendants(Set.of(root.getId())); ids.remove(root.getId());
         for(TemplateElement e:template.getElements())if(ids.contains(e.getId())&&!geometryLocked(e)){e.setX(e.getX()+dx);e.setY(e.getY()+dy);}
+    }
+
+    private boolean isBackgroundUniform(int page,double x,double y,double width,double height){
+        Image image=sourcePageImages.get(page);
+        if(image==null||image.getPixelReader()==null||pageWidth<=0||pageHeight<=0)return true;
+        var reader=image.getPixelReader();int iw=Math.max(1,(int)Math.round(image.getWidth())),ih=Math.max(1,(int)Math.round(image.getHeight()));
+        int left=clampInt((int)Math.floor(x/pageWidth*iw),0,iw-1),right=clampInt((int)Math.ceil((x+width)/pageWidth*iw),0,iw-1);
+        int top=clampInt((int)Math.floor(y/pageHeight*ih),0,ih-1),bottom=clampInt((int)Math.ceil((y+height)/pageHeight*ih),0,ih-1);
+        int margin=Math.max(2,(int)Math.round(iw/pageWidth*2.0));Map<Integer,Integer> buckets=new HashMap<>();int samples=0;
+        for(int py=Math.max(0,top-margin);py<=Math.min(ih-1,bottom+margin);py+=Math.max(1,margin/2))for(int px=Math.max(0,left-margin);px<=Math.min(iw-1,right+margin);px+=Math.max(1,margin/2)){
+            boolean ring=px<left||px>right||py<top||py>bottom;if(!ring)continue;int argb=reader.getArgb(px,py);int r=((argb>>16)&0xFF)/24*24,g=((argb>>8)&0xFF)/24*24,b=(argb&0xFF)/24*24;int key=(r<<16)|(g<<8)|b;buckets.merge(key,1,Integer::sum);samples++;}
+        int dominant=buckets.values().stream().mapToInt(Integer::intValue).max().orElse(samples);
+        return samples<8||dominant/(double)Math.max(1,samples)>=.52;
     }
 
     private String sampleBackgroundColor(int page, double x, double y, double width, double height) {

@@ -104,6 +104,32 @@ public final class AuthApiClient {
         return response;
     }
 
+    public LoginMfaChallengeResponse requestLoginMfaRecovery(String loginChallengeId) {
+        String loginBase = pendingLoginBaseUrl == null || pendingLoginBaseUrl.isBlank()
+                ? preLoginBaseUrl() : pendingLoginBaseUrl;
+        requireCompatibleRuntime(loginBase);
+        LoginMfaChallengeResponse response = postAt(loginBase, "/api/auth/login/mfa/recovery/request",
+                new LoginMfaRecoveryRequest(loginChallengeId), LoginMfaChallengeResponse.class);
+        if (response == null || !response.success()) {
+            throw new IllegalStateException(response == null ? "Unable to start authenticator recovery" : response.message());
+        }
+        return response;
+    }
+
+    public LoginMfaEnrollmentResponse completeLoginMfaRecovery(String loginChallengeId, String recoveryChallengeId, String otp) {
+        String loginBase = pendingLoginBaseUrl == null || pendingLoginBaseUrl.isBlank()
+                ? preLoginBaseUrl() : pendingLoginBaseUrl;
+        requireCompatibleRuntime(loginBase);
+        LoginMfaEnrollmentResponse response = postAt(loginBase, "/api/auth/login/mfa/recovery/complete",
+                new LoginMfaRecoveryCompleteRequest(loginChallengeId, recoveryChallengeId, otp),
+                LoginMfaEnrollmentResponse.class);
+        if (response == null || !response.success() || response.manualSecret() == null || response.manualSecret().isBlank()
+                || response.provisioningUri() == null || response.provisioningUri().isBlank()) {
+            throw new IllegalStateException(response == null ? "Authenticator recovery failed" : response.message());
+        }
+        return response;
+    }
+
     private void establishSession(LoginResponse response, String issuingBaseUrl) {
         if (response.accessToken() == null || response.accessToken().isBlank()) {
             throw new IllegalStateException("The authentication server did not return a secure session token");
@@ -432,6 +458,8 @@ public final class AuthApiClient {
     public record LoginMfaCompleteRequest(String challengeId, String otp) {}
     public record LoginMfaResendRequest(String challengeId) {}
     public record LoginMfaEnrollmentRequest(String challengeId) {}
+    public record LoginMfaRecoveryRequest(String challengeId) {}
+    public record LoginMfaRecoveryCompleteRequest(String loginChallengeId,String recoveryChallengeId,String otp) {}
     public record LoginMfaEnrollmentResponse(boolean success,String challengeId,String manualSecret,String provisioningUri,String message) {}
     public record UserIdRequest(int userId) {}
     public record ChangePasswordRequest(int userId, String currentPassword, String password) {}

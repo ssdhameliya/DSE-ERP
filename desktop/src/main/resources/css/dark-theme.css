@@ -16839,3 +16839,23 @@
 .reminder-center-page .reminder-detail-actions .button,
 .reminder-center-page .reminder-detail-actions .menu-button { -fx-min-width: 0; -fx-text-overrun: ellipsis; }
 .communication-resend-button { -fx-effect: none; }
+
+/* Central entity-dialog status strip: visible save/update feedback outside scrollable content. */
+.premium-entity-dialog .dialog-status-message {
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-padding: 8 10 8 10;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+}
+.premium-entity-dialog .dialog-status-message.dialog-status-error {
+    -fx-text-fill: #ff9aa5;
+    -fx-background-color: #3b1720;
+    -fx-border-color: #8f3d4a;
+}
+.premium-entity-dialog .dialog-status-message.dialog-status-success {
+    -fx-text-fill: #8ee1b6;
+    -fx-background-color: #123427;
+    -fx-border-color: #2e7656;
+}

@@ -4,6 +4,8 @@ public final class AuthDtos { private AuthDtos() {}
  public record LoginMfaCompleteRequest(String challengeId,String otp){}
  public record LoginMfaResendRequest(String challengeId){}
  public record LoginMfaEnrollmentRequest(String challengeId){}
+ public record LoginMfaRecoveryRequest(String challengeId){}
+ public record LoginMfaRecoveryCompleteRequest(String loginChallengeId,String recoveryChallengeId,String otp){}
  public record LoginMfaEnrollmentResponse(boolean success,String challengeId,String manualSecret,String provisioningUri,String message){}
  public record UserIdRequest(int userId){}
  public record ChangePasswordRequest(int userId,String currentPassword,String password){}

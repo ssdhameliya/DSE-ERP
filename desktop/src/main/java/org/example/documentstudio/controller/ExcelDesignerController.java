@@ -37,6 +37,7 @@ import org.example.documentstudio.service.ExcelSelectionPolicy;
 import org.example.documentstudio.service.ExcelDimensionPolicy;
 import org.example.documentstudio.service.DocumentDataService;
 import org.example.documentstudio.service.ExcelTemplateStorageService;
+import org.example.documentstudio.service.ExcelStudioHelpService;
 import org.example.documentstudio.service.TemplateFieldCatalog;
 import org.example.util.IconFactory;
 import org.example.util.AppDialogService;
@@ -1290,6 +1291,23 @@ public class ExcelDesignerController {
         }catch(Exception e){AppDialogService.error(root,"Preview failed","Excel Studio",rootMessage(e));}
     }
     @FXML private void download(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "download an Excel template");try{commitActiveEdit();saveVisibleCells(false);FileChooser chooser=new FileChooser();chooser.setTitle("Save Excel Template");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook","*.xlsx"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._ -]","_")+".xlsx");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;Files.write(file.toPath(),snapshotWorkbook());AppDialogService.success(root,"Template exported",file.getName()+" was saved.");}catch(Exception e){AppDialogService.error(root,"Export failed","Excel Studio",rootMessage(e));}}
+    @FXML private void downloadMappingGuide(){
+        try {
+            Path guide = ExcelStudioHelpService.exportToUserDownloadLocation();
+            boolean opened = false;
+            try {
+                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                    Desktop.getDesktop().open(guide.toFile());
+                    opened = true;
+                }
+            } catch (Exception ignored) { }
+            AppDialogService.success(root, "Excel mapping guide downloaded", "The Excel Studio mapping guide was saved to:\n" + guide
+                    + (opened ? "\n\nIt has also been opened in your PDF viewer so you can keep it beside Excel Studio while mapping."
+                              : "\n\nOpen this PDF from the saved location and keep it beside Excel Studio while mapping."));
+        } catch (Exception error) {
+            AppDialogService.error(root, "Excel mapping guide unavailable", "Excel Studio", rootMessage(error));
+        }
+    }
     @FXML private void back(){if(!allowNavigationAway("Excel Studio"))return;closeWorkbook();DocumentStudioContext.selectMode(DocumentStudioContext.Mode.EXCEL);DashboardController.navigateFromDocumentStudio("Excel Studio","/fxml/pages/DocumentStudio.fxml");}
 
     private boolean allowNavigationAway(String destination){

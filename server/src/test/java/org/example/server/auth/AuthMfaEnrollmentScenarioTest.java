@@ -99,6 +99,108 @@ class AuthMfaEnrollmentScenarioTest {
         verifyNoInteractions(mail);
     }
 
+
+    @Test
+    void lostPhoneEnrollmentPendingAllowsPasswordResetWithoutOldAuthenticatorCode() throws Exception {
+        UserRepository users = mock(UserRepository.class);
+        RoleMasterService roles = mock(RoleMasterService.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        TokenService tokens = mock(TokenService.class);
+        AuthOtpService otp = mock(AuthOtpService.class);
+        SmtpMailService mail = mock(SmtpMailService.class);
+        TotpService totp = mock(TotpService.class);
+        RegistrationCaptchaService captcha = mock(RegistrationCaptchaService.class);
+        ScenarioDb db = new ScenarioDb(); db.pending = true;
+        AuthService service = new AuthService(users, roles, passwords, tokens, otp, mail, db, totp, captcha);
+        UserEntity user = user(9, "recovery", "ADMIN", true);
+        user.setMfaEnabled(true);
+        user.setTotpSecretEnc(null);
+        when(users.findById(9)).thenReturn(Optional.of(user));
+        when(otp.verifyWithoutConsume(AuthOtpService.Purpose.PASSWORD_RESET,"reset-1","123456","")).thenReturn(new AuthOtpService.Verified(9));
+        when(passwords.encode("NewPassword1")).thenReturn("ENC-NEW");
+
+        AuthDtos.OperationResponse response = service.completePasswordReset(
+                new AuthDtos.PasswordResetCompleteRequest("reset-1","123456","","NewPassword1"));
+
+        assertTrue(response.success());
+        assertEquals("ENC-NEW",user.getPassword());
+        verify(totp, never()).verifyEncrypted(anyString(), anyString());
+        verify(otp).consume(AuthOtpService.Purpose.PASSWORD_RESET,"reset-1");
+        verify(tokens).revokeUser(9);
+    }
+
+    @Test
+    void lostPhoneSelfServiceUsesPasswordChallengeThenRegisteredEmailOtpBeforeReplacingSecret() throws Exception {
+        UserRepository users = mock(UserRepository.class);
+        RoleMasterService roles = mock(RoleMasterService.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        TokenService tokens = mock(TokenService.class);
+        AuthOtpService otp = mock(AuthOtpService.class);
+        SmtpMailService mail = mock(SmtpMailService.class);
+        TotpService totp = mock(TotpService.class);
+        RegistrationCaptchaService captcha = mock(RegistrationCaptchaService.class);
+        ScenarioDb db = new ScenarioDb();
+        AuthService service = new AuthService(users, roles, passwords, tokens, otp, mail, db, totp, captcha);
+
+        UserEntity user = user(10, "lostphone", "ADMIN", true);
+        user.setEmail("lost@example.com");
+        user.setMfaEnabled(true);
+        user.setTotpSecretEnc("ENC-OLD");
+        when(users.findByIdForAuthentication(10)).thenReturn(Optional.of(user));
+        when(roles.isActive("ADMIN")).thenReturn(true);
+        when(totp.peekLogin("login-old")).thenReturn(10);
+        when(otp.issue(eq(AuthOtpService.Purpose.MFA_RECOVERY), eq("user:10"), anyString(), eq(10),
+                eq("lost@example.com"), eq(mail))).thenReturn(new AuthOtpService.Issued("recovery-1", true));
+        when(otp.verify(eq(AuthOtpService.Purpose.MFA_RECOVERY), eq("recovery-1"), eq("246810"), anyString()))
+                .thenReturn(new AuthOtpService.Verified(10));
+        TotpService.Setup replacement = new TotpService.Setup("NEWSECRET", "ENC-NEW", "otpauth://new");
+        when(totp.createSetup("lostphone", "lost@example.com")).thenReturn(replacement);
+        when(totp.issueLogin(10)).thenReturn("login-new");
+
+        AuthDtos.LoginMfaChallengeResponse requested =
+                service.requestLoginMfaRecovery(new AuthDtos.LoginMfaRecoveryRequest("login-old"));
+        assertTrue(requested.success());
+        assertEquals("recovery-1", requested.challengeId());
+        assertEquals("l***@example.com", requested.maskedDestination());
+        assertEquals("ENC-OLD", user.getTotpSecretEnc(), "The old phone must remain valid until email verification succeeds");
+
+        AuthDtos.LoginMfaEnrollmentResponse completed = service.completeLoginMfaRecovery(
+                new AuthDtos.LoginMfaRecoveryCompleteRequest("login-old", "recovery-1", "246810"));
+        assertEquals("login-new", completed.challengeId());
+        assertEquals("NEWSECRET", completed.manualSecret());
+        assertEquals("ENC-NEW", user.getTotpSecretEnc());
+        assertTrue(db.pending, "Successful recovery must require verification of the new authenticator");
+        verify(totp).invalidateUser(10);
+        verify(tokens).revokeUser(10);
+        verify(totp, never()).verifyEncrypted(eq("ENC-OLD"), anyString());
+    }
+
+    @Test
+    void lostPhoneSelfServiceRefusesResetWhenRegisteredEmailIsMissing() throws Exception {
+        UserRepository users = mock(UserRepository.class);
+        RoleMasterService roles = mock(RoleMasterService.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        TokenService tokens = mock(TokenService.class);
+        AuthOtpService otp = mock(AuthOtpService.class);
+        SmtpMailService mail = mock(SmtpMailService.class);
+        TotpService totp = mock(TotpService.class);
+        RegistrationCaptchaService captcha = mock(RegistrationCaptchaService.class);
+        ScenarioDb db = new ScenarioDb();
+        AuthService service = new AuthService(users, roles, passwords, tokens, otp, mail, db, totp, captcha);
+        UserEntity user = user(11, "noemail", "ADMIN", true);
+        user.setMfaEnabled(true);
+        user.setTotpSecretEnc("ENC-OLD");
+        when(users.findByIdForAuthentication(11)).thenReturn(Optional.of(user));
+        when(roles.isActive("ADMIN")).thenReturn(true);
+        when(totp.peekLogin("login-no-email")).thenReturn(11);
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> service.requestLoginMfaRecovery(new AuthDtos.LoginMfaRecoveryRequest("login-no-email")));
+        assertTrue(failure.getMessage().contains("No registered email"));
+        verifyNoInteractions(mail);
+        assertEquals("ENC-OLD", user.getTotpSecretEnc());
+    }
+
     private static UserEntity user(int id, String username, String role, boolean active) throws Exception {
         UserEntity user = new UserEntity();
         Field idField = UserEntity.class.getDeclaredField("id");

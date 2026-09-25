@@ -1018,6 +1018,7 @@ public final class IconFactory {
         if (value.equals("publish")) return "publish";
         if (value.contains("auto map")) return "mapping";
         if (value.contains("apply field properties")) return "field-properties";
+        if (value.contains("apply advanced correction")) return "apply";
         if (value.contains("paste format")) return "paste-format";
         if (value.contains("replace / choose image") || value.contains("replace image")) return "replace-image";
         if (value.equals("+ page") || value.equals("add page")) return "add-page";

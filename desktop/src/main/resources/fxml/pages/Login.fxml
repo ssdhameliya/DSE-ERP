@@ -52,7 +52,7 @@
                         <Label text="Authenticator verification code" styleClass="auth-field-label"/>
                         <HBox spacing="8" alignment="CENTER_LEFT">
                             <TextField fx:id="txtOtp" promptText="Enter current 6-digit authenticator code" prefHeight="44" HBox.hgrow="ALWAYS" styleClass="auth-input"/>
-                            <Button fx:id="btnResendOtp" text="Code Help" onAction="#resendLoginOtp" styleClass="auth-secondary-button"/>
+                            <Button fx:id="btnResendOtp" text="Get Help" onAction="#resendLoginOtp" styleClass="auth-secondary-button"/>
                         </HBox>
                         <Label fx:id="lblOtpError" managed="false" visible="false" styleClass="field-error"/>
                     </VBox>
@@ -93,8 +93,8 @@
                     </VBox>
 
                     <VBox spacing="5" maxWidth="620">
-                        <Label text="Authenticator code (when MFA is active)" styleClass="auth-field-label"/>
-                        <TextField fx:id="txtResetTotp" promptText="Current 6-digit authenticator code" prefHeight="44" styleClass="auth-input"/>
+                        <Label text="Authenticator code (only while the current authenticator is active)" styleClass="auth-field-label"/>
+                        <TextField fx:id="txtResetTotp" promptText="Leave blank after an admin authenticator reset" prefHeight="44" styleClass="auth-input"/>
                         <Label fx:id="lblResetTotpError" managed="false" visible="false" styleClass="field-error"/>
                     </VBox>
 

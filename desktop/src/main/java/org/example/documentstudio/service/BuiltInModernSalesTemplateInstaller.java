@@ -20,7 +20,7 @@ final class BuiltInModernSalesTemplateInstaller {
     static final String TEMPLATE_ID = "starter-sales-invoice-modern-sal";
     static final String DYNAMIC_FINANCIAL_SUMMARY = "DYNAMIC_FINANCIAL_SUMMARY";
     private static final String RESOURCE = "/documentstudio/defaults/sales-invoice-modern.pdf";
-    private static final int RELEASE_VERSION = 3;
+    private static final int RELEASE_VERSION = 4;
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(SerializationFeature.INDENT_OUTPUT)
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -217,9 +217,18 @@ final class BuiltInModernSalesTemplateInstaller {
         TemplateElement table = TemplateElement.of(ElementType.ITEM_TABLE,0,13.0,261.0,568.0,65.0);
         table.setHeaderHeight(22.0); table.setRowHeight(8.0); table.setFontSize(5.8);
         table.setTextColor("#000000"); table.setUseSourceTableDesign(true); table.setFillEnabled(false); table.setStrokeEnabled(false);
-        table.setTableColumns(List.of("serial","hsn","description","quantity","rate","discountPercent","gstPercent","total"));
-        table.setTableColumnWidths(List.of(24.0,69.0,179.0,47.0,62.0,54.0,44.0,89.0));
-        table.setTableColumnAlignments(List.of("CENTER","LEFT","LEFT","RIGHT","RIGHT","RIGHT","RIGHT","RIGHT"));
+        table.setTableColumns(List.of("hsn","description","quantity","rate","discountPercent","gstPercent","total"));
+        table.setTableColumnWidths(List.of(69.0,179.0,47.0,62.0,54.0,44.0,89.0));
+        table.setTableColumnAlignments(List.of("LEFT","LEFT","RIGHT","RIGHT","RIGHT","RIGHT","RIGHT"));
+        List<TemplateColumnBinding> bindings = new ArrayList<>();
+        bindings.add(confirmedBinding("ITEM CODE", "item.hsn", 0, 69.0, "LEFT"));
+        bindings.add(confirmedBinding("DESCRIPTION", "item.description", 69.0, 179.0, "LEFT"));
+        bindings.add(confirmedBinding("QTY", "item.quantity", 248.0, 47.0, "RIGHT"));
+        bindings.add(confirmedBinding("RATE (INR)", "item.rate", 295.0, 62.0, "RIGHT"));
+        bindings.add(confirmedBinding("DISCOUNT", "item.discountPercent", 357.0, 54.0, "RIGHT"));
+        bindings.add(confirmedBinding("TAX (%)", "item.gstPercent", 411.0, 44.0, "RIGHT"));
+        bindings.add(confirmedBinding("AMOUNT (INR)", "item.total", 455.0, 89.0, "RIGHT"));
+        table.setTableColumnBindings(bindings);
         e.add(table);
 
         // Last-page closing stack. Amount-in-words and terms remain on the left. The right side is
@@ -261,4 +270,11 @@ final class BuiltInModernSalesTemplateInstaller {
     private static void literal(List<TemplateElement> list,String text,double x,double y,double w,double h,double font,boolean bold,String align,String rule){TemplateElement t=TemplateElement.of(ElementType.TEXT,0,x,y,w,h);t.setText(text);t.setFontSize(font);t.setBold(bold);t.setTextAlignment(align);t.setTextFit("SHRINK");t.setFillEnabled(false);t.setStrokeEnabled(false);t.setPageRule(rule);list.add(t);}
     private static void multi(List<TemplateElement> list,String key,double x,double y,double w,double h,double font,boolean bold,String align,double spacing,String rule){TemplateElement f=TemplateElement.of(ElementType.FIELD,0,x,y,w,h);f.setFieldKey(key);f.setFontSize(font);f.setBold(bold);f.setTextAlignment(align);f.setTextFit("WRAP");f.setLineSpacing(spacing);f.setFillEnabled(false);f.setStrokeEnabled(false);f.setPageRule(rule);list.add(f);}
     private static void whiteout(List<TemplateElement> list,double x,double y,double w,double h,String color,String rule){TemplateElement m=TemplateElement.of(ElementType.WHITEOUT,0,x,y,w,h);m.setFillColor(color);m.setStrokeColor(color);m.setStrokeWidth(0);m.setLocked(true);m.setPageRule(rule);list.add(m);}
+    private static TemplateColumnBinding confirmedBinding(String sourceLabel, String fieldKey, double x, double width, String align) {
+        TemplateColumnBinding b = new TemplateColumnBinding(sourceLabel, fieldKey, x, width, align, 1.0);
+        b.setAutoDetectedFieldKey(fieldKey);
+        b.setAutoDetectedConfidence(1.0);
+        b.setMappingState("CONFIRMED");
+        return b;
+    }
 }

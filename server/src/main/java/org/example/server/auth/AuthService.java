@@ -138,7 +138,7 @@ public class AuthService {
         user.resetMfaFailures();audit(userId,authenticator?"MFA_LOGIN_SUCCESS":"LEGACY_MFA_LOGIN_SUCCESS",authenticator?"Authenticator verification completed":"Existing-account email OTP verification completed",user.getUsername());return authenticatedLogin(user,role);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthDtos.LoginMfaEnrollmentResponse loginMfaEnrollment(AuthDtos.LoginMfaEnrollmentRequest request) {
         if(request==null||request.challengeId()==null||request.challengeId().isBlank())
             throw new IllegalArgumentException("The MFA enrollment challenge is invalid or expired");
@@ -154,6 +154,74 @@ public class AuthService {
         TotpService.Setup setup=totp.existingSetup(user.getUsername(),user.getEmail(),user.getTotpSecretEnc());
         return new AuthDtos.LoginMfaEnrollmentResponse(true,request.challengeId(),setup.manualSecret(),setup.provisioningUri(),
                 "Scan the QR code with Google or Microsoft Authenticator, then enter the current 6-digit code.");
+    }
+
+    @Transactional
+    public AuthDtos.LoginMfaChallengeResponse requestLoginMfaRecovery(AuthDtos.LoginMfaRecoveryRequest request) {
+        if (request == null || request.challengeId() == null || request.challengeId().isBlank())
+            throw new IllegalArgumentException("The MFA challenge is invalid or expired");
+        Integer userId = totp.peekLogin(request.challengeId());
+        if (userId == null) throw new IllegalArgumentException("The MFA challenge is invalid or expired");
+        UserEntity user = users.findByIdForAuthentication(userId)
+                .orElseThrow(() -> new IllegalArgumentException("The MFA challenge is invalid or expired"));
+        String role = normalizeRole(user.getRoleName());
+        if (!user.isActive() || user.isLocked() || !"APPROVED".equals(user.getApprovalStatus())
+                || role.isBlank() || !roleMaster.isActive(role) || !requiresMfa(user, role))
+            throw new IllegalArgumentException("This account is not available for authenticator recovery");
+        if (enrollmentPending(userId))
+            throw new IllegalStateException("Authenticator enrollment is already required. Reopen the QR setup instead of resetting again.");
+        if (user.getTotpSecretEnc() == null || user.getTotpSecretEnc().isBlank())
+            throw new IllegalStateException("Authenticator enrollment is already required for this account.");
+        String email = user.getEmail() == null ? "" : user.getEmail().trim();
+        if (email.isBlank())
+            throw new IllegalStateException("No registered email is available for self-service authenticator recovery. Contact an administrator.");
+        mail.requireConfigured();
+        var issued = otp.issue(AuthOtpService.Purpose.MFA_RECOVERY, "user:" + userId,
+                mfaRecoveryBinding(user, request.challengeId()), userId, email, mail);
+        audit(userId, "MFA_RECOVERY_EMAIL_ISSUED",
+                "Authenticator recovery verification was requested after password verification", user.getUsername());
+        return new AuthDtos.LoginMfaChallengeResponse(true, issued.challengeId(),
+                issued.sent() ? "A verification code was sent to the registered email"
+                        : "Use the latest authenticator recovery code already sent",
+                maskEmail(email));
+    }
+
+    @Transactional
+    public AuthDtos.LoginMfaEnrollmentResponse completeLoginMfaRecovery(AuthDtos.LoginMfaRecoveryCompleteRequest request) {
+        if (request == null || request.loginChallengeId() == null || request.loginChallengeId().isBlank()
+                || request.recoveryChallengeId() == null || request.recoveryChallengeId().isBlank())
+            throw new IllegalArgumentException("Authenticator recovery is invalid or expired");
+        Integer userId = totp.peekLogin(request.loginChallengeId());
+        if (userId == null) throw new IllegalArgumentException("Authenticator recovery is invalid or expired");
+        UserEntity user = users.findByIdForAuthentication(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Authenticator recovery is invalid or expired"));
+        String role = normalizeRole(user.getRoleName());
+        if (!user.isActive() || user.isLocked() || !"APPROVED".equals(user.getApprovalStatus())
+                || role.isBlank() || !roleMaster.isActive(role) || !requiresMfa(user, role))
+            throw new IllegalArgumentException("This account is not available for authenticator recovery");
+        if (enrollmentPending(userId))
+            throw new IllegalStateException("Authenticator enrollment is already required. Reopen the QR setup instead of resetting again.");
+
+        var verified = otp.verify(AuthOtpService.Purpose.MFA_RECOVERY, request.recoveryChallengeId(),
+                request.otp(), mfaRecoveryBinding(user, request.loginChallengeId()));
+        if (verified.userId() == null || !verified.userId().equals(userId))
+            throw new IllegalArgumentException("The verification code is invalid or expired");
+
+        TotpService.Setup setup = totp.createSetup(user.getUsername(), user.getEmail());
+        // Only after the registered-email factor succeeds do we invalidate the lost phone.
+        totp.invalidateUser(userId);
+        tokens.revokeUser(userId);
+        user.setTotpSecretEnc(setup.encryptedSecret());
+        user.setMfaEnabled(true);
+        user.resetMfaFailures();
+        markEnrollmentPending(userId);
+        String newLoginChallenge = totp.issueLogin(userId);
+        audit(userId, "MFA_SELF_SERVICE_RESET_COMPLETED",
+                "Old authenticator invalidated after password + registered-email verification; new enrollment required",
+                user.getUsername());
+        return new AuthDtos.LoginMfaEnrollmentResponse(true, newLoginChallenge, setup.manualSecret(),
+                setup.provisioningUri(),
+                "Registered email verified. The old authenticator is no longer valid. Scan this new QR code and verify the current 6-digit code.");
     }
 
     @Transactional(readOnly = true)
@@ -310,18 +378,39 @@ public class AuthService {
 
     @Transactional
     public AuthDtos.OperationResponse completePasswordReset(AuthDtos.PasswordResetCompleteRequest request) {
-        String passwordError=passwordError(request==null?null:request.password()); if(passwordError!=null)return new AuthDtos.OperationResponse(false,passwordError);
+        if (request == null) return new AuthDtos.OperationResponse(false, "Invalid password reset request");
+        String passwordError=passwordError(request.password()); if(passwordError!=null)return new AuthDtos.OperationResponse(false,passwordError);
         var verified=otp.verifyWithoutConsume(AuthOtpService.Purpose.PASSWORD_RESET,request.challengeId(),request.otp(),"");
         if(verified.userId()==null)throw new IllegalArgumentException("The verification code is invalid or expired");
         UserEntity user=users.findById(verified.userId()).orElseThrow(()->new IllegalArgumentException("The verification code is invalid or expired"));
         String role=normalizeRole(user.getRoleName());
-        if(requiresMfa(user,role) && !enrollmentPending(user.getId()) && user.getTotpSecretEnc()!=null && !user.getTotpSecretEnc().isBlank()){
-            if(!totp.verifyEncrypted(user.getTotpSecretEnc(),request.totp()))
-                return new AuthDtos.OperationResponse(false,"Authenticator code is incorrect");
+        boolean mfaRequired=requiresMfa(user,role);
+        boolean pendingEnrollment=mfaRequired && enrollmentPending(user.getId());
+        if(mfaRequired && !pendingEnrollment && user.getTotpSecretEnc()!=null && !user.getTotpSecretEnc().isBlank()){
+            if(!totp.verifyEncrypted(user.getTotpSecretEnc(),request.totp())){
+                int attempt = user.recordFailedMfaAttempt();
+                audit(user.getId(), "PASSWORD_RESET_MFA_FAILED", "Incorrect authenticator code during reset (attempt " + attempt + " of " + MAX_MFA_ATTEMPTS + ")", user.getUsername());
+                if (attempt >= MAX_MFA_ATTEMPTS) {
+                    autoLock(user, LOCK_FAILED_MFA, "Five incorrect MFA verification-code attempts during password reset");
+                    otp.invalidate(AuthOtpService.Purpose.PASSWORD_RESET, "user:" + user.getId());
+                    return new AuthDtos.OperationResponse(false, "Incorrect authenticator code. Failed attempt 5 of 5. Your account has been locked. Contact an administrator.");
+                }
+                String suffix = attempt == MAX_MFA_ATTEMPTS - 1
+                        ? " One attempt remains before this account is locked." : "";
+                return new AuthDtos.OperationResponse(false, "Authenticator code is incorrect. Failed attempt " + attempt + " of " + MAX_MFA_ATTEMPTS + "." + suffix);
+            }
         }
         otp.consume(AuthOtpService.Purpose.PASSWORD_RESET,request.challengeId());
-        user.setPassword(passwords.encode(request.password())); String prior=user.getLockReason(); user.clearAutomaticLock(); tokens.revokeUser(user.getId());
-        audit(user.getId(),"PASSWORD_RESET_COMPLETED",requiresMfa(user,role)?"Password reset completed through email OTP + authenticator":"Password reset completed through email OTP under current MFA policy",user.getUsername());
+        user.setPassword(passwords.encode(request.password()));
+        user.resetMfaFailures();
+        String prior=user.getLockReason();
+        user.clearAutomaticLock();
+        tokens.revokeUser(user.getId());
+        String resetDetail = pendingEnrollment
+                ? "Password reset completed through email OTP; authenticator re-enrollment remains required"
+                : mfaRequired ? "Password reset completed through email OTP + authenticator"
+                : "Password reset completed through email OTP under current MFA policy";
+        audit(user.getId(),"PASSWORD_RESET_COMPLETED",resetDetail,user.getUsername());
         if(LOCK_ADMIN.equals(prior)&&user.isLocked())return new AuthDtos.OperationResponse(true,"Password updated. This account remains locked by an administrator.");
         return new AuthDtos.OperationResponse(true,"Password updated. Automatic sign-in lock cleared.");
     }
@@ -446,6 +535,12 @@ public class AuthService {
     private String loginMfaBinding(UserEntity user) {
         return "LOGIN_MFA\u0000" + user.getId() + "\u0000"
                 + (user.getEmail() == null ? "" : user.getEmail().trim().toLowerCase(Locale.ROOT));
+    }
+
+    private String mfaRecoveryBinding(UserEntity user, String loginChallengeId) {
+        return "MFA_RECOVERY\u0000" + user.getId() + "\u0000"
+                + (user.getEmail() == null ? "" : user.getEmail().trim().toLowerCase(Locale.ROOT))
+                + "\u0000" + (loginChallengeId == null ? "" : loginChallengeId.trim());
     }
 
     private String maskEmail(String email) {

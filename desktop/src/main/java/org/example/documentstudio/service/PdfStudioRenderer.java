@@ -5,7 +5,9 @@ import org.apache.pdfbox.multipdf.LayerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.common.PDStream;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
@@ -50,6 +52,7 @@ public final class PdfStudioRenderer {
             ThreadLocal.withInitial(() -> new EnumMap<>(Standard14Fonts.FontName.class));
     private static final ThreadLocal<PDDocument> CURRENT_DOCUMENT = new ThreadLocal<>();
     private static final ThreadLocal<Map<String, PDFont>> UNICODE_FONTS = ThreadLocal.withInitial(HashMap::new);
+    private static final ThreadLocal<Map<String, byte[]>> SOURCE_EMBEDDED_FONTS = ThreadLocal.withInitial(HashMap::new);
 
     private PdfStudioRenderer() {}
 
@@ -71,6 +74,7 @@ public final class PdfStudioRenderer {
         Objects.requireNonNull(output, "output");
         RENDER_FONTS.get().clear();
         UNICODE_FONTS.get().clear();
+        SOURCE_EMBEDDED_FONTS.get().clear();
         data = enrichPartyLocationData(ErpDocumentJsonService.normalize(template.getDocumentType(), enrichPdfData(data)));
         Path source = TemplateStorageService.sourcePdf(template);
         Path parent = output.toAbsolutePath().normalize().getParent();
@@ -80,6 +84,9 @@ public final class PdfStudioRenderer {
         try (PDDocument sourceDoc = Loader.loadPDF(source.toFile()); PDDocument targetDoc = new PDDocument()) {
             CURRENT_DOCUMENT.set(targetDoc);
             if (sourceDoc.getNumberOfPages() == 0) throw new IOException("Template PDF has no pages.");
+            captureEmbeddedFonts(sourceDoc);
+            PdfSourceTextSuppressionService.suppress(sourceDoc, elements);
+            Set<String> objectReplacementGroups = PdfSourceTextSuppressionService.objectReplacementGroups(elements);
 
             TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout = null;
             // Imported ERP PDFs use FLOW_FIXED and must keep their own geometry on every page.
@@ -96,11 +103,15 @@ public final class PdfStudioRenderer {
                 }
             }
 
+            Map<Integer, List<TemplateElement>> runtimeElementsByPage = new HashMap<>();
             Map<Integer, FlowPlan> plans = new HashMap<>();
             for (int sourceIndex = 0; sourceIndex < sourceDoc.getNumberOfPages(); sourceIndex++) {
                 final int page = sourceIndex;
                 List<TemplateElement> pageElements = elements.stream().filter(e -> PdfStyleResolver.effectivelyVisible(template,e)).filter(e -> e.getPageIndex() == page).toList();
-                plans.put(sourceIndex, FlowPlan.forPage(pageElements, data, salesLayout, sourceDoc.getPage(sourceIndex).getMediaBox().getHeight(), template.isFlowFixedLayout()));
+                double runtimePageHeight=sourceDoc.getPage(sourceIndex).getMediaBox().getHeight();
+                List<TemplateElement> runtime = PdfStudioRuntimeFlowPlanner.adjustLayout(pageElements, data, runtimePageHeight);
+                runtimeElementsByPage.put(sourceIndex, runtime);
+                plans.put(sourceIndex, FlowPlan.forPage(runtime, data, salesLayout, sourceDoc.getPage(sourceIndex).getMediaBox().getHeight(), template.isFlowFixedLayout()));
             }
 
             Map<Integer, List<Integer>> sourceToOutputPages = new HashMap<>();
@@ -130,10 +141,7 @@ public final class PdfStudioRenderer {
             int totalPages = targetDoc.getNumberOfPages();
             for (int sourceIndex = 0; sourceIndex < sourceDoc.getNumberOfPages(); sourceIndex++) {
                 final int page = sourceIndex;
-                List<TemplateElement> pageElements = elements.stream().filter(e -> PdfStyleResolver.effectivelyVisible(template,e)).filter(e -> e.getPageIndex() == page).toList();
-                List<TemplateElement> renderElements = template.isStrictFixedLayout()
-                        ? pageElements.stream().map(TemplateElement::snapshotCopy).toList()
-                        : adjustedPartyFlowElements(pageElements, data);
+                List<TemplateElement> renderElements = runtimeElementsByPage.getOrDefault(sourceIndex, List.of());
                 List<Integer> outputPages = sourceToOutputPages.getOrDefault(sourceIndex, List.of());
                 FlowPlan plan = plans.get(sourceIndex);
                 for (int part = 0; part < outputPages.size(); part++) {
@@ -163,6 +171,7 @@ public final class PdfStudioRenderer {
                         // continuation-page WHITEOUT from erasing item rows that were already drawn.
                         for (TemplateElement e : renderElements) {
                             if (e.getType() == ElementType.WHITEOUT && shouldDraw(e, plan, part)
+                                    && !objectReplacementGroups.contains(e.getReplacementGroupId())
                                     && !(dynamicSalesClosing && isLegacyFixedSalesClosingElement(e))) {
                                 drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages, salesLayout);
                             }
@@ -197,6 +206,7 @@ public final class PdfStudioRenderer {
         } finally {
             CURRENT_DOCUMENT.remove();
             UNICODE_FONTS.get().clear();
+            SOURCE_EMBEDDED_FONTS.get().clear();
             RENDER_FONTS.get().clear();
         }
         if (Files.size(output) < 100) throw new IOException("Template renderer produced an invalid PDF.");
@@ -244,59 +254,185 @@ public final class PdfStudioRenderer {
     }
 
     /**
-     * Generic same-block text flow for party addresses. A wrapped address is allowed to consume
-     * the vertical space it actually needs; Phone/Email/GSTIN fields in the same visual column
-     * are then pushed below that rendered address with a small safety gap. No template id/name
-     * checks are used, so imported Sales/Purchase/Quotation/Return templates share the rule.
+     * Runtime-only layout plan for imported FLOW_FIXED templates. Saved template geometry is never
+     * changed. Multiline fields may grow inside their semantic flow group, item capacity is reduced
+     * instead of colliding with the party/financial blocks, and financial summaries may grow upward.
      */
-    private static List<TemplateElement> adjustedPartyFlowElements(List<TemplateElement> source, TemplateData data) throws IOException {
-        if (source == null || source.isEmpty()) return List.of();
-        List<TemplateElement> out = source.stream().map(TemplateElement::snapshotCopy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-        for (TemplateElement address : new ArrayList<>(out)) {
-            String key = address.getFieldKey();
-            if (address.getType() != ElementType.FIELD || key == null || !key.toLowerCase(Locale.ROOT).endsWith("address")
-                    || !"WRAP".equals(address.getTextFit())) continue;
-            String value = data.value(key);
-            if (value == null || value.isBlank()) continue;
-            PDFont f = fontFor(address);
-            float size = (float)address.getFontSize();
-            float width = (float)Math.max(1, address.getWidth() - address.getPaddingLeft() - address.getPaddingRight());
-            List<String> lines = wrap(safePdfText(value), f, size, width);
-            double needed = wrappedHeight(size, (float)address.getLineSpacing(), lines.size())
-                    + address.getPaddingTop() + address.getPaddingBottom();
-            double actualHeight = Math.max(address.getHeight(), needed);
-            address.setHeight(actualHeight);
+    static List<TemplateElement> adjustedFlowElements(List<TemplateElement> source, TemplateData data, double pageHeight) throws IOException {
+        return PdfStudioRuntimeFlowPlanner.adjustLayout(source, data, pageHeight);
+    }
 
-            double originalBottom = address.getY() + Math.max(0.5, source.stream()
-                    .filter(e -> Objects.equals(e.getId(), address.getId())).findFirst().map(TemplateElement::getHeight).orElse(address.getHeight()));
-            double desiredFollowerY = address.getY() + actualHeight + 2.0;
-            List<TemplateElement> followers = out.stream()
-                    .filter(e -> e != address && e.getType() == ElementType.FIELD && e.getY() >= originalBottom - 2.0
-                            && sameColumn(address, e) && isPartyFollower(e.getFieldKey()))
-                    .sorted(Comparator.comparingDouble(TemplateElement::getY)).toList();
-            if (followers.isEmpty()) continue;
-            double shift = Math.max(0.0, desiredFollowerY - followers.getFirst().getY());
-            if (shift < 0.01) continue;
-            for (TemplateElement e : out) {
-                if (e == address || e.getY() < followers.getFirst().getY() - 7.0 || !sameColumn(address, e)) continue;
-                if (e.getY() >= 255.0) continue; // item/tax/table areas are separate layout regions
-                e.setY(e.getY() + shift);
+    /** Implementation used only by the central PdfStudioRuntimeFlowPlanner. */
+    static List<TemplateElement> computeAdjustedFlowElements(List<TemplateElement> source, TemplateData data, double pageHeight) throws IOException {
+        if (source == null || source.isEmpty()) return List.of();
+        List<TemplateElement> out = source.stream().map(TemplateElement::snapshotCopy)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        Map<String,TemplateElement> originals = source.stream().collect(java.util.stream.Collectors.toMap(
+                TemplateElement::getId, TemplateElement::snapshotCopy, (a,b)->a, LinkedHashMap::new));
+
+        List<TemplateElement> flowText = out.stream().filter(e -> {
+            boolean liveText=e.getType()==ElementType.FIELD||e.getType()==ElementType.TEXT;
+            return liveText && "WRAP".equals(e.getTextFit()) && e.isAutoHeight();
+        }).sorted(Comparator.comparingDouble(TemplateElement::getY)).toList();
+
+        for (TemplateElement field : flowText) {
+            String value = field.getType()==ElementType.TEXT
+                    ? resolveExpression(field.getText(),data,1,1)
+                    : data.value(field.getFieldKey());
+            if (value == null || value.isBlank()) continue;
+            PDFont f = fontFor(field);
+            float size = (float)field.getFontSize();
+            float width = (float)Math.max(1, field.getWidth()-field.getPaddingLeft()-field.getPaddingRight());
+            List<String> lines = wrap(safePdfText(value), f, size, width);
+            double needed = wrappedHeight(size,(float)field.getLineSpacing(),lines.size()) + field.getPaddingTop()+field.getPaddingBottom();
+            TemplateElement original=originals.get(field.getId());
+            double base=original==null?field.getHeight():original.getHeight();
+            double actual=Math.max(base,needed);
+
+            // Party/address fields are allowed to consume free space above the item table, but not
+            // to grow past the page or destroy the minimum paginating table slot. When the source
+            // sample was short/narrow, a real address can otherwise request hundreds of points of
+            // height and fail before drawText's WRAP fitter gets a chance to reduce the font.
+            double safeHeight=maxSafeFlowHeight(field,out,pageHeight);
+            if(safeHeight>0)actual=Math.min(actual,safeHeight);
+            actual=Math.max(1,actual);
+            double delta=Math.max(0,actual-base);
+            if("UP".equals(field.getGrowthDirection())&&delta>=.01)field.setY(Math.max(0,field.getY()-delta));
+            field.setHeight(actual);
+            if(delta<.01)continue;
+
+            String group=field.getFlowGroupId();
+            if(group!=null&&!group.isBlank()){
+                double originalBottom=(original==null?field.getY():original.getY())+base;
+                for(TemplateElement follower:out){
+                    if(follower==field||!group.equals(follower.getFlowGroupId()))continue;
+                    TemplateElement of=originals.get(follower.getId()); double oy=of==null?follower.getY():of.getY();
+                    if(oy>=originalBottom-2)follower.setY(follower.getY()+delta);
+                }
             }
+        }
+
+        // Dynamic financial blocks own row composition. If a template gave them too little height,
+        // grow upward so the fixed footer/bottom anchor remains stable.
+        for(TemplateElement financial:out){
+            if(financial.getType()!=ElementType.BLOCK||!DYNAMIC_FINANCIAL_SUMMARY_MARKER.equals(financial.getReplacementGroupId()))continue;
+            int normalRows=mappedFinancialRows(data).size();
+            // Source-captured calculation blocks may have a physically separate Grand Total strip.
+            // Reserve that strip + its source gap before deciding whether the normal dynamic rows fit.
+            double minimumReadable=8.5;
+            double totalReserve=financial.getSummaryTotalHeight()>0
+                    ? financial.getSummaryTotalHeight()+financial.getSummaryTotalGap()
+                    : minimumReadable;
+            double needed=normalRows*minimumReadable+totalReserve;
+            if(needed>financial.getHeight()+.01&&"UP".equals(financial.getGrowthDirection())){
+                double delta=needed-financial.getHeight();financial.setY(Math.max(0,financial.getY()-delta));financial.setHeight(needed);
+            }
+        }
+
+        // Resolve explicit page/block anchors after every dynamic height is known. This is the
+        // central runtime-only dependency pass: saved X/Y values remain untouched, while a block
+        // may follow another block (AFTER/BEFORE) or stay pinned to the page (TOP/BOTTOM).
+        applyFlowAnchors(out,pageHeight);
+
+        // Party growth consumes table space; it never overwrites the table. The paginator will use
+        // the reduced runtime height and add continuation pages when required.
+        for(TemplateElement table:out){
+            if(table.getType()!=ElementType.ITEM_TABLE)continue;
+            double top=table.getY();
+            double partyBottom=out.stream().filter(e->e!=table&&e.getY()<top&&isPartyLayoutElement(e))
+                    .mapToDouble(e->e.getY()+e.getHeight()).max().orElse(-1);
+            if(partyBottom>=0&&partyBottom+4>table.getY()){
+                double shift=partyBottom+4-table.getY();
+                table.setY(table.getY()+shift);table.setHeight(Math.max(table.getHeaderHeight()+table.getRowHeight(),table.getHeight()-shift));
+            }
+            double nearestClosing=out.stream().filter(e->e!=table&&e.getY()>table.getY())
+                    .filter(e->"FINANCIAL_SUMMARY".equals(e.getFlowRole())||DYNAMIC_FINANCIAL_SUMMARY_MARKER.equals(e.getReplacementGroupId()))
+                    .mapToDouble(TemplateElement::getY).min().orElse(Double.MAX_VALUE);
+            if(nearestClosing<Double.MAX_VALUE&&table.getY()+table.getHeight()>nearestClosing-4)
+                table.setHeight(Math.max(table.getHeaderHeight()+table.getRowHeight(),nearestClosing-table.getY()-4));
+        }
+        for(TemplateElement e:out){
+            if(e.getType()==ElementType.WHITEOUT||"PAGINATE".equals(e.getOverflowPolicy()))continue;
+            if((e.getY() < -0.01 || e.getY()+e.getHeight() > pageHeight+0.01) && "ERROR".equals(e.getOverflowPolicy()))
+                throw new IOException("PDF Studio runtime flow exceeds the page for "
+                        +(e.getFieldKey().isBlank()?e.getFlowRole():e.getFieldKey())
+                        +". Increase the mapped block or use a paginating region.");
         }
         return out;
     }
 
-    private static boolean isPartyFollower(String key) {
-        if (key == null) return false;
-        String k = key.toLowerCase(Locale.ROOT);
-        return k.endsWith("phone") || k.endsWith("email") || k.endsWith("gstin");
+    /** Package-visible for regression coverage; runtime callers still enter through adjustedFlowElements. */
+    static void applyFlowAnchors(List<TemplateElement> elements,double pageHeight) throws IOException {
+        if(elements==null||elements.isEmpty())return;
+        Map<String,TemplateElement> byId=new LinkedHashMap<>();
+        for(TemplateElement e:elements)if(e!=null&&!e.getId().isBlank())byId.put(e.getId(),e);
+        Set<String> resolved=new HashSet<>();
+        for(TemplateElement e:elements)if(e!=null&&"ABSOLUTE".equals(e.getFlowAnchorMode()))resolved.add(e.getId());
+
+        int remaining=elements.size()+1;
+        boolean changed=true;
+        while(changed&&remaining-->0){
+            changed=false;
+            for(TemplateElement e:elements){
+                if(e==null||resolved.contains(e.getId()))continue;
+                String mode=e.getFlowAnchorMode();
+                switch(mode){
+                    case "TOP"->{e.setY(Math.max(0,e.getFlowGap()));resolved.add(e.getId());changed=true;}
+                    case "BOTTOM"->{e.setY(Math.max(0,pageHeight-e.getFlowGap()-e.getHeight()));resolved.add(e.getId());changed=true;}
+                    case "AFTER","BEFORE"->{
+                        TemplateElement anchor=byId.get(e.getFlowAnchorId());
+                        if(anchor==null)throw new IOException("PDF Studio flow anchor is missing for "+flowName(e)+".");
+                        if(!resolved.contains(anchor.getId())&&!"ABSOLUTE".equals(anchor.getFlowAnchorMode()))continue;
+                        double y="AFTER".equals(mode)
+                                ? anchor.getY()+anchor.getHeight()+e.getFlowGap()
+                                : anchor.getY()-e.getFlowGap()-e.getHeight();
+                        e.setY(Math.max(0,y));resolved.add(e.getId());changed=true;
+                    }
+                    default->{resolved.add(e.getId());changed=true;}
+                }
+            }
+        }
+        for(TemplateElement e:elements){
+            if(e!=null&&!resolved.contains(e.getId()))
+                throw new IOException("PDF Studio flow anchor cycle detected for "+flowName(e)+".");
+        }
     }
 
-    private static boolean sameColumn(TemplateElement a, TemplateElement b) {
-        double left = Math.max(a.getX(), b.getX());
-        double right = Math.min(a.getX() + a.getWidth(), b.getX() + b.getWidth());
-        return right - left >= Math.min(a.getWidth(), b.getWidth()) * 0.35;
+    private static String flowName(TemplateElement e){
+        if(e==null)return "element";
+        if(!e.getFieldKey().isBlank())return e.getFieldKey();
+        if(!e.getFlowRole().isBlank())return e.getFlowRole();
+        return e.getType().name()+" "+e.getId().substring(0,Math.min(8,e.getId().length()));
     }
+
+    private static boolean isPartyLayoutElement(TemplateElement e){
+        if(e==null)return false;
+        if(e.getFlowRole()!=null&&e.getFlowRole().startsWith("PARTY"))return true;
+        String block=e.getMappingBlockType()==null?"":e.getMappingBlockType();
+        return "BILLING".equals(block)||"DELIVERY".equals(block);
+    }
+
+    private static double maxSafeFlowHeight(TemplateElement field,List<TemplateElement> elements,double pageHeight){
+        if(field==null)return 0;
+        boolean party=isPartyLayoutElement(field);
+        if(!party)return Math.max(1,pageHeight-field.getY()-4);
+
+        double safeBottom=Math.max(field.getY()+1,pageHeight-8);
+        TemplateElement table=elements.stream()
+                .filter(e->e!=null&&e!=field&&e.getType()==ElementType.ITEM_TABLE&&e.getY()>field.getY())
+                .min(Comparator.comparingDouble(TemplateElement::getY)).orElse(null);
+        if(table!=null){
+            double minimumTable=Math.max(1,table.getHeaderHeight())+Math.max(1,table.getRowHeight());
+            double movable=Math.max(0,table.getHeight()-minimumTable);
+            safeBottom=Math.min(safeBottom,table.getY()+movable-4);
+        }
+        double available=safeBottom-field.getY();
+        // Never make the runtime box smaller than one readable line merely because the imported
+        // source geometry is unusually tight. WRAP fitting will reduce text only when needed.
+        double oneLine=Math.max(4,field.getFontSize()+field.getPaddingTop()+field.getPaddingBottom());
+        return Math.max(oneLine,available);
+    }
+
 
     private static void drawElement(PDDocument doc, PDPage page, PDPageContentStream cs,
                                     DocumentTemplate template, TemplateData data, TemplateElement e,
@@ -578,22 +714,82 @@ public final class PdfStudioRenderer {
     }
 
     private static PDFont fontFor(TemplateElement e) {
-        String family = e.getFontFamily();
-        boolean bold = e.isBold(), italic = e.isItalic();
-        return switch (family) {
-            case "TIMES" -> font(bold && italic ? Standard14Fonts.FontName.TIMES_BOLD_ITALIC
-                    : bold ? Standard14Fonts.FontName.TIMES_BOLD
-                    : italic ? Standard14Fonts.FontName.TIMES_ITALIC
-                    : Standard14Fonts.FontName.TIMES_ROMAN);
-            case "COURIER" -> font(bold && italic ? Standard14Fonts.FontName.COURIER_BOLD_OBLIQUE
-                    : bold ? Standard14Fonts.FontName.COURIER_BOLD
-                    : italic ? Standard14Fonts.FontName.COURIER_OBLIQUE
-                    : Standard14Fonts.FontName.COURIER);
-            default -> font(bold && italic ? Standard14Fonts.FontName.HELVETICA_BOLD_OBLIQUE
-                    : bold ? Standard14Fonts.FontName.HELVETICA_BOLD
-                    : italic ? Standard14Fonts.FontName.HELVETICA_OBLIQUE
-                    : Standard14Fonts.FontName.HELVETICA);
-        };
+        String family=e.getFontFamily();boolean bold=e.isBold(),italic=e.isItalic();
+        if("TIMES".equals(family))return font(bold&&italic?Standard14Fonts.FontName.TIMES_BOLD_ITALIC:bold?Standard14Fonts.FontName.TIMES_BOLD:italic?Standard14Fonts.FontName.TIMES_ITALIC:Standard14Fonts.FontName.TIMES_ROMAN);
+        if("COURIER".equals(family))return font(bold&&italic?Standard14Fonts.FontName.COURIER_BOLD_OBLIQUE:bold?Standard14Fonts.FontName.COURIER_BOLD:italic?Standard14Fonts.FontName.COURIER_OBLIQUE:Standard14Fonts.FontName.COURIER);
+        if(!"HELVETICA".equals(family)){
+            try{PDFont embedded=embeddedSourceFont(family,bold,italic);if(embedded!=null)return embedded;}catch(Exception ignored){}
+            try{PDFont custom=systemFont(family,bold,italic);if(custom!=null)return custom;}catch(Exception ignored){}
+        }
+        return font(bold&&italic?Standard14Fonts.FontName.HELVETICA_BOLD_OBLIQUE:bold?Standard14Fonts.FontName.HELVETICA_BOLD:italic?Standard14Fonts.FontName.HELVETICA_OBLIQUE:Standard14Fonts.FontName.HELVETICA);
+    }
+
+    private static void captureEmbeddedFonts(PDDocument sourceDoc){
+        Map<String,byte[]> out=SOURCE_EMBEDDED_FONTS.get();
+        for(PDPage page:sourceDoc.getPages()){
+            PDResources resources=page.getResources();if(resources==null)continue;
+            for(var name:resources.getFontNames()){
+                try{
+                    PDFont font=resources.getFont(name);if(font==null||font.getFontDescriptor()==null)continue;
+                    PDStream stream=font.getFontDescriptor().getFontFile2();
+                    if(stream==null)stream=font.getFontDescriptor().getFontFile3();
+                    if(stream==null)continue;
+                    String raw=font.getName();String token=fontToken(raw);if(token.isBlank())continue;
+                    out.putIfAbsent(token,stream.toByteArray());
+                }catch(Exception ignored){}
+            }
+        }
+    }
+
+    private static PDFont embeddedSourceFont(String family,boolean bold,boolean italic) throws IOException{
+        PDDocument doc=CURRENT_DOCUMENT.get();if(doc==null)return null;
+        String wanted=fontToken(family);if(wanted.isBlank())return null;
+        byte[] bytes=SOURCE_EMBEDDED_FONTS.get().get(wanted);
+        if(bytes==null){
+            for(var entry:SOURCE_EMBEDDED_FONTS.get().entrySet()){
+                if(entry.getKey().contains(wanted)||wanted.contains(entry.getKey())){bytes=entry.getValue();break;}
+            }
+        }
+        if(bytes==null)return null;
+        String key="embedded-source-font|"+wanted+"|"+bold+"|"+italic;
+        PDFont cached=UNICODE_FONTS.get().get(key);if(cached!=null)return cached;
+        try{
+            PDFont loaded=PDType0Font.load(doc,new java.io.ByteArrayInputStream(bytes),true);
+            UNICODE_FONTS.get().put(key,loaded);return loaded;
+        }catch(Exception ignored){return null;}
+    }
+
+    private static PDFont systemFont(String family,boolean bold,boolean italic) throws IOException {
+        PDDocument doc=CURRENT_DOCUMENT.get();if(doc==null)return null;
+        String key="source-font|"+family+"|"+bold+"|"+italic;PDFont cached=UNICODE_FONTS.get().get(key);if(cached!=null)return cached;
+        Path path=findSystemFont(family,bold,italic);if(path==null)return null;
+        PDFont loaded=PDType0Font.load(doc,path.toFile());UNICODE_FONTS.get().put(key,loaded);return loaded;
+    }
+
+    private static Path findSystemFont(String family,boolean bold,boolean italic){
+        String wanted=fontToken(family);if(wanted.isBlank())return null;
+        List<Path> roots=List.of(Path.of("C:/Windows/Fonts"),Path.of("/usr/share/fonts"),Path.of("/usr/local/share/fonts"),
+                Path.of(System.getProperty("user.home","."),".fonts"),Path.of("/System/Library/Fonts"),Path.of("/Library/Fonts"));
+        Path best=null;int bestScore=Integer.MIN_VALUE;
+        for(Path root:roots){if(!Files.isDirectory(root))continue;try(var stream=Files.walk(root,5)){
+            for(Path candidate:stream.filter(Files::isRegularFile).filter(f->{String n=f.getFileName().toString().toLowerCase(Locale.ROOT);return n.endsWith(".ttf")||n.endsWith(".otf");}).toList()){
+                String name=fontToken(candidate.getFileName().toString());if(!name.contains(wanted)&&!wanted.contains(name))continue;
+                String lower=candidate.getFileName().toString().toLowerCase(Locale.ROOT);int score=100-Math.abs(name.length()-wanted.length());
+                boolean cb=lower.contains("bold")||lower.contains("semibold")||lower.contains("demi")||lower.contains("black");
+                boolean ci=lower.contains("italic")||lower.contains("oblique");if(cb==bold)score+=20;if(ci==italic)score+=20;
+                if(score>bestScore){bestScore=score;best=candidate;}
+            }
+        }catch(Exception ignored){}}
+        return best;
+    }
+
+    private static String fontToken(String value){
+        if(value==null)return"";String n=value.toUpperCase(Locale.ROOT).replaceFirst("^[A-Z]{6}\\+","");
+        return n.replaceAll("(?i)(BOLD|SEMIBOLD|DEMI|BLACK|ITALIC|OBLIQUE|REGULAR|ROMAN|PSMT|MT)","").replaceAll("[^A-Z0-9]","");
+    }
+
+    private static PDFont fontForVariant(TemplateElement base, boolean bold) {
+        TemplateElement copy=base.snapshotCopy();copy.setBold(bold);return fontFor(copy);
     }
 
     private static void drawRectangle(PDPage page, PDPageContentStream cs, TemplateElement e, boolean replacementMask) throws IOException {
@@ -687,7 +883,7 @@ public final class PdfStudioRenderer {
     private static void drawItemTable(PDPage page, PDPageContentStream cs, TemplateElement e,
                                       List<TaxInvoiceItem> items, String gstType, int pageNumber, int totalPages,
                                       double fillerRowHeight) throws IOException {
-        List<Column> columns = itemColumns(e.getTableColumns());
+        List<Column> columns = itemColumns(e);
         if (columns.isEmpty()) columns = itemColumns(List.of("serial", "descriptionWithRemarks", "quantity", "rate", "total"));
 
         TemplateElement effective = e;
@@ -718,28 +914,27 @@ public final class PdfStudioRenderer {
         float pdfBottom = toPdfY(page, bottomY);
         float pdfTop = toPdfY(page, bodyTopY);
 
-        // Erase only inside the old table-body strokes, then redraw the Standard-blue scaffold.
-        setNonStroke(cs, "#FFFFFF");
-        cs.addRect(x + 0.7f, pdfBottom + 0.7f, width - 1.4f, Math.max(1f, pdfTop - pdfBottom - 1.4f));
-        cs.fill();
-        setStroke(cs, "#7FA4D3");
-        cs.setLineWidth(0.45f);
-
-        List<Float> widths = columnWidths(e, itemColumns(e.getTableColumns()), width);
-        float cursor = x;
-        cs.moveTo(x, pdfTop); cs.lineTo(x + width, pdfTop); cs.stroke();
-        for (float w : widths) {
-            cs.moveTo(cursor, pdfTop); cs.lineTo(cursor, pdfBottom); cs.stroke();
-            cursor += w;
+        boolean captured=e.isSourceStyleCaptured();
+        if(!captured||e.isSourceMaskSafe()){
+            setNonStroke(cs,captured?e.getFillColor():"#FFFFFF");
+            cs.addRect(x + 0.7f, pdfBottom + 0.7f, width - 1.4f, Math.max(1f, pdfTop - pdfBottom - 1.4f));
+            cs.fill();
         }
-        cs.moveTo(x + width, pdfTop); cs.lineTo(x + width, pdfBottom); cs.stroke();
-
-        double rh = e.getRowHeight();
-        for (double y = bodyTopY; y < bottomY - 0.5; y += rh) {
-            float py = toPdfY(page, Math.min(bottomY, y));
-            cs.moveTo(x, py); cs.lineTo(x + width, py); cs.stroke();
+        boolean drawGrid=!captured||e.isStrokeEnabled();
+        if(drawGrid){
+            setStroke(cs,captured?e.getStrokeColor():"#7FA4D3");
+            cs.setLineWidth((float)(captured?Math.max(.25,e.getStrokeWidth()):.45));
+            List<Float> widths = columnWidths(e, itemColumns(e), width);
+            float cursor = x;
+            cs.moveTo(x, pdfTop); cs.lineTo(x + width, pdfTop); cs.stroke();
+            for (float w : widths) { cs.moveTo(cursor, pdfTop); cs.lineTo(cursor, pdfBottom); cs.stroke(); cursor += w; }
+            cs.moveTo(x + width, pdfTop); cs.lineTo(x + width, pdfBottom); cs.stroke();
+            double rh = e.getRowHeight();
+            for (double y = bodyTopY; y < bottomY - 0.5; y += rh) {
+                float py = toPdfY(page, Math.min(bottomY, y)); cs.moveTo(x, py); cs.lineTo(x + width, py); cs.stroke();
+            }
+            cs.moveTo(x, pdfBottom); cs.lineTo(x + width, pdfBottom); cs.stroke();
         }
-        cs.moveTo(x, pdfBottom); cs.lineTo(x + width, pdfBottom); cs.stroke();
     }
 
 
@@ -768,21 +963,21 @@ public final class PdfStudioRenderer {
         float pdfTop = toPdfY(page, bodyTop);
         float pdfBottom = toPdfY(page, cursorY);
 
-        setNonStroke(cs, "#FFFFFF");
-        cs.addRect(x + 0.7f, pdfBottom + 0.7f, width - 1.4f, Math.max(1f, pdfTop - pdfBottom - 1.4f));
-        cs.fill();
-        setStroke(cs, "#7FA4D3");
-        cs.setLineWidth(0.45f);
-        List<Float> widths = columnWidths(e, itemColumns(e.getTableColumns()), width);
-        float colX = x;
-        for (float w : widths) {
-            cs.moveTo(colX, pdfTop); cs.lineTo(colX, pdfBottom); cs.stroke();
-            colX += w;
+        boolean captured=e.isSourceStyleCaptured();
+        if(!captured||e.isSourceMaskSafe()){
+            setNonStroke(cs,captured?e.getFillColor():"#FFFFFF");
+            cs.addRect(x + 0.7f, pdfBottom + 0.7f, width - 1.4f, Math.max(1f, pdfTop - pdfBottom - 1.4f));
+            cs.fill();
         }
-        cs.moveTo(x + width, pdfTop); cs.lineTo(x + width, pdfBottom); cs.stroke();
-        for (double y : lines) {
-            float py = toPdfY(page, y);
-            cs.moveTo(x, py); cs.lineTo(x + width, py); cs.stroke();
+        boolean drawGrid=!captured||e.isStrokeEnabled();
+        if(drawGrid){
+            setStroke(cs,captured?e.getStrokeColor():"#7FA4D3");
+            cs.setLineWidth((float)(captured?Math.max(.25,e.getStrokeWidth()):.45));
+            List<Float> widths = columnWidths(e, itemColumns(e), width);
+            float colX = x;
+            for (float w : widths) { cs.moveTo(colX, pdfTop); cs.lineTo(colX, pdfBottom); cs.stroke(); colX += w; }
+            cs.moveTo(x + width, pdfTop); cs.lineTo(x + width, pdfBottom); cs.stroke();
+            for (double y : lines) { float py = toPdfY(page, y); cs.moveTo(x, py); cs.lineTo(x + width, py); cs.stroke(); }
         }
     }
 
@@ -834,8 +1029,8 @@ public final class PdfStudioRenderer {
             setStroke(cs, "#9FB3C8"); cs.setLineWidth(.65f); cs.moveTo(x, rowBottom); cs.lineTo(x + width, rowBottom); cs.stroke();
         }
         PDFont font = fontFor(e);
-        float fontSize = (float)Math.max(5, Math.min(e.getFontSize(), rowH * .58));
-        List<String> alignments = e.getTableColumnAlignments();
+        float fontSize = (float)Math.max(3.5, Math.min(e.getFontSize(), rowH * .58));
+        List<String> alignments = columnAlignments(e, columns.size());
         for (int i = 0; i < columns.size(); i++) {
             Column column = columns.get(i);
             float cw = widths.get(i);
@@ -848,9 +1043,28 @@ public final class PdfStudioRenderer {
 
     private static float totalWeight(List<Column> columns) { return (float)columns.stream().mapToDouble(Column::weight).sum(); }
 
-    /** Exact PDF-template column widths win when supplied; legacy templates keep semantic proportional widths. */
+    /** Exact source-header geometry wins; legacy templates keep tableColumnWidths/semantic weights. */
     private static List<Float> columnWidths(TemplateElement element, List<Column> columns, float totalWidth) {
+        // Source-designed tables may acquire review-only bindings during import/upgrade. The physical
+        // body grid must not move merely because richer metadata was added. The persisted legacy width
+        // vector is the renderer's proven geometry mirror for source tables and is kept synchronized
+        // whenever the user intentionally edits current bindings.
         List<Double> exact = element == null ? List.of() : element.getTableColumnWidths();
+        if (element != null && element.isUseSourceTableDesign() && exact != null && exact.size() == columns.size()
+                && exact.stream().allMatch(v -> v != null && v > 0)) {
+            double supplied = exact.stream().mapToDouble(Double::doubleValue).sum();
+            if (supplied > 0) {
+                double scale = totalWidth / supplied;
+                return exact.stream().map(v -> (float)(v * scale)).toList();
+            }
+        }
+        if(element!=null&&!element.getTableColumnBindings().isEmpty()&&element.getTableColumnBindings().size()==columns.size()){
+            List<Double> bound=element.getTableColumnBindings().stream().map(TemplateColumnBinding::getWidth).toList();
+            if(bound.stream().allMatch(v->v!=null&&v>0)){
+                double sum=bound.stream().mapToDouble(Double::doubleValue).sum();
+                if(sum>0){double scale=totalWidth/sum;return bound.stream().map(v->(float)(v*scale)).toList();}
+            }
+        }
         if (exact != null && exact.size() == columns.size() && exact.stream().allMatch(v -> v != null && v > 0)) {
             double supplied = exact.stream().mapToDouble(Double::doubleValue).sum();
             if (supplied > 0) {
@@ -858,8 +1072,14 @@ public final class PdfStudioRenderer {
                 return exact.stream().map(v -> (float)(v * scale)).toList();
             }
         }
-        float totalWeight = totalWeight(columns);
+        float totalWeight = Math.max(.001f,totalWeight(columns));
         return columns.stream().map(column -> totalWidth * (float)column.weight() / totalWeight).toList();
+    }
+
+    private static List<String> columnAlignments(TemplateElement element,int count){
+        if(element!=null&&!element.getTableColumnBindings().isEmpty()&&element.getTableColumnBindings().size()==count)
+            return element.getTableColumnBindings().stream().map(TemplateColumnBinding::getAlignment).toList();
+        return element==null?List.of():element.getTableColumnAlignments();
     }
 
     private static String itemValue(String key, TaxInvoiceItem item, String gstType, int serial) {
@@ -956,6 +1176,24 @@ public final class PdfStudioRenderer {
 
     private static String safe(String value) { return value == null ? "" : value.trim(); }
 
+    private static List<Column> itemColumns(TemplateElement element) {
+        if(element==null||element.getTableColumnBindings().isEmpty())return itemColumns(element==null?List.of():element.getTableColumns());
+        Map<String,Column> catalogue=new LinkedHashMap<>();for(Column c:itemColumns(List.of(
+                "serial","code","hsn","description","descriptionWithRemarks","remarks","category","brand","material","size",
+                "quantity","unit","rate","discountPercent","discountAmount","taxable","gstPercent","gstAmount","cgstPercent","cgstAmount",
+                "sgstPercent","sgstAmount","igstPercent","igstAmount","grossAmount","total","location","purchasePrice","sellingPrice",
+                "availableStock","openingStock","minimumStock","reservedStock","masterGstPercent","masterDiscountPercent")))catalogue.put(c.key(),c);
+        List<Column> out=new ArrayList<>();
+        for(TemplateColumnBinding binding:element.getTableColumnBindings()){
+            String key=ManualTemplateMappingService.normalizeItemColumn(binding.getFieldKey());
+            Column base=catalogue.get(key);
+            String label=binding.getSourceLabel().isBlank()?(base==null?"":base.label()):binding.getSourceLabel();
+            double weight=binding.getWidth()>0?binding.getWidth():(base==null?1:base.weight());
+            out.add(new Column(base==null?key:base.key(),label,weight));
+        }
+        return out;
+    }
+
     private static List<Column> itemColumns(List<String> keys) {
         List<Column> all = List.of(
                 new Column("serial", "Sr", .55), new Column("code", "Item Code", .95), new Column("hsn", "HSN", .85),
@@ -1024,16 +1262,18 @@ public final class PdfStudioRenderer {
                                             String color, String alignment) throws IOException {
         String safe = safePdfText(text);
         PDFont effectiveFont = fontForText(font, safe);
-        float size = Math.max(4f, fontSize);
+        float minReadable = 2.3f;
+        float size = Math.max(minReadable, fontSize);
         List<String> lines = wrap(safe, effectiveFont, size, Math.max(5, width));
-        while (!wrappedCellFits(effectiveFont, lines, size, width, height) && size > 4.01f) {
-            size = Math.max(4f, size - .25f);
+        while (!wrappedCellFits(effectiveFont, lines, size, width, height) && size > minReadable + 0.01f) {
+            size = Math.max(minReadable, size - .15f);
             lines = wrap(safe, effectiveFont, size, Math.max(5, width));
         }
         if (!wrappedCellFits(effectiveFont, lines, size, width, height))
             throw new IOException("Table cell text does not fit at the minimum readable size; text was not discarded: " + abbreviateForError(safe));
         setNonStroke(cs, color);
-        float lineHeight = size * 1.08f, cy = y + height - size;
+        float lineHeight = lines.size() > 1 ? Math.max(size * 0.88f, Math.min(size * 1.08f, (height - size) / (lines.size() - 1))) : size * 1.08f;
+        float cy = y + height - size;
         for (String line : lines) {
             float drawX = alignedX(effectiveFont, size, line, x, width, alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT));
             cs.beginText(); cs.setFont(effectiveFont, size); cs.newLineAtOffset(drawX, cy); cs.showText(line); cs.endText();
@@ -1043,7 +1283,8 @@ public final class PdfStudioRenderer {
 
     private static boolean wrappedCellFits(PDFont font, List<String> lines, float size, float width, float height) throws IOException {
         if (lines == null || lines.isEmpty()) return true;
-        if (size + Math.max(0, lines.size()-1) * size * 1.08f > height + .01f) return false;
+        float spacing = lines.size() > 1 ? 0.88f : 1.08f;
+        if (size + Math.max(0, lines.size()-1) * size * spacing > height + .01f) return false;
         for (String line : lines) if (textWidth(font, size, line) > width + .01f) return false;
         return true;
     }
@@ -1217,7 +1458,7 @@ public final class PdfStudioRenderer {
      * bank/signature artwork.  No template id/name checks are permitted here.
      */
     private static void prepareFlowFixedPage(PDPage page, PDPageContentStream cs, FlowPlan flow, int part) throws IOException {
-        FlowFixedGeometry g = flow.flowFixed();
+        PdfStudioRuntimeFlowPlanner.ItemFlowPlan g = flow.flowFixed();
         if (g == null || flow.itemTable() == null) return;
         boolean last = part == flow.totalCopies() - 1;
         double bodyTop = g.bodyTop();
@@ -1226,9 +1467,13 @@ public final class PdfStudioRenderer {
         float w = (float) flow.itemTable().getWidth();
         float pdfBottom = toPdfY(page, bodyBottom);
         float pdfTop = toPdfY(page, bodyTop);
-        setNonStroke(cs, "#FFFFFF");
-        cs.addRect(x, pdfBottom, w, Math.max(1f, pdfTop - pdfBottom));
-        cs.fill();
+        TemplateElement sourceTable=flow.itemTable();
+        boolean captured=sourceTable!=null&&sourceTable.isSourceStyleCaptured();
+        if(!captured||sourceTable.isSourceMaskSafe()){
+            setNonStroke(cs,captured?sourceTable.getFillColor():"#FFFFFF");
+            cs.addRect(x, pdfBottom, w, Math.max(1f, pdfTop - pdfBottom));
+            cs.fill();
+        }
     }
 
     private static void prepareDynamicSalesPage(PDPage page, PDPageContentStream cs, FlowPlan flow, int part,
@@ -1373,59 +1618,97 @@ public final class PdfStudioRenderer {
                                                     TemplateElement box, TemplateData data) throws IOException {
         List<String[]> rows = mappedFinancialRows(data);
         String grand = blankAs(data.value("totals.roundedGrandTotal"), data.value("totals.grandTotal"));
-        float x = (float) box.getX();
-        float top = (float) box.getY();
-        float width = (float) box.getWidth();
-        float maxH = (float) box.getHeight();
-        int normalCount = rows.size();
-        float preferred = 20.5f;
-        float rowH = Math.min(preferred, maxH / Math.max(1f, normalCount + 1f));
-        rowH = Math.max(12.5f, rowH);
-        float totalH = rowH * (normalCount + 1);
-        if (totalH > maxH) { rowH = maxH / Math.max(1f, normalCount + 1f); totalH = maxH; }
-        final String grid = "#AFC2D8";
-        final String navy = "#0E3F79";
+        float x=(float)box.getX(), width=(float)box.getWidth(), boxH=(float)box.getHeight();
+        int normalCount=rows.size();
+        boolean captured=box.isSourceStyleCaptured();
 
-        // Keep the block compact at the source top; unused lower space stays blank until BANK DETAILS.
-        setNonStroke(cs, "#FFFFFF");
-        setStroke(cs, grid);
-        cs.setLineWidth(.45f);
-        float pdfBottom = toPdfY(page, top + totalH);
-        cs.addRect(x, pdfBottom, width, totalH);
-        cs.fillAndStroke();
-        float split = x + width * .66f;
-        cs.moveTo(split, toPdfY(page, top)); cs.lineTo(split, pdfBottom); cs.stroke();
+        // A source PDF can have a calculation body and a physically separate Grand Total strip
+        // (often with a small gap between them). Treating both as one uniform grid is incorrect:
+        // tax/charge rows drift downward and overwrite the source Grand Total artwork.
+        float totalBandH=(float)Math.min(boxH, Math.max(0, box.getSummaryTotalHeight()));
+        float totalGap=(float)Math.min(Math.max(0, boxH-totalBandH), Math.max(0, box.getSummaryTotalGap()));
+        boolean separatedTotal=totalBandH>.1f;
+        float bodyH=separatedTotal ? Math.max(1f, boxH-totalBandH-totalGap) : boxH;
+        float sourceRowH=(float)Math.max(0, box.getRowHeight());
+        int sourceSlots=sourceRowH>.1f ? Math.max(1,(int)Math.floor((bodyH+.6f)/sourceRowH)) : 0;
+        boolean keepSourceGrid=captured && separatedTotal && sourceSlots>0 && normalCount<=sourceSlots;
 
-        for (int i = 0; i < normalCount; i++) {
-            float rowTop = top + i * rowH;
-            if (i > 0) {
-                float lineY = toPdfY(page, rowTop);
-                cs.moveTo(x, lineY); cs.lineTo(x + width, lineY); cs.stroke();
+        float preferred=captured && sourceRowH>.1f
+                ? sourceRowH
+                : (float)Math.max(12.5,Math.min(20.5,box.getFontSize()*2.0));
+        float rowH=keepSourceGrid ? sourceRowH : Math.min(preferred,bodyH/Math.max(1,normalCount));
+        if(rowH<8.5f)throw new IOException("Dynamic Financial Summary does not have enough readable space for "+normalCount+" rows. Increase the mapped calculation block height.");
+
+        float bodyTop=(float)box.getY();
+        if(!separatedTotal && "UP".equals(box.getGrowthDirection())) {
+            float legacyTotalH=rowH*Math.max(1,normalCount+1);
+            bodyTop=(float)(box.getY()+box.getHeight()-legacyTotalH);
+            bodyH=legacyTotalH-rowH;
+        }
+        float bodyBottomTop=bodyTop+bodyH;
+        String fill=box.getFillColor(), grid=captured?box.getStrokeColor():"#AFC2D8", text=box.getTextColor();
+        float lineWidth=(float)(captured?Math.max(.25,box.getStrokeWidth()):.45);
+        float split=x+width*(float)box.getSummaryLabelRatio();
+
+        if(!keepSourceGrid){
+            // Rebuild only the body interior when the dynamic row count cannot use the source row
+            // rhythm. Keep the source outer rounded border and separate total strip untouched.
+            float inset=captured?.8f:0f;
+            float pdfBodyBottom=toPdfY(page,bodyBottomTop-inset);
+            float pdfBodyTop=toPdfY(page,bodyTop+inset);
+            setNonStroke(cs,fill);
+            cs.addRect(x+inset,pdfBodyBottom,Math.max(1f,width-inset*2),Math.max(1f,pdfBodyTop-pdfBodyBottom));
+            cs.fill();
+            setStroke(cs,grid);cs.setLineWidth(lineWidth);
+            cs.moveTo(split,toPdfY(page,bodyTop));cs.lineTo(split,toPdfY(page,bodyBottomTop));cs.stroke();
+            for(int i=1;i<normalCount;i++){
+                float y=bodyTop+i*rowH;cs.moveTo(x,toPdfY(page,y));cs.lineTo(x+width,toPdfY(page,y));cs.stroke();
             }
-            String[] row = rows.get(i);
-            float bottom = toPdfY(page, rowTop + rowH);
-            PDFont labelFont = (i == 0 || row[0].startsWith("TAXABLE"))
-                    ? font(Standard14Fonts.FontName.HELVETICA_BOLD)
-                    : font(Standard14Fonts.FontName.HELVETICA);
-            drawSingleLineCentered(cs, labelFont, 6.1f, row[0], x + 6f, bottom, split - x - 10f, rowH, "#000000", "LEFT");
-            drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.1f,
-                    row[1], split + 4f, bottom, x + width - split - 9f, rowH, "#000000", "RIGHT");
+            if(!captured){cs.addRect(x,toPdfY(page,bodyBottomTop),width,bodyH);cs.stroke();}
         }
 
-        float grandTop = top + normalCount * rowH;
-        float grandBottom = toPdfY(page, grandTop + rowH);
-        setNonStroke(cs, navy);
-        cs.addRect(x, grandBottom, width, rowH);
-        cs.fill();
-        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.6f,
-                "GRAND TOTAL", x + 6f, grandBottom, split - x - 10f, rowH, "#FFFFFF", "LEFT");
-        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 7.0f,
-                grand, split + 4f, grandBottom, x + width - split - 9f, rowH, "#FFFFFF", "RIGHT");
+        float baseFont=(float)Math.max(5,Math.min(box.getFontSize(),rowH*.55));
+        for(int i=0;i<normalCount;i++){
+            float rowTop=bodyTop+i*rowH;
+            String[] row=rows.get(i);float bottom=toPdfY(page,rowTop+rowH);
+            boolean emphasize=i==0||row[0].startsWith("TAXABLE");
+            drawSingleLineCentered(cs,fontForVariant(box,emphasize),baseFont,row[0],x+6f,bottom,split-x-10f,rowH,text,"LEFT");
+            drawSingleLineCentered(cs,fontForVariant(box,true),baseFont,row[1],split+4f,bottom,x+width-split-9f,rowH,text,"RIGHT");
+        }
+
+        if(separatedTotal){
+            float totalTop=(float)(box.getY()+box.getHeight()-totalBandH);
+            float totalBottom=toPdfY(page,totalTop+totalBandH);
+            // Source-captured total artwork is authoritative; only live label/value text is drawn.
+            if(!captured){
+                String totalFill=box.getSummaryTotalFillColor();
+                if(totalFill.isBlank())totalFill="#0E3F79";
+                setNonStroke(cs,totalFill);cs.addRect(x,totalBottom,width,totalBandH);cs.fill();
+            }
+            String totalText=box.getSummaryTotalTextColor();
+            if(totalText.isBlank())totalText=captured?text:"#FFFFFF";
+            float totalFont=Math.min(Math.max(baseFont+.5f,5.5f),totalBandH*.58f);
+            drawSingleLineCentered(cs,fontForVariant(box,true),totalFont,"GRAND TOTAL",x+6f,totalBottom,split-x-10f,totalBandH,totalText,"LEFT");
+            drawSingleLineCentered(cs,fontForVariant(box,true),Math.min(totalFont+.3f,totalBandH*.60f),grand,split+4f,totalBottom,x+width-split-9f,totalBandH,totalText,"RIGHT");
+            return;
+        }
+
+        // Backward-compatible uniform summary for templates that do not carry source total-band metadata.
+        float grandTop=bodyTop+normalCount*rowH,grandBottom=toPdfY(page,grandTop+rowH);
+        String grandFill=box.getSummaryTotalFillColor();
+        boolean explicitGrandFill=!grandFill.isBlank();
+        if(grandFill.isBlank()&&!captured)grandFill="#0E3F79";
+        String grandText=box.getSummaryTotalTextColor();
+        if(grandText.isBlank())grandText=captured?text:"#FFFFFF";
+        if(!grandFill.isBlank()&&(!captured||explicitGrandFill)){setNonStroke(cs,grandFill);cs.addRect(x,grandBottom,width,rowH);cs.fill();}
+        if(box.isStrokeEnabled()){setStroke(cs,grid);cs.setLineWidth(lineWidth);cs.moveTo(x,toPdfY(page,grandTop));cs.lineTo(x+width,toPdfY(page,grandTop));cs.stroke();}
+        drawSingleLineCentered(cs,fontForVariant(box,true),Math.min(baseFont+.5f,rowH*.58f),"GRAND TOTAL",x+6f,grandBottom,split-x-10f,rowH,grandText,"LEFT");
+        drawSingleLineCentered(cs,fontForVariant(box,true),Math.min(baseFont+.8f,rowH*.60f),grand,split+4f,grandBottom,x+width-split-9f,rowH,grandText,"RIGHT");
     }
 
     private static List<String[]> mappedFinancialRows(TemplateData data) {
         List<String[]> rows = new ArrayList<>();
-        rows.add(new String[]{"SUB TOTAL", blankAs(data.value("totals.basicAmount"), "0.00")});
+        rows.add(new String[]{"BASIC AMOUNT", blankAs(data.value("totals.basicAmount"), "0.00")});
         if (!isZeroMoney(data.value("totals.discountAmount")))
             rows.add(new String[]{"DISCOUNT", data.value("totals.discountAmount")});
         for (TemplateCharge charge : data.charges()) {
@@ -1479,100 +1762,16 @@ public final class PdfStudioRenderer {
 
     private record Column(String key, String label, double weight) {}
 
-    /**
-     * Generic Fixed-Top / Flow-Table / Fixed-Bottom paginator for imported Studio PDFs.
-     *
-     * <p>The template contributes geometry only: item-table start/header/row height, LAST
-     * elements that mark the fixed closing area, and the final footer guard. Pagination is
-     * deliberately template-id agnostic. Intermediate pages consume as many real rows as
-     * possible and never manufacture blank rows. The final (or only) page keeps the fixed
-     * closing area untouched and pads only the unused item-table slots with empty rows.</p>
-     */
-    private record FlowFixedGeometry(double rowHeight, double bodyTop, double finalBottom,
-                                             double intermediateBottom, int finalRows, int intermediateRows) {
-        static FlowFixedGeometry forPage(List<TemplateElement> elements, double pageHeight, int itemCount) {
-            TemplateElement item = elements.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElse(null);
-            if (item == null) return null;
-            double bodyTop = item.getY() + Math.max(0, item.getHeaderHeight());
-            double originalBottom = item.getY() + item.getHeight();
-            double closingTop = elements.stream()
-                    .filter(e -> e != item && e.isVisible() && ("LAST".equals(e.getPageRule()) || e.getType() == ElementType.CHARGE_TABLE) && e.getY() > bodyTop + 1)
-                    .mapToDouble(TemplateElement::getY).min().orElse(originalBottom + 4.0);
-            double finalBottom = Math.max(originalBottom, closingTop - 4.0);
-            double finalBody = Math.max(1.0, finalBottom - bodyTop);
-
-            double footerTop = elements.stream()
-                    .filter(e -> e != item && e.isVisible() && "LAST".equals(e.getPageRule()) && e.getY() > pageHeight * .88)
-                    .mapToDouble(TemplateElement::getY).min().orElse(pageHeight - 36.0);
-            double intermediateBottom = Math.max(finalBottom, footerTop - 4.0);
-            double intermediateBody = Math.max(1.0, intermediateBottom - bodyTop);
-
-            // Template geometry supplies the natural/minimum row rhythm. A single-page
-            // document keeps that rhythm and fills unused slots with blank rows. For a
-            // multi-page document, page 1 establishes one expanded real-row height from
-            // the available continuation region; the SAME height is reused on every later
-            // page, exactly like the established Standard Sales paginator.
-            double readableMin = Math.max(6.0, item.getFontSize() * 1.18);
-            double baseRowHeight = Math.max(readableMin, item.getRowHeight() > 0 ? item.getRowHeight() : readableMin);
-            int baseFinalRows = Math.max(1, (int)Math.floor(finalBody / baseRowHeight));
-            double rowHeight = baseRowHeight;
-            if (itemCount > baseFinalRows) {
-                int naturalIntermediateRows = Math.max(1, (int)Math.floor(intermediateBody / baseRowHeight));
-                int firstRealRows = Math.max(1, Math.min(naturalIntermediateRows, Math.max(1, itemCount - 1)));
-                double expanded = intermediateBody / firstRealRows;
-                rowHeight = Math.max(baseRowHeight, Math.min(48.0, expanded));
-            }
-
-            int finalRows = Math.max(1, (int)Math.floor(finalBody / rowHeight));
-            int intermediateRows = Math.max(1, (int)Math.floor(intermediateBody / rowHeight));
-            return new FlowFixedGeometry(rowHeight, bodyTop, finalBottom, intermediateBottom, finalRows, intermediateRows);
-        }
-
-        int pagesFor(int itemCount) {
-            if (itemCount <= 0 || itemCount <= finalRows) return 1;
-            // Keep one final page for the mapped fixed-bottom region. Earlier pages use the
-            // full continuation capacity; the final page receives the remaining real rows.
-            int beforeFinalCapacityNeeded = Math.max(0, itemCount - finalRows);
-            return 1 + (int)Math.ceil(beforeFinalCapacityNeeded / (double)Math.max(1, intermediateRows));
-        }
-
-        int[] rangeFor(int itemCount, int part, int pages) {
-            if (itemCount <= 0) return new int[]{0,0};
-            if (pages <= 1) return new int[]{0,itemCount};
-
-            // Greedy continuation flow: every intermediate page takes the maximum real rows
-            // available while leaving at least one real row for the final fixed-bottom page.
-            // This eliminates the old "reserve N rows, then draw blank rows on page 1" defect.
-            int from = 0;
-            for (int p = 0; p < part && p < pages - 1; p++) {
-                int remaining = itemCount - from;
-                int take = Math.min(intermediateRows, Math.max(0, remaining - 1));
-                from += take;
-            }
-            if (part >= pages - 1) return new int[]{Math.min(from, itemCount), itemCount};
-            int remaining = itemCount - from;
-            int take = Math.min(intermediateRows, Math.max(0, remaining - 1));
-            return new int[]{from, Math.min(itemCount, from + take)};
-        }
-
-        TemplateElement tableForPart(TemplateElement source, int part, int pages) {
-            TemplateElement table = source.copy();
-            table.setRowHeight(rowHeight);
-            double bottom = part == pages - 1 ? finalBottom : intermediateBottom;
-            table.setHeight(Math.max(table.getHeaderHeight() + rowHeight, bottom - table.getY()));
-            return table;
-        }
-    }
-
     private record FlowPlan(TemplateElement itemTable, TemplateElement chargeTable,
                             int itemPages, int chargePages, int totalCopies, int chargeStartPart,
-                            TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout, FlowFixedGeometry flowFixed) {
+                            TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout, PdfStudioRuntimeFlowPlanner.ItemFlowPlan flowFixed) {
         static FlowPlan forPage(List<TemplateElement> elements, TemplateData data,
                                 TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout,
                                 double pageHeight, boolean useFlowFixed) {
             TemplateElement item = elements.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElse(null);
             TemplateElement charge = elements.stream().filter(e -> e.getType() == ElementType.CHARGE_TABLE).findFirst().orElse(null);
-            FlowFixedGeometry fixed = useFlowFixed ? FlowFixedGeometry.forPage(elements, pageHeight, data.items() == null ? 0 : data.items().size()) : null;
+            PdfStudioRuntimeFlowPlanner.ItemFlowPlan fixed = useFlowFixed && item != null
+                    ? PdfStudioRuntimeFlowPlanner.plan(elements, item, pageHeight, data.items() == null ? 0 : data.items().size(), true) : null;
             if (item != null && salesLayout != null && salesLayout.totalPages() > 0) {
                 return new FlowPlan(item, charge, salesLayout.totalPages(), 0,
                         salesLayout.totalPages(), 0, salesLayout, fixed);

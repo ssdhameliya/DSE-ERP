@@ -5,6 +5,7 @@ import org.example.documentstudio.model.TemplateFieldDefinition;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** Universal ERP field catalog used by Document Studio 7.3.0. */
@@ -334,6 +335,187 @@ public final class TemplateFieldCatalog {
             text("totals.roundedGrandTotal", "Grand Total (Rounded)", "Totals • Rounding")
     );
 
+
+    /**
+     * PDF Studio semantic metadata. These exact-key definitions are the single source of truth for
+     * aliases and multiline behaviour; controllers/renderers must not classify fields by substring.
+     */
+    private static final Set<String> PDF_MULTILINE_FIELDS = Set.of(
+            "company.address", "company.terms",
+            "purchase.paymentTerms", "purchase.remarks", "purchase.notes", "purchase.billingAddress", "purchase.deliveryAddress", "supplier.address",
+            "quotation.remarks", "customer.address",
+            "delivery.address",
+            "return.reason", "party.address",
+            "receipt.notes",
+            "sales.paymentTerms", "sales.notes", "sales.remarks", "sales.billingAddress", "sales.deliveryAddress", "sales.shippingAddress",
+            "document.paymentTerms", "document.notes", "document.remarks", "document.reason",
+            "party.billingAddress", "party.deliveryAddress", "transport.note",
+            "sales.transportNote", "purchase.transportNote",
+            "item.descriptionWithRemarks", "item.remarks"
+    );
+
+    private static final Set<String> PARTY_ADDRESS_FIELDS = Set.of(
+            "party.address", "party.billingAddress", "party.deliveryAddress",
+            "customer.address", "supplier.address",
+            "sales.billingAddress", "sales.deliveryAddress", "sales.shippingAddress",
+            "purchase.billingAddress", "purchase.deliveryAddress", "delivery.address"
+    );
+
+    private static final Map<String,List<String>> PDF_ALIASES = Map.ofEntries(
+            Map.entry("document.number", List.of("invoice no", "invoice number", "document no", "document number", "bill no")),
+            Map.entry("document.date", List.of("invoice date", "document date", "bill date")),
+            Map.entry("document.poNumber", List.of("po no", "po number", "purchase order no", "order no", "reference no", "reference number")),
+            Map.entry("document.poDate", List.of("po date", "purchase order date", "order date")),
+            Map.entry("document.paymentTerms", List.of("payment terms", "credit terms", "payment term")),
+            Map.entry("document.notes", List.of("notes", "document notes", "invoice notes")),
+            Map.entry("document.remarks", List.of("remarks", "remark")),
+            Map.entry("party.name", List.of("party name", "customer", "buyer", "consignee", "bill to", "ship to")),
+            Map.entry("party.gstin", List.of("party gstin", "customer gstin", "buyer gstin", "gst-in", "gstin")),
+            Map.entry("party.billingAddress", List.of("billing address", "bill to", "bill address")),
+            Map.entry("party.billingGstin", List.of("billing gstin", "bill to gstin", "billing gst-in")),
+            Map.entry("party.deliveryAddress", List.of("delivery address", "ship to", "shipping address", "delivery address")),
+            Map.entry("party.deliveryGstin", List.of("delivery gstin", "shipping gstin", "delivery gst-in")),
+            Map.entry("party.phone", List.of("mobile", "mobile no", "mobile number", "phone", "phone no", "contact no", "contact number")),
+            Map.entry("party.email", List.of("email", "e-mail", "email id", "mail id")),
+            Map.entry("party.contactPerson", List.of("contact person", "contact name", "attention", "attn")),
+            Map.entry("party.stateCode", List.of("state code", "state")),
+            Map.entry("party.placeOfSupply", List.of("place of supply", "supply place")),
+            Map.entry("transport.name", List.of("transporter", "transport name", "carrier", "transporter name")),
+            Map.entry("transport.gstin", List.of("transporter gstin", "transport gstin", "carrier gstin")),
+            Map.entry("transport.contact", List.of("transport contact", "transporter contact", "contact no")),
+            Map.entry("transport.contactPerson", List.of("transport contact person", "driver", "driver name", "contact person")),
+            Map.entry("transport.vehicleNumber", List.of("vehicle no", "vehicle number", "truck no")),
+            Map.entry("transport.lrAwbNumber", List.of("lr no", "lr number", "awb no", "awb number", "lr / awb")),
+            Map.entry("transport.note", List.of("transport note", "delivery note", "shipping note")),
+            Map.entry("company.name", List.of("company name", "for")),
+            Map.entry("company.gstin", List.of("company gstin", "our gstin", "supplier gst", "supplier gstin")),
+            Map.entry("company.terms", List.of("terms & conditions", "terms and conditions", "terms conditions", "conditions")),
+            Map.entry("payment.bankName", List.of("bank name", "bank")),
+            Map.entry("payment.branch", List.of("branch", "bank branch")),
+            Map.entry("payment.accountNumber", List.of("a/c no", "account no", "account number", "bank account")),
+            Map.entry("payment.accountType", List.of("account type", "a/c type", "account category")),
+            Map.entry("payment.ifsc", List.of("ifsc", "ifsc code")),
+            Map.entry("payment.mode", List.of("payment mode", "mode of payment")),
+            Map.entry("totals.basicAmount", List.of("basic amount", "subtotal", "sub total")),
+            Map.entry("totals.subtotal", List.of("basic amount", "subtotal", "sub total")),
+            Map.entry("totals.discountAmount", List.of("discount", "discount amount")),
+            Map.entry("totals.taxableAmount", List.of("taxable amount", "gross before tax")),
+            Map.entry("totals.grossBeforeTax", List.of("taxable amount", "gross total", "gross before tax")),
+            Map.entry("totals.cgstAmount", List.of("cgst")),
+            Map.entry("totals.sgstAmount", List.of("sgst")),
+            Map.entry("totals.igstAmount", List.of("igst")),
+            Map.entry("totals.roundOff", List.of("round off", "rounding")),
+            Map.entry("totals.roundedGrandTotal", List.of("grand total", "net total", "invoice total", "amount payable")),
+            Map.entry("totals.grandTotal", List.of("grand total", "net total", "invoice total", "amount payable")),
+            Map.entry("totals.amountInWords", List.of("amount in words", "in words")),
+            Map.entry("totals.amountInWordsText", List.of("amount in words", "in words")),
+            Map.entry("sales.number", List.of("invoice no", "invoice number", "sales invoice no")),
+            Map.entry("sales.date", List.of("invoice date", "sales date")),
+            Map.entry("sales.referenceNo", List.of("reference no", "reference number")),
+            Map.entry("sales.orderNo", List.of("po no", "purchase order no", "customer po", "customer po no", "order no")),
+            Map.entry("sales.poDate", List.of("po date", "purchase order date")),
+            Map.entry("sales.billingAddress", List.of("billing address", "bill to")),
+            Map.entry("sales.deliveryAddress", List.of("delivery address", "ship to", "shipping address")),
+            Map.entry("sales.billingGstin", List.of("billing gstin", "billing gst-in")),
+            Map.entry("sales.deliveryGstin", List.of("delivery gstin", "shipping gstin", "delivery gst-in")),
+            Map.entry("sales.transporter", List.of("transporter", "transport")),
+            Map.entry("sales.transporterGstin", List.of("transporter gstin", "transport gstin")),
+            Map.entry("sales.contactPerson", List.of("contact person", "contact name")),
+            Map.entry("sales.contactMobile", List.of("contact details", "contact mobile", "mobile")),
+            Map.entry("sales.paymentTerms", List.of("payment terms", "credit terms")),
+            Map.entry("purchase.number", List.of("purchase no", "purchase invoice no", "invoice no", "document no")),
+            Map.entry("purchase.date", List.of("purchase date", "invoice date", "document date")),
+            Map.entry("purchase.referenceNo", List.of("supplier invoice no", "reference no")),
+            Map.entry("purchase.orderNo", List.of("po no", "purchase order no", "order no")),
+            Map.entry("purchase.poDate", List.of("po date", "purchase order date")),
+            Map.entry("purchase.billingAddress", List.of("billing address", "bill to")),
+            Map.entry("purchase.deliveryAddress", List.of("delivery address", "ship to")),
+            Map.entry("purchase.billingGstin", List.of("billing gstin", "billing gst-in")),
+            Map.entry("purchase.deliveryGstin", List.of("delivery gstin", "delivery gst-in")),
+            Map.entry("purchase.transporter", List.of("transporter", "transport")),
+            Map.entry("purchase.transporterGstin", List.of("transporter gstin", "transport gstin")),
+            Map.entry("purchase.contactPerson", List.of("contact person", "contact name")),
+            Map.entry("purchase.contactMobile", List.of("contact details", "contact mobile", "mobile")),
+            Map.entry("purchase.paymentTerms", List.of("payment terms", "credit terms")),
+            Map.entry("quotation.number", List.of("quotation no", "quote no")),
+            Map.entry("quotation.date", List.of("quotation date", "quote date")),
+            Map.entry("delivery.number", List.of("challan no", "delivery challan no")),
+            Map.entry("delivery.date", List.of("challan date", "delivery date")),
+            Map.entry("return.number", List.of("return no", "credit note no", "debit note no", "note no")),
+            Map.entry("return.date", List.of("return date", "credit note date", "debit note date")),
+            Map.entry("receipt.number", List.of("receipt no", "receipt number")),
+            Map.entry("receipt.date", List.of("receipt date")),
+            Map.entry("receipt.amount", List.of("receipt amount", "amount received")),
+            Map.entry("customer.name", List.of("customer", "buyer", "party name")),
+            Map.entry("customer.gstin", List.of("customer gstin", "buyer gstin", "gst-in", "gstin")),
+            Map.entry("supplier.name", List.of("supplier", "vendor", "party name")),
+            Map.entry("supplier.gstin", List.of("supplier gstin", "vendor gstin", "gst-in", "gstin")),
+            Map.entry("item.serial", List.of("sr no", "sr", "s no", "sl no", "serial", "line")),
+            Map.entry("item.code", List.of("item code", "part number", "part no", "sku", "code", "product code")),
+            Map.entry("item.description", List.of("particulars", "description", "product", "item")),
+            Map.entry("item.descriptionWithRemarks", List.of("description remarks", "product description", "item description", "description + remarks")),
+            Map.entry("item.hsn", List.of("hsn code", "hsn sac", "hsn", "sac")),
+            Map.entry("item.quantity", List.of("quantity", "qty", "nos", "pcs")),
+            Map.entry("item.unit", List.of("uom", "unit")),
+            Map.entry("item.rate", List.of("unit rate", "rate per unit", "unit price", "rate", "price")),
+            Map.entry("item.discountPercent", List.of("discount %", "disc %", "discount", "disc")),
+            Map.entry("item.taxable", List.of("taxable amount", "amount inr", "taxable")),
+            Map.entry("item.gstPercent", List.of("gst %", "gst", "tax")),
+            Map.entry("item.cgstPercent", List.of("cgst %", "cgst")),
+            Map.entry("item.sgstPercent", List.of("sgst %", "sgst")),
+            Map.entry("item.igstPercent", List.of("igst %", "igst")),
+            Map.entry("item.total", List.of("net value", "line total", "amount", "value", "total", "net"))
+    );
+
+    private static TemplateFieldDefinition enrichPdf(TemplateFieldDefinition field) {
+        if (field == null) return null;
+        boolean multiline = PDF_MULTILINE_FIELDS.contains(field.key());
+        boolean image = field.image();
+        TemplateFieldDefinition.ContentMode mode = image ? TemplateFieldDefinition.ContentMode.IMAGE
+                : multiline ? TemplateFieldDefinition.ContentMode.MULTILINE : TemplateFieldDefinition.ContentMode.SINGLE_LINE;
+        String role = PARTY_ADDRESS_FIELDS.contains(field.key()) ? "PARTY_ADDRESS" : multiline ? "FLOW_TEXT" : "";
+        return new TemplateFieldDefinition(field.key(), field.label(), field.category(), image,
+                PDF_ALIASES.getOrDefault(field.key(), List.of()), mode,
+                multiline ? "WRAP" : "SHRINK", multiline, multiline ? "DOWN" : "FIXED",
+                multiline ? "ERROR" : "ERROR", role);
+    }
+
+    private static List<TemplateFieldDefinition> enrichPdfFields(List<TemplateFieldDefinition> fields) {
+        return fields.stream().map(TemplateFieldCatalog::enrichPdf).toList();
+    }
+
+    /** Universal item-field semantic catalogue used by physical Item Table detection. */
+    public static List<TemplateFieldDefinition> pdfItemFields() {
+        return enrichPdfFields(EXCEL_ITEMS);
+    }
+
+    private static final Set<String> DELIVERY_REVIEW_FIELDS = Set.of(
+            "party.deliveryAddress", "party.deliveryGstin", "sales.deliveryAddress", "sales.shippingAddress",
+            "sales.deliveryGstin", "sales.shippingGstin", "purchase.deliveryAddress", "purchase.deliveryGstin", "delivery.address");
+    private static final Set<String> BILLING_REVIEW_FIELDS = Set.of(
+            "party.billingAddress", "party.billingGstin", "sales.billingAddress", "sales.billingGstin",
+            "purchase.billingAddress", "purchase.billingGstin");
+    private static final Set<String> TERMS_REVIEW_FIELDS = Set.of(
+            "company.terms", "document.paymentTerms", "document.notes", "document.remarks", "document.reason",
+            "sales.paymentTerms", "sales.notes", "sales.remarks", "purchase.paymentTerms", "purchase.notes", "purchase.remarks",
+            "quotation.remarks", "receipt.notes", "return.reason", "totals.amountInWords", "totals.amountInWordsText");
+
+    /** Central Review Mapping section metadata; controllers do not classify ERP keys themselves. */
+    public static String reviewBlockType(DocumentType type, String key, String sourceLabel) {
+        String k = key == null ? "" : key.trim();
+        String label = sourceLabel == null ? "" : sourceLabel.toLowerCase(java.util.Locale.ROOT);
+        if (DELIVERY_REVIEW_FIELDS.contains(k) || label.contains("delivery") || label.contains("ship to")) return "DELIVERY";
+        if (BILLING_REVIEW_FIELDS.contains(k) || label.contains("billing") || label.contains("bill to")) return "BILLING";
+        if (TERMS_REVIEW_FIELDS.contains(k)) return "TERMS_FOOTER";
+        TemplateFieldDefinition field = findPdf(type, k);
+        String category = field == null ? "" : field.category().toLowerCase(java.util.Locale.ROOT);
+        if (category.contains("transport")) return "TRANSPORT";
+        if (category.contains("payment")) return "PAYMENT";
+        if (category.contains("party") || category.contains("customer") || category.contains("supplier")) return "BILLING";
+        if (category.contains("totals") || category.contains("tax") || category.contains("charges")) return "FINANCIAL";
+        return k.isBlank() ? "GENERIC" : "HEADER";
+    }
+
     private TemplateFieldCatalog() {}
 
     public static List<TemplateFieldDefinition> fieldsFor(DocumentType type) {
@@ -382,7 +564,7 @@ public final class TemplateFieldCatalog {
             appendUnique(result, EXCEL_TOTALS_EXTRA);
         if (supportsItemRows(type)) appendUnique(result, EXCEL_ITEMS);
         if (supportsChargeRows(type)) appendUnique(result, EXCEL_CHARGES);
-        return List.copyOf(result);
+        return enrichPdfFields(List.copyOf(result));
     }
 
     /**
@@ -462,7 +644,7 @@ public final class TemplateFieldCatalog {
     public static TemplateFieldDefinition find(String key) {
         if (key == null) return null;
         for (DocumentType type : DocumentType.values()) {
-            TemplateFieldDefinition found = find(type, key);
+            TemplateFieldDefinition found = findPdf(type, key);
             if (found != null) return found;
         }
         return null;

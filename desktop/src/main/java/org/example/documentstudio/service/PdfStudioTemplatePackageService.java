@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.example.documentstudio.model.DocumentTemplate;
+import org.example.documentstudio.model.ElementType;
+import org.example.documentstudio.model.PdfTextRegion;
+import org.example.documentstudio.model.TemplateElement;
 import org.example.documentstudio.model.TemplateStatus;
 
 import java.io.IOException;
@@ -52,8 +55,10 @@ public final class PdfStudioTemplatePackageService {
         PackageManifest manifest = new PackageManifest(PACKAGE_VERSION, template.getStudioSchemaVersion(),
                 template.getDataContractVersion(), template.getName(), template.getDocumentType().name(), Instant.now().toString());
         try (OutputStream raw = Files.newOutputStream(output); ZipOutputStream zip = new ZipOutputStream(raw)) {
+            DocumentTemplate portable = JSON.readValue(meta.toFile(), DocumentTemplate.class);
+            normalizeMappingMetadata(portable, source);
             putBytes(zip, MANIFEST, JSON.writeValueAsBytes(manifest));
-            putFile(zip, META, meta);
+            putBytes(zip, META, JSON.writeValueAsBytes(portable));
             putFile(zip, SOURCE, source);
             Path original = folder.resolve(ORIGINAL);
             if (Files.isRegularFile(original)) putFile(zip, ORIGINAL, original);
@@ -84,6 +89,7 @@ public final class PdfStudioTemplatePackageService {
             if (manifest.packageVersion() != PACKAGE_VERSION)
                 throw new IOException("Unsupported DSE template package version: " + manifest.packageVersion());
             DocumentTemplate imported = JSON.readValue(metaFile.toFile(), DocumentTemplate.class);
+            normalizeMappingMetadata(imported, sourceFile);
             if (imported.getStudioSchemaVersion() > 4)
                 throw new IOException("This template requires a newer PDF Studio schema (" + imported.getStudioSchemaVersion() + ").");
 
@@ -115,6 +121,87 @@ public final class PdfStudioTemplatePackageService {
         } finally {
             deleteTree(temp);
         }
+    }
+
+
+    /**
+     * Portable packages created by older PDF Studio builds may contain runtime tableColumns but no
+     * source-aware tableColumnBindings. Rebuild that review metadata from the protected source PDF
+     * whenever possible, falling back to the legacy geometry without changing the ERP semantics.
+     */
+    static void normalizeMappingMetadata(DocumentTemplate template, Path sourcePdf) {
+        if (template == null) return;
+        for (TemplateElement table : template.getElements()) {
+            if (table == null || table.getType() != ElementType.ITEM_TABLE) continue;
+            boolean reconciledToSourceGrid = false;
+            if (sourcePdf != null && Files.isRegularFile(sourcePdf)) {
+                try {
+                    java.util.List<PdfTextRegion> regions = PdfTextExtractionService.extract(sourcePdf, table.getPageIndex());
+                    var layout = PdfAutoMappingService.detectItemHeaderLayout(regions);
+                    if (layout.isPresent()) {
+                        var vectors = PdfImageExtractionService.extractVectors(sourcePdf, table.getPageIndex());
+                        var grid = PdfSourceTableDetectionService.sourceGridFor(layout.get(), vectors).orElse(null);
+                        if (grid != null) PdfSourceTableDetectionService.applySourceTableGeometry(table, grid, layout.get());
+                        var detected = PdfSourceTableDetectionService.sourceColumnBindings(layout.get(), table, grid);
+                        if (!detected.isEmpty()) {
+                            var prior = table.getTableColumnBindings().isEmpty()
+                                    ? ManualTemplateMappingService.legacyItemBindings(table)
+                                    : table.getTableColumnBindings();
+                            table.setTableColumnBindings(ManualTemplateMappingService.mergeDetectedColumnBindings(prior, detected));
+                            ManualTemplateMappingService.syncLegacyColumns(table);
+                            reconciledToSourceGrid = grid != null;
+                        }
+                    }
+                } catch (Exception ignored) { }
+            }
+            if (!reconciledToSourceGrid && table.getTableColumnBindings().isEmpty())
+                ManualTemplateMappingService.hydrateLegacyItemBindings(table, java.util.List.of());
+            captureSourceTableStyle(table, sourcePdf);
+        }
+        // Import/export must preserve the same semantic + physical flow contract used by Review/Runtime.
+        PdfStudioFlowBlockDetector.normalize(template, sourcePdf);
+    }
+
+    /** Backward-compatible test/caller alias; all metadata is now normalized, not Items only. */
+    static void normalizeItemReviewMetadata(DocumentTemplate template, Path sourcePdf) {
+        normalizeMappingMetadata(template, sourcePdf);
+    }
+
+    /**
+     * Older portable templates can have a source-designed table whose runtime geometry is valid but
+     * whose style-capture flag was never persisted. Recover the body-grid paint from the protected
+     * PDF so validation and rendering share the same source appearance after import/export.
+     */
+    static boolean captureSourceTableStyle(TemplateElement table, Path sourcePdf) {
+        if (table == null || table.getType() != ElementType.ITEM_TABLE || !table.isUseSourceTableDesign()
+                || sourcePdf == null || !Files.isRegularFile(sourcePdf)) return false;
+        try {
+            var vectors = PdfImageExtractionService.extractVectors(sourcePdf, table.getPageIndex());
+            double left = table.getX(), top = table.getY(), right = left + table.getWidth(), bottom = top + table.getHeight();
+            var grid = vectors.stream()
+                    .filter(v -> v.kind().contains("TABLE") || v.kind().contains("GRID"))
+                    .filter(v -> overlap(v.x(), v.x() + v.width(), left, right) >= Math.min(v.width(), table.getWidth()) * .45)
+                    .filter(v -> overlap(v.y(), v.y() + v.height(), top, bottom) >= Math.min(v.height(), table.getHeight()) * .35)
+                    .max(java.util.Comparator.comparingDouble(v -> v.width() * v.height())).orElse(null);
+            if (grid == null) {
+                table.setSourceStyleCaptured(false);
+                return false;
+            }
+            return PdfSourceTableDetectionService.captureSourceStyle(table, grid);
+        } catch (Exception ignored) {
+            table.setSourceStyleCaptured(false);
+            return false;
+        }
+    }
+
+    /**
+     * Normalizes every mapped PDF field through the central field catalogue. Item tables are handled
+     * separately because their source geometry is column based. For multiline fields, preserve a
+     * detected/saved source block when one exists and derive a proximity block only when the older
+     * package contains no block metadata.
+     */
+    private static double overlap(double a1, double a2, double b1, double b2) {
+        return Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
     }
 
     private static void extractSafely(Path zipFile, Path destination) throws IOException {

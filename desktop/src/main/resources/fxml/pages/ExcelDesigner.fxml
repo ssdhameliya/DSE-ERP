@@ -33,7 +33,7 @@
         </HBox>
         <HBox spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group"><Button text="Copy" onAction="#copyCell" styleClass="approved-button,excel-tool-blue"/><Button text="Paste" onAction="#pasteCell" styleClass="approved-button,excel-tool-blue"/></HBox>
         <HBox fx:id="boxRecordPreview" spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group"><Label fx:id="lblPreviewRecord" text="Preview Record" styleClass="field-label"/><ComboBox fx:id="cmbPreviewRecord" promptText="Select ERP record" prefWidth="205"/><Button text="Reload" onAction="#reloadPreviewRecords" styleClass="approved-button,excel-tool-purple"/></HBox>
-        <HBox spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group"><Button text="Preview Data" onAction="#preview" styleClass="approved-button,excel-tool-green"/><Button text="Download Template" onAction="#download" styleClass="approved-button,excel-tool-teal"/></HBox>
+        <HBox spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group"><Button text="Preview Data" onAction="#preview" styleClass="approved-button,excel-tool-green"/><Button text="Download Template" onAction="#download" styleClass="approved-button,excel-tool-teal"/><Button text="Excel Mapping Guide PDF" onAction="#downloadMappingGuide" styleClass="approved-button,excel-tool-indigo"/></HBox>
 
         <HBox spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group">
           <ComboBox fx:id="cmbFont" promptText="Font" prefWidth="112" onAction="#fontChanged"/><ComboBox fx:id="cmbFontSize" promptText="Size" prefWidth="78" onAction="#fontSizeChanged"/>

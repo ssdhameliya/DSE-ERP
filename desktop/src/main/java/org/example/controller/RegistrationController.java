@@ -103,6 +103,7 @@ public class RegistrationController {
     private void showAuthenticatorSetup(AuthApiClient.RegistrationMfaSetupResponse setup){
         OwnedDialog<Boolean> dlg=new OwnedDialog<>(txtOtp);
         dlg.setTitle("Set Up Authenticator");
+        org.example.util.AppDialogRenderer.configureCompact(dlg,"security");
         ButtonType cancel=ButtonType.CANCEL;
         ButtonType verify=new ButtonType("Verify & Submit for Approval",ButtonBar.ButtonData.OK_DONE);
         dlg.getDialogPane().getButtonTypes().addAll(cancel,verify);

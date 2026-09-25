@@ -40,7 +40,7 @@ public final class TemplateRequirementCatalog {
         party(out, "Customer", true,
                 List.of("party.name", "customer.name"),
                 List.of("party.billingAddress", "sales.billingAddress", "customer.address"),
-                List.of("party.billingGstin", "sales.billingGstin", "sales.gstin", "customer.gstin"));
+                List.of("party.billingGstin", "party.gstin", "sales.billingGstin", "sales.gstin", "customer.gstin"));
         itemTable(out, true);
         itemCore(out, true, true);
         total(out);

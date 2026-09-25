@@ -53,11 +53,13 @@
          </GridPane>
          <HBox alignment="CENTER_LEFT" spacing="10"><Button fx:id="btnResetMfa" text="Reset Authenticator" onAction="#resetAuthenticator" visible="false" managed="false" styleClass="secondary-button"/><Label text="Reset invalidates the old phone and requires a new QR enrollment at the next sign-in." wrapText="true" styleClass="field-help"/></HBox>
        </VBox>
-       <Label fx:id="lblMessage" wrapText="true" styleClass="validation-message"/>
      </VBox>
    </ScrollPane>
  </center>
  <bottom>
-   <HBox spacing="12" alignment="CENTER_RIGHT" styleClass="entity-dialog-actions,premium-dialog-actions"><Button fx:id="btnCancel" text="Cancel" onAction="#cancel" styleClass="secondary-button" cancelButton="true"/><Button fx:id="btnSave" text="Create User" onAction="#save" styleClass="primary-button" defaultButton="true"/></HBox>
+   <VBox spacing="8" styleClass="entity-dialog-actions,premium-dialog-actions">
+     <Label fx:id="lblMessage" wrapText="true" maxWidth="Infinity" visible="false" managed="false" styleClass="validation-message,dialog-status-message"/>
+     <HBox spacing="12" alignment="CENTER_RIGHT"><Button fx:id="btnCancel" text="Cancel" onAction="#cancel" styleClass="secondary-button" cancelButton="true"/><Button fx:id="btnSave" text="Create User" onAction="#save" styleClass="primary-button" defaultButton="true"/></HBox>
+   </VBox>
  </bottom>
 </BorderPane>

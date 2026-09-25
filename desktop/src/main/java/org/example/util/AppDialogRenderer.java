@@ -62,10 +62,25 @@ public final class AppDialogRenderer {
     }
 
     public static void configureWorkspace(Dialog<?> dialog, String semantic) {
+        configureWorkspace(dialog, semantic, safe(dialog == null ? "" : dialog.getTitle()), "", "", "");
+    }
+
+    public static void configureWorkspace(Dialog<?> dialog, String semantic, String title, String heading, String message, String detail) {
+        if (dialog == null) return;
+        dialog.setTitle(safe(title));
+        DialogPane pane = dialog.getDialogPane();
+        pane.getProperties().put(SEMANTIC, normalizeSemantic(semantic));
+        pane.getProperties().put(HEADING, safe(heading));
+        pane.getProperties().put(MESSAGE, safe(message));
+        pane.getProperties().put(DETAIL, safe(detail));
+        pane.getProperties().put(WORKSPACE, true);
+    }
+
+    public static void configureCompact(Dialog<?> dialog, String semantic) {
         if (dialog == null) return;
         DialogPane pane = dialog.getDialogPane();
         pane.getProperties().put(SEMANTIC, normalizeSemantic(semantic));
-        pane.getProperties().put(WORKSPACE, true);
+        pane.getProperties().put(WORKSPACE, false);
     }
 
     private static void render(Dialog<?> dialog) {
@@ -96,14 +111,16 @@ public final class AppDialogRenderer {
         Node customContent = null;
         boolean textInput = dialog instanceof TextInputDialog;
         boolean alert = dialog instanceof Alert;
+        boolean workspaceConfigured = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE));
+        boolean compactConfigured = Boolean.FALSE.equals(pane.getProperties().get(WORKSPACE));
         if (textInput) {
             customContent = ((TextInputDialog) dialog).getEditor();
-        } else if (!alert && !configuredMessage) {
+        } else if (!alert && (workspaceConfigured || !configuredMessage || compactConfigured)) {
             customContent = pane.getContent();
         }
 
-        boolean workspace = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE))
-                || (!alert && !textInput && !configuredMessage);
+        boolean workspace = workspaceConfigured
+                || (!compactConfigured && !alert && !textInput && !configuredMessage);
 
         if (heading.isBlank() && !workspace) heading = defaultHeading(semantic, title);
         if (title.isBlank()) title = semanticLabel(semantic);
@@ -116,6 +133,7 @@ public final class AppDialogRenderer {
         pane.getStyleClass().removeIf(style -> style.startsWith("dse-dialog-semantic-"));
         pane.getStyleClass().add("dse-dialog-semantic-" + semantic);
         if (workspace && !pane.getStyleClass().contains("dse-dialog-workspace")) pane.getStyleClass().add("dse-dialog-workspace");
+        if (!workspace && !pane.getStyleClass().contains("dse-dialog-compact")) pane.getStyleClass().add("dse-dialog-compact");
 
         pane.setContent(createShell(dialog, semantic, title, heading, message, detail, customContent, workspace, textInput));
         pane.getProperties().put(PRESENTED, true);
@@ -158,6 +176,9 @@ public final class AppDialogRenderer {
 
         VBox body = new VBox(14);
         body.getStyleClass().add("dse-dialog-body");
+        if (customContent != null && !workspace) {
+            body.getStyleClass().add("dse-dialog-body-custom");
+        }
         if (!message.isBlank()) {
             Label messageLabel = new Label(message);
             messageLabel.setWrapText(true);
@@ -385,7 +406,7 @@ public final class AppDialogRenderer {
             case "info", "information" -> "notification";
             case "success" -> "complete";
             case "backup" -> "notification";
-            case "confirmation", "notification", "warning", "error", "delete", "restore", "complete", "security", "unsaved" -> value;
+            case "confirmation", "notification", "warning", "error", "delete", "restore", "complete", "security", "unsaved", "mapping" -> value;
             default -> "notification";
         };
     }
@@ -400,6 +421,7 @@ public final class AppDialogRenderer {
             case "complete" -> "Completed";
             case "security" -> "Security";
             case "confirmation" -> "Confirm action";
+            case "mapping" -> "Mapping review";
             default -> "Information";
         };
     }
@@ -427,6 +449,7 @@ public final class AppDialogRenderer {
             case "complete" -> "complete";
             case "security" -> "lock";
             case "confirmation" -> "complete";
+            case "mapping" -> "mapping";
             default -> "info";
         };
     }

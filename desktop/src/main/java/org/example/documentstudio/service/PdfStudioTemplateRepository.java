@@ -224,6 +224,10 @@ public final class PdfStudioTemplateRepository {
     public static synchronized void publish(DocumentTemplate template) throws IOException {
         if (template == null) throw new IOException("Template is required.");
         ensureWorkingTemplate(template);
+        // Publish certifies the same centralized mapping semantics that Review/import use. This
+        // upgrades legacy/programmatic PDF Studio mappings before readiness is evaluated; it does
+        // not touch the standard/non-Studio PDF generator.
+        PdfStudioTemplatePackageService.normalizeMappingMetadata(template, sourcePdf(template));
         validateMappingReady(template, "Publish");
         validateRenderable(template, "publish-validation");
 
@@ -483,6 +487,10 @@ public final class PdfStudioTemplateRepository {
     }
 
     private static void validateMappingReady(DocumentTemplate template, String action) throws IOException {
+        // Publish/default are semantic gates: normalize every mapped field through the same
+        // catalogue + detected-block contract used by Review Mapping before evaluating readiness.
+        // This is generic PDF Studio normalization; it does not touch the standard PDF route.
+        PdfStudioFlowBlockDetector.normalize(template, sourcePdf(template));
         TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
         if (result.readyForDefault()) return;
         String details = result.issues().stream().filter(TemplateValidationIssue::error).limit(5)
