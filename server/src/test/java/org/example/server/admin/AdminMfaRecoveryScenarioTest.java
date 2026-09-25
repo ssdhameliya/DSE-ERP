@@ -34,6 +34,8 @@ class AdminMfaRecoveryScenarioTest {
         assertEquals("ENROLLMENT_REQUIRED", state.status());
         assertTrue(db.sql.stream().anyMatch(s -> s.contains("totp_secret_enc=NULL")));
         assertTrue(db.sql.stream().anyMatch(s -> s.contains("DELETE FROM auth_totp_enrollment_pending")));
+        assertTrue(db.sql.stream().anyMatch(s -> s.contains("INSERT INTO auth_totp_enrollment_pending")),
+                "Reset must persist enrollment-required state so password recovery never depends on the lost authenticator");
         assertTrue(db.sql.stream().anyMatch(s -> s.contains("DELETE FROM auth_totp_login_challenge")));
         assertTrue(db.sql.stream().noneMatch(s -> s.contains("mfa_enabled=0")), "Lost-phone recovery must not disable MFA");
         verify(tokens).revokeUser(7);

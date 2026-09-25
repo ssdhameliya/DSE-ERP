@@ -441,6 +441,11 @@ public final class ExcelTemplateRenderer {
 
     private static void expandItems(Sheet sheet, RepeatBlock block, List<TaxInvoiceItem> items, String gstType) {
         int count = Math.max(1, items.size());
+        // Normalize template-owned presentation before cloning. In particular, wrapping
+        // descriptionWithRemarks after the rows have been copied would create a separate POI
+        // CellStyle per generated row. Preparing the canonical block first makes every repeat
+        // inherit the same user-approved style and prevents stale/sample formatting from leaking.
+        prepareItemTemplateStyles(sheet, block);
         List<CellRangeAddress> blockMerges = mergedRegionsInside(sheet, block);
         int extraRows = block.height() * (count - 1);
         if (extraRows > 0 && sheet.getLastRowNum() >= block.endRow()+1)
@@ -454,6 +459,19 @@ public final class ExcelTemplateRenderer {
             int destinationStart = block.startRow() + i * block.height();
             for (int offset = 0; offset < block.height(); offset++)
                 fillRow(sheet.getRow(destinationStart + offset), values);
+        }
+    }
+
+    private static void prepareItemTemplateStyles(Sheet sheet, RepeatBlock block) {
+        if (sheet == null || block == null) return;
+        for (int r = block.startRow(); r <= block.endRow(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) continue;
+            for (Cell cell : row) {
+                if (cell.getCellType() != CellType.STRING) continue;
+                Matcher whole = WHOLE_TOKEN.matcher(cell.getStringCellValue());
+                if (whole.matches() && "item.descriptionWithRemarks".equals(whole.group(1))) ensureWrap(cell);
+            }
         }
     }
 

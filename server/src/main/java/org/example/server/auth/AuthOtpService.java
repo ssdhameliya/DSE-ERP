@@ -15,7 +15,7 @@ import java.util.Map;
 
 @Service
 class AuthOtpService {
-    enum Purpose { REGISTRATION, PASSWORD_RESET, LOGIN_MFA }
+    enum Purpose { REGISTRATION, PASSWORD_RESET, LOGIN_MFA, MFA_RECOVERY }
 
     private static final Duration LIFETIME = Duration.ofMinutes(10);
     private static final int RESEND_COOLDOWN_SECONDS = 30;
@@ -204,6 +204,7 @@ class AuthOtpService {
             case REGISTRATION -> "registration";
             case PASSWORD_RESET -> "password reset";
             case LOGIN_MFA -> "sign-in verification";
+            case MFA_RECOVERY -> "authenticator recovery";
         };
     }
 

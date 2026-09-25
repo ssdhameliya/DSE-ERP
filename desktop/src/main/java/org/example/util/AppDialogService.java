@@ -63,6 +63,30 @@ public final class AppDialogService {
         AppDialogRenderer.configureWorkspace(dialog, semantic);
     }
 
+    public static void configureCompact(OwnedDialog<?> dialog, String semantic) {
+        AppDialogRenderer.configureCompact(dialog, semantic);
+    }
+
+    /**
+     * Opens a large application-owned workspace inside the same centralized dialog renderer used
+     * everywhere else in DSE ERP. Feature code supplies only semantic content and actions; shell,
+     * icons, theme, spacing and responsive fitting remain centralized.
+     */
+    public static Optional<ButtonType> workspace(Node owner, String semantic, String title, String heading,
+                                                 String message, Node content, double preferredWidth, double preferredHeight,
+                                                 ButtonType... buttons) {
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>(owner);
+        AppDialogRenderer.configureWorkspace(dialog, semantic, title, heading, message, null);
+        DialogPane pane = dialog.getDialogPane();
+        pane.setContent(content);
+        pane.setMinWidth(Math.min(980, Math.max(720, preferredWidth)));
+        pane.setMinHeight(Math.min(620, Math.max(520, preferredHeight)));
+        pane.setPrefWidth(Math.max(900, preferredWidth));
+        pane.setPrefHeight(Math.max(620, preferredHeight));
+        pane.getButtonTypes().setAll(buttons);
+        return dialog.showAndWait();
+    }
+
     private static boolean confirm(Node owner, String semantic, String title, String heading, String message,
                                    String primaryAction, String safeAction) {
         return confirm(owner, semantic, title, heading, message, primaryAction, safeAction, null);

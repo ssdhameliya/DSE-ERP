@@ -14,6 +14,7 @@ import org.example.util.UiTaskExecutor;
 import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Shared Add/Edit User form backed by the server-owned Role Master and security policy. */
@@ -107,11 +108,25 @@ public class UserDialogController {
                     setFormLoading(false);
                     applyRoleSecurityPolicy();
                     updateMfaStatus();
+                    applySelfProtectionPolicy();
                 },
                 failure -> {
                     setFormLoading(false);
                     message("Unable to load user settings: " + safeMessage(failure), true);
                 });
+    }
+
+    private void applySelfProtectionPolicy() {
+        boolean isSelf = org.example.service.SessionService.current() != null && editingUserId != null
+                && Objects.equals(org.example.service.SessionService.current().getId(), editingUserId);
+        if (isSelf) {
+            chkActive.setDisable(true);
+            chkActive.setTooltip(new Tooltip("You cannot deactivate your own account."));
+            chkLocked.setDisable(true);
+            chkLocked.setTooltip(new Tooltip("You cannot lock your own account."));
+            cmbRole.setDisable(true);
+            cmbRole.setTooltip(new Tooltip("You cannot change or demote your own role."));
+        }
     }
 
     private void applyRoles(java.util.List<AdminApiClient.RoleDto> roles) {
@@ -155,6 +170,7 @@ public class UserDialogController {
     }
 
     private record UserDialogBootstrap(java.util.List<AdminApiClient.RoleDto> roles, String mfaPolicy, AdminApiClient.UserDto user, AdminApiClient.MfaState mfaState) { }
+    private record MfaResetResult(AdminApiClient.MfaState state, AdminApiClient.UserDto user) { }
 
     private static String safeMessage(Throwable error) {
         return error == null || error.getMessage() == null || error.getMessage().isBlank() ? "Unexpected error" : error.getMessage();
@@ -199,7 +215,7 @@ public class UserDialogController {
         boolean active = "ACTIVE".equalsIgnoreCase(status);
         lblMfaStatus.setText(active ? "Active — Google / Microsoft Authenticator" : "Enrollment required at next sign-in");
         if (btnResetMfa != null) {
-            boolean show = editingUserId != null && active;
+            boolean show = editingUserId != null && (currentMfaState == null || currentMfaState.required());
             btnResetMfa.setVisible(show); btnResetMfa.setManaged(show); btnResetMfa.setDisable(false);
         }
     }
@@ -213,11 +229,23 @@ public class UserDialogController {
                 ButtonType.YES, ButtonType.NO);
         if (confirm.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
         btnResetMfa.setDisable(true);
-        UiTaskExecutor.submitAction("user-mfa-reset", () -> api.resetMfa(editingUserId), state -> {
-            currentMfaState = state;
+        boolean resettingCurrentUser = SessionService.current() != null && SessionService.current().getId() == editingUserId;
+        UiTaskExecutor.submitAction("user-mfa-reset", () -> {
+            AdminApiClient.MfaState state = api.resetMfa(editingUserId);
+            // Reset Authenticator increments users.row_version. Refresh only the authoritative metadata
+            // needed by this still-open dialog so a subsequent Update User does not submit a stale version.
+            // A self-reset revokes this very token, so it must go straight to re-authentication instead.
+            AdminApiClient.UserDto refreshed = resettingCurrentUser ? null : api.user(editingUserId);
+            return new MfaResetResult(state, refreshed);
+        }, result -> {
+            currentMfaState = result.state();
+            if (result.user() != null) {
+                editingRowVersion = result.user().rowVersion();
+                originalMfaEnabled = result.user().mfaEnabled();
+            }
             updateMfaStatus();
-            message(state.message(), false);
-            if (SessionService.current() != null && SessionService.current().getId() == editingUserId) {
+            message(result.state().message(), false);
+            if (resettingCurrentUser) {
                 reauthenticationRequired = true;
                 close();
             }
@@ -296,11 +324,22 @@ public class UserDialogController {
     }
 
     private boolean invalid(Control c, String text) { if (!c.getStyleClass().contains("validation-error")) c.getStyleClass().add("validation-error"); c.requestFocus(); message(text, true); return false; }
-    private void clearInvalid() { for (Control c : new Control[]{txtFullName,txtUsername,txtEmail,txtPassword,txtConfirm,cmbRole,cmbAccess}) clearInvalid(c); lblMessage.setText(""); }
+    private void clearInvalid() {
+        for (Control c : new Control[]{txtFullName,txtUsername,txtEmail,txtPassword,txtConfirm,cmbRole,cmbAccess}) clearInvalid(c);
+        message("", false);
+    }
     private void clearInvalid(Control c) { if (c != null) c.getStyleClass().remove("validation-error"); }
     @FXML private void cancel() { close(); }
     private void close() { ((Stage) txtUsername.getScene().getWindow()).close(); }
-    private void message(String text, boolean error) { lblMessage.setText(text); lblMessage.getStyleClass().setAll(error ? "dialog-error" : "dialog-success"); }
+    private void message(String text, boolean error) {
+        String value = text == null ? "" : text.trim();
+        lblMessage.setText(value);
+        lblMessage.getStyleClass().setAll("validation-message", "dialog-status-message",
+                error ? "dialog-status-error" : "dialog-status-success");
+        boolean show = !value.isBlank();
+        lblMessage.setVisible(show);
+        lblMessage.setManaged(show);
+    }
 
     private static String canonicalRole(String value) {
         if (value == null) return "";

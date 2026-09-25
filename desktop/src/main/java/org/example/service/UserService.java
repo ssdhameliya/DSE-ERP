@@ -15,6 +15,8 @@ public class UserService {
     public AuthApiClient.LoginAttempt authenticate(String identity, String password) { return authApi.authenticate(identity, password); }
     public AppUser completeLoginMfa(String challengeId, String otp) { return authApi.completeLoginMfa(challengeId, otp); }
     public AuthApiClient.LoginMfaChallengeResponse resendLoginMfa(String challengeId) { return authApi.resendLoginMfa(challengeId); }
+    public AuthApiClient.LoginMfaChallengeResponse requestLoginMfaRecovery(String loginChallengeId) { return authApi.requestLoginMfaRecovery(loginChallengeId); }
+    public AuthApiClient.LoginMfaEnrollmentResponse completeLoginMfaRecovery(String loginChallengeId,String recoveryChallengeId,String otp) { return authApi.completeLoginMfaRecovery(loginChallengeId,recoveryChallengeId,otp); }
     public void recordSuccessfulLogin(int id) { authApi.recordSuccessfulLogin(id); }
     public void register(AppUser user) { authApi.register(user); }
     public AuthApiClient.CaptchaResponse registrationCaptcha() { return authApi.registrationCaptcha(); }

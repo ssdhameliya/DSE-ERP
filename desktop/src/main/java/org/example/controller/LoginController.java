@@ -12,7 +12,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import org.example.model.AppUser;
-import org.example.service.NotificationService;
 import org.example.service.NotificationPreferenceService;
 import org.example.service.SessionService;
 import org.example.service.UserService;
@@ -20,8 +19,9 @@ import org.example.service.BrandingService;
 import org.example.service.PermissionService;
 import org.example.service.BrandImagePresenter;
 import org.example.theme.ThemeManager;
+import org.example.util.AppDialogRenderer;
+import org.example.util.AppDialogService;
 import org.example.util.ButtonAction;
-import org.example.util.ClockService;
 import org.example.util.SceneManager;
 import org.example.util.UiActionIcons;
 import org.example.util.IconFactory;
@@ -76,6 +76,8 @@ public class LoginController {
     private final Map<String, String> loginRoleCodes = new LinkedHashMap<>();
     private AppUser pendingUser;
     private String pendingMfaChallengeId;
+    /** Retained while enrollment is incomplete so Get Help can reopen the QR/manual-key dialog. */
+    private org.example.api.auth.AuthApiClient.LoginMfaEnrollmentResponse pendingEnrollmentSetup;
     private String resetChallengeId;
     private boolean passwordFirstKeyLogged;
     private boolean passwordFirstTextLogged;
@@ -309,8 +311,9 @@ public class LoginController {
 
             pendingUser = user;
             pendingMfaChallengeId = attempt.challengeId();
-            if (attempt.enrollmentRequired() && attempt.enrollment() != null) {
-                showAuthenticatorEnrollment(attempt.enrollment());
+            pendingEnrollmentSetup = attempt.enrollmentRequired() ? attempt.enrollment() : null;
+            if (attempt.enrollmentRequired() && pendingEnrollmentSetup != null) {
+                showAuthenticatorEnrollment(pendingEnrollmentSetup);
                 PerformanceMonitor.finish("login-click");
                 return;
             }
@@ -364,6 +367,7 @@ public class LoginController {
     private void showAuthenticatorEnrollment(org.example.api.auth.AuthApiClient.LoginMfaEnrollmentResponse setup) {
         OwnedDialog<Boolean> dlg = new OwnedDialog<>(txtPassword);
         dlg.setTitle("Set Up Authenticator");
+        AppDialogRenderer.configureCompact(dlg, "security");
         ButtonType cancel = ButtonType.CANCEL;
         ButtonType verify = new ButtonType("Verify & Continue", ButtonBar.ButtonData.OK_DONE);
         dlg.getDialogPane().getButtonTypes().addAll(cancel, verify);
@@ -434,6 +438,7 @@ public class LoginController {
                     () -> users.completeLoginMfa(challengeId, otp), authenticated -> {
                         pendingMfaChallengeId = null;
                         pendingUser = null;
+                        pendingEnrollmentSetup = null;
                         dlg.setResult(Boolean.TRUE);
                         dlg.close();
                         completeLogin(authenticated);
@@ -447,8 +452,10 @@ public class LoginController {
         });
         dlg.setOnHidden(event -> {
             if (!Boolean.TRUE.equals(dlg.getResult())) {
-                resetPendingLogin();
-                message("Authenticator enrollment is required before this account can sign in.", true);
+                // Keep the server challenge + setup details alive. A reset/enrollment user may close
+                // the QR once accidentally; Get Help must be able to reopen it without another reset.
+                updateLoginMode();
+                message("Authenticator enrollment is not complete. Click Get Help to reopen the QR code and setup key.", true);
             }
         });
         javafx.application.Platform.runLater(code::requestFocus);
@@ -474,6 +481,7 @@ public class LoginController {
             setLoginBusy(false, null);
             pendingUser = null;
             pendingMfaChallengeId = null;
+            pendingEnrollmentSetup = null;
             txtOtp.clear();
             txtOtp.setDisable(true);
             PerformanceMonitor.finish("login-mfa");
@@ -490,23 +498,131 @@ public class LoginController {
     }
 
     @FXML private void resendLoginOtp() {
-        if (pendingMfaChallengeId == null) {
-            message("Sign in with your password first.", true);
+        if (pendingEnrollmentSetup != null && pendingMfaChallengeId != null) {
+            showAuthenticatorEnrollment(pendingEnrollmentSetup);
             return;
         }
-        String challengeId = pendingMfaChallengeId;
+        if (pendingMfaChallengeId == null) {
+            AppDialogService.info(txtPassword, "Authenticator help", "Get Help",
+                    "Sign in with your username/email and password first. If an administrator reset your authenticator, "
+                            + "the next step will show a new QR code and manual setup key. If you also cannot use your password, choose Forgot Password.");
+            return;
+        }
+        showAuthenticatorHelp();
+    }
+
+    private void showAuthenticatorHelp() {
+        OwnedDialog<Boolean> dlg = new OwnedDialog<>(txtOtp);
+        dlg.setTitle("Authenticator Help");
+        AppDialogRenderer.configureCompact(dlg, "info");
+        ButtonType useAuthenticator = new ButtonType("Use Authenticator Code", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType lostPhone = new ButtonType("Lost / Changed Phone", ButtonBar.ButtonData.OK_DONE);
+        dlg.getDialogPane().getButtonTypes().addAll(useAuthenticator, lostPhone);
+        dlg.getDialogPane().getStyleClass().addAll("premium-entity-dialog", "approved-ui");
+
+        VBox content = new VBox(10);
+        content.getStyleClass().addAll("authenticator-setup-card", "form-section-card");
+        Label title = new Label("Having trouble with Authenticator?");
+        title.getStyleClass().add("section-title");
+        Label explanation = new Label(
+                "If you still have the enrolled phone, use its current 6-digit code. "
+                        + "If the phone was lost, replaced, or the authenticator entry was deleted, "
+                        + "verify your registered email to invalidate the old authenticator and create a new QR code.");
+        explanation.setWrapText(true);
+        explanation.getStyleClass().add("auth-description");
+        Label safety = new Label(
+                "The old authenticator is not reset until the registered-email verification succeeds. "
+                        + "If no recovery email is available, an administrator must reset the authenticator from User Access.");
+        safety.setWrapText(true);
+        safety.getStyleClass().add("field-help");
+        content.getChildren().addAll(title, explanation, safety);
+        dlg.getDialogPane().setContent(content);
+        dlg.setResultConverter(button -> button == lostPhone ? Boolean.TRUE : Boolean.FALSE);
+        dlg.showAndWait().filter(Boolean.TRUE::equals).ifPresent(ignored -> requestAuthenticatorRecovery());
+    }
+
+    private void requestAuthenticatorRecovery() {
+        String loginChallengeId = pendingMfaChallengeId;
+        if (loginChallengeId == null || loginChallengeId.isBlank()) {
+            resetPendingLogin();
+            message("Sign in with your username/email and password again before resetting Authenticator.", true);
+            return;
+        }
         if (btnResendOtp != null) btnResendOtp.setDisable(true);
-        UiTaskExecutor.submitAction("login-mfa-resend", () -> users.resendLoginMfa(challengeId), response -> {
-            if (btnResendOtp != null) btnResendOtp.setDisable(false);
-            pendingMfaChallengeId = response.challengeId();
-            String destination = response.maskedDestination() == null || response.maskedDestination().isBlank()
-                    ? "your registered email" : response.maskedDestination();
-            message(response.message() + " (" + destination + ").", false);
-            txtOtp.requestFocus();
-        }, exception -> {
-            if (btnResendOtp != null) btnResendOtp.setDisable(false);
-            message("Unable to resend verification code: " + exception.getMessage(), true);
+        UiTaskExecutor.submitAction("login-mfa-recovery-request",
+                () -> users.requestLoginMfaRecovery(loginChallengeId), challenge -> {
+                    if (btnResendOtp != null) btnResendOtp.setDisable(false);
+                    showAuthenticatorRecoveryEmail(loginChallengeId, challenge);
+                }, failure -> {
+                    if (btnResendOtp != null) btnResendOtp.setDisable(false);
+                    message("Authenticator recovery could not be started: "
+                            + (failure.getMessage() == null ? "Unknown error" : failure.getMessage()), true);
+                });
+    }
+
+    private void showAuthenticatorRecoveryEmail(String loginChallengeId,
+                                                org.example.api.auth.AuthApiClient.LoginMfaChallengeResponse challenge) {
+        OwnedDialog<Boolean> dlg = new OwnedDialog<>(txtOtp);
+        dlg.setTitle("Reset Authenticator");
+        AppDialogRenderer.configureCompact(dlg, "security");
+        ButtonType cancel = ButtonType.CANCEL;
+        ButtonType verify = new ButtonType("Verify Email & Reset", ButtonBar.ButtonData.OK_DONE);
+        dlg.getDialogPane().getButtonTypes().addAll(cancel, verify);
+        dlg.getDialogPane().getStyleClass().addAll("premium-entity-dialog", "approved-ui");
+
+        VBox content = new VBox(10);
+        content.getStyleClass().addAll("authenticator-setup-card", "form-section-card");
+        Label title = new Label("Verify your registered email");
+        title.getStyleClass().add("section-title");
+        String destination = challenge.maskedDestination() == null || challenge.maskedDestination().isBlank()
+                ? "registered email" : challenge.maskedDestination();
+        Label help = new Label((challenge.message() == null ? "A verification code was sent" : challenge.message())
+                + " (" + destination + "). Enter that code below. You will then receive a new QR code and setup key.");
+        help.setWrapText(true);
+        help.getStyleClass().add("auth-description");
+        TextField code = new TextField();
+        code.setPromptText("6-digit email verification code");
+        code.getStyleClass().add("auth-input");
+        Label error = new Label();
+        error.setManaged(false);
+        error.setVisible(false);
+        error.getStyleClass().add("field-error");
+        content.getChildren().addAll(title, help, new Label("Email verification code"), code, error);
+        dlg.getDialogPane().setContent(content);
+
+        Button verifyButton = (Button) dlg.getDialogPane().lookupButton(verify);
+        UiActionIcons.apply(verifyButton, "security", "Verify registered email and reset authenticator");
+        verifyButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+            String otp = code.getText() == null ? "" : code.getText().trim();
+            if (!otp.matches("\\d{6}")) {
+                error.setText("Enter the 6-digit verification code sent to your registered email.");
+                error.setManaged(true);
+                error.setVisible(true);
+                code.requestFocus();
+                return;
+            }
+            verifyButton.setDisable(true);
+            UiTaskExecutor.submitAction("login-mfa-recovery-complete",
+                    () -> users.completeLoginMfaRecovery(loginChallengeId, challenge.challengeId(), otp),
+                    setup -> {
+                        pendingMfaChallengeId = setup.challengeId();
+                        pendingEnrollmentSetup = setup;
+                        txtOtp.clear();
+                        updateLoginMode();
+                        dlg.setResult(Boolean.TRUE);
+                        dlg.close();
+                        showAuthenticatorEnrollment(setup);
+                    }, failure -> {
+                        verifyButton.setDisable(false);
+                        error.setText(failure.getMessage() == null ? "Email verification failed." : failure.getMessage());
+                        error.setManaged(true);
+                        error.setVisible(true);
+                        code.requestFocus();
+                    });
         });
+        javafx.application.Platform.runLater(code::requestFocus);
+        dlg.showAndWait();
     }
 
     private void completeLogin(AppUser user) {
@@ -547,6 +663,7 @@ public class LoginController {
     private void resetPendingLogin() {
         pendingUser = null;
         pendingMfaChallengeId = null;
+        pendingEnrollmentSetup = null;
         txtOtp.clear();
         txtOtp.setDisable(true);
         updateLoginMode();
@@ -567,7 +684,10 @@ public class LoginController {
         } else {
             txtOtp.setPromptText("Enter current 6-digit authenticator code");
         }
-        if (btnResendOtp != null) btnResendOtp.setDisable(!mfaPending);
+        if (btnResendOtp != null) {
+            boolean helpAvailable = !role.isBlank() || mfaPending || pendingEnrollmentSetup != null;
+            btnResendOtp.setDisable(!helpAvailable);
+        }
         btnLogin.setText(mfaPending ? "VERIFY AUTHENTICATOR" : "LOGIN");
     }
 
@@ -586,15 +706,20 @@ public class LoginController {
             return;
         }
 
-        try {
-            var challenge = users.requestPasswordReset(identity);
-            resetChallengeId = challenge.challengeId();
-            message(challenge.message() + ".", false);
-            txtResetOtp.requestFocus();
-        } catch (Exception exception) {
-            resetChallengeId = null;
-            message("Unable to send reset code: " + exception.getMessage(), true);
-        }
+        if (btnSendResetOtp != null) btnSendResetOtp.setDisable(true);
+        message("Sending reset code...", false);
+        UiTaskExecutor.submitAction("login-password-reset-request",
+                () -> users.requestPasswordReset(identity),
+                challenge -> {
+                    if (btnSendResetOtp != null) btnSendResetOtp.setDisable(false);
+                    resetChallengeId = challenge.challengeId();
+                    message(challenge.message() + ".", false);
+                    txtResetOtp.requestFocus();
+                }, failure -> {
+                    if (btnSendResetOtp != null) btnSendResetOtp.setDisable(false);
+                    resetChallengeId = null;
+                    message("Unable to send reset code: " + (failure.getMessage() == null ? "Unknown error" : failure.getMessage()), true);
+                });
     }
 
     @FXML private void resetPassword() {
@@ -628,20 +753,27 @@ public class LoginController {
         }
         if (!valid) return;
 
-        try {
-            users.completePasswordReset(resetChallengeId, otp, totp, password);
-            // A saved credential belongs to the old password and must never be replayed.
-            PREFS.remove(PREF_PASSWORD);
-            String identity = txtResetIdentity.getText().trim();
-            resetChallengeId = null;
-            showLoginPanel();
-            txtUsername.setText(identity);
-            txtPassword.clear();
-            message("Password updated successfully. Sign in with your new password.", false);
-            txtPassword.requestFocus();
-        } catch (Exception exception) {
-            message("Unable to update password: " + exception.getMessage(), true);
-        }
+        if (btnResetPassword != null) btnResetPassword.setDisable(true);
+        message("Updating password...", false);
+        UiTaskExecutor.submitAction("login-password-reset-complete",
+                () -> {
+                    users.completePasswordReset(resetChallengeId, otp, totp, password);
+                    return true;
+                },
+                success -> {
+                    if (btnResetPassword != null) btnResetPassword.setDisable(false);
+                    PREFS.remove(PREF_PASSWORD);
+                    String identity = txtResetIdentity.getText().trim();
+                    resetChallengeId = null;
+                    showLoginPanel();
+                    txtUsername.setText(identity);
+                    txtPassword.clear();
+                    message("Password updated successfully. Sign in with your new password.", false);
+                    txtPassword.requestFocus();
+                }, failure -> {
+                    if (btnResetPassword != null) btnResetPassword.setDisable(false);
+                    message("Unable to update password: " + (failure.getMessage() == null ? "Unknown error" : failure.getMessage()), true);
+                });
     }
 
     @FXML private void backToLogin() {

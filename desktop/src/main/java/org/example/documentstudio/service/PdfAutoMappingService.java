@@ -16,6 +16,30 @@ public final class PdfAutoMappingService {
     private PdfAutoMappingService() {}
 
     public record Mapping(PdfTextRegion region, String fieldKey, String expression, double confidence, String reason) {}
+    /** Raw label/value candidate for Review Mapping. suggestedField may intentionally be blank. */
+    public record SourceCandidate(PdfTextRegion region, String sourceLabel, String sourceValue, String suggestedField,
+                                  String expression, double confidence, String reason) {
+        public SourceCandidate {
+            sourceLabel = sourceLabel == null ? "" : sourceLabel.trim();
+            sourceValue = sourceValue == null ? "" : sourceValue.trim();
+            suggestedField = suggestedField == null ? "" : suggestedField.trim();
+            expression = expression == null ? "" : expression;
+            confidence = Math.max(0, Math.min(1, confidence));
+            reason = reason == null ? "" : reason;
+        }
+    }
+    public record ItemHeaderCell(String label, double x, double y, double width, double height,
+                                 String suggestedField, double confidence) {
+        public ItemHeaderCell {
+            label = label == null ? "" : label.trim();
+            suggestedField = suggestedField == null ? "" : suggestedField.trim();
+            confidence = Math.max(0, Math.min(1, confidence));
+        }
+    }
+    public record ItemHeaderLayout(int pageIndex, double x, double y, double width, double height,
+                                   List<ItemHeaderCell> cells) {
+        public ItemHeaderLayout { cells = cells == null ? List.of() : List.copyOf(cells); }
+    }
     public record ChargeRegion(int pageIndex, double x, double y, double width, double height, double rowHeight, List<PdfTextRegion> sourceRegions) {
         public ChargeRegion { sourceRegions = sourceRegions == null ? List.of() : List.copyOf(sourceRegions); }
     }
@@ -31,74 +55,8 @@ public final class PdfAutoMappingService {
         public int percentage() { return detected <= 0 ? 0 : (int)Math.round(mappedCount() * 100.0 / detected); }
     }
 
-    private static final Map<String, List<String>> LABEL_ALIASES = Map.ofEntries(
-            // Sales
-            Map.entry("sales.number", List.of("invoice no", "invoice number", "sales invoice no")),
-            Map.entry("sales.date", List.of("invoice date", "sales date")),
-            Map.entry("sales.referenceNo", List.of("reference no", "reference number")),
-            Map.entry("sales.orderNo", List.of("po no", "purchase order no", "customer po", "customer po no", "order no")),
-            Map.entry("sales.poDate", List.of("po date", "purchase order date")),
-            Map.entry("sales.billingAddress", List.of("billing address", "bill to")),
-            Map.entry("sales.deliveryAddress", List.of("delivery address", "ship to", "shipping address")),
-            Map.entry("sales.billingGstin", List.of("billing gstin", "billing gst-in")),
-            Map.entry("sales.deliveryGstin", List.of("delivery gstin", "shipping gstin", "delivery gst-in")),
-            Map.entry("sales.transporter", List.of("transporter", "transport")),
-            Map.entry("sales.transporterGstin", List.of("transporter gstin", "transport gstin")),
-            Map.entry("sales.contactPerson", List.of("contact person", "contact name")),
-            Map.entry("sales.contactMobile", List.of("contact details", "contact mobile", "mobile")),
-            Map.entry("sales.paymentTerms", List.of("payment terms", "credit terms")),
+    // Field aliases are owned by TemplateFieldCatalog; this detector consumes that metadata.
 
-            // Purchase
-            Map.entry("purchase.number", List.of("purchase no", "purchase invoice no", "invoice no", "document no")),
-            Map.entry("purchase.date", List.of("purchase date", "invoice date", "document date")),
-            Map.entry("purchase.referenceNo", List.of("supplier invoice no", "reference no")),
-            Map.entry("purchase.orderNo", List.of("po no", "purchase order no", "order no")),
-            Map.entry("purchase.poDate", List.of("po date", "purchase order date")),
-            Map.entry("purchase.billingAddress", List.of("billing address", "bill to")),
-            Map.entry("purchase.deliveryAddress", List.of("delivery address", "ship to")),
-            Map.entry("purchase.billingGstin", List.of("billing gstin", "billing gst-in")),
-            Map.entry("purchase.deliveryGstin", List.of("delivery gstin", "delivery gst-in")),
-            Map.entry("purchase.transporter", List.of("transporter", "transport")),
-            Map.entry("purchase.transporterGstin", List.of("transporter gstin", "transport gstin")),
-            Map.entry("purchase.contactPerson", List.of("contact person", "contact name")),
-            Map.entry("purchase.contactMobile", List.of("contact details", "contact mobile", "mobile")),
-            Map.entry("purchase.paymentTerms", List.of("payment terms", "credit terms")),
-
-            // Other supported ERP document types
-            Map.entry("quotation.number", List.of("quotation no", "quote no")),
-            Map.entry("quotation.date", List.of("quotation date", "quote date")),
-            Map.entry("delivery.number", List.of("challan no", "delivery challan no")),
-            Map.entry("delivery.date", List.of("challan date", "delivery date")),
-            Map.entry("return.number", List.of("return no", "credit note no", "debit note no", "note no")),
-            Map.entry("return.date", List.of("return date", "credit note date", "debit note date")),
-            Map.entry("receipt.number", List.of("receipt no", "receipt number")),
-            Map.entry("receipt.date", List.of("receipt date")),
-            Map.entry("receipt.amount", List.of("receipt amount", "amount received")),
-
-            // Party / totals / payment / company
-            Map.entry("customer.name", List.of("customer", "buyer", "party name")),
-            Map.entry("customer.gstin", List.of("customer gstin", "buyer gstin", "gst-in", "gstin")),
-            Map.entry("supplier.name", List.of("supplier", "vendor", "party name")),
-            Map.entry("supplier.gstin", List.of("supplier gstin", "vendor gstin", "gst-in", "gstin")),
-            Map.entry("party.name", List.of("party name", "customer", "supplier")),
-            Map.entry("party.gstin", List.of("party gstin", "gst-in", "gstin")),
-            Map.entry("totals.subtotal", List.of("basic amount", "subtotal", "sub total")),
-            Map.entry("totals.grossBeforeTax", List.of("taxable amount", "gross total", "gross before tax")),
-            Map.entry("totals.cgstAmount", List.of("cgst")),
-            Map.entry("totals.sgstAmount", List.of("sgst")),
-            Map.entry("totals.igstAmount", List.of("igst")),
-            Map.entry("totals.roundOff", List.of("round off", "rounding")),
-            Map.entry("totals.roundedGrandTotal", List.of("grand total", "net total", "invoice total", "amount payable")),
-            Map.entry("totals.grandTotal", List.of("grand total", "net total", "invoice total", "amount payable")),
-            Map.entry("totals.amountInWords", List.of("amount in words", "inr")),
-            Map.entry("payment.bankName", List.of("bank name")),
-            Map.entry("payment.branch", List.of("branch")),
-            Map.entry("payment.accountNumber", List.of("a/c no", "account no", "account number")),
-            Map.entry("payment.accountType", List.of("account type", "a/c type", "account category")),
-            Map.entry("payment.ifsc", List.of("ifsc", "ifsc code")),
-            Map.entry("company.gstin", List.of("supplier gst", "company gst", "our gstin")),
-            Map.entry("company.name", List.of("for,"))
-    );
     /** Finds a saved ERP record whose document id is visibly printed in the imported PDF. */
     public static Optional<DocumentSample> findLikelySample(DocumentType type, List<PdfTextRegion> regions) {
         if (!DocumentDataService.supportsRealData(type) || regions == null || regions.isEmpty()) return Optional.empty();
@@ -113,15 +71,16 @@ public final class PdfAutoMappingService {
     public static Analysis analyze(DocumentType type, List<PdfTextRegion> regions, TemplateData data) {
         if (regions == null || regions.isEmpty()) return new Analysis(List.of(), 0, 0, 0, 0);
         Map<String,String> values = data == null ? Map.of() : data.values();
-        Set<String> allowedKeys = new LinkedHashSet<>();
-        for (TemplateFieldDefinition field : TemplateFieldCatalog.pdfFieldsFor(type)) allowedKeys.add(field.key());
+        List<TemplateFieldDefinition> fields = TemplateFieldCatalog.pdfFieldsFor(type);
+        Map<String,TemplateFieldDefinition> byKey = new LinkedHashMap<>();
+        for (TemplateFieldDefinition field : fields) byKey.putIfAbsent(field.key(), field);
+        Set<String> allowedKeys = byKey.keySet();
 
         List<Mapping> out = new ArrayList<>();
         Set<PdfTextRegion> used = Collections.newSetFromMap(new IdentityHashMap<>());
         Set<String> mappedKeys = new HashSet<>();
 
-        // First pass: actual printed value matches. This is the strongest signal because it compares
-        // the imported PDF against the authoritative selected ERP record.
+        // First pass: compare printed values with the selected real ERP sample.
         for (PdfTextRegion region : regions) {
             String regionNorm = normalize(region.text());
             if (regionNorm.isBlank()) continue;
@@ -144,30 +103,31 @@ public final class PdfAutoMappingService {
             }
         }
 
-        // Second pass: label/proximity suggestions. We only suggest a nearby value region and leave
-        // it amber for review; labels themselves remain static design content.
-        for (int i = 0; i < regions.size(); i++) {
-            PdfTextRegion label = regions.get(i);
+        // Second pass: catalogue alias + physical label/value proximity. Inline "Label : Value"
+        // is parsed directly instead of asking nearestValueRegion() to return the label itself.
+        for (PdfTextRegion label : regions) {
             String labelNorm = normalize(label.text());
             if (labelNorm.isBlank()) continue;
-            for (Map.Entry<String,List<String>> alias : LABEL_ALIASES.entrySet()) {
-                String key = alias.getKey();
-                if (!allowedKeys.contains(key) || mappedKeys.contains(key)) continue;
-                boolean match = alias.getValue().stream().map(PdfAutoMappingService::normalize)
-                        .anyMatch(a -> !a.isBlank() && labelNorm.contains(a));
-                if (!match) continue;
-                PdfTextRegion valueRegion = nearestValueRegion(label, regions, used);
-                if (valueRegion == null) continue;
-                String raw = clean(values.get(key));
+            for (TemplateFieldDefinition field : fields) {
+                String key = field.key();
+                if (mappedKeys.contains(key)) continue;
+                Optional<String> aliasMatch = aliasesFor(field).stream().filter(a -> labelNorm.contains(normalize(a)))
+                        .max(Comparator.comparingInt(String::length));
+                if (aliasMatch.isEmpty()) continue;
+                PdfTextRegion valueRegion;
                 String expression;
-                if (!raw.isBlank() && normalize(valueRegion.text()).contains(normalize(raw))) {
-                    expression = replaceValue(valueRegion.text(), raw, "{{" + key + "}}");
-                } else if (looksLikeLabelAndValue(label.text()) && valueRegion == label) {
-                    expression = label.text() + " {{" + key + "}}";
+                if (looksLikeLabelAndValue(label.text())) {
+                    valueRegion = PdfTextExtractionService.valueHitRegion(label).orElse(null);
+                    if (valueRegion == null || normalize(valueRegion.text()).isBlank()) continue;
                 } else {
-                    expression = "{{" + key + "}}";
+                    valueRegion = nearestValueRegion(label, regions, used);
+                    if (valueRegion == null) continue;
                 }
-                out.add(new Mapping(valueRegion, key, expression, .74, "Label/proximity match"));
+                String raw = clean(values.get(key));
+                if (!raw.isBlank() && normalize(valueRegion.text()).contains(normalize(raw)))
+                    expression = replaceValue(valueRegion.text(), raw, "{{" + key + "}}");
+                else expression = "{{" + key + "}}";
+                out.add(new Mapping(valueRegion, key, expression, .74, "Catalogue label/proximity match"));
                 used.add(valueRegion); mappedKeys.add(key);
             }
         }
@@ -180,16 +140,190 @@ public final class PdfAutoMappingService {
         return new Analysis(out, detected, high, review, unmapped);
     }
 
-    /** True when the page visually resembles an item table and should offer an item repeater. */
+    /**
+     * Detect source label/value candidates independently of whether semantic matching succeeds.
+     * This is the input for the generic Review Mapping popup, so an unknown Custom/XYZ value can
+     * remain visible as REVIEW_REQUIRED instead of disappearing from the session.
+     */
+    public static List<SourceCandidate> detectReviewCandidates(DocumentType type, List<PdfTextRegion> regions,
+                                                                TemplateData data, List<Mapping> knownMappings) {
+        if (regions == null || regions.isEmpty()) return List.of();
+        List<TemplateFieldDefinition> fields = TemplateFieldCatalog.pdfFieldsFor(type);
+        Map<String,Mapping> mappedByRegion = new LinkedHashMap<>();
+        if (knownMappings != null) for (Mapping mapping : knownMappings) {
+            if (mapping != null && mapping.region() != null) mappedByRegion.put(regionKey(mapping.region()), mapping);
+        }
+        List<SourceCandidate> out = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+
+        // Preserve all successful value/label mappings first.
+        for (Mapping mapping : mappedByRegion.values()) {
+            String label = nearestLabelText(mapping.region(), regions);
+            addCandidate(out, seen, new SourceCandidate(mapping.region(), label, mapping.region().text(), mapping.fieldKey(),
+                    mapping.expression(), mapping.confidence(), mapping.reason()));
+        }
+
+        // Discover inline label:value pairs and physically adjacent label/value pairs even when the
+        // ERP catalogue has no suggestion. Structure is detected first; semantics are optional.
+        for (PdfTextRegion labelRegion : regions) {
+            if (labelRegion == null) continue;
+            String rawLabel = clean(labelRegion.text());
+            String normalized = normalize(rawLabel);
+            if (!looksLikePotentialLabel(rawLabel, normalized)) continue;
+
+            PdfTextRegion valueRegion = null;
+            String sourceLabel = stripLabelDelimiter(rawLabel);
+            if (looksLikeLabelAndValue(rawLabel)) {
+                int colon = rawLabel.indexOf(':');
+                if (colon > 0) sourceLabel = stripLabelDelimiter(rawLabel.substring(0, colon));
+                valueRegion = PdfTextExtractionService.valueHitRegion(labelRegion).orElse(null);
+            } else {
+                valueRegion = nearestValueRegion(labelRegion, regions, Collections.emptySet());
+            }
+            if (valueRegion == null || normalize(valueRegion.text()).isBlank()) continue;
+            if (sameTextAndGeometry(labelRegion, valueRegion) && !looksLikeLabelAndValue(rawLabel)) continue;
+
+            TemplateFieldDefinition suggested = suggestFieldByLabel(fields, sourceLabel);
+            String key = suggested == null ? "" : suggested.key();
+            double confidence = suggested == null ? .35 : .74;
+            String expression = key.isBlank() ? "" : "{{" + key + "}}";
+            Mapping existing = mappedByRegion.get(regionKey(valueRegion));
+            if (existing != null) {
+                key = existing.fieldKey(); expression = existing.expression(); confidence = Math.max(confidence, existing.confidence());
+            }
+            addCandidate(out, seen, new SourceCandidate(valueRegion, sourceLabel, valueRegion.text(), key, expression,
+                    confidence, key.isBlank() ? "Detected source label/value" : "Catalogue label/value suggestion"));
+        }
+
+        out.sort(Comparator.comparingInt((SourceCandidate c) -> c.region().pageIndex())
+                .thenComparingDouble(c -> c.region().y()).thenComparingDouble(c -> c.region().x()));
+        return List.copyOf(out);
+    }
+
+    /** Backward-compatible bounding region for callers that only need the detected table header area. */
     public static Optional<PdfTextRegion> detectItemHeader(List<PdfTextRegion> regions) {
-        if (regions == null) return Optional.empty();
-        return regions.stream().filter(r -> {
-            String n = normalize(r.text());
-            int hits = 0;
-            for (String token : List.of("hsn", "product description", "description", "qty", "quantity", "rate", "unit", "amount", "sr no"))
-                if (n.contains(token)) hits++;
-            return hits >= 3;
-        }).findFirst();
+        return detectItemHeaderLayout(regions).map(layout -> {
+            ItemHeaderCell style = layout.cells().isEmpty() ? null : layout.cells().getFirst();
+            double fontSize = style == null ? 8 : Math.max(6, style.height() * .82);
+            return new PdfTextRegion(layout.pageIndex(),
+                    layout.cells().stream().map(ItemHeaderCell::label).filter(v -> !v.isBlank()).reduce("", (a,b) -> a.isBlank()?b:a+" | "+b),
+                    layout.x(), layout.y(), layout.width(), layout.height(), fontSize,
+                    "HELVETICA", true, false, "#172033", 0);
+        });
+    }
+
+    /**
+     * Detects physical item-header cells, their left-to-right geometry and suggested ERP meaning.
+     * Suggestions never define the runtime contract by themselves; the editor can confirm or replace
+     * every binding and the physical source order is retained.
+     */
+    public static Optional<ItemHeaderLayout> detectItemHeaderLayout(List<PdfTextRegion> regions) {
+        if (regions == null || regions.isEmpty()) return Optional.empty();
+        ItemHeaderLayout best = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
+        Set<String> visitedRows = new HashSet<>();
+        for (PdfTextRegion seed : regions) {
+            double seedCenter = seed.y() + seed.height() / 2.0;
+            double tolerance = Math.max(5.0, seed.height() * .75);
+            String rowKey = seed.pageIndex() + ":" + Math.round(seedCenter / Math.max(2.0, tolerance));
+            if (!visitedRows.add(rowKey)) continue;
+            List<PdfTextRegion> row = regions.stream()
+                    .filter(Objects::nonNull)
+                    .filter(r -> r.pageIndex() == seed.pageIndex())
+                    .filter(r -> Math.abs((r.y()+r.height()/2.0) - seedCenter) <= tolerance)
+                    .sorted(Comparator.comparingDouble(PdfTextRegion::x)).toList();
+            List<ItemHeaderCell> cells = new ArrayList<>();
+            for (PdfTextRegion region : row) cells.addAll(headerCells(region));
+            cells = mergeNearbyHeaderCells(cells);
+            if (cells.size() < 3) continue;
+            double minX = cells.stream().mapToDouble(ItemHeaderCell::x).min().orElse(seed.x());
+            double maxX = cells.stream().mapToDouble(c -> c.x()+c.width()).max().orElse(seed.x()+seed.width());
+            double spread = maxX - minX;
+            if (spread < 120) continue;
+
+            long mapped = cells.stream().filter(c -> !c.suggestedField().isBlank()).count();
+            long strong = cells.stream().filter(c -> c.confidence() >= .90).count();
+            long compactLabels = cells.stream().filter(c -> c.label().trim().length() <= 40).count();
+            double avgGap = averageGap(cells);
+            // Semantics improve ranking but never gate physical recognition. Thus a completely
+            // unknown customer table can still be selected from its horizontal header structure.
+            double score = cells.size() * 4.0 + mapped * 9.0 + strong * 2.0 + compactLabels
+                    + Math.min(8.0, spread / 90.0) + Math.min(4.0, avgGap / 12.0);
+            if (cells.stream().anyMatch(c -> c.label().length() > 90)) score -= 8;
+            if (score > bestScore) {
+                double minY = cells.stream().mapToDouble(ItemHeaderCell::y).min().orElse(seed.y());
+                double maxY = cells.stream().mapToDouble(c -> c.y()+c.height()).max().orElse(seed.y()+seed.height());
+                bestScore = score;
+                best = new ItemHeaderLayout(seed.pageIndex(), minX, minY, Math.max(40,spread), Math.max(10,maxY-minY), cells);
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    private record HeaderMatch(TemplateFieldDefinition field, String alias, int start, int end, double confidence) {}
+
+    private static List<ItemHeaderCell> headerCells(PdfTextRegion region) {
+        String normalized = normalize(region.text());
+        if (normalized.isBlank()) return List.of();
+        List<HeaderMatch> matches = headerMatches(normalized);
+        if (matches.isEmpty()) {
+            // Physical detection is independent of semantic recognition.
+            return List.of(new ItemHeaderCell(region.text(), region.x(), region.y(), region.width(), region.height(), "", 0));
+        }
+        if (matches.size() == 1) {
+            HeaderMatch m = matches.getFirst();
+            return List.of(new ItemHeaderCell(region.text(), region.x(), region.y(), region.width(), region.height(), m.field().key(), m.confidence()));
+        }
+        List<ItemHeaderCell> out = new ArrayList<>();
+        for (int i=0;i<matches.size();i++) {
+            HeaderMatch m=matches.get(i);
+            int left=m.start();
+            int right=i+1<matches.size()?matches.get(i+1).start():normalized.length();
+            double x=region.x()+region.width()*(left/(double)Math.max(1,normalized.length()));
+            double end=region.x()+region.width()*(right/(double)Math.max(1,normalized.length()));
+            out.add(new ItemHeaderCell(m.alias(),x,region.y(),Math.max(8,end-x),region.height(),m.field().key(),m.confidence()*.96));
+        }
+        return out;
+    }
+
+    private static List<HeaderMatch> headerMatches(String normalized) {
+        List<HeaderMatch> candidates=new ArrayList<>();
+        for(TemplateFieldDefinition field:TemplateFieldCatalog.pdfItemFields()){
+            for(String rawAlias:aliasesFor(field)){
+                String alias=normalize(rawAlias); if(alias.isBlank())continue;
+                int from=0;
+                while(from<normalized.length()){
+                    int at=normalized.indexOf(alias,from); if(at<0)break;
+                    boolean left=at==0||normalized.charAt(at-1)==' ';
+                    int end=at+alias.length();
+                    boolean right=end==normalized.length()||normalized.charAt(end)==' ';
+                    if(left&&right)candidates.add(new HeaderMatch(field,rawAlias,at,end,.98));
+                    from=at+1;
+                }
+            }
+        }
+        candidates.sort(Comparator.comparingInt(HeaderMatch::start)
+                .thenComparing((a,b)->Integer.compare(b.end()-b.start(),a.end()-a.start())));
+        List<HeaderMatch> selected=new ArrayList<>(); int occupied=-1;
+        for(HeaderMatch c:candidates){ if(c.start()<occupied)continue; selected.add(c); occupied=c.end(); }
+        return selected;
+    }
+
+    private static List<ItemHeaderCell> mergeNearbyHeaderCells(List<ItemHeaderCell> cells) {
+        if(cells.isEmpty())return List.of();
+        List<ItemHeaderCell> sorted=cells.stream().sorted(Comparator.comparingDouble(ItemHeaderCell::x)).toList();
+        List<ItemHeaderCell> out=new ArrayList<>();
+        for(ItemHeaderCell c:sorted){
+            if(out.isEmpty()){out.add(c);continue;}
+            ItemHeaderCell last=out.getLast();
+            double overlap=Math.min(last.x()+last.width(),c.x()+c.width())-Math.max(last.x(),c.x());
+            if(overlap>Math.min(last.width(),c.width())*.55 && Objects.equals(last.suggestedField(),c.suggestedField())){
+                double x=Math.min(last.x(),c.x()), end=Math.max(last.x()+last.width(),c.x()+c.width());
+                out.set(out.size()-1,new ItemHeaderCell(last.label()+" "+c.label(),x,Math.min(last.y(),c.y()),end-x,
+                        Math.max(last.height(),c.height()),last.suggestedField(),Math.max(last.confidence(),c.confidence())));
+            }else out.add(c);
+        }
+        return out;
     }
 
     /** Detects the printed invoice-level charge rows that can be replaced by one ERP charge repeater. */
@@ -260,14 +394,89 @@ public final class PdfAutoMappingService {
             boolean candidate = values.entrySet().stream().anyMatch(e -> allowed.contains(e.getKey())
                     && normalize(e.getValue()).length() >= 2 && n.contains(normalize(e.getValue())));
             if (!candidate) {
-                candidate = LABEL_ALIASES.entrySet().stream().anyMatch(e -> allowed.contains(e.getKey())
-                        && e.getValue().stream().anyMatch(a -> n.contains(normalize(a))));
+                candidate = TemplateFieldCatalog.pdfFieldsFor(type).stream().filter(f -> allowed.contains(f.key()))
+                        .anyMatch(f -> aliasesFor(f).stream().anyMatch(a -> n.contains(normalize(a))));
             }
             if (candidate && seen.add(r.pageIndex() + ":" + Math.round(r.x()) + ":" + Math.round(r.y()) + ":" + n)) count++;
         }
         if (detectItemHeader(regions).isPresent()) count++;
         if (detectChargeRegion(regions, data).isPresent()) count++;
         return count;
+    }
+
+    private static List<String> aliasesFor(TemplateFieldDefinition field) {
+        if (field == null) return List.of();
+        LinkedHashSet<String> aliases = new LinkedHashSet<>();
+        if (field.label() != null && !field.label().isBlank()) aliases.add(field.label());
+        aliases.addAll(field.aliases());
+        return List.copyOf(aliases);
+    }
+
+    private static TemplateFieldDefinition suggestFieldByLabel(List<TemplateFieldDefinition> fields, String label) {
+        String normalized = normalize(label);
+        if (normalized.isBlank()) return null;
+        TemplateFieldDefinition best = null; int bestLength = -1;
+        for (TemplateFieldDefinition field : fields) {
+            for (String alias : aliasesFor(field)) {
+                String a = normalize(alias);
+                if (a.isBlank()) continue;
+                boolean match = normalized.equals(a) || normalized.contains(a) || a.contains(normalized);
+                if (match && a.length() > bestLength) { best = field; bestLength = a.length(); }
+            }
+        }
+        return best;
+    }
+
+    private static boolean looksLikePotentialLabel(String raw, String normalized) {
+        if (raw == null || normalized == null || normalized.isBlank()) return false;
+        String t = raw.trim();
+        if (t.length() < 2 || t.length() > 80) return false;
+        if (t.matches("[₹$€£]?\\s*[0-9,./:%+\\-() ]+")) return false;
+        if (t.contains(":")) return t.indexOf(':') > 0;
+        int words = normalized.split(" ").length;
+        return words <= 7 && !t.endsWith(".");
+    }
+
+    private static String stripLabelDelimiter(String text) {
+        if (text == null) return "";
+        return text.trim().replaceAll("\\s*[:\\-–—]+\\s*$", "").trim();
+    }
+
+    private static String nearestLabelText(PdfTextRegion value, List<PdfTextRegion> all) {
+        if (value == null || all == null) return "";
+        double cy = value.y() + value.height()/2.0;
+        return all.stream().filter(Objects::nonNull).filter(r -> r != value && r.pageIndex() == value.pageIndex())
+                .filter(r -> r.x()+r.width() <= value.x()+8)
+                .filter(r -> Math.abs((r.y()+r.height()/2.0)-cy) <= Math.max(10,value.height()*1.4))
+                .filter(r -> looksLikePotentialLabel(r.text(), normalize(r.text())))
+                .min(Comparator.comparingDouble(r -> value.x()-(r.x()+r.width())))
+                .map(PdfTextRegion::text).map(PdfAutoMappingService::stripLabelDelimiter).orElse("");
+    }
+
+    private static void addCandidate(List<SourceCandidate> out, Set<String> seen, SourceCandidate candidate) {
+        if (candidate == null || candidate.region() == null) return;
+        String key = regionKey(candidate.region()) + "|" + normalize(candidate.sourceLabel());
+        if (seen.add(key)) out.add(candidate);
+    }
+
+    private static String regionKey(PdfTextRegion r) {
+        if (r == null) return "";
+        return r.pageIndex()+":"+Math.round(r.x()*10)+":"+Math.round(r.y()*10)+":"+Math.round(r.width()*10)+":"+Math.round(r.height()*10);
+    }
+
+    private static boolean sameTextAndGeometry(PdfTextRegion a, PdfTextRegion b) {
+        if (a == null || b == null) return false;
+        return a.pageIndex()==b.pageIndex() && Math.abs(a.x()-b.x())<.1 && Math.abs(a.y()-b.y())<.1
+                && Math.abs(a.width()-b.width())<.1 && Math.abs(a.height()-b.height())<.1
+                && Objects.equals(a.text(), b.text());
+    }
+
+    private static double averageGap(List<ItemHeaderCell> cells) {
+        if (cells == null || cells.size() < 2) return 0;
+        List<ItemHeaderCell> sorted = cells.stream().sorted(Comparator.comparingDouble(ItemHeaderCell::x)).toList();
+        double sum=0; int count=0;
+        for(int i=1;i<sorted.size();i++) { sum += Math.max(0, sorted.get(i).x()-(sorted.get(i-1).x()+sorted.get(i-1).width())); count++; }
+        return count==0?0:sum/count;
     }
 
     private static PdfTextRegion nearestValueRegion(PdfTextRegion label, List<PdfTextRegion> all, Set<PdfTextRegion> used) {

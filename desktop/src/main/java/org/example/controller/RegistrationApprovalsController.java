@@ -71,7 +71,14 @@ public class RegistrationApprovalsController implements ScreenLifecycle {
         if("ADMIN".equalsIgnoreCase(code)){message("Administrator accounts cannot be approved from self-registration.",true);return;}
         var confirm=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Approve "+r.source.fullName()+" as "+code+"?",ButtonType.YES,ButtonType.NO);
         if(confirm.showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
-        try{api.approveRegistration(r.source.id(),code,r.source.rowVersion());refresh();message("Registration approved. The user may now sign in with password + authenticator.",false);}catch(Exception e){message(e.getMessage(),true);}
+        message("Approving registration...",false);
+        UiTaskExecutor.submitAction("registration-approve", () -> {
+            api.approveRegistration(r.source.id(),code,r.source.rowVersion());
+            return true;
+        }, success -> {
+            refresh();
+            message("Registration approved. The user may now sign in with password + authenticator.",false);
+        }, e -> message(e.getMessage() == null ? "Unable to approve registration" : e.getMessage(), true));
     }
 
     @FXML private void reject(){
@@ -82,7 +89,14 @@ public class RegistrationApprovalsController implements ScreenLifecycle {
         dialog.setHeaderText("Reason for rejecting "+r.source.fullName());
         String reason=dialog.showAndWait().orElse(null);
         if(reason==null)return;
-        try{api.rejectRegistration(r.source.id(),reason,r.source.rowVersion());refresh();message("Registration rejected.",false);}catch(Exception e){message(e.getMessage(),true);}
+        message("Rejecting registration...",false);
+        UiTaskExecutor.submitAction("registration-reject", () -> {
+            api.rejectRegistration(r.source.id(),reason,r.source.rowVersion());
+            return true;
+        }, success -> {
+            refresh();
+            message("Registration rejected.",false);
+        }, e -> message(e.getMessage() == null ? "Unable to reject registration" : e.getMessage(), true));
     }
 
     @FXML private void back(){DashboardController.navigateFromChildPage("User Access & Permissions","/fxml/pages/UserAccess.fxml");}

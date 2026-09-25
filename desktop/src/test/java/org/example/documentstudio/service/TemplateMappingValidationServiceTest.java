@@ -3,6 +3,7 @@ package org.example.documentstudio.service;
 import org.example.documentstudio.model.*;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -47,6 +48,29 @@ class TemplateMappingValidationServiceTest {
         assertTrue(issue.title().contains("only 1 item per page"));
         assertTrue(issue.detail().contains("25-item"));
         assertTrue(issue.fix().contains("Item Table"));
+    }
+
+    @Test
+    void flowFixedValidationUsesRuntimeClosingRegionInsteadOfSavedShortTableBox() {
+        DocumentTemplate template = completeSalesTemplate(List.of("description", "hsn", "quantity", "rate", "grossAmount"));
+        template.setLayoutMode("FLOW_FIXED");
+        TemplateElement table = template.getElements().stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElseThrow();
+        table.setY(220);
+        table.setHeight(60);
+        table.setHeaderHeight(20);
+        table.setRowHeight(20);
+
+        TemplateElement closing = TemplateElement.of(ElementType.BLOCK, 0, 20, 520, 520, 100);
+        closing.setPageRule("LAST");
+        closing.setReplacementGroupId("DYNAMIC_FINANCIAL_SUMMARY");
+        List<TemplateElement> elements = new ArrayList<>(template.getElements());
+        elements.add(closing);
+        template.setElements(elements);
+
+        assertTrue(TemplateMappingValidationService.effectiveItemRowsPerPage(template, table) >= 10);
+        assertFalse(TemplateMappingValidationService.evaluate(template).issues().stream()
+                .anyMatch(i -> "ITEM_TABLE_PAGE_FLOW".equals(i.requirementId())),
+                "FLOW_FIXED validation must use the same closing-region capacity that runtime pagination uses");
     }
 
     @Test
@@ -108,6 +132,19 @@ class TemplateMappingValidationServiceTest {
                 && r.level() == TemplateMappingRequirement.Level.RECOMMENDED));
         assertTrue(requirements.stream().anyMatch(r -> "PAYMENT_QR".equals(r.id())
                 && r.level() == TemplateMappingRequirement.Level.RECOMMENDED));
+    }
+
+
+    @Test
+    void salesCustomerGstinRequirementAcceptsPartyGstinShownByTheFieldPalette() {
+        DocumentTemplate template = completeSalesTemplate(List.of("description", "hsn", "quantity", "rate", "grossAmount"));
+        template.setElements(template.getElements().stream()
+                .filter(e -> !"party.billingGstin".equals(e.getFieldKey())).toList());
+        addField(template, "party.gstin");
+
+        var state = TemplateMappingValidationService.evaluate(template).requirements().stream()
+                .filter(s -> "PARTY_GSTIN".equals(s.requirement().id())).findFirst().orElseThrow();
+        assertTrue(state.satisfied(), "Customer GSTIN from the visible party.gstin palette field must satisfy Sales readiness");
     }
 
     @Test

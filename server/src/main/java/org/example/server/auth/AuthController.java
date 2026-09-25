@@ -45,6 +45,18 @@ public class AuthController {
         return ResponseEntity.ok(auth.loginMfaEnrollment(request));
     }
 
+    @PostMapping("/login/mfa/recovery/request")
+    public ResponseEntity<AuthDtos.LoginMfaChallengeResponse> requestLoginMfaRecovery(
+            @RequestBody AuthDtos.LoginMfaRecoveryRequest request) {
+        return ResponseEntity.ok(auth.requestLoginMfaRecovery(request));
+    }
+
+    @PostMapping("/login/mfa/recovery/complete")
+    public ResponseEntity<AuthDtos.LoginMfaEnrollmentResponse> completeLoginMfaRecovery(
+            @RequestBody AuthDtos.LoginMfaRecoveryCompleteRequest request) {
+        return ResponseEntity.ok(auth.completeLoginMfaRecovery(request));
+    }
+
     @PostMapping("/login-complete")
     public AuthDtos.OperationResponse loginComplete(@RequestBody AuthDtos.UserIdRequest request,
                                                      @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {

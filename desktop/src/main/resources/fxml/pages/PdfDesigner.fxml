@@ -13,7 +13,6 @@
                     <Label fx:id="lblTemplateMeta" text="Sales Invoice" styleClass="muted-label"/>
                 </VBox>
                 <Button fx:id="btnDataPreviewMode" text="Preview with Data" onAction="#showDataPreviewMode" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="View JSON Data" onAction="#viewJsonData" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Save" onAction="#saveDraft" styleClass="approved-button,approved-secondary-button"/>
                 <Button fx:id="btnPublish" text="Publish" onAction="#publishTemplate" styleClass="approved-button,approved-secondary-button"/>
                 <Button fx:id="btnPublishDefault" text="Publish &amp; Set as Default" onAction="#publishAndSetDefault" styleClass="approved-button,approved-primary-button"/>
@@ -39,16 +38,13 @@
                 <Button fx:id="btnFinalMode" text="Final PDF" onAction="#showFinalMode" styleClass="approved-button,approved-secondary-button"/>
                 <Separator orientation="VERTICAL" prefHeight="24"/>
                 <Button text="Auto Map Fields" onAction="#autoMapNow" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Undo" onAction="#undo" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Redo" onAction="#redo" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Duplicate" onAction="#duplicateSelected" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Delete" onAction="#deleteSelected" styleClass="approved-button,approved-danger-button"/>
+                <Button text="Detect Item Headers" onAction="#detectItemHeaders" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Review Mapping" onAction="#reviewMapping" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Validate Mapping" onAction="#validateMapping" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Mapping Guide PDF" onAction="#downloadMappingGuide" styleClass="approved-button,approved-secondary-button"/>
                 <Separator orientation="VERTICAL" prefHeight="24"/>
-                <CheckBox fx:id="chkSnap" text="Snap" selected="true"/>
                 <Button text="Fit Width" onAction="#fitWidth" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Fit Page" onAction="#fitPage" styleClass="approved-button,approved-secondary-button"/>
-                <Slider fx:id="zoomSlider" min="35" max="220" value="100" prefWidth="120"/>
-                <Label fx:id="lblZoom" text="100%"/>
             </FlowPane>
         </VBox>
     </top>
@@ -68,11 +64,7 @@
             <Label text="ERP Field Search" styleClass="pdf-mapper-panel-title"/>
             <TextField fx:id="txtFieldSearch" promptText="Search HSN, qty, remark, GST, invoice no..." styleClass="erp-search-field"/>
             <ListView fx:id="lstFields" VBox.vgrow="ALWAYS" styleClass="pdf-mapper-field-list,erp-field-search-list"/>
-            <HBox spacing="6">
-                <Button text="Auto Map" onAction="#autoMapNow" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="+ Text" onAction="#addText" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
-            </HBox>
-            <TitledPane text="Advanced Create Tools" expanded="false">
+            <TitledPane text="Advanced Create Tools (optional)" expanded="false">
                 <content>
                     <TilePane hgap="6" vgap="6" prefColumns="2" styleClass="pdf-v2-palette">
                         <Button text="Heading" onAction="#addHeading" onDragDetected="#dragCreateHeading" styleClass="pdf-v2-tool"/>
@@ -123,81 +115,110 @@
             <content>
                 <VBox spacing="10" styleClass="pdf-v2-inspector,pdf-mapper-inspector">
                     <padding><Insets top="10" right="10" bottom="20" left="10"/></padding>
-                    <Label text="Selected Field" styleClass="pdf-mapper-panel-title"/>
+                    <Label text="Mapping Coach" styleClass="pdf-mapper-panel-title"/>
                     <Label fx:id="lblInspectorType" text="Select a mapped field" wrapText="true" styleClass="pdf-v2-inspector-title"/>
                     <Label fx:id="lblInspectorHint" text="Click PDF text, choose the ERP field below, then Map. The readiness counters update immediately." wrapText="true" styleClass="pdf-designer-help"/>
 
                     <VBox fx:id="textSection" spacing="7">
-                        <Label text="ERP Field" styleClass="field-caption"/>
+                        <Label text="Choose ERP field" styleClass="field-caption"/>
                         <Label fx:id="lblBindingContext" text="Select a checklist requirement to see the recommended ERP fields first." wrapText="true" styleClass="erp-mapping-context"/>
                         <TextField fx:id="txtInspectorFieldSearch" promptText="Search ERP field..." styleClass="erp-search-field"/>
                         <ListView fx:id="lstInspectorFieldSuggestions" prefHeight="135" styleClass="erp-field-search-list"/>
                         <Button fx:id="btnMapSelectedField" text="Select ERP Field to Map" onAction="#applySuggestedBinding" maxWidth="Infinity" disable="true" styleClass="approved-button,approved-primary-button"/>
-                        <TextArea fx:id="txtContent" prefRowCount="2" wrapText="true" promptText="Optional literal text / expression"/>
-                        <GridPane hgap="7" vgap="7">
-                            <Label text="Font" GridPane.columnIndex="0" GridPane.rowIndex="0"/><ComboBox fx:id="cmbFontFamily" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
-                            <Label text="Size" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtFontSize" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                            <Label text="Fit" GridPane.columnIndex="0" GridPane.rowIndex="2"/><ComboBox fx:id="cmbTextFit" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
-                            <Label text="Align" GridPane.columnIndex="0" GridPane.rowIndex="3"/><ComboBox fx:id="cmbTextAlignment" GridPane.columnIndex="1" GridPane.rowIndex="3" maxWidth="Infinity"/>
-                            <Label text="Line spacing" GridPane.columnIndex="0" GridPane.rowIndex="4"/><TextField fx:id="txtLineSpacing" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
-                            <columnConstraints><ColumnConstraints minWidth="90"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
-                        </GridPane>
-                        <HBox spacing="8"><CheckBox fx:id="chkBold" text="Bold"/><CheckBox fx:id="chkItalic" text="Italic"/><CheckBox fx:id="chkInheritParent" text="Inherit"/></HBox>
                     </VBox>
 
-                    <Separator/>
-                    <Label text="Position &amp; Size" styleClass="field-caption"/>
-                    <GridPane hgap="7" vgap="7">
-                        <Label text="X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                        <Label text="Y" GridPane.columnIndex="2" GridPane.rowIndex="0"/><TextField fx:id="txtY" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
-                        <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                        <Label text="Height" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtHeight" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
-                        <columnConstraints><ColumnConstraints minWidth="48"/><ColumnConstraints hgrow="ALWAYS"/><ColumnConstraints minWidth="52"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
-                    </GridPane>
-                    <Button text="Apply Field Properties" onAction="#applyInspector" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-
                     <TitledPane text="Mapped Fields / Page Objects" expanded="false">
-                        <content><VBox spacing="7"><ListView fx:id="lstLayers" prefHeight="200" styleClass="pdf-mapper-mapped-list"/><Button text="Validate Mapping" onAction="#validateMapping" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox></content>
+                        <content><VBox spacing="7"><ListView fx:id="lstLayers" prefHeight="200" styleClass="pdf-mapper-mapped-list"/><Button text="Remove Selected Mapping / Object" onAction="#deleteSelected" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/></VBox></content>
                     </TitledPane>
 
                     <TitledPane text="Preview Record" expanded="true">
                         <content><VBox spacing="7"><ComboBox fx:id="cmbSampleDocument" maxWidth="Infinity" onAction="#sampleChanged"/><Button text="Preview with Selected Record" onAction="#showDataPreviewMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox></content>
                     </TitledPane>
 
-                    <TitledPane text="Advanced" expanded="false">
+                    <TitledPane text="Advanced Design (optional)" expanded="false">
                         <content>
                             <VBox spacing="8">
-                                <HBox spacing="8"><Button text="Copy Format" onAction="#copyFormat"/><Button text="Paste Format" onAction="#pasteFormat"/></HBox>
-                                <FlowPane hgap="5" vgap="5"><Button text="Left" onAction="#alignLeft"/><Button text="Center" onAction="#alignCenter"/><Button text="Right" onAction="#alignRight"/><Button text="Top" onAction="#alignTop"/><Button text="Middle" onAction="#alignMiddle"/><Button text="Bottom" onAction="#alignBottom"/><Button text="Distribute H" onAction="#distributeHorizontal"/><Button text="Distribute V" onAction="#distributeVertical"/></FlowPane>
-                                <HBox spacing="8" alignment="CENTER_LEFT"><Label text="Text"/><ColorPicker fx:id="colorText"/><Label text="Fill"/><ColorPicker fx:id="colorFill"/><Label text="Border"/><ColorPicker fx:id="colorStroke"/></HBox>
-                                <HBox spacing="8"><CheckBox fx:id="chkFillEnabled" text="Fill"/><CheckBox fx:id="chkStrokeEnabled" text="Border"/><CheckBox fx:id="chkPaddingLinked" text="Link padding" selected="true"/></HBox>
+                                <Label text="Only use these controls when Preview or Validate asks for a layout correction. Normal field mapping does not require them." wrapText="true" styleClass="pdf-designer-help"/>
+                                <Button text="Preview JSON" onAction="#viewJsonData" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                <TitledPane text="Text / Position correction" expanded="false">
+                                    <content>
+                                        <VBox spacing="7">
+                                            <Label text="Source style is preserved automatically. Change these values only when Preview shows a real alignment or text-fit problem." wrapText="true" styleClass="pdf-designer-help"/>
+                                            <TextArea fx:id="txtContent" prefRowCount="2" wrapText="true" promptText="Optional literal text / expression"/>
+                                            <GridPane hgap="7" vgap="7">
+                                                <Label text="Font" GridPane.columnIndex="0" GridPane.rowIndex="0"/><ComboBox fx:id="cmbFontFamily" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
+                                                <Label text="Size" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtFontSize" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                                <Label text="Fit" GridPane.columnIndex="0" GridPane.rowIndex="2"/><ComboBox fx:id="cmbTextFit" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
+                                                <Label text="Align" GridPane.columnIndex="0" GridPane.rowIndex="3"/><ComboBox fx:id="cmbTextAlignment" GridPane.columnIndex="1" GridPane.rowIndex="3" maxWidth="Infinity"/>
+                                                <Label text="Line spacing" GridPane.columnIndex="0" GridPane.rowIndex="4"/><TextField fx:id="txtLineSpacing" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                                                <columnConstraints><ColumnConstraints minWidth="90"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
+                                            </GridPane>
+                                            <HBox spacing="8"><CheckBox fx:id="chkBold" text="Bold"/><CheckBox fx:id="chkItalic" text="Italic"/><CheckBox fx:id="chkInheritParent" text="Inherit"/></HBox>
+                                            <Separator/>
+                                            <Label text="Position &amp; Size" styleClass="field-caption"/>
+                                            <GridPane hgap="7" vgap="7">
+                                                <Label text="X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                                <Label text="Y" GridPane.columnIndex="2" GridPane.rowIndex="0"/><TextField fx:id="txtY" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                                                <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                                <Label text="Height" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtHeight" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                                                <columnConstraints><ColumnConstraints minWidth="48"/><ColumnConstraints hgrow="ALWAYS"/><ColumnConstraints minWidth="52"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
+                                            </GridPane>
+                                            <Button text="Apply Advanced Correction" onAction="#applyInspector" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                        </VBox>
+                                    </content>
+                                </TitledPane>
+                                <VBox fx:id="imageSection" spacing="6">
+                                    <Label text="Image options" styleClass="field-caption"/>
+                                    <Button text="Replace / Choose Image" onAction="#replaceSelectedImage" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                    <ComboBox fx:id="cmbImageFit" maxWidth="Infinity"/>
+                                    <CheckBox fx:id="chkPreserveRatio" text="Preserve aspect ratio" selected="true"/>
+                                </VBox>
+                                <VBox fx:id="repeaterSection" spacing="6">
+                                    <Label text="Item / Charge table sizing" styleClass="field-caption"/>
+                                    <Label text="Leave the detected columns unchanged. Adjust row/header height only if Validate reports page-capacity problems." wrapText="true" styleClass="pdf-designer-help"/>
+                                    <GridPane hgap="7" vgap="7">
+                                        <Label text="Row height" GridPane.columnIndex="0"/><TextField fx:id="txtRowHeight" GridPane.columnIndex="1"/>
+                                        <Label text="Header height" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtHeaderHeight" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                    </GridPane>
+                                    <CheckBox fx:id="chkUseSourceTableDesign" text="Keep imported table/grid design" selected="true"/>
+                                </VBox>
+                                <Separator/>
+                                <Label text="Flow safety" styleClass="field-caption"/>
+                                <Label text="Auto Height is recommended for Address, Payment Terms and Terms &amp; Conditions. Growth/Overflow normally stay on the values chosen automatically by PDF Studio." wrapText="true" styleClass="pdf-designer-help"/>
                                 <GridPane hgap="7" vgap="7">
-                                    <Label text="Rotation" GridPane.columnIndex="0"/><TextField fx:id="txtRotation" GridPane.columnIndex="1"/>
-                                    <Label text="Opacity %" GridPane.columnIndex="2"/><TextField fx:id="txtOpacity" GridPane.columnIndex="3"/>
-                                    <Label text="Border width" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtStrokeWidth" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                                    <Label text="Radius" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtRadius" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
-                                    <Label text="Pad top" GridPane.columnIndex="0" GridPane.rowIndex="2"/><TextField fx:id="txtPadTop" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-                                    <Label text="Right" GridPane.columnIndex="2" GridPane.rowIndex="2"/><TextField fx:id="txtPadRight" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
-                                    <Label text="Bottom" GridPane.columnIndex="0" GridPane.rowIndex="3"/><TextField fx:id="txtPadBottom" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-                                    <Label text="Left" GridPane.columnIndex="2" GridPane.rowIndex="3"/><TextField fx:id="txtPadLeft" GridPane.columnIndex="3" GridPane.rowIndex="3"/>
+                                    <CheckBox fx:id="chkAutoHeight" text="Auto Height" GridPane.columnIndex="0" GridPane.columnSpan="2"/>
+                                    <Label text="Growth" GridPane.columnIndex="0" GridPane.rowIndex="1"/><ComboBox fx:id="cmbGrowthDirection" GridPane.columnIndex="1" GridPane.rowIndex="1" maxWidth="Infinity"/>
+                                    <Label text="Overflow" GridPane.columnIndex="0" GridPane.rowIndex="2"/><ComboBox fx:id="cmbOverflowPolicy" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
                                 </GridPane>
-                                <VBox fx:id="imageSection" spacing="6"><Label text="Image" styleClass="field-caption"/><Button text="Replace / Choose Image" onAction="#replaceSelectedImage" maxWidth="Infinity"/><ComboBox fx:id="cmbImageFit" maxWidth="Infinity"/><CheckBox fx:id="chkPreserveRatio" text="Preserve aspect ratio" selected="true"/></VBox>
-                                <VBox fx:id="repeaterSection" spacing="6"><Label text="Repeating Table" styleClass="field-caption"/><TextField fx:id="txtTableColumns" promptText="serial,hsn,description,quantity,rate,unit,total"/><GridPane hgap="7" vgap="7"><Label text="Row height" GridPane.columnIndex="0"/><TextField fx:id="txtRowHeight" GridPane.columnIndex="1"/><Label text="Header" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtHeaderHeight" GridPane.columnIndex="1" GridPane.rowIndex="1"/></GridPane><CheckBox fx:id="chkUseSourceTableDesign" text="Keep imported table/grid design" selected="true"/></VBox>
-                                <HBox spacing="8"><CheckBox fx:id="chkLocked" text="Locked"/><CheckBox fx:id="chkVisible" text="Visible" selected="true"/></HBox>
-                                <ComboBox fx:id="cmbPageRule" maxWidth="Infinity"/>
-                                <Separator/>
-                                <Label text="Pages" styleClass="field-caption"/>
-                                <ListView fx:id="lstPages" prefHeight="90"/>
-                                <HBox spacing="5"><Button text="+ Page" onAction="#appendBlankPage"/><Button text="Delete" onAction="#deleteCurrentPage"/><Button text="↶" onAction="#rotatePageLeft"/><Button text="↷" onAction="#rotatePageRight"/></HBox>
-                                <Separator/>
-                                <Button fx:id="btnSaveDefault" text="Set Published Version as Default" onAction="#markDefault" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                                <Button text="Export Test PDF" onAction="#exportPdf" maxWidth="Infinity"/>
-                                <Button text="Group Selected" onAction="#groupSelected" maxWidth="Infinity"/><Button text="Ungroup Selected" onAction="#ungroupSelected" maxWidth="Infinity"/>
-                                <HBox spacing="5"><Button text="Front" onAction="#bringToFront"/><Button text="Back" onAction="#sendToBack"/><Button text="Forward" onAction="#moveForward"/><Button text="Backward" onAction="#moveBackward"/></HBox>
-                                <HBox spacing="5"><Button text="Lock" onAction="#toggleLock"/><Button text="Show / Hide" onAction="#toggleVisibility"/></HBox>
                             </VBox>
                         </content>
                     </TitledPane>
+
+                    <!-- Kept instantiated for backward-compatible template editing/controller state, but intentionally removed from the normal mapping UI. -->
+                    <VBox visible="false" managed="false">
+                        <CheckBox fx:id="chkSnap" selected="true"/>
+                        <Slider fx:id="zoomSlider" min="35" max="220" value="100"/>
+                        <Label fx:id="lblZoom" text="100%"/>
+                        <HBox spacing="8"><Button text="Copy Format" onAction="#copyFormat"/><Button text="Paste Format" onAction="#pasteFormat"/></HBox>
+                        <FlowPane hgap="5" vgap="5"><Button text="Left" onAction="#alignLeft"/><Button text="Center" onAction="#alignCenter"/><Button text="Right" onAction="#alignRight"/><Button text="Top" onAction="#alignTop"/><Button text="Middle" onAction="#alignMiddle"/><Button text="Bottom" onAction="#alignBottom"/><Button text="Distribute H" onAction="#distributeHorizontal"/><Button text="Distribute V" onAction="#distributeVertical"/></FlowPane>
+                        <HBox spacing="8" alignment="CENTER_LEFT"><Label text="Text"/><ColorPicker fx:id="colorText"/><Label text="Fill"/><ColorPicker fx:id="colorFill"/><Label text="Border"/><ColorPicker fx:id="colorStroke"/></HBox>
+                        <HBox spacing="8"><CheckBox fx:id="chkFillEnabled" text="Fill"/><CheckBox fx:id="chkStrokeEnabled" text="Border"/><CheckBox fx:id="chkPaddingLinked" text="Link padding" selected="true"/></HBox>
+                        <GridPane hgap="7" vgap="7">
+                            <TextField fx:id="txtRotation"/><TextField fx:id="txtOpacity" GridPane.columnIndex="1"/>
+                            <TextField fx:id="txtStrokeWidth" GridPane.rowIndex="1"/><TextField fx:id="txtRadius" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                            <TextField fx:id="txtPadTop" GridPane.rowIndex="2"/><TextField fx:id="txtPadRight" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                            <TextField fx:id="txtPadBottom" GridPane.rowIndex="3"/><TextField fx:id="txtPadLeft" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                        </GridPane>
+                        <TextField fx:id="txtTableColumns"/>
+                        <ComboBox fx:id="cmbFlowAnchorMode"/><TextField fx:id="txtFlowAnchorId"/><TextField fx:id="txtFlowGap"/><TextField fx:id="txtFlowGroupId"/><TextField fx:id="txtFlowRole"/>
+                        <CheckBox fx:id="chkLocked"/><CheckBox fx:id="chkVisible" selected="true"/><ComboBox fx:id="cmbPageRule"/>
+                        <ListView fx:id="lstPages" prefHeight="1"/>
+                        <Button fx:id="btnSaveDefault" text="Set Published Version as Default" onAction="#markDefault"/>
+                        <Button text="Export Test PDF" onAction="#exportPdf"/>
+                        <Button text="Group Selected" onAction="#groupSelected"/><Button text="Ungroup Selected" onAction="#ungroupSelected"/>
+                        <Button text="Front" onAction="#bringToFront"/><Button text="Back" onAction="#sendToBack"/><Button text="Forward" onAction="#moveForward"/><Button text="Backward" onAction="#moveBackward"/>
+                        <Button text="Lock" onAction="#toggleLock"/><Button text="Show / Hide" onAction="#toggleVisibility"/>
+                    </VBox>
                 </VBox>
             </content>
         </ScrollPane>

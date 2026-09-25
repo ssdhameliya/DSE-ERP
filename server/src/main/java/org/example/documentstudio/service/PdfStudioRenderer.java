@@ -675,7 +675,7 @@ public final class PdfStudioRenderer {
     private static void drawItemTable(PDPage page, PDPageContentStream cs, TemplateElement e,
                                       List<TaxInvoiceItem> items, String gstType, int pageNumber, int totalPages,
                                       double fillerRowHeight) throws IOException {
-        List<Column> columns = itemColumns(e.getTableColumns());
+        List<Column> columns = itemColumns(e);
         if (columns.isEmpty()) columns = itemColumns(List.of("serial", "descriptionWithRemarks", "quantity", "rate", "total"));
 
         TemplateElement effective = e;
@@ -705,7 +705,7 @@ public final class PdfStudioRenderer {
         setStroke(cs, "#7FA4D3");
         cs.setLineWidth(0.45f);
 
-        List<Float> widths = columnWidths(e, itemColumns(e.getTableColumns()), width);
+        List<Float> widths = columnWidths(e, itemColumns(e), width);
         float cursor = x;
         cs.moveTo(x, pdfTop); cs.lineTo(x + width, pdfTop); cs.stroke();
         for (float w : widths) {
@@ -753,7 +753,7 @@ public final class PdfStudioRenderer {
         cs.fill();
         setStroke(cs, "#7FA4D3");
         cs.setLineWidth(0.45f);
-        List<Float> widths = columnWidths(e, itemColumns(e.getTableColumns()), width);
+        List<Float> widths = columnWidths(e, itemColumns(e), width);
         float colX = x;
         for (float w : widths) {
             cs.moveTo(colX, pdfTop); cs.lineTo(colX, pdfBottom); cs.stroke();
@@ -815,7 +815,7 @@ public final class PdfStudioRenderer {
         }
         PDFont font = fontFor(e);
         float fontSize = (float)Math.max(5, Math.min(e.getFontSize(), rowH * .58));
-        List<String> alignments = e.getTableColumnAlignments();
+        List<String> alignments = columnAlignments(e, columns.size());
         for (int i = 0; i < columns.size(); i++) {
             Column column = columns.get(i);
             float cw = widths.get(i);
@@ -828,8 +828,19 @@ public final class PdfStudioRenderer {
 
     private static float totalWeight(List<Column> columns) { return (float)columns.stream().mapToDouble(Column::weight).sum(); }
 
-    /** Exact PDF-template column widths win when supplied; legacy templates keep semantic proportional widths. */
+    /** Exact source-grid geometry wins; semantic weights are only a fallback for borderless/legacy tables. */
     private static List<Float> columnWidths(TemplateElement element, List<Column> columns, float totalWidth) {
+        if (element != null && !element.getTableColumnBindings().isEmpty()
+                && element.getTableColumnBindings().size() == columns.size()) {
+            List<Double> bound = element.getTableColumnBindings().stream().map(TemplateColumnBinding::getWidth).toList();
+            if (bound.stream().allMatch(v -> v != null && v > 0)) {
+                double sum = bound.stream().mapToDouble(Double::doubleValue).sum();
+                if (sum > 0) {
+                    double scale = totalWidth / sum;
+                    return bound.stream().map(v -> (float)(v * scale)).toList();
+                }
+            }
+        }
         List<Double> exact = element == null ? List.of() : element.getTableColumnWidths();
         if (exact != null && exact.size() == columns.size() && exact.stream().allMatch(v -> v != null && v > 0)) {
             double supplied = exact.stream().mapToDouble(Double::doubleValue).sum();
@@ -838,8 +849,15 @@ public final class PdfStudioRenderer {
                 return exact.stream().map(v -> (float)(v * scale)).toList();
             }
         }
-        float totalWeight = totalWeight(columns);
+        float totalWeight = Math.max(.001f, totalWeight(columns));
         return columns.stream().map(column -> totalWidth * (float)column.weight() / totalWeight).toList();
+    }
+
+    private static List<String> columnAlignments(TemplateElement element, int count) {
+        if (element != null && !element.getTableColumnBindings().isEmpty()
+                && element.getTableColumnBindings().size() == count)
+            return element.getTableColumnBindings().stream().map(TemplateColumnBinding::getAlignment).toList();
+        return element == null ? List.of() : element.getTableColumnAlignments();
     }
 
     private static String itemValue(String key, TaxInvoiceItem item, String gstType, int serial) {
@@ -935,6 +953,39 @@ public final class PdfStudioRenderer {
     }
 
     private static String safe(String value) { return value == null ? "" : value.trim(); }
+
+    private static List<Column> itemColumns(TemplateElement element) {
+        if (element == null || element.getTableColumnBindings().isEmpty())
+            return itemColumns(element == null ? List.of() : element.getTableColumns());
+        Map<String,Column> catalogue = new LinkedHashMap<>();
+        for (Column c : itemColumns(List.of(
+                "serial","code","hsn","description","descriptionWithRemarks","remarks","category","brand","material","size",
+                "quantity","unit","rate","discountPercent","discountAmount","taxable","gstPercent","gstAmount","cgstPercent","cgstAmount",
+                "sgstPercent","sgstAmount","igstPercent","igstAmount","grossAmount","total","location","purchasePrice","sellingPrice",
+                "availableStock","openingStock","minimumStock","reservedStock","masterGstPercent","masterDiscountPercent")))
+            catalogue.put(c.key(), c);
+        List<Column> out = new ArrayList<>();
+        for (TemplateColumnBinding binding : element.getTableColumnBindings()) {
+            String key = normalizeItemColumn(binding.getFieldKey());
+            Column base = catalogue.get(key);
+            String label = binding.getSourceLabel().isBlank() ? (base == null ? "" : base.label()) : binding.getSourceLabel();
+            double weight = binding.getWidth() > 0 ? binding.getWidth() : (base == null ? 1 : base.weight());
+            out.add(new Column(base == null ? key : base.key(), label, weight));
+        }
+        return out;
+    }
+
+    private static String normalizeItemColumn(String fieldKey) {
+        String normalized = fieldKey == null ? "" : fieldKey.trim();
+        if (normalized.startsWith("item.")) normalized = normalized.substring("item.".length());
+        return switch (normalized) {
+            case "qty" -> "quantity";
+            case "discount" -> "discountPercent";
+            case "gst" -> "gstPercent";
+            case "amount" -> "total";
+            default -> normalized;
+        };
+    }
 
     private static List<Column> itemColumns(List<String> keys) {
         List<Column> all = List.of(
@@ -1353,59 +1404,65 @@ public final class PdfStudioRenderer {
                                                     TemplateElement box, TemplateData data) throws IOException {
         List<String[]> rows = mappedFinancialRows(data);
         String grand = blankAs(data.value("totals.roundedGrandTotal"), data.value("totals.grandTotal"));
-        float x = (float) box.getX();
-        float top = (float) box.getY();
-        float width = (float) box.getWidth();
-        float maxH = (float) box.getHeight();
-        int normalCount = rows.size();
-        float preferred = 20.5f;
-        float rowH = Math.min(preferred, maxH / Math.max(1f, normalCount + 1f));
-        rowH = Math.max(12.5f, rowH);
-        float totalH = rowH * (normalCount + 1);
-        if (totalH > maxH) { rowH = maxH / Math.max(1f, normalCount + 1f); totalH = maxH; }
-        final String grid = "#AFC2D8";
-        final String navy = "#0E3F79";
+        float x=(float)box.getX(), width=(float)box.getWidth(), boxH=(float)box.getHeight();
+        int normalCount=rows.size();
+        boolean captured=box.isSourceStyleCaptured();
 
-        // Keep the block compact at the source top; unused lower space stays blank until BANK DETAILS.
-        setNonStroke(cs, "#FFFFFF");
-        setStroke(cs, grid);
-        cs.setLineWidth(.45f);
-        float pdfBottom = toPdfY(page, top + totalH);
-        cs.addRect(x, pdfBottom, width, totalH);
-        cs.fillAndStroke();
-        float split = x + width * .66f;
-        cs.moveTo(split, toPdfY(page, top)); cs.lineTo(split, pdfBottom); cs.stroke();
+        float totalBandH=(float)Math.min(boxH,Math.max(0,box.getSummaryTotalHeight()));
+        float totalGap=(float)Math.min(Math.max(0,boxH-totalBandH),Math.max(0,box.getSummaryTotalGap()));
+        boolean separatedTotal=totalBandH>.1f;
+        float bodyH=separatedTotal?Math.max(1f,boxH-totalBandH-totalGap):boxH;
+        float sourceRowH=(float)Math.max(0,box.getRowHeight());
+        int sourceSlots=sourceRowH>.1f?Math.max(1,(int)Math.floor((bodyH+.6f)/sourceRowH)):0;
+        boolean keepSourceGrid=captured&&separatedTotal&&sourceSlots>0&&normalCount<=sourceSlots;
+        float preferred=captured&&sourceRowH>.1f?sourceRowH:20.5f;
+        float rowH=keepSourceGrid?sourceRowH:Math.min(preferred,bodyH/Math.max(1,normalCount));
+        if(rowH<8.5f)throw new IOException("Dynamic Financial Summary does not have enough readable space for "+normalCount+" rows. Increase the mapped calculation block height.");
 
-        for (int i = 0; i < normalCount; i++) {
-            float rowTop = top + i * rowH;
-            if (i > 0) {
-                float lineY = toPdfY(page, rowTop);
-                cs.moveTo(x, lineY); cs.lineTo(x + width, lineY); cs.stroke();
-            }
-            String[] row = rows.get(i);
-            float bottom = toPdfY(page, rowTop + rowH);
-            PDFont labelFont = (i == 0 || row[0].startsWith("TAXABLE"))
-                    ? font(Standard14Fonts.FontName.HELVETICA_BOLD)
-                    : font(Standard14Fonts.FontName.HELVETICA);
-            drawSingleLineCentered(cs, labelFont, 6.1f, row[0], x + 6f, bottom, split - x - 10f, rowH, "#000000", "LEFT");
-            drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.1f,
-                    row[1], split + 4f, bottom, x + width - split - 9f, rowH, "#000000", "RIGHT");
+        float bodyTop=(float)box.getY(), bodyBottomTop=bodyTop+bodyH;
+        String fill=box.getFillColor(), grid=captured?box.getStrokeColor():"#AFC2D8", text=box.getTextColor();
+        float lineWidth=(float)(captured?Math.max(.25,box.getStrokeWidth()):.45);
+        float split=x+width*(float)box.getSummaryLabelRatio();
+
+        if(!keepSourceGrid){
+            float inset=captured?.8f:0f;
+            float pdfBodyBottom=toPdfY(page,bodyBottomTop-inset),pdfBodyTop=toPdfY(page,bodyTop+inset);
+            setNonStroke(cs,fill);cs.addRect(x+inset,pdfBodyBottom,Math.max(1f,width-inset*2),Math.max(1f,pdfBodyTop-pdfBodyBottom));cs.fill();
+            setStroke(cs,grid);cs.setLineWidth(lineWidth);
+            cs.moveTo(split,toPdfY(page,bodyTop));cs.lineTo(split,toPdfY(page,bodyBottomTop));cs.stroke();
+            for(int i=1;i<normalCount;i++){float y=bodyTop+i*rowH;cs.moveTo(x,toPdfY(page,y));cs.lineTo(x+width,toPdfY(page,y));cs.stroke();}
+            if(!captured){cs.addRect(x,toPdfY(page,bodyBottomTop),width,bodyH);cs.stroke();}
         }
 
-        float grandTop = top + normalCount * rowH;
-        float grandBottom = toPdfY(page, grandTop + rowH);
-        setNonStroke(cs, navy);
-        cs.addRect(x, grandBottom, width, rowH);
-        cs.fill();
-        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.6f,
-                "GRAND TOTAL", x + 6f, grandBottom, split - x - 10f, rowH, "#FFFFFF", "LEFT");
-        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 7.0f,
-                grand, split + 4f, grandBottom, x + width - split - 9f, rowH, "#FFFFFF", "RIGHT");
+        float baseFont=(float)Math.max(5,Math.min(box.getFontSize(),rowH*.55));
+        for(int i=0;i<normalCount;i++){
+            float rowTop=bodyTop+i*rowH,bottom=toPdfY(page,rowTop+rowH);String[] row=rows.get(i);
+            PDFont labelFont=(i==0||row[0].startsWith("TAXABLE"))?font(Standard14Fonts.FontName.HELVETICA_BOLD):font(Standard14Fonts.FontName.HELVETICA);
+            drawSingleLineCentered(cs,labelFont,baseFont,row[0],x+6f,bottom,split-x-10f,rowH,text,"LEFT");
+            drawSingleLineCentered(cs,font(Standard14Fonts.FontName.HELVETICA_BOLD),baseFont,row[1],split+4f,bottom,x+width-split-9f,rowH,text,"RIGHT");
+        }
+
+        if(separatedTotal){
+            float totalTop=(float)(box.getY()+box.getHeight()-totalBandH),totalBottom=toPdfY(page,totalTop+totalBandH);
+            if(!captured){String totalFill=box.getSummaryTotalFillColor();if(totalFill.isBlank())totalFill="#0E3F79";setNonStroke(cs,totalFill);cs.addRect(x,totalBottom,width,totalBandH);cs.fill();}
+            String totalText=box.getSummaryTotalTextColor();if(totalText.isBlank())totalText=captured?text:"#FFFFFF";
+            float totalFont=Math.min(Math.max(baseFont+.5f,5.5f),totalBandH*.58f);
+            drawSingleLineCentered(cs,font(Standard14Fonts.FontName.HELVETICA_BOLD),totalFont,"GRAND TOTAL",x+6f,totalBottom,split-x-10f,totalBandH,totalText,"LEFT");
+            drawSingleLineCentered(cs,font(Standard14Fonts.FontName.HELVETICA_BOLD),Math.min(totalFont+.3f,totalBandH*.60f),grand,split+4f,totalBottom,x+width-split-9f,totalBandH,totalText,"RIGHT");
+            return;
+        }
+
+        float grandTop=bodyTop+normalCount*rowH,grandBottom=toPdfY(page,grandTop+rowH);
+        String grandFill=box.getSummaryTotalFillColor();if(grandFill.isBlank()&&!captured)grandFill="#0E3F79";
+        String grandText=box.getSummaryTotalTextColor();if(grandText.isBlank())grandText=captured?text:"#FFFFFF";
+        if(!grandFill.isBlank()){setNonStroke(cs,grandFill);cs.addRect(x,grandBottom,width,rowH);cs.fill();}
+        drawSingleLineCentered(cs,font(Standard14Fonts.FontName.HELVETICA_BOLD),Math.min(baseFont+.5f,rowH*.58f),"GRAND TOTAL",x+6f,grandBottom,split-x-10f,rowH,grandText,"LEFT");
+        drawSingleLineCentered(cs,font(Standard14Fonts.FontName.HELVETICA_BOLD),Math.min(baseFont+.8f,rowH*.60f),grand,split+4f,grandBottom,x+width-split-9f,rowH,grandText,"RIGHT");
     }
 
     private static List<String[]> mappedFinancialRows(TemplateData data) {
         List<String[]> rows = new ArrayList<>();
-        rows.add(new String[]{"SUB TOTAL", blankAs(data.value("totals.basicAmount"), "0.00")});
+        rows.add(new String[]{"BASIC AMOUNT", blankAs(data.value("totals.basicAmount"), "0.00")});
         if (!isZeroMoney(data.value("totals.discountAmount")))
             rows.add(new String[]{"DISCOUNT", data.value("totals.discountAmount")});
         for (TemplateCharge charge : data.charges()) {

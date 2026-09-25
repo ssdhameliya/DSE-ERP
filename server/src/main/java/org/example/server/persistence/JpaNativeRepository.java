@@ -122,6 +122,14 @@ public class JpaNativeRepository {
         if (value == null) return null;
         if (type.isInstance(value)) return (T)value;
         if (type == String.class) return (T)String.valueOf(value);
+        if (type == Boolean.class || type == boolean.class) {
+            if (value instanceof Number n) return (T)Boolean.valueOf(n.intValue() != 0);
+            String normalized = String.valueOf(value).trim();
+            if ("1".equals(normalized) || "true".equalsIgnoreCase(normalized) || "yes".equalsIgnoreCase(normalized))
+                return (T)Boolean.TRUE;
+            if ("0".equals(normalized) || "false".equalsIgnoreCase(normalized) || "no".equalsIgnoreCase(normalized))
+                return (T)Boolean.FALSE;
+        }
         if (value instanceof Number n) {
             if (type == Integer.class || type == int.class) return (T)Integer.valueOf(n.intValue());
             if (type == Long.class || type == long.class) return (T)Long.valueOf(n.longValue());

@@ -38,8 +38,9 @@ class AccountTypeSettingsContractTest {
     @Test
     void templateDataFactorySynchronizesConfiguredAccountType() throws Exception {
         String source = Files.readString(Path.of("src/main/java/org/example/documentstudio/service/TemplateDataFactory.java"));
-        String autoMap = Files.readString(Path.of("src/main/java/org/example/documentstudio/service/PdfAutoMappingService.java"));
         assertTrue(source.contains("put(v, \"payment.accountType\", ConfigManager.get(\"payment.accountType\", \"\"))"));
-        assertTrue(autoMap.contains("Map.entry(\"payment.accountType\""), "PDF auto-map must recognize Account Type labels");
+        TemplateFieldDefinition field = TemplateFieldCatalog.findPdf(DocumentType.SALES_INVOICE, "payment.accountType");
+        assertTrue(field != null && field.aliases().stream().anyMatch(a -> a.equalsIgnoreCase("Account Type")),
+                "PDF auto-map aliases must come from the central TemplateFieldCatalog");
     }
 }

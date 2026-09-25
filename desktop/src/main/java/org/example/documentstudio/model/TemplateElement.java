@@ -21,6 +21,17 @@ public class TemplateElement {
     private double height = 28;
     private String text = "Text";
     private String fieldKey = "";
+    /** Review metadata: source label + original auto suggestion are retained after manual override. */
+    private String mappingSourceLabel = "";
+    private String autoDetectedFieldKey = "";
+    private double autoDetectedConfidence;
+    /** AUTO, CONFIRMED, MANUAL_OVERRIDE, REVIEW_REQUIRED, UNMAPPED or STATIC. */
+    private String mappingState = "";
+    /** Optional logical source block metadata used by the centralized Review Auto Mapping workspace. */
+    private String mappingBlockId = "";
+    private String mappingBlockLabel = "";
+    /** HEADER, BILLING, DELIVERY, TRANSPORT, PAYMENT, TERMS_FOOTER, GENERIC or blank for inferred. */
+    private String mappingBlockType = "";
     private double fontSize = 10;
     private boolean bold;
     private boolean italic;
@@ -58,9 +69,34 @@ public class TemplateElement {
     private List<Double> tableColumnWidths = new ArrayList<>();
     /** Optional per-column LEFT/CENTER/RIGHT alignment for fixed source grids. */
     private List<String> tableColumnAlignments = new ArrayList<>();
+    /** Source-aware physical header-to-ERP bindings. Empty keeps the pre-10.0.24 tableColumns contract. */
+    private List<TemplateColumnBinding> tableColumnBindings = new ArrayList<>();
     private double rowHeight = 22;
     private double headerHeight = 24;
     private boolean useSourceTableDesign;
+    /** True when the source table/block appearance was captured from imported PDF artwork. */
+    private boolean sourceStyleCaptured;
+    /** Whether a sampled solid background can safely be used for source-value replacement. */
+    private boolean sourceMaskSafe = true;
+    /** MASK paints a sampled cover; OBJECT suppresses native text; FORM targets cleared AcroForm widgets; OVERLAY intentionally adds content in blank space. */
+    private String sourceReplacementMode = "MASK";
+    /** Optional flow metadata used only by PDF Studio runtime copies; stored geometry remains unchanged. */
+    private String flowGroupId = "";
+    private String flowRole = "";
+    private String flowAnchorId = "";
+    /** ABSOLUTE keeps legacy X/Y. TOP/BOTTOM anchor to page, AFTER/BEFORE anchor to another element. */
+    private String flowAnchorMode = "ABSOLUTE";
+    private double flowGap = 2.0;
+    private String growthDirection = "FIXED";
+    private String overflowPolicy = "ERROR";
+    private boolean autoHeight;
+    /** Optional source-specific Grand Total appearance for dynamic financial summaries. */
+    private String summaryTotalFillColor = "";
+    private String summaryTotalTextColor = "";
+    private double summaryLabelRatio = .66;
+    /** Source-captured Grand Total strip height/gap for dynamic financial summaries. 0 keeps legacy uniform layout. */
+    private double summaryTotalHeight;
+    private double summaryTotalGap;
     private List<PathCommand> pathCommands = new ArrayList<>();
     private boolean pathFilled;
     private boolean pathStroked = true;
@@ -88,7 +124,9 @@ public class TemplateElement {
         c.type = type;
         c.pageIndex = pageIndex;
         c.x = x; c.y = y; c.width = width; c.height = height;
-        c.text = text; c.fieldKey = fieldKey; c.fontSize = fontSize; c.bold = bold; c.italic = italic;
+        c.text = text; c.fieldKey = fieldKey; c.mappingSourceLabel = mappingSourceLabel; c.autoDetectedFieldKey = autoDetectedFieldKey;
+        c.autoDetectedConfidence = autoDetectedConfidence; c.mappingState = mappingState; c.mappingBlockId = mappingBlockId;
+        c.mappingBlockLabel = mappingBlockLabel; c.mappingBlockType = mappingBlockType; c.fontSize = fontSize; c.bold = bold; c.italic = italic;
         c.fontFamily = fontFamily; c.textFit = textFit; c.textAlignment = textAlignment; c.pageRule = pageRule;
         c.textColor = textColor; c.fillColor = fillColor; c.strokeColor = strokeColor;
         c.strokeWidth = strokeWidth; c.fillEnabled = fillEnabled; c.strokeEnabled = strokeEnabled; c.borderRadius = borderRadius;
@@ -102,7 +140,14 @@ public class TemplateElement {
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
         c.tableColumnWidths = new ArrayList<>(tableColumnWidths == null ? List.of() : tableColumnWidths);
         c.tableColumnAlignments = new ArrayList<>(tableColumnAlignments == null ? List.of() : tableColumnAlignments);
+        c.tableColumnBindings = tableColumnBindings == null ? new ArrayList<>() : tableColumnBindings.stream().map(TemplateColumnBinding::copy)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         c.rowHeight = rowHeight; c.headerHeight = headerHeight; c.useSourceTableDesign = useSourceTableDesign;
+        c.sourceStyleCaptured = sourceStyleCaptured; c.sourceMaskSafe = sourceMaskSafe; c.sourceReplacementMode = sourceReplacementMode;
+        c.flowGroupId = flowGroupId; c.flowRole = flowRole; c.flowAnchorId = flowAnchorId; c.flowAnchorMode = flowAnchorMode; c.flowGap = flowGap;
+        c.growthDirection = growthDirection; c.overflowPolicy = overflowPolicy; c.autoHeight = autoHeight;
+        c.summaryTotalFillColor = summaryTotalFillColor; c.summaryTotalTextColor = summaryTotalTextColor; c.summaryLabelRatio = summaryLabelRatio;
+        c.summaryTotalHeight = summaryTotalHeight; c.summaryTotalGap = summaryTotalGap;
         c.pathCommands = pathCommands == null ? new ArrayList<>() : pathCommands.stream().map(PathCommand::copy)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         c.pathFilled = pathFilled; c.pathStroked = pathStroked;
@@ -142,6 +187,49 @@ public class TemplateElement {
     public void setText(String text) { this.text = text == null ? "" : text; }
     public String getFieldKey() { return fieldKey == null ? "" : fieldKey; }
     public void setFieldKey(String fieldKey) { this.fieldKey = fieldKey == null ? "" : fieldKey; }
+    public String getMappingSourceLabel() { return mappingSourceLabel == null ? "" : mappingSourceLabel; }
+    public void setMappingSourceLabel(String value) { mappingSourceLabel = value == null ? "" : value.trim(); }
+    public String getAutoDetectedFieldKey() { return autoDetectedFieldKey == null ? "" : autoDetectedFieldKey; }
+    public void setAutoDetectedFieldKey(String value) { autoDetectedFieldKey = value == null ? "" : value.trim(); }
+    public double getAutoDetectedConfidence() { return autoDetectedConfidence; }
+    public void setAutoDetectedConfidence(double value) { autoDetectedConfidence = bounded01(value); }
+    public String getMappingState() {
+        if (mappingState != null && !mappingState.isBlank()) return normalizeMappingState(mappingState);
+        return getFieldKey().isBlank() ? "UNMAPPED" : "CONFIRMED";
+    }
+    public void setMappingState(String value) { mappingState = normalizeMappingState(value); }
+    public String getMappingBlockId() { return mappingBlockId == null ? "" : mappingBlockId; }
+    public void setMappingBlockId(String value) { mappingBlockId = value == null ? "" : value.trim(); }
+    public String getMappingBlockLabel() { return mappingBlockLabel == null ? "" : mappingBlockLabel; }
+    public void setMappingBlockLabel(String value) { mappingBlockLabel = value == null ? "" : value.trim(); }
+    public String getMappingBlockType() { return mappingBlockType == null ? "" : mappingBlockType; }
+    public void setMappingBlockType(String value) {
+        String type = value == null ? "" : value.trim().toUpperCase(java.util.Locale.ROOT);
+        mappingBlockType = switch (type) {
+            case "HEADER", "BILLING", "DELIVERY", "TRANSPORT", "PAYMENT", "TERMS_FOOTER", "GENERIC" -> type;
+            default -> "";
+        };
+    }
+    public void markAutoDetectedMapping(String sourceLabel, String detectedFieldKey, double confidence) {
+        setMappingSourceLabel(sourceLabel);
+        setAutoDetectedFieldKey(detectedFieldKey);
+        setAutoDetectedConfidence(confidence);
+        setMappingState(detectedFieldKey == null || detectedFieldKey.isBlank() ? "REVIEW_REQUIRED" : "AUTO");
+    }
+    public void markUserMapping(String fieldKey) {
+        setFieldKey(fieldKey);
+        if (fieldKey == null || fieldKey.isBlank()) setMappingState("UNMAPPED");
+        else if (!getAutoDetectedFieldKey().isBlank() && !getAutoDetectedFieldKey().equals(fieldKey)) setMappingState("MANUAL_OVERRIDE");
+        else setMappingState("CONFIRMED");
+    }
+    private static String normalizeMappingState(String value) {
+        String state = value == null ? "" : value.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (state) {
+            case "AUTO", "CONFIRMED", "MANUAL_OVERRIDE", "REVIEW_REQUIRED", "UNMAPPED", "STATIC" -> state;
+            default -> "";
+        };
+    }
+    private static double bounded01(double value) { return Math.max(0, Math.min(1, Double.isFinite(value) ? value : 0)); }
     public double getFontSize() { return fontSize; }
     public void setFontSize(double fontSize) { this.fontSize = Math.max(1, finite(fontSize, 10)); }
     public boolean isBold() { return bold; }
@@ -151,7 +239,10 @@ public class TemplateElement {
     public String getFontFamily() { return fontFamily == null || fontFamily.isBlank() ? "HELVETICA" : fontFamily; }
     public void setFontFamily(String fontFamily) {
         String value = fontFamily == null ? "HELVETICA" : fontFamily.trim().toUpperCase(java.util.Locale.ROOT);
-        this.fontFamily = switch (value) { case "TIMES", "COURIER", "ARIAL" -> value; default -> "HELVETICA"; };
+        if(value.isBlank())value="HELVETICA";
+        value=value.replaceAll("^[A-Z]{6}\\+","").replaceAll("[^A-Z0-9 _.-]","");
+        if(value.length()>80)value=value.substring(0,80);
+        this.fontFamily=value.isBlank()?"HELVETICA":value;
     }
     public String getTextFit() { return textFit == null || textFit.isBlank() ? "SHRINK" : textFit; }
     public void setTextFit(String textFit) {
@@ -241,12 +332,64 @@ public class TemplateElement {
     public void setTableColumnWidths(List<Double> tableColumnWidths) { this.tableColumnWidths = new ArrayList<>(tableColumnWidths == null ? List.of() : tableColumnWidths); }
     public List<String> getTableColumnAlignments() { return tableColumnAlignments == null ? List.of() : tableColumnAlignments; }
     public void setTableColumnAlignments(List<String> values) { this.tableColumnAlignments = new ArrayList<>(values == null ? List.of() : values); }
+    public List<TemplateColumnBinding> getTableColumnBindings() { return tableColumnBindings == null ? List.of() : List.copyOf(tableColumnBindings); }
+    public void setTableColumnBindings(List<TemplateColumnBinding> values) {
+        this.tableColumnBindings = values == null ? new ArrayList<>() : values.stream().filter(java.util.Objects::nonNull)
+                .map(TemplateColumnBinding::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+    }
     public double getRowHeight() { return rowHeight; }
     public void setRowHeight(double rowHeight) { this.rowHeight = Math.max(1, finite(rowHeight, 22)); }
     public double getHeaderHeight() { return headerHeight; }
     public void setHeaderHeight(double headerHeight) { this.headerHeight = Math.max(0, finite(headerHeight, 24)); }
     public boolean isUseSourceTableDesign() { return useSourceTableDesign; }
     public void setUseSourceTableDesign(boolean useSourceTableDesign) { this.useSourceTableDesign = useSourceTableDesign; }
+    public boolean isSourceStyleCaptured() { return sourceStyleCaptured; }
+    public void setSourceStyleCaptured(boolean sourceStyleCaptured) { this.sourceStyleCaptured = sourceStyleCaptured; }
+    public boolean isSourceMaskSafe() { return sourceMaskSafe; }
+    public void setSourceMaskSafe(boolean sourceMaskSafe) { this.sourceMaskSafe = sourceMaskSafe; }
+    public String getSourceReplacementMode() { return sourceReplacementMode == null || sourceReplacementMode.isBlank() ? "MASK" : sourceReplacementMode; }
+    public void setSourceReplacementMode(String sourceReplacementMode) {
+        String value = sourceReplacementMode == null ? "MASK" : sourceReplacementMode.trim().toUpperCase(java.util.Locale.ROOT);
+        this.sourceReplacementMode = switch (value) {
+            case "OBJECT", "FORM", "OVERLAY" -> value;
+            default -> "MASK";
+        };
+    }
+    public String getFlowGroupId() { return flowGroupId == null ? "" : flowGroupId; }
+    public void setFlowGroupId(String flowGroupId) { this.flowGroupId = flowGroupId == null ? "" : flowGroupId.trim(); }
+    public String getFlowRole() { return flowRole == null ? "" : flowRole; }
+    public void setFlowRole(String flowRole) { this.flowRole = flowRole == null ? "" : flowRole.trim().toUpperCase(java.util.Locale.ROOT); }
+    public String getFlowAnchorId() { return flowAnchorId == null ? "" : flowAnchorId; }
+    public void setFlowAnchorId(String flowAnchorId) { this.flowAnchorId = flowAnchorId == null ? "" : flowAnchorId.trim(); }
+    public String getFlowAnchorMode() { return flowAnchorMode == null || flowAnchorMode.isBlank() ? "ABSOLUTE" : flowAnchorMode; }
+    public void setFlowAnchorMode(String flowAnchorMode) {
+        String value = flowAnchorMode == null ? "ABSOLUTE" : flowAnchorMode.trim().toUpperCase(java.util.Locale.ROOT);
+        this.flowAnchorMode = switch (value) { case "TOP", "BOTTOM", "AFTER", "BEFORE" -> value; default -> "ABSOLUTE"; };
+    }
+    public double getFlowGap() { return flowGap; }
+    public void setFlowGap(double flowGap) { this.flowGap = Math.max(0, finite(flowGap, 2)); }
+    public String getGrowthDirection() { return growthDirection == null || growthDirection.isBlank() ? "FIXED" : growthDirection; }
+    public void setGrowthDirection(String growthDirection) {
+        String value = growthDirection == null ? "FIXED" : growthDirection.trim().toUpperCase(java.util.Locale.ROOT);
+        this.growthDirection = switch (value) { case "DOWN", "UP", "BOTH" -> value; default -> "FIXED"; };
+    }
+    public String getOverflowPolicy() { return overflowPolicy == null || overflowPolicy.isBlank() ? "ERROR" : overflowPolicy; }
+    public void setOverflowPolicy(String overflowPolicy) {
+        String value = overflowPolicy == null ? "ERROR" : overflowPolicy.trim().toUpperCase(java.util.Locale.ROOT);
+        this.overflowPolicy = switch (value) { case "PAGINATE", "SHRINK", "CLIP" -> value; default -> "ERROR"; };
+    }
+    public boolean isAutoHeight() { return autoHeight; }
+    public void setAutoHeight(boolean autoHeight) { this.autoHeight = autoHeight; }
+    public String getSummaryTotalFillColor() { return summaryTotalFillColor == null ? "" : summaryTotalFillColor; }
+    public void setSummaryTotalFillColor(String value) { this.summaryTotalFillColor = safeOptionalColor(value); }
+    public String getSummaryTotalTextColor() { return summaryTotalTextColor == null ? "" : summaryTotalTextColor; }
+    public void setSummaryTotalTextColor(String value) { this.summaryTotalTextColor = safeOptionalColor(value); }
+    public double getSummaryLabelRatio() { return summaryLabelRatio; }
+    public void setSummaryLabelRatio(double value) { this.summaryLabelRatio = Math.max(.35, Math.min(.85, finite(value,.66))); }
+    public double getSummaryTotalHeight() { return summaryTotalHeight; }
+    public void setSummaryTotalHeight(double value) { this.summaryTotalHeight = Math.max(0, finite(value,0)); }
+    public double getSummaryTotalGap() { return summaryTotalGap; }
+    public void setSummaryTotalGap(double value) { this.summaryTotalGap = Math.max(0, finite(value,0)); }
     public List<PathCommand> getPathCommands() { return pathCommands == null ? List.of() : pathCommands; }
     public void setPathCommands(List<PathCommand> pathCommands) { this.pathCommands = new ArrayList<>(pathCommands == null ? List.of() : pathCommands); }
     public boolean isPathFilled() { return pathFilled; }
@@ -257,6 +400,11 @@ public class TemplateElement {
     private static String safeColor(String value, String fallback) {
         if (value == null || !value.matches("#[0-9a-fA-F]{6}")) return fallback;
         return value.toUpperCase();
+    }
+
+    private static String safeOptionalColor(String value) {
+        if (value == null || value.isBlank()) return "";
+        return value.matches("#[0-9a-fA-F]{6}") ? value.toUpperCase() : "";
     }
 
     private static double finite(double value, double fallback) {

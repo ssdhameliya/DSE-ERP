@@ -6,7 +6,6 @@ import org.example.navigation.ScreenLifecycle;
 import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
-import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
 
 import javafx.beans.property.SimpleBooleanProperty;
@@ -22,9 +21,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.input.MouseButton;
-import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.example.api.admin.AdminApiClient;
@@ -40,7 +37,6 @@ import org.example.util.SemanticTableCells;
 import org.example.util.UiTaskExecutor;
 
 
-import java.time.LocalDate;
 import java.util.*;
 
 /** Premium database-backed user, role and permission administration. */
@@ -171,8 +167,15 @@ public class UserAccessController implements ScreenLifecycle {
     @FXML private void savePermissions(){
         String role=cmbPermissionRole.getValue(); if(role==null)return;
         if(org.example.service.SessionService.isAdminRole(role)){warning("Administrator always has full access and does not require manual permission changes.");return;}
-        try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList(),permissionRowVersion);var set=adminApi.permissionSet(role);permissionRowVersion=set.rowVersion();PermissionService.refresh();NotificationService.add(role+" permissions updated.");org.example.util.ToastManager.success(permissionTable,"Permissions saved",role+" permissions were updated successfully.");}
-        catch(Exception e){error("Permissions could not be saved. Reload the role if another administrator changed it first.",e);}
+        UiTaskExecutor.submitAction("user-access-save-permissions", () -> {
+            adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList(),permissionRowVersion);
+            return adminApi.permissionSet(role);
+        }, set -> {
+            permissionRowVersion=set.rowVersion();
+            PermissionService.refresh();
+            NotificationService.add(role+" permissions updated.");
+            org.example.util.ToastManager.success(permissionTable,"Permissions saved",role+" permissions were updated successfully.");
+        }, e -> error("Permissions could not be saved. Reload the role if another administrator changed it first.", e instanceof Exception ex ? ex : new RuntimeException(e)));
     }
     @FXML private void registrationApprovals(){ DashboardController.navigateFromChildPage("Registration Approvals", "/fxml/pages/RegistrationApprovals.fxml"); }
     @FXML private void showPermissionMatrix(){ DashboardController.navigateFromChildPage("Permission Matrix", "/fxml/pages/PermissionMatrix.fxml"); }
@@ -190,27 +193,100 @@ public class UserAccessController implements ScreenLifecycle {
     private void selectSavedUser(int id){UserRow row=users.stream().filter(x->x.id==id).findFirst().orElse(null);if(row!=null){table.getSelectionModel().select(row);table.scrollTo(row);showDetails(row);}}
     @FXML private void resetSelected(){resetPassword(table.getSelectionModel().getSelectedItem());}
     private void resetPassword(UserRow row){
-        if(row==null){warning("Select a user first.");return;}TextInputDialog d=new OwnedTextInputDialog();d.setTitle("Reset Password");d.setHeaderText("Set a temporary password for "+row.user.get());d.setContentText("Temporary password:");
-        d.showAndWait().map(String::trim).filter(x->x.length()>=6).ifPresent(password->{try{adminApi.resetPassword(row.id,password);audit(row.id,"PASSWORD_RESET",row.user.get());NotificationService.add("Password reset for "+row.user.get()+".");org.example.util.ToastManager.success(table,"Password reset","Temporary password was set for "+row.user.get()+".");refresh();}catch(Exception e){error("Password could not be reset",e);}});
+        if(row==null){warning("Select a user first.");return;}
+        TextInputDialog d=new OwnedTextInputDialog();d.setTitle("Reset Password");d.setHeaderText("Set a temporary password for "+row.user.get());d.setContentText("Temporary password:");
+        d.showAndWait().map(String::trim).ifPresent(password->{
+            if(password.length()<8||!password.matches(".*[A-Za-z].*")||!password.matches(".*[0-9].*")){
+                warning("Password must be at least 8 characters long and contain both letters and numbers.");
+                return;
+            }
+            UiTaskExecutor.submitAction("user-access-password-reset", () -> {
+                adminApi.resetPassword(row.id,password);
+                return password;
+            }, success -> {
+                audit(row.id,"PASSWORD_RESET",row.user.get());
+                NotificationService.add("Password reset for "+row.user.get()+".");
+                org.example.util.ToastManager.success(table,"Password reset","Temporary password was set for "+row.user.get()+".");
+                refresh();
+            }, e -> error("Password could not be reset", e instanceof Exception ex ? ex : new RuntimeException(e)));
+        });
     }
     private void resetAuthenticator(UserRow row){
         if(row==null){warning("Select a user first.");return;}
-        if(!row.mfaEnabled){warning("Authenticator is not required for this user.");return;}
         if(!confirm("Reset Authenticator for '"+row.user.get()+"'? The old phone will stop working and a new QR enrollment will be required at the next sign-in."))return;
         UiTaskExecutor.submitAction("user-access-mfa-reset", () -> adminApi.resetMfa(row.id), state -> {
             if(SessionService.current()!=null&&SessionService.current().getId()==row.id){new OwnedAlert(Alert.AlertType.INFORMATION,state.message()+" Sign in again to continue.",ButtonType.OK).showAndWait();SessionService.clear();org.example.util.SceneManager.showLogin();return;}
             org.example.util.ToastManager.success(table,"Authenticator reset",state.message());refresh();
         }, failure -> error("Authenticator could not be reset", failure instanceof Exception e ? e : new RuntimeException(failure)));
     }
-    private void toggleLock(UserRow row){if(row==null)return;try{adminApi.setLocked(row.id,!row.locked);audit(row.id,row.locked?"USER_UNLOCKED":"USER_LOCKED",row.user.get());org.example.util.ToastManager.success(table,row.locked?"Account unlocked":"Account locked",row.user.get()+" was "+(row.locked?"unlocked":"locked")+" successfully.");refresh();}catch(Exception e){error("Lock status could not be changed",e);}}
-    private void deleteUser(UserRow row){if(row==null)return;if("admin".equalsIgnoreCase(row.user.get())){warning("The primary administrator cannot be deleted.");return;}if(!confirm("Delete user '"+row.user.get()+"'?"))return;try{adminApi.deleteUser(row.id);org.example.util.ToastManager.success(table,"User deleted",row.user.get()+" was deleted successfully.");refresh();}catch(Exception e){error("User could not be deleted",e);}}
+    private void toggleLock(UserRow row){
+        if(row==null)return;
+        if(SessionService.current()!=null&&SessionService.current().getId()==row.id){
+            warning("You cannot lock your own administrator account.");
+            return;
+        }
+        UiTaskExecutor.submitAction("user-access-toggle-lock", () -> {
+            adminApi.setLocked(row.id,!row.locked);
+            return !row.locked;
+        }, locked -> {
+            audit(row.id,locked?"USER_LOCKED":"USER_UNLOCKED",row.user.get());
+            org.example.util.ToastManager.success(table,locked?"Account locked":"Account unlocked",row.user.get()+" was "+(locked?"locked":"unlocked")+" successfully.");
+            refresh();
+        }, e -> error("Lock status could not be changed", e instanceof Exception ex ? ex : new RuntimeException(e)));
+    }
+    private void deleteUser(UserRow row){
+        if(row==null)return;
+        if("admin".equalsIgnoreCase(row.user.get())){warning("The primary administrator cannot be deleted.");return;}
+        if(SessionService.current()!=null&&SessionService.current().getId()==row.id){
+            warning("You cannot delete your own administrator account.");
+            return;
+        }
+        if(!confirm("Delete user '"+row.user.get()+"'?"))return;
+        UiTaskExecutor.submitAction("user-access-delete-user", () -> {
+            adminApi.deleteUser(row.id);
+            return true;
+        }, success -> {
+            org.example.util.ToastManager.success(table,"User deleted",row.user.get()+" was deleted successfully.");
+            refresh();
+        }, e -> error("User could not be deleted", e instanceof Exception ex ? ex : new RuntimeException(e)));
+    }
 
     @FXML private void addRole(){openRoleMaster();}
     @FXML private void editRole(){openRoleMaster();}
     @FXML private void deleteRole(){openRoleMaster();}
     private void openRoleMaster(){ MasterDataController.requestCategory("ROLE"); DashboardController.navigateFromChildPage("Master Data", "/fxml/pages/Masterdata.fxml"); }
 
-    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("View User","view",e->{table.getSelectionModel().select(row);showDetails(row);}),mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi("Reset Authenticator","security",e->resetAuthenticator(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.roleCode);showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
+    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){
+        final MenuButton menu=createActionMenu();
+        {menu.getStyleClass().add("user-action-menu");}
+        protected void updateItem(Void v,boolean empty){
+            super.updateItem(v,empty);
+            if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}
+            UserRow row=getTableView().getItems().get(getIndex());
+            boolean isSelf=SessionService.current()!=null&&SessionService.current().getId()==row.id;
+            var miLock=mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row));
+            var miDelete=mi("Delete User","delete",e->deleteUser(row));
+            var miResetMfa=mi("Reset Authenticator","security",e->resetAuthenticator(row));
+            if(isSelf){
+                miLock.setDisable(true);
+                miDelete.setDisable(true);
+            }
+            if(!row.mfaEnabled){
+                miResetMfa.setDisable(true);
+            }
+            menu.getItems().setAll(
+                mi("View User","view",e->{table.getSelectionModel().select(row);showDetails(row);}),
+                mi("Edit User","edit",e->edit(row)),
+                mi("Reset Password","lock",e->resetPassword(row)),
+                miResetMfa,
+                miLock,
+                mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.roleCode);showPermissionMatrix();}),
+                new SeparatorMenuItem(),
+                miDelete
+            );
+            setGraphic(menu);
+        }
+    };}
     private void installDetailDrawer(){
         detailDrawer=new RegisterDetailDrawer();
         detailDrawer.attachBesideTable(table);
@@ -246,7 +322,6 @@ public class UserAccessController implements ScreenLifecycle {
         resetButton.setOnAction(e->resetPassword(row));
         Button resetMfaButton=new Button("Reset Authenticator",IconFactory.compactIcon("security",15));
         resetMfaButton.getStyleClass().addAll("approved-button","approved-secondary-button");
-        resetMfaButton.setDisable(!row.mfaEnabled);
         resetMfaButton.setOnAction(e->resetAuthenticator(row));
         detailDrawer.setActions(editButton,resetButton,resetMfaButton);
     }

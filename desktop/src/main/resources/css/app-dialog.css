@@ -58,6 +58,10 @@
     -fx-padding: 0 22 22 84;
     -fx-spacing: 14;
 }
+.dse-dialog-pane .dse-dialog-body.dse-dialog-body-custom,
+.dse-dialog-pane.dse-dialog-compact .dse-dialog-body {
+    -fx-padding: 0 22 20 22;
+}
 .dse-dialog-pane .dse-dialog-message {
     -fx-font-size: 13px;
     -fx-line-spacing: 2px;
@@ -108,9 +112,10 @@
     -fx-graphic-text-gap: 7;
 }
 .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell {
-    -fx-min-width: 720;
-    -fx-pref-width: 900;
-    -fx-min-height: 520;
+    -fx-min-width: 940;
+    -fx-pref-width: 1180;
+    -fx-min-height: 620;
+    -fx-pref-height: 720;
 }
 .dse-dialog-pane.dse-dialog-workspace .dse-dialog-body {
     -fx-padding: 0 20 18 20;
@@ -211,6 +216,11 @@
 .dse-dialog-semantic-unsaved .dse-dialog-icon-box,
 .dse-dialog-semantic-restore .dse-dialog-icon-box { -fx-background-color: rgba(217,119,6,.14); }
 
+
+.dse-dialog-semantic-mapping .dse-dialog-accent { -fx-background-color: #4f46e5; }
+.dse-dialog-semantic-mapping .dse-dialog-kicker { -fx-text-fill: #4f46e5; }
+.dse-dialog-semantic-mapping .dse-dialog-icon-box { -fx-background-color: rgba(79,70,229,.14); }
+
 .dse-dialog-semantic-error .dse-dialog-accent,
 .dse-dialog-semantic-delete .dse-dialog-accent { -fx-background-color: #dc2626; }
 .dse-dialog-semantic-error .dse-dialog-kicker,
@@ -256,3 +266,97 @@
 .ultra-compact-shell .dse-dialog-pane .dse-dialog-header { -fx-padding: 16 17 10 17; }
 .small-display .dse-dialog-pane .dse-dialog-body,
 .ultra-compact-shell .dse-dialog-pane .dse-dialog-body { -fx-padding: 0 17 17 17; }
+
+
+/* Generic large-workspace vocabulary. Reused by PDF/Excel/future application workspaces; no feature-specific CSS files. */
+.dse-dialog-pane .dse-workspace-mapping-review { -fx-padding: 2 0 0 0; }
+.dse-dialog-pane .dse-workspace-nav-card,
+.dse-dialog-pane .dse-workspace-section-card,
+.dse-dialog-pane .dse-workspace-mapping-row {
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}
+.dse-dialog-pane .dse-workspace-nav-card { -fx-padding: 14; -fx-min-width: 205; }
+.dse-dialog-pane .dse-workspace-navigation { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 4 0 0 0; }
+.dse-dialog-pane .dse-workspace-navigation .list-cell { -fx-padding: 11 10; -fx-background-radius: 8; -fx-border-radius: 8; -fx-background-color: transparent; }
+.dse-dialog-pane .dse-workspace-nav-kicker { -fx-font-size: 10px; -fx-font-weight: 800; }
+.dse-dialog-pane .dse-workspace-nav-help { -fx-font-size: 11px; -fx-line-spacing: 1px; }
+.dse-dialog-pane .dse-workspace-nav-title { -fx-font-size: 12px; -fx-font-weight: bold; }
+.dse-dialog-pane .dse-workspace-nav-count { -fx-font-size: 10.5px; -fx-font-weight: 800; }
+.dse-dialog-pane .dse-workspace-section-title { -fx-font-size: 18px; -fx-font-weight: 800; }
+.dse-dialog-pane .dse-workspace-section-help { -fx-font-size: 11.5px; -fx-line-spacing: 1.5px; }
+.dse-dialog-pane .dse-workspace-summary { -fx-padding: 8 11; -fx-background-radius: 8; -fx-font-size: 11px; -fx-font-weight: bold; }
+.dse-dialog-pane .dse-workspace-scroll { -fx-background-color: transparent; -fx-border-width: 0; }
+.dse-dialog-pane .dse-workspace-scroll > .viewport { -fx-background-color: transparent; }
+.dse-dialog-pane .dse-workspace-mapping-row { -fx-padding: 12 12; -fx-min-height: 72; }
+.dse-dialog-pane .dse-workspace-section-card { -fx-padding: 16; }
+.dse-dialog-pane .dse-workspace-source-label { -fx-font-size: 12px; -fx-font-weight: bold; }
+.dse-dialog-pane .dse-workspace-card-title { -fx-font-size: 15px; -fx-font-weight: 800; }
+.dse-dialog-pane .dse-workspace-secondary { -fx-font-size: 10.5px; }
+.dse-dialog-pane .dse-workspace-confidence { -fx-font-size: 11px; -fx-font-weight: 800; }
+.dse-dialog-pane .dse-workspace-status { -fx-padding: 5 8; -fx-background-radius: 999; -fx-font-size: 9.5px; -fx-font-weight: 800; }
+.dse-dialog-pane .dse-workspace-status-auto { -fx-background-color: rgba(37,99,235,.14); -fx-text-fill: #2563eb; }
+.dse-dialog-pane .dse-workspace-status-confirmed { -fx-background-color: rgba(22,163,74,.14); -fx-text-fill: #15803d; }
+.dse-dialog-pane .dse-workspace-status-manual-override { -fx-background-color: rgba(124,58,237,.14); -fx-text-fill: #7c3aed; }
+.dse-dialog-pane .dse-workspace-status-review-required { -fx-background-color: rgba(217,119,6,.16); -fx-text-fill: #b45309; }
+.dse-dialog-pane .dse-workspace-status-unmapped { -fx-background-color: rgba(220,38,38,.13); -fx-text-fill: #dc2626; }
+.dse-dialog-pane .dse-workspace-status-static { -fx-background-color: rgba(100,116,139,.15); -fx-text-fill: #64748b; }
+.dse-dialog-pane .dse-workspace-field-picker { -fx-min-height: 38; -fx-pref-height: 38; }
+.dse-dialog-pane .dse-workspace-field-label { -fx-font-size: 11px; -fx-font-weight: bold; }
+.dse-dialog-pane .dse-workspace-action { -fx-min-height: 35; -fx-padding: 7 11; -fx-background-radius: 7; -fx-border-radius: 7; -fx-font-size: 10.5px; -fx-font-weight: bold; }
+.dse-dialog-pane .dse-workspace-action-mini { -fx-min-width: 112; -fx-pref-width: 112; -fx-font-size: 9.5px; }
+.dse-dialog-pane .dse-workspace-empty { -fx-padding: 18; -fx-font-size: 12px; -fx-wrap-text: true; }
+
+.dse-theme-light.dse-dialog-pane .dse-workspace-nav-card,
+.dse-theme-light.dse-dialog-pane .dse-workspace-section-card,
+.dse-theme-light.dse-dialog-pane .dse-workspace-mapping-row,
+.dse-theme-light .dse-dialog-pane .dse-workspace-nav-card,
+.dse-theme-light .dse-dialog-pane .dse-workspace-section-card,
+.dse-theme-light .dse-dialog-pane .dse-workspace-mapping-row { -fx-background-color: #ffffff; -fx-border-color: #e2e8f0; }
+.dse-theme-light.dse-dialog-pane .dse-workspace-summary,
+.dse-theme-light .dse-dialog-pane .dse-workspace-summary { -fx-background-color: #f1f5f9; -fx-text-fill: #334155; }
+.dse-theme-light.dse-dialog-pane .dse-workspace-navigation .list-cell:selected,
+.dse-theme-light .dse-dialog-pane .dse-workspace-navigation .list-cell:selected { -fx-background-color: #eff6ff; }
+.dse-theme-light.dse-dialog-pane .dse-workspace-source-label,
+.dse-theme-light.dse-dialog-pane .dse-workspace-section-title,
+.dse-theme-light.dse-dialog-pane .dse-workspace-card-title,
+.dse-theme-light .dse-dialog-pane .dse-workspace-source-label,
+.dse-theme-light .dse-dialog-pane .dse-workspace-section-title,
+.dse-theme-light .dse-dialog-pane .dse-workspace-card-title { -fx-text-fill: #0f172a; }
+.dse-theme-light.dse-dialog-pane .dse-workspace-secondary,
+.dse-theme-light.dse-dialog-pane .dse-workspace-section-help,
+.dse-theme-light.dse-dialog-pane .dse-workspace-nav-help,
+.dse-theme-light .dse-dialog-pane .dse-workspace-secondary,
+.dse-theme-light .dse-dialog-pane .dse-workspace-section-help,
+.dse-theme-light .dse-dialog-pane .dse-workspace-nav-help { -fx-text-fill: #64748b; }
+.dse-theme-light.dse-dialog-pane .dse-workspace-action,
+.dse-theme-light .dse-dialog-pane .dse-workspace-action { -fx-background-color: #ffffff; -fx-border-color: #cbd5e1; -fx-text-fill: #334155; }
+
+.dse-theme-dark.dse-dialog-pane .dse-workspace-nav-card,
+.dse-theme-dark.dse-dialog-pane .dse-workspace-section-card,
+.dse-theme-dark.dse-dialog-pane .dse-workspace-mapping-row,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-nav-card,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-section-card,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-mapping-row { -fx-background-color: #111827; -fx-border-color: #334155; }
+.dse-theme-dark.dse-dialog-pane .dse-workspace-summary,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-summary { -fx-background-color: #172033; -fx-text-fill: #cbd5e1; }
+.dse-theme-dark.dse-dialog-pane .dse-workspace-navigation .list-cell:selected,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-navigation .list-cell:selected { -fx-background-color: #1e3a5f; }
+.dse-theme-dark.dse-dialog-pane .dse-workspace-source-label,
+.dse-theme-dark.dse-dialog-pane .dse-workspace-section-title,
+.dse-theme-dark.dse-dialog-pane .dse-workspace-card-title,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-source-label,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-section-title,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-card-title { -fx-text-fill: #f8fafc; }
+.dse-theme-dark.dse-dialog-pane .dse-workspace-secondary,
+.dse-theme-dark.dse-dialog-pane .dse-workspace-section-help,
+.dse-theme-dark.dse-dialog-pane .dse-workspace-nav-help,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-secondary,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-section-help,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-nav-help { -fx-text-fill: #94a3b8; }
+.dse-theme-dark.dse-dialog-pane .dse-workspace-action,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-action { -fx-background-color: #172033; -fx-border-color: #475569; -fx-text-fill: #e2e8f0; }
+
+.small-display .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell,
+.ultra-compact-shell .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell { -fx-min-width: 760; -fx-pref-width: 900; -fx-min-height: 540; }

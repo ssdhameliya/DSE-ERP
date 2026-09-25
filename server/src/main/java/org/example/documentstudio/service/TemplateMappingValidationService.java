@@ -116,8 +116,7 @@ public final class TemplateMappingValidationService {
         if (!TemplateFieldCatalog.requiresItemRowForDefault(template.getDocumentType())) return;
         for (TemplateElement table : template.getElements()) {
             if (table == null || !PdfStyleResolver.effectivelyVisible(template, table) || table.getType() != ElementType.ITEM_TABLE) continue;
-            double body = Math.max(0, table.getHeight() - table.getHeaderHeight());
-            int rows = Math.max(1, (int)Math.floor(body / Math.max(1, table.getRowHeight())));
+            int rows = effectiveItemRowsPerPage(template, table);
             if (rows <= 1 && "MAPPED_FIXED".equals(template.getLayoutMode())) {
                 issues.add(new TemplateValidationIssue(Severity.ERROR,
                         "The Item Table can fit only " + rows + " item per page",
@@ -129,11 +128,28 @@ public final class TemplateMappingValidationService {
                 issues.add(new TemplateValidationIssue(Severity.WARNING,
                         "The Item Table has a very small page capacity",
                         "Item Table → Multi-page Layout",
-                        "Only " + rows + " item rows fit in the mapped area, so long documents may use many pages.",
-                        "Increase the Item Table area or reduce row height, then preview a 25-item document.",
+                        "Only " + rows + " item rows fit in the usable flow area, so long documents may use many pages.",
+                        "Increase the Item Table body area or reduce Row Height before previewing a long record.",
                         "ITEM_TABLE_PAGE_FLOW"));
             }
         }
+    }
+
+    static int effectiveItemRowsPerPage(DocumentTemplate template, TemplateElement table) {
+        if (template == null || table == null) return 1;
+        double bodyTop = table.getY() + Math.max(0, table.getHeaderHeight());
+        double bottom = table.getY() + Math.max(0, table.getHeight());
+        if (template.isFlowFixedLayout()) {
+            double closingTop = template.getElements().stream()
+                    .filter(e -> e != null && e != table && PdfStyleResolver.effectivelyVisible(template, e))
+                    .filter(e -> "LAST".equals(e.getPageRule()) || e.getType() == ElementType.CHARGE_TABLE
+                            || "DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId()))
+                    .filter(e -> e.getY() > bodyTop + 1)
+                    .mapToDouble(TemplateElement::getY).min().orElse(bottom + 4);
+            bottom = Math.max(bottom, closingTop - 4);
+        }
+        double body = Math.max(1, bottom - bodyTop);
+        return Math.max(1, (int)Math.floor(body / Math.max(1, table.getRowHeight())));
     }
 
     private static void validateAddressBoxes(DocumentTemplate template, List<TemplateValidationIssue> issues) {

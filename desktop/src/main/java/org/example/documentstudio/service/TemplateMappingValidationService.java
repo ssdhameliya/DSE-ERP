@@ -65,7 +65,11 @@ public final class TemplateMappingValidationService {
         }
 
         validateItemGeometry(template, issues);
-        validateAddressBoxes(template, issues);
+        validateItemBindings(template, issues);
+        validateFlowFields(template, issues);
+        validateSourceReplacementSafety(template, issues);
+        validateRepeatingFieldPlacement(template, issues);
+        validateFlowAnchors(template, issues);
         return new Result(states, issues, mapped, columns);
     }
 
@@ -90,7 +94,11 @@ public final class TemplateMappingValidationService {
         if (template == null) return columns;
         for (TemplateElement element : template.getElements()) {
             if (element == null || !PdfStyleResolver.effectivelyVisible(template, element) || element.getType() != ElementType.ITEM_TABLE) continue;
-            for (String column : element.getTableColumns()) {
+            if(!element.getTableColumnBindings().isEmpty()){
+                for(TemplateColumnBinding binding:element.getTableColumnBindings()){
+                    String key=itemColumnKey(binding.getFieldKey());if(!key.isBlank())columns.add(key);
+                }
+            }else for (String column : element.getTableColumns()) {
                 String key = itemColumnKey(column);
                 if (!key.isBlank()) columns.add(key);
             }
@@ -116,8 +124,7 @@ public final class TemplateMappingValidationService {
         if (!TemplateFieldCatalog.requiresItemRowForDefault(template.getDocumentType())) return;
         for (TemplateElement table : template.getElements()) {
             if (table == null || !PdfStyleResolver.effectivelyVisible(template, table) || table.getType() != ElementType.ITEM_TABLE) continue;
-            double body = Math.max(0, table.getHeight() - table.getHeaderHeight());
-            int rows = Math.max(1, (int)Math.floor(body / Math.max(1, table.getRowHeight())));
+            int rows = effectiveItemRowsPerPage(template, table);
             if (rows <= 1 && "MAPPED_FIXED".equals(template.getLayoutMode())) {
                 issues.add(new TemplateValidationIssue(Severity.ERROR,
                         "The Item Table can fit only " + rows + " item per page",
@@ -129,28 +136,164 @@ public final class TemplateMappingValidationService {
                 issues.add(new TemplateValidationIssue(Severity.WARNING,
                         "The Item Table has a very small page capacity",
                         "Item Table → Multi-page Layout",
-                        "Only " + rows + " item rows fit in the mapped area, so long documents may use many pages.",
-                        "Increase the Item Table area or reduce row height, then preview a 25-item document.",
+                        "Only " + rows + " item rows fit in the usable flow area, so long documents may use many pages.",
+                        "Use Fix Next Issue to focus the Item Table, then increase its body area or reduce Row Height before previewing a long record.",
                         "ITEM_TABLE_PAGE_FLOW"));
             }
         }
     }
 
-    private static void validateAddressBoxes(DocumentTemplate template, List<TemplateValidationIssue> issues) {
+    /** Shared with Preview/Runtime through PdfStudioRuntimeFlowPlanner. */
+    static int effectiveItemRowsPerPage(DocumentTemplate template, TemplateElement table) {
+        if (template == null || table == null) return 1;
+        PdfStudioRuntimeFlowPlanner.ItemFlowPlan plan = PdfStudioRuntimeFlowPlanner.plan(
+                template, table, 842.0, 0);
+        return plan == null ? 1 : Math.max(1, plan.finalRows());
+    }
+
+    private static void validateItemBindings(DocumentTemplate template,List<TemplateValidationIssue> issues){
+        for(TemplateElement table:template.getElements()){
+            if(table==null||!PdfStyleResolver.effectivelyVisible(template,table)||table.getType()!=ElementType.ITEM_TABLE)continue;
+            List<TemplateColumnBinding> bindings=table.getTableColumnBindings();if(bindings.isEmpty())continue;
+            Set<String> seen=new HashSet<>();
+            for(int i=0;i<bindings.size();i++){
+                TemplateColumnBinding binding=bindings.get(i);String key=itemColumnKey(binding.getFieldKey());
+                String header=binding.getSourceLabel().isBlank()?"column "+(i+1):"'"+binding.getSourceLabel()+"'";
+                boolean staticSource = "STATIC".equals(binding.getMappingState());
+                if(key.isBlank() && !staticSource)issues.add(new TemplateValidationIssue(Severity.ERROR,
+                        "Item header "+header+" is not mapped","Item Table → Header Mapping",
+                        "Every dynamic physical source column must have an explicit ERP meaning, or be explicitly kept as source artwork, before this template can be Default.",
+                        "Drop the correct Item ERP field onto the "+header+" header cell, or choose Keep Static in Review Mapping.","ITEM_HEADER_MAPPING"));
+                else if(!key.isBlank() && !seen.add(key))issues.add(new TemplateValidationIssue(Severity.ERROR,
+                        "Item field "+key+" is mapped to more than one source column","Item Table → Header Mapping",
+                        "Duplicate physical mappings can put the same ERP value under two different PDF headers.",
+                        "Keep the field on only the intended source header.","ITEM_HEADER_DUPLICATE"));
+                if(binding.getWidth()<=0)issues.add(new TemplateValidationIssue(Severity.ERROR,
+                        "Item header "+header+" has no captured width","Item Table → Source Geometry",
+                        "The renderer cannot preserve the imported PDF column geometry without a physical width.",
+                        "Re-detect the Item Table or resize the source column mapping.","ITEM_HEADER_GEOMETRY"));
+            }
+            if(table.isUseSourceTableDesign()&&!table.isSourceStyleCaptured())issues.add(new TemplateValidationIssue(Severity.WARNING,
+                    "Item Table source styling was not captured","Item Table → Source Style",
+                    "This table can render data but may not reproduce the imported border/background appearance when rows are rebuilt.",
+                    "Re-detect the source table so PDF Studio can capture its grid and background style.","ITEM_SOURCE_STYLE"));
+        }
+    }
+
+    private static void validateSourceReplacementSafety(DocumentTemplate template,List<TemplateValidationIssue> issues){
+        for(TemplateElement e:template.getElements()){
+            if(e==null||!PdfStyleResolver.effectivelyVisible(template,e)||e.getType()==ElementType.WHITEOUT)continue;
+            boolean maskMode="MASK".equals(e.getSourceReplacementMode());
+            boolean sourceReplacement=maskMode&&!e.getReplacementSourceKey().isBlank();
+            boolean sourceDynamic=maskMode&&((e.getType()==ElementType.ITEM_TABLE&&e.isUseSourceTableDesign())
+                    ||(e.getType()==ElementType.BLOCK&&"DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId())&&e.isSourceStyleCaptured()));
+            // OBJECT suppresses native text operators and FORM uses widgets that are cleared in
+            // the normalized source. Neither paints a sampled rectangle, so non-uniform artwork
+            // underneath is safe and must not be rejected by the legacy mask-safety gate.
+            if((sourceReplacement||sourceDynamic)&&!e.isSourceMaskSafe()){
+                issues.add(new TemplateValidationIssue(Severity.ERROR,
+                        "A mapped source region sits on non-uniform artwork","Source Replacement → "+(e.getFieldKey().isBlank()?e.getType().name():e.getFieldKey()),
+                        "A sampled solid replacement could visibly damage a gradient, image, watermark or patterned background.",
+                        "Use a clean/native source region or intentionally place the ERP field in a blank overlay region before making this template Default.",
+                        "UNSAFE_SOURCE_MASK"));
+            }
+        }
+    }
+
+    private static void validateRepeatingFieldPlacement(DocumentTemplate template,List<TemplateValidationIssue> issues){
+        for(TemplateElement e:template.getElements()){
+            if(e==null||!PdfStyleResolver.effectivelyVisible(template,e)||e.getType()!=ElementType.FIELD)continue;
+            String key=e.getFieldKey();if(key==null)continue;
+            if(key.startsWith("item."))issues.add(new TemplateValidationIssue(Severity.ERROR,
+                    key+" is mapped as a single field","Repeating Data → Item Table",
+                    "A scalar item.* field outside an Item Table renders only one item and is not safe for multi-row documents.",
+                    "Map this field to a physical Item Table header instead.","SCALAR_ITEM_FIELD"));
+            if(key.startsWith("charge."))issues.add(new TemplateValidationIssue(Severity.ERROR,
+                    key+" is mapped as a single field","Repeating Data → Charges",
+                    "A scalar charge.* field outside a Charge Table or Dynamic Financial Summary cannot represent multiple charges.",
+                    "Use a Charge Table or map the whole calculation area as Dynamic Financial Summary.","SCALAR_CHARGE_FIELD"));
+        }
+    }
+
+    /** Validate the semantic multiline contract for every PDF Studio field, not only addresses. */
+    private static void validateFlowFields(DocumentTemplate template, List<TemplateValidationIssue> issues) {
         for (TemplateElement element : template.getElements()) {
-            if (element == null || !PdfStyleResolver.effectivelyVisible(template, element)) continue;
-            String key = element.getFieldKey();
-            if (key == null || !key.toLowerCase(Locale.ROOT).contains("address")) continue;
-            if (!"WRAP".equals(element.getTextFit())) continue;
-            double lineHeight = Math.max(1, element.getFontSize() * Math.max(1.0, element.getLineSpacing()));
-            if (element.getHeight() + .01 < lineHeight * 2) {
-                String label = TemplateFieldCatalog.findPdf(template.getDocumentType(), key) == null ? "Address" : TemplateFieldCatalog.findPdf(template.getDocumentType(), key).label();
+            if (element == null || !PdfStyleResolver.effectivelyVisible(template, element)
+                    || element.getType() != ElementType.FIELD || element.getFieldKey().isBlank()) continue;
+            TemplateFieldDefinition definition = TemplateFieldCatalog.findPdf(template.getDocumentType(), element.getFieldKey());
+            if (definition == null || !definition.multiline()) continue;
+            String label = definition.label();
+            if (!definition.textFit().equals(element.getTextFit())) {
+                issues.add(new TemplateValidationIssue(Severity.ERROR,
+                        label + " is not using its multiline Wrap policy",
+                        "Flow Layout → " + label,
+                        "The saved mapping no longer matches the ERP field semantic contract shown in Review Mapping.",
+                        "Re-apply the detected mapping semantics so this field uses " + definition.textFit() + ".",
+                        "MULTILINE_TEXT_FIT"));
+            }
+            if (definition.autoHeight() && !element.isAutoHeight()) {
+                issues.add(new TemplateValidationIssue(Severity.ERROR,
+                        label + " has Auto Height disabled",
+                        "Flow Layout → " + label,
+                        "Runtime content can contain more lines than the sample PDF and must be allowed to grow safely.",
+                        "Restore Auto Height from the field semantic contract before publishing.",
+                        "MULTILINE_AUTO_HEIGHT"));
+            }
+            if (definition.autoHeight() && "FIXED".equals(element.getGrowthDirection())) {
+                issues.add(new TemplateValidationIssue(Severity.ERROR,
+                        label + " cannot grow with its content",
+                        "Flow Layout → " + label,
+                        "Auto Height requires a flow direction so later source content can move instead of overlapping.",
+                        "Use the detected flow block and Grow " + definition.growthDirection() + ".",
+                        "MULTILINE_GROWTH"));
+            }
+            if (definition.autoHeight() && element.getFlowGroupId().isBlank()) {
                 issues.add(new TemplateValidationIssue(Severity.WARNING,
-                        label + " has space for less than two wrapped lines",
-                        "Address Layout → " + label,
-                        "Long customer, supplier or company addresses may be clipped even though Wrap is enabled.",
-                        "Increase the field height or use a flow-aware Auto Height address region.",
-                        "ADDRESS_WRAP"));
+                        label + " has no detected flow block",
+                        "Flow Layout → " + label,
+                        "The multiline field can grow, but dependent content is not yet linked to a detected physical block.",
+                        "Open Review Mapping and confirm the detected source block before publishing this layout.",
+                        "MULTILINE_FLOW_GROUP"));
+            }
+            if (!element.isAutoHeight() && "WRAP".equals(element.getTextFit())) {
+                double lineHeight = Math.max(1, element.getFontSize() * Math.max(1.0, element.getLineSpacing()));
+                if (element.getHeight() + .01 < lineHeight * 2) {
+                    issues.add(new TemplateValidationIssue(Severity.WARNING,
+                            label + " has space for less than two wrapped lines",
+                            "Flow Layout → " + label,
+                            "Long runtime content may be clipped even though Wrap is enabled.",
+                            "Use the field's Auto Height semantic contract or increase the detected flow region.",
+                            "MULTILINE_WRAP"));
+                }
+            }
+        }
+    }
+
+    private static void validateFlowAnchors(DocumentTemplate template,List<TemplateValidationIssue> issues){
+        Map<String,TemplateElement> byId=new LinkedHashMap<>();
+        for(TemplateElement e:template.getElements())if(e!=null&&!e.getId().isBlank())byId.put(e.getId(),e);
+        for(TemplateElement e:template.getElements()){
+            if(e==null||!PdfStyleResolver.effectivelyVisible(template,e))continue;
+            String mode=e.getFlowAnchorMode();
+            if(("AFTER".equals(mode)||"BEFORE".equals(mode))){
+                if(e.getFlowAnchorId().isBlank()||!byId.containsKey(e.getFlowAnchorId())){
+                    issues.add(new TemplateValidationIssue(Severity.ERROR,
+                            "Smart Layout anchor is missing","Smart Layout → "+(e.getFieldKey().isBlank()?e.getType().name():e.getFieldKey()),
+                            "AFTER/BEFORE positioning requires a valid anchor element.",
+                            "Select the element and choose a valid Anchor ID, or change Anchor to ABSOLUTE/TOP/BOTTOM.","FLOW_ANCHOR_MISSING"));
+                    continue;
+                }
+                Set<String> seen=new HashSet<>();TemplateElement cursor=e;
+                while(cursor!=null&&( "AFTER".equals(cursor.getFlowAnchorMode())||"BEFORE".equals(cursor.getFlowAnchorMode()))){
+                    if(!seen.add(cursor.getId())){
+                        issues.add(new TemplateValidationIssue(Severity.ERROR,
+                                "Smart Layout contains an anchor cycle","Smart Layout → Anchor Chain",
+                                "Two or more blocks depend on each other, so their runtime position cannot be resolved.",
+                                "Break the cycle by anchoring one block to TOP/BOTTOM/ABSOLUTE.","FLOW_ANCHOR_CYCLE"));
+                        break;
+                    }
+                    cursor=byId.get(cursor.getFlowAnchorId());
+                }
             }
         }
     }

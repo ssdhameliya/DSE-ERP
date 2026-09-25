@@ -58,9 +58,19 @@ public class TemplateElement {
     private List<Double> tableColumnWidths = new ArrayList<>();
     /** Optional per-column LEFT/CENTER/RIGHT alignment for fixed source grids. */
     private List<String> tableColumnAlignments = new ArrayList<>();
+    /** Source-aware physical PDF columns; geometry is independent from ERP semantics. */
+    private List<TemplateColumnBinding> tableColumnBindings = new ArrayList<>();
     private double rowHeight = 22;
     private double headerHeight = 24;
     private boolean useSourceTableDesign;
+    /** True when an imported source block/grid owns the visible artwork. */
+    private boolean sourceStyleCaptured;
+    /** Dynamic financial-summary metadata. 0 total height keeps the legacy uniform layout. */
+    private String summaryTotalFillColor = "";
+    private String summaryTotalTextColor = "";
+    private double summaryLabelRatio = .66;
+    private double summaryTotalHeight;
+    private double summaryTotalGap;
     private List<PathCommand> pathCommands = new ArrayList<>();
     private boolean pathFilled;
     private boolean pathStroked = true;
@@ -102,7 +112,12 @@ public class TemplateElement {
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
         c.tableColumnWidths = new ArrayList<>(tableColumnWidths == null ? List.of() : tableColumnWidths);
         c.tableColumnAlignments = new ArrayList<>(tableColumnAlignments == null ? List.of() : tableColumnAlignments);
+        c.tableColumnBindings = tableColumnBindings == null ? new ArrayList<>()
+                : tableColumnBindings.stream().map(TemplateColumnBinding::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         c.rowHeight = rowHeight; c.headerHeight = headerHeight; c.useSourceTableDesign = useSourceTableDesign;
+        c.sourceStyleCaptured = sourceStyleCaptured;
+        c.summaryTotalFillColor = summaryTotalFillColor; c.summaryTotalTextColor = summaryTotalTextColor;
+        c.summaryLabelRatio = summaryLabelRatio; c.summaryTotalHeight = summaryTotalHeight; c.summaryTotalGap = summaryTotalGap;
         c.pathCommands = pathCommands == null ? new ArrayList<>() : pathCommands.stream().map(PathCommand::copy)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         c.pathFilled = pathFilled; c.pathStroked = pathStroked;
@@ -241,12 +256,29 @@ public class TemplateElement {
     public void setTableColumnWidths(List<Double> tableColumnWidths) { this.tableColumnWidths = new ArrayList<>(tableColumnWidths == null ? List.of() : tableColumnWidths); }
     public List<String> getTableColumnAlignments() { return tableColumnAlignments == null ? List.of() : tableColumnAlignments; }
     public void setTableColumnAlignments(List<String> values) { this.tableColumnAlignments = new ArrayList<>(values == null ? List.of() : values); }
+    public List<TemplateColumnBinding> getTableColumnBindings() { return tableColumnBindings == null ? List.of() : tableColumnBindings; }
+    public void setTableColumnBindings(List<TemplateColumnBinding> values) {
+        this.tableColumnBindings = values == null ? new ArrayList<>()
+                : values.stream().map(TemplateColumnBinding::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+    }
     public double getRowHeight() { return rowHeight; }
     public void setRowHeight(double rowHeight) { this.rowHeight = Math.max(1, finite(rowHeight, 22)); }
     public double getHeaderHeight() { return headerHeight; }
     public void setHeaderHeight(double headerHeight) { this.headerHeight = Math.max(0, finite(headerHeight, 24)); }
     public boolean isUseSourceTableDesign() { return useSourceTableDesign; }
     public void setUseSourceTableDesign(boolean useSourceTableDesign) { this.useSourceTableDesign = useSourceTableDesign; }
+    public boolean isSourceStyleCaptured() { return sourceStyleCaptured; }
+    public void setSourceStyleCaptured(boolean sourceStyleCaptured) { this.sourceStyleCaptured = sourceStyleCaptured; }
+    public String getSummaryTotalFillColor() { return summaryTotalFillColor == null ? "" : summaryTotalFillColor; }
+    public void setSummaryTotalFillColor(String value) { summaryTotalFillColor = safeOptionalColor(value); }
+    public String getSummaryTotalTextColor() { return summaryTotalTextColor == null ? "" : summaryTotalTextColor; }
+    public void setSummaryTotalTextColor(String value) { summaryTotalTextColor = safeOptionalColor(value); }
+    public double getSummaryLabelRatio() { return summaryLabelRatio; }
+    public void setSummaryLabelRatio(double value) { summaryLabelRatio = Math.max(.35, Math.min(.85, finite(value,.66))); }
+    public double getSummaryTotalHeight() { return summaryTotalHeight; }
+    public void setSummaryTotalHeight(double value) { summaryTotalHeight = Math.max(0, finite(value,0)); }
+    public double getSummaryTotalGap() { return summaryTotalGap; }
+    public void setSummaryTotalGap(double value) { summaryTotalGap = Math.max(0, finite(value,0)); }
     public List<PathCommand> getPathCommands() { return pathCommands == null ? List.of() : pathCommands; }
     public void setPathCommands(List<PathCommand> pathCommands) { this.pathCommands = new ArrayList<>(pathCommands == null ? List.of() : pathCommands); }
     public boolean isPathFilled() { return pathFilled; }
@@ -257,6 +289,9 @@ public class TemplateElement {
     private static String safeColor(String value, String fallback) {
         if (value == null || !value.matches("#[0-9a-fA-F]{6}")) return fallback;
         return value.toUpperCase();
+    }
+    private static String safeOptionalColor(String value) {
+        return value != null && value.matches("#[0-9a-fA-F]{6}") ? value.toUpperCase() : "";
     }
 
     private static double finite(double value, double fallback) {

@@ -205,6 +205,7 @@ public class AdminService {
         if(!required)throw new IllegalStateException("Authenticator is not required for this user under the current MFA policy.");
         jdbc.update("UPDATE users SET totp_secret_enc=NULL,mfa_failed_attempts=0,row_version=row_version+1 WHERE id=?",id);
         jdbc.update("DELETE FROM auth_totp_enrollment_pending WHERE user_id=?",id);
+        jdbc.update("INSERT INTO auth_totp_enrollment_pending(user_id,created_at) VALUES(?,CURRENT_TIMESTAMP) ON CONFLICT(user_id) DO UPDATE SET created_at=CURRENT_TIMESTAMP",id);
         jdbc.update("DELETE FROM auth_totp_login_challenge WHERE user_id=?",id);
         tokens.revokeUser(id);
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
