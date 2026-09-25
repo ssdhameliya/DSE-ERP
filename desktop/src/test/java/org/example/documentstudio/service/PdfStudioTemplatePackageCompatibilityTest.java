@@ -29,7 +29,7 @@ class PdfStudioTemplatePackageCompatibilityTest {
                 try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
                     PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
                     String[] labels = {"SR. NO.","HSN CODE","PRODUCT DESCRIPTION","QTY","UNIT RATE","UNIT","AMOUNT (INR)"};
-                    float[] xs = {25,70,125,345,395,455,495};
+                    float[] xs = {25,70,125,405,435,485,515};
                     for (int i=0;i<labels.length;i++) {
                         cs.beginText(); cs.setFont(font,8); cs.newLineAtOffset(xs[i],560); cs.showText(labels[i]); cs.endText();
                     }

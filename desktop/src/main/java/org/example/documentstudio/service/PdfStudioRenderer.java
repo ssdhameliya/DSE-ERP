@@ -1029,7 +1029,7 @@ public final class PdfStudioRenderer {
             setStroke(cs, "#9FB3C8"); cs.setLineWidth(.65f); cs.moveTo(x, rowBottom); cs.lineTo(x + width, rowBottom); cs.stroke();
         }
         PDFont font = fontFor(e);
-        float fontSize = (float)Math.max(5, Math.min(e.getFontSize(), rowH * .58));
+        float fontSize = (float)Math.max(3.5, Math.min(e.getFontSize(), rowH * .58));
         List<String> alignments = columnAlignments(e, columns.size());
         for (int i = 0; i < columns.size(); i++) {
             Column column = columns.get(i);
@@ -1262,16 +1262,18 @@ public final class PdfStudioRenderer {
                                             String color, String alignment) throws IOException {
         String safe = safePdfText(text);
         PDFont effectiveFont = fontForText(font, safe);
-        float size = Math.max(4f, fontSize);
+        float minReadable = 2.3f;
+        float size = Math.max(minReadable, fontSize);
         List<String> lines = wrap(safe, effectiveFont, size, Math.max(5, width));
-        while (!wrappedCellFits(effectiveFont, lines, size, width, height) && size > 4.01f) {
-            size = Math.max(4f, size - .25f);
+        while (!wrappedCellFits(effectiveFont, lines, size, width, height) && size > minReadable + 0.01f) {
+            size = Math.max(minReadable, size - .15f);
             lines = wrap(safe, effectiveFont, size, Math.max(5, width));
         }
         if (!wrappedCellFits(effectiveFont, lines, size, width, height))
             throw new IOException("Table cell text does not fit at the minimum readable size; text was not discarded: " + abbreviateForError(safe));
         setNonStroke(cs, color);
-        float lineHeight = size * 1.08f, cy = y + height - size;
+        float lineHeight = lines.size() > 1 ? Math.max(size * 0.88f, Math.min(size * 1.08f, (height - size) / (lines.size() - 1))) : size * 1.08f;
+        float cy = y + height - size;
         for (String line : lines) {
             float drawX = alignedX(effectiveFont, size, line, x, width, alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT));
             cs.beginText(); cs.setFont(effectiveFont, size); cs.newLineAtOffset(drawX, cy); cs.showText(line); cs.endText();
@@ -1281,7 +1283,8 @@ public final class PdfStudioRenderer {
 
     private static boolean wrappedCellFits(PDFont font, List<String> lines, float size, float width, float height) throws IOException {
         if (lines == null || lines.isEmpty()) return true;
-        if (size + Math.max(0, lines.size()-1) * size * 1.08f > height + .01f) return false;
+        float spacing = lines.size() > 1 ? 0.88f : 1.08f;
+        if (size + Math.max(0, lines.size()-1) * size * spacing > height + .01f) return false;
         for (String line : lines) if (textWidth(font, size, line) > width + .01f) return false;
         return true;
     }

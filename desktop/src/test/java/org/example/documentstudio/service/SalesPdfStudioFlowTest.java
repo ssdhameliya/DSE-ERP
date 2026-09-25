@@ -239,7 +239,7 @@ class SalesPdfStudioFlowTest {
         Files.createDirectories(evidence);
         configureEvidenceWorkspace(evidence);
         DocumentTemplate template = activateBuiltIn(TemplateStorageService.root());
-        assertEquals(12, template.getVersion(), "The detector-driven Item Table mapping must upgrade the built-in template without changing protected structural artwork");
+        assertEquals(16, template.getVersion(), "The detector-driven Item Table mapping must upgrade the built-in template without changing protected structural artwork");
         assertFalse(template.getElements().stream().anyMatch(e -> e.getType() == ElementType.TEXT
                 && ("TRANSPORTER :".equals(e.getText()) || "GSTIN :".equals(e.getText()) || "CONTACT DETAILS :".equals(e.getText()))),
                 "Existing source labels must not be painted a second time over the protected PDF artwork");
@@ -624,7 +624,7 @@ class SalesPdfStudioFlowTest {
         assertTrue(modern.getElements().stream().anyMatch(e -> e.getType() == ElementType.ITEM_TABLE));
         assertTrue(modern.getElements().stream().anyMatch(e -> "document.number".equals(e.getFieldKey())));
         assertEquals("FLOW_FIXED", modern.getLayoutMode());
-        assertEquals(3, modern.getVersion());
+        assertEquals(4, modern.getVersion());
         assertTrue(modern.getElements().stream().anyMatch(e -> BuiltInModernSalesTemplateInstaller.DYNAMIC_FINANCIAL_SUMMARY.equals(e.getReplacementGroupId())));
 
         Path preview = evidence.resolve("sales-modern-mapped-starter-preview.pdf");
