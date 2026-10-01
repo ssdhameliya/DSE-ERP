@@ -35,7 +35,9 @@ public final class PdfSourceTextSuppressionService {
         if (elements == null) return groups;
         for (TemplateElement e : elements) {
             if (e == null || e.getType() == ElementType.WHITEOUT) continue;
-            if ("OBJECT".equals(e.getSourceReplacementMode()) && !e.getReplacementGroupId().isBlank()) groups.add(e.getReplacementGroupId());
+            if (e.getReplacementGroupId() != null && !e.getReplacementGroupId().isBlank()) {
+                groups.add(e.getReplacementGroupId());
+            }
         }
         return groups;
     }
@@ -43,13 +45,36 @@ public final class PdfSourceTextSuppressionService {
     public static void suppress(PDDocument document, List<TemplateElement> elements) throws IOException {
         if (document == null || elements == null || elements.isEmpty()) return;
         Set<String> groups = objectReplacementGroups(elements);
-        if (groups.isEmpty()) return;
         Map<Integer,List<Target>> byPage = new HashMap<>();
+
         for (TemplateElement e : elements) {
-            if (e == null || !groups.contains(e.getReplacementGroupId()) || e.getType() != ElementType.WHITEOUT) continue;
-            Target target = Target.fromSourceKey(e.getReplacementSourceKey(), e.getX(), e.getY(), e.getWidth(), e.getHeight());
-            if (target != null) byPage.computeIfAbsent(e.getPageIndex(), ignored -> new ArrayList<>()).add(target);
+            if (e == null || e.getWidth() <= 0 || e.getHeight() <= 0) continue;
+
+            // 1. Explicit WHITEOUT linked to replacement group or with source key
+            if (e.getType() == ElementType.WHITEOUT) {
+                if (groups.contains(e.getReplacementGroupId())
+                        || (e.getReplacementGroupId() != null && !e.getReplacementGroupId().isBlank())
+                        || (e.getReplacementSourceKey() != null && !e.getReplacementSourceKey().isBlank())) {
+                    Target target = Target.fromElement(e);
+                    if (target != null) byPage.computeIfAbsent(e.getPageIndex(), ignored -> new ArrayList<>()).add(target);
+                }
+            }
+            // 2. Mapped field or text replacement
+            else if (e.getType() == ElementType.FIELD || e.getType() == ElementType.TEXT) {
+                boolean hasMappedField = e.getFieldKey() != null && !e.getFieldKey().isBlank();
+                boolean isReplacement = "OBJECT".equals(e.getSourceReplacementMode()) || "MASK".equals(e.getSourceReplacementMode())
+                        || (e.getReplacementGroupId() != null && !e.getReplacementGroupId().isBlank())
+                        || (e.getReplacementSourceKey() != null && !e.getReplacementSourceKey().isBlank());
+
+                if (hasMappedField || isReplacement) {
+                    Target target = Target.fromElement(e);
+                    if (target != null) byPage.computeIfAbsent(e.getPageIndex(), ignored -> new ArrayList<>()).add(target);
+                }
+            }
         }
+
+        if (byPage.isEmpty()) return;
+
         for (var entry : byPage.entrySet()) {
             if (entry.getKey() < 0 || entry.getKey() >= document.getNumberOfPages()) continue;
             suppressPage(document, document.getPage(entry.getKey()), entry.getKey(), entry.getValue());
@@ -130,22 +155,43 @@ public final class PdfSourceTextSuppressionService {
     }
 
     private record Target(int page, double x, double y, double w, double h, String normalized) {
-        static Target fromSourceKey(String key,double x,double y,double w,double h) {
+        static Target fromSourceKey(String key, double x, double y, double w, double h) {
             if (key == null || !key.startsWith("PDF_TEXT|")) return null;
-            String[] p = key.split("\\|",8);
-            if (p.length < 8) return new Target(-1,x,y,w,h,"");
-            try { return new Target(Integer.parseInt(p[1]),Double.parseDouble(p[2]),Double.parseDouble(p[3]),Double.parseDouble(p[4]),Double.parseDouble(p[5]),p[7]); }
-            catch (Exception ignored) { return new Target(-1,x,y,w,h,p.length>7?p[7]:""); }
+            String[] p = key.split("\\|", 8);
+            if (p.length < 8) return new Target(-1, x, y, w, h, "");
+            try { return new Target(Integer.parseInt(p[1]), Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), Double.parseDouble(p[5]), p[7]); }
+            catch (Exception ignored) { return new Target(-1, x, y, w, h, p.length > 7 ? p[7] : ""); }
         }
+
+        static Target fromElement(TemplateElement e) {
+            if (e == null || e.getWidth() <= 0 || e.getHeight() <= 0) return null;
+            String key = e.getReplacementSourceKey();
+            if (key != null && key.startsWith("PDF_TEXT|")) {
+                Target t = fromSourceKey(key, e.getX(), e.getY(), e.getWidth(), e.getHeight());
+                if (t != null) return t;
+            }
+            String norm = "";
+            if (e.getMappingSourceLabel() != null && !e.getMappingSourceLabel().isBlank()) {
+                norm = PdfAutoMappingService.normalize(e.getMappingSourceLabel());
+            }
+            return new Target(e.getPageIndex(), e.getX(), e.getY(), e.getWidth(), e.getHeight(), norm);
+        }
+
         boolean matches(Occurrence o) {
             if (o.minX == Double.MAX_VALUE) return false;
-            double ix = Math.max(0, Math.min(x+w,o.maxX)-Math.max(x,o.minX));
-            double iy = Math.max(0, Math.min(y+h,o.maxY)-Math.max(y,o.minY));
-            double overlap = ix*iy;
-            double minArea = Math.max(1, Math.min(w*h,(o.maxX-o.minX)*(o.maxY-o.minY)));
-            String n = PdfAutoMappingService.normalize(o.text);
-            boolean textMatch = normalized == null || normalized.isBlank() || n.contains(normalized) || normalized.contains(n);
-            return textMatch && overlap/minArea >= .18;
+            double ix = Math.max(0, Math.min(x + w, o.maxX) - Math.max(x, o.minX));
+            double iy = Math.max(0, Math.min(y + h, o.maxY) - Math.max(y, o.minY));
+            double overlap = ix * iy;
+            double minArea = Math.max(1, Math.min(w * h, (o.maxX - o.minX) * (o.maxY - o.minY)));
+            if (overlap <= 0) return false;
+
+            if (normalized != null && !normalized.isBlank()) {
+                String n = PdfAutoMappingService.normalize(o.text);
+                boolean textMatch = n.contains(normalized) || normalized.contains(n);
+                return textMatch && (overlap / minArea >= .18);
+            }
+            // Without normalized text filter, require significant overlap (>= 35%) so nearby labels aren't touched
+            return (overlap / minArea) >= .35;
         }
     }
 }

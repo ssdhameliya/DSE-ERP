@@ -184,11 +184,19 @@ public final class PdfStudioTemplatePackageService {
                     .filter(v -> overlap(v.y(), v.y() + v.height(), top, bottom) >= Math.min(v.height(), table.getHeight()) * .35)
                     .max(java.util.Comparator.comparingDouble(v -> v.width() * v.height())).orElse(null);
             if (grid == null) {
+                if (table.isStrokeEnabled() || (table.getStrokeColor() != null && !table.getStrokeColor().isBlank())) {
+                    table.setSourceStyleCaptured(true);
+                    return true;
+                }
                 table.setSourceStyleCaptured(false);
                 return false;
             }
             return PdfSourceTableDetectionService.captureSourceStyle(table, grid);
         } catch (Exception ignored) {
+            if (table.isStrokeEnabled() || (table.getStrokeColor() != null && !table.getStrokeColor().isBlank())) {
+                table.setSourceStyleCaptured(true);
+                return true;
+            }
             table.setSourceStyleCaptured(false);
             return false;
         }

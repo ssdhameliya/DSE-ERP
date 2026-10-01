@@ -23,8 +23,11 @@ import org.example.config.WorkspaceManager;
 import org.example.controller.DashboardController;
 import org.example.documentstudio.model.*;
 import org.example.documentstudio.service.*;
-import org.example.documentstudio.util.PdfPreviewSupport;
+import org.example.documentstudio.engine.UniversalBlockDefinition;
+import org.example.documentstudio.view.PdfBlockMappingDialog;
 import org.example.documentstudio.view.PdfMappingReviewWorkspace;
+import org.example.documentstudio.view.UniversalBlockWorkspace;
+import org.example.documentstudio.util.PdfPreviewSupport;
 import org.example.navigation.ScreenLifecycle;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
@@ -253,6 +256,12 @@ public class PdfStudioController implements ScreenLifecycle {
             if (event.getClickCount() == 2) addSelectedField();
         });
         txtFieldSearch.textProperty().addListener((obs, old, value) -> refreshFieldList(value));
+        lstFields.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                selectedBindingKey = newVal.key();
+                updateManualMappingState();
+            }
+        });
         lstFields.setOnDragDetected(event -> {
             TemplateFieldDefinition field = lstFields.getSelectionModel().getSelectedItem();
             if (field == null || previewMode) return;
@@ -335,6 +344,9 @@ public class PdfStudioController implements ScreenLifecycle {
     private void updateManualMappingState() {
         if (btnMapSelectedField == null) return;
         TemplateFieldDefinition field = lstInspectorFieldSuggestions == null ? null : lstInspectorFieldSuggestions.getSelectionModel().getSelectedItem();
+        if (field == null && lstFields != null) {
+            field = lstFields.getSelectionModel().getSelectedItem();
+        }
         TemplateElement selected = selectedElement();
         boolean textTarget = selectedSourceText != null || selectedSourceForm != null || (selected != null && isTextLike(selected));
         boolean imageTarget = selectedSourceImage != null || selectedSourceVector != null || (selected != null && isImageLike(selected));
@@ -558,13 +570,78 @@ public class PdfStudioController implements ScreenLifecycle {
             case "unit rate", "rate", "unit price", "price" -> "item.rate";
             case "unit", "uom" -> "item.unit";
             case "amount (inr)", "amount", "taxable", "net value" -> "item.taxable";
+            case "remark", "remarks", "item remarks", "item remark", "notes" -> "item.remarks";
             default -> "";
         };
     }
 
 
     @FXML private void reviewMapping() {
-        showMappingReview(null, null, buildDetectedReviewBlocks(currentMappingAnalysis, false));
+        openBlockMappingHub();
+    }
+
+    @FXML private void openBlockMappingHub() {
+        UniversalBlockWorkspace.show(root, template, () -> {
+            autosave(); refreshRequirementUi(); refreshLayers(); renderCanvas(); analyzeMapping(false);
+            if (lblSaveState != null) lblSaveState.setText("Block mapping saved ✓");
+        });
+    }
+
+    public void openBlockMappingPopup(TemplateElement e) {
+        if (e == null) { openBlockMappingHub(); return; }
+        UniversalBlockDefinition block = resolveUniversalBlock(e);
+        UniversalBlockWorkspace.showSingleBlock(root, template, block, () -> {
+            autosave(); refreshRequirementUi(); refreshLayers(); renderCanvas(); analyzeMapping(false);
+            if (lblSaveState != null) lblSaveState.setText("Block mapping saved ✓");
+        });
+    }
+
+    public UniversalBlockDefinition resolveUniversalBlock(TemplateElement e) {
+        if (e == null) return UniversalBlockDefinition.DOC_HEADER;
+        if (e.getType() == ElementType.ITEM_TABLE) return UniversalBlockDefinition.ITEM_TABLE;
+        if (e.getType() == ElementType.CHARGE_TABLE) return UniversalBlockDefinition.FINANCIAL_TOTALS;
+        if ("DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId()) || "FINANCIAL_SUMMARY".equals(e.getFlowRole()))
+            return UniversalBlockDefinition.FINANCIAL_TOTALS;
+        String key = e.getFieldKey() == null ? "" : e.getFieldKey();
+        String block = e.getMappingBlockType() == null ? "" : e.getMappingBlockType();
+        if ("BILLING".equals(block) || key.startsWith("party.billing") || "party.address".equals(key) || "party.name".equals(key) || "party.gstin".equals(key))
+            return UniversalBlockDefinition.BILLING_ADDRESS;
+        if ("DELIVERY".equals(block) || key.startsWith("party.delivery") || key.startsWith("delivery."))
+            return UniversalBlockDefinition.SHIPPING_ADDRESS;
+        if ("TRANSPORT".equals(block) || key.startsWith("transport."))
+            return UniversalBlockDefinition.TRANSPORT;
+        if ("FINANCIAL".equals(block) || key.startsWith("totals.") || key.startsWith("tax.") || key.startsWith("calculation."))
+            return UniversalBlockDefinition.FINANCIAL_TOTALS;
+        if ("PAYMENT".equals(block) || key.startsWith("payment."))
+            return UniversalBlockDefinition.BANK_DETAILS;
+        if ("TERMS_FOOTER".equals(block) || "company.terms".equals(key) || "company.certificationText".equals(key) || "company.signature".equals(key))
+            return UniversalBlockDefinition.TERMS_SIGNATURE;
+        if (key.startsWith("company."))
+            return UniversalBlockDefinition.COMPANY_HEADER;
+        return UniversalBlockDefinition.DOC_HEADER;
+    }
+
+    public PdfMappingReviewSession.Section sectionForElement(TemplateElement e) {
+        if (e == null) return PdfMappingReviewSession.Section.HEADER;
+        if (e.getType() == ElementType.ITEM_TABLE) return PdfMappingReviewSession.Section.ITEMS;
+        if (e.getType() == ElementType.CHARGE_TABLE) return PdfMappingReviewSession.Section.FINANCIAL;
+        if ("DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId()) || "FINANCIAL_SUMMARY".equals(e.getFlowRole()))
+            return PdfMappingReviewSession.Section.FINANCIAL;
+        String key = e.getFieldKey() == null ? "" : e.getFieldKey();
+        String block = e.getMappingBlockType() == null ? "" : e.getMappingBlockType();
+        if ("BILLING".equals(block) || key.startsWith("party.billing") || "party.address".equals(key) || "party.name".equals(key) || "party.gstin".equals(key))
+            return PdfMappingReviewSession.Section.BILLING;
+        if ("DELIVERY".equals(block) || key.startsWith("party.delivery") || key.startsWith("delivery."))
+            return PdfMappingReviewSession.Section.DELIVERY;
+        if ("TRANSPORT".equals(block) || key.startsWith("transport."))
+            return PdfMappingReviewSession.Section.TRANSPORT;
+        if ("FINANCIAL".equals(block) || key.startsWith("totals.") || key.startsWith("tax."))
+            return PdfMappingReviewSession.Section.FINANCIAL;
+        if ("PAYMENT".equals(block) || key.startsWith("payment."))
+            return PdfMappingReviewSession.Section.PAYMENT;
+        if ("TERMS_FOOTER".equals(block) || "company.terms".equals(key) || "company.certificationText".equals(key))
+            return PdfMappingReviewSession.Section.TERMS_FOOTER;
+        return PdfMappingReviewSession.Section.HEADER;
     }
 
     private boolean showMappingReview(PdfMappingReviewSession.Section initialSection, List<TemplateElement> rollbackSnapshot) {
@@ -574,6 +651,22 @@ public class PdfStudioController implements ScreenLifecycle {
     private boolean showMappingReview(PdfMappingReviewSession.Section initialSection, List<TemplateElement> rollbackSnapshot,
                                       List<PdfMappingReviewSession.DetectedBlock> detectedBlocks) {
         if (template == null || previewMode) return false;
+        if (initialSection == PdfMappingReviewSession.Section.ITEMS) {
+            TemplateElement table = template.getElements().stream()
+                    .filter(e -> e != null && e.getType() == ElementType.ITEM_TABLE)
+                    .findFirst().orElse(null);
+            if (table != null && table.getTableColumnBindings().isEmpty() && sourcePdf != null) {
+                try {
+                    var detection = PdfSourceTableDetectionService.detectItemTable(sourcePdf, table.getPageIndex());
+                    if (detection.isPresent()) {
+                        table.setTableColumnBindings(detection.get().table().getTableColumnBindings());
+                        table.setHeaderHeight(detection.get().table().getHeaderHeight());
+                        table.setRowHeight(detection.get().table().getRowHeight());
+                        autosave();
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
         PdfMappingReviewSession session = PdfMappingReviewSession.from(template, detectedBlocks, detectFinancialReviewRoles());
         if (session.entries().isEmpty()) {
             AppDialogService.info(root, "Nothing to review", "Review Auto Mapping",
@@ -644,6 +737,9 @@ public class PdfStudioController implements ScreenLifecycle {
 
     @FXML private void applySuggestedBinding() {
         TemplateFieldDefinition field = lstInspectorFieldSuggestions == null ? null : lstInspectorFieldSuggestions.getSelectionModel().getSelectedItem();
+        if (field == null && lstFields != null) {
+            field = lstFields.getSelectionModel().getSelectedItem();
+        }
         if (field == null || previewMode) {
             updateManualMappingState();
             return;
@@ -1691,8 +1787,12 @@ public class PdfStudioController implements ScreenLifecycle {
         Tooltip.install(hit, new Tooltip("Detected PDF " + region.kind().toLowerCase(Locale.ROOT) + " • click to inspect • double-click to make editable"));
         hit.setOnMouseClicked(event -> {
             if (event.getClickCount() >= 2) {
-                TemplateElement e = materializeSourceVector(region);
-                if (e != null) selectOnly(e);
+                if (region.kind() != null && (region.kind().contains("TABLE") || region.kind().contains("GRID"))) {
+                    detectItemHeaders();
+                } else {
+                    TemplateElement e = materializeSourceVector(region);
+                    if (e != null) selectOnly(e);
+                }
             } else selectSourceVector(region);
             event.consume();
         });
@@ -1711,6 +1811,11 @@ public class PdfStudioController implements ScreenLifecycle {
         place(wrapper, e.getX(), e.getY(), e.getWidth(), e.getHeight());
         wrapper.setRotate(e.getRotation());
         wrapper.setOpacity(PdfStyleResolver.effective(template, e).getOpacity());
+        if (e.getType() == ElementType.WHITEOUT) {
+            TemplateElement style = PdfStyleResolver.effective(template, e);
+            String fill = style.getFillColor() == null || style.getFillColor().isBlank() ? "#FFFFFF" : style.getFillColor();
+            wrapper.setStyle("-fx-background-color:" + fill + ";-fx-background-radius:" + (style.getBorderRadius()*scale) + "px;");
+        }
 
         if (selectedIds.contains(e.getId()) && !geometryLocked(e)) addResizeHandles(wrapper, e);
         wrapper.setOnMousePressed(event -> {
@@ -1722,10 +1827,37 @@ public class PdfStudioController implements ScreenLifecycle {
         wrapper.setOnMouseDragged(event -> { if (dragging) dragSelection(event); event.consume(); });
         wrapper.setOnMouseReleased(event -> { if (dragging) { dragging=false; autosave(); renderCanvas(); } event.consume(); });
         wrapper.setOnMouseClicked(event -> {
-            if (event.getClickCount() >= 2 && isTextLike(e) && !geometryLocked(e)) beginInlineEdit(e);
+            if (event.getClickCount() >= 2) {
+                if (e.getType() == ElementType.ITEM_TABLE) {
+                    openItemTableMapping(e);
+                } else if (e.getType() == ElementType.BLOCK && "DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId())) {
+                    showMappingReview(PdfMappingReviewSession.Section.FINANCIAL, snapshotElements());
+                } else if (isTextLike(e) && !geometryLocked(e) && !event.isAltDown()) {
+                    beginInlineEdit(e);
+                } else {
+                    openBlockMappingPopup(e);
+                }
+            }
             event.consume();
         });
         return wrapper;
+    }
+
+    private void openItemTableMapping(TemplateElement table) {
+        if (table == null) return;
+        List<TemplateElement> reviewRollback = snapshotElements();
+        if (table.getTableColumnBindings().isEmpty() && sourcePdf != null) {
+            try {
+                var detection = PdfSourceTableDetectionService.detectItemTable(sourcePdf, table.getPageIndex());
+                if (detection.isPresent()) {
+                    table.setTableColumnBindings(detection.get().table().getTableColumnBindings());
+                    table.setHeaderHeight(detection.get().table().getHeaderHeight());
+                    table.setRowHeight(detection.get().table().getRowHeight());
+                    autosave();
+                }
+            } catch (Exception ignored) {}
+        }
+        showMappingReview(PdfMappingReviewSession.Section.ITEMS, reviewRollback);
     }
 
     private Node elementVisual(TemplateElement e) {
@@ -1769,7 +1901,21 @@ public class PdfStudioController implements ScreenLifecycle {
             box.setPadding(new javafx.geometry.Insets(style.getPaddingTop()*scale,style.getPaddingRight()*scale,style.getPaddingBottom()*scale,style.getPaddingLeft()*scale));
             return box;
         }
+        if (e.getType() == ElementType.WHITEOUT) {
+            Region whiteout = new Region();
+            whiteout.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            String fill = style.getFillColor() == null || style.getFillColor().isBlank() ? "#FFFFFF" : style.getFillColor();
+            whiteout.setStyle("-fx-background-color:" + fill + ";-fx-background-radius:" + (style.getBorderRadius()*scale) + "px;");
+            return whiteout;
+        }
+        if (e.getType() == ElementType.RECTANGLE) {
+            Region rect = new Region();
+            rect.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            rect.setStyle(styleFor(e));
+            return rect;
+        }
         Label label = new Label(displayText(e));
+        label.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         label.setWrapText(true);
         label.setAlignment(switch (style.getTextAlignment()) { case "CENTER" -> Pos.CENTER; case "RIGHT" -> Pos.CENTER_RIGHT; default -> Pos.CENTER_LEFT; });
         label.setStyle(styleFor(e));
@@ -1828,10 +1974,13 @@ public class PdfStudioController implements ScreenLifecycle {
     private String styleFor(TemplateElement e) {
         TemplateElement style = PdfStyleResolver.effective(template, e);
         String family = switch (style.getFontFamily()) { case "TIMES" -> "Times New Roman"; case "COURIER" -> "Courier New"; default -> "Arial"; };
+        String bg = e.getType() == ElementType.WHITEOUT
+                ? (style.getFillColor() == null || style.getFillColor().isBlank() ? "#FFFFFF" : style.getFillColor())
+                : (style.isFillEnabled() ? style.getFillColor() : "transparent");
         return "-fx-font-family:'"+family+"';-fx-font-size:"+(style.getFontSize()*scale)+"px;"
                 + "-fx-font-weight:"+(style.isBold()?"bold":"normal")+";-fx-font-style:"+(style.isItalic()?"italic":"normal")+";"
                 + "-fx-text-fill:"+style.getTextColor()+";"
-                + "-fx-background-color:"+(style.isFillEnabled()?style.getFillColor():"transparent")+";"
+                + "-fx-background-color:"+bg+";"
                 + "-fx-border-color:"+(style.isStrokeEnabled()?style.getStrokeColor():"transparent")+";"
                 + "-fx-border-width:"+(style.getStrokeWidth()*scale)+";"
                 + "-fx-background-radius:"+(style.getBorderRadius()*scale)+";-fx-border-radius:"+(style.getBorderRadius()*scale)+";";
@@ -2248,7 +2397,10 @@ public class PdfStudioController implements ScreenLifecycle {
 
     /** Rebuild source masks after the user chooses the field so labels/borders stay protected. */
     private void remapSourceTextGeometry(TemplateElement element,PdfTextRegion source,String fieldKey){
-        if(element==null||source==null||fieldKey==null||element.getReplacementGroupId()==null)return;
+        if(element==null||source==null||fieldKey==null)return;
+        if(element.getReplacementGroupId()==null||element.getReplacementGroupId().isBlank()){
+            element.setReplacementGroupId("replace-"+UUID.randomUUID());
+        }
         String group=element.getReplacementGroupId();
         List<TemplateElement> list=new ArrayList<>(template.getElements());
         list.removeIf(candidate->candidate.getType()==ElementType.WHITEOUT&&group.equals(candidate.getReplacementGroupId()));
@@ -2297,9 +2449,25 @@ public class PdfStudioController implements ScreenLifecycle {
         List<PdfAutoMappingService.Mapping> known=currentMappingAnalysis==null?List.of():currentMappingAnalysis.mappings();
         List<PdfAutoMappingService.SourceCandidate> sourceCandidates=PdfAutoMappingService.detectReviewCandidates(
                 template.getDocumentType(),pageRegions,currentPreviewData,known);
+        java.util.function.Predicate<PdfAutoMappingService.SourceCandidate> isCutoffCandidate = c -> {
+            if (c == null || c.region() == null) return false;
+            String suggested = c.suggestedField() == null ? "" : c.suggestedField().trim();
+            if (!suggested.isBlank() && c.confidence() >= 0.50) {
+                if (isPartyAddressField(suggested) || Objects.equals(suggested, fieldKey)) return false;
+                return true;
+            }
+            String t = c.region().text() == null ? "" : c.region().text().trim().toUpperCase(Locale.ROOT);
+            return t.startsWith("GSTIN") || t.startsWith("GST") || t.startsWith("PAN")
+                    || t.startsWith("STATE") || t.startsWith("MOBILE") || t.startsWith("PHONE")
+                    || t.startsWith("CONTACT") || t.startsWith("VEHICLE") || t.startsWith("TRANSPORT")
+                    || t.startsWith("CIN") || t.startsWith("EMAIL") || t.startsWith("A/C")
+                    || t.startsWith("BANK") || t.startsWith("IFSC")
+                    || t.contains("DELIVERY") || t.contains("SHIP TO") || t.contains("BILL TO")
+                    || t.startsWith("PLACE OF SUPPLY") || t.startsWith("DISPATCH");
+        };
         double cutoff=sourceCandidates.stream().filter(c->c.region()!=null).filter(c->sameBlock.test(c.region()))
                 .filter(c->c.region().y()>selected.y()+Math.max(2,selected.height()*.45))
-                .filter(c->!Objects.equals(c.suggestedField(),fieldKey))
+                .filter(isCutoffCandidate)
                 .mapToDouble(c->c.region().y()).min().orElse(maxScan);
         final double scanCutoff=Math.min(maxScan,cutoff);
 
@@ -2312,7 +2480,7 @@ public class PdfStudioController implements ScreenLifecycle {
         List<PdfTextRegion> out=new ArrayList<>();double previousBottom=selected.y();
         for(PdfTextRegion r:candidates){
             double gap=r.y()-previousBottom;
-            if(!out.isEmpty()&&gap>Math.max(24,selected.height()*2.8))break;
+            if(!out.isEmpty()&&(gap>Math.max(14,selected.height()*1.85)||out.size()>=5))break;
             out.add(r);previousBottom=Math.max(previousBottom,r.y()+r.height());
         }
         if(out.isEmpty())return List.of(selected);
@@ -2467,10 +2635,8 @@ public class PdfStudioController implements ScreenLifecycle {
     /** Preserve inline source labels generically while replacing their changing value. */
     private String sourceAwareExpression(PdfTextRegion region,String expression,String fieldKey){
         if(region==null||expression==null||fieldKey==null)return expression;
-        String raw=region.text()==null?"":region.text();int colon=raw.indexOf(':');
-        if(colon<0||colon>Math.min(55,raw.length()-1))return expression;
-        String prefix=raw.substring(0,colon+1);
-        return prefix+" {{"+fieldKey+"}}";
+        String raw = region.text() == null ? "" : region.text();
+        return ManualTemplateMappingService.sourceAwareExpression(raw, fieldKey);
     }
 
     private PdfTextRegion valueOnlyRegion(PdfTextRegion region,String fieldKey){
@@ -2483,9 +2649,16 @@ public class PdfStudioController implements ScreenLifecycle {
     }
 
     private TemplateElement sourceMask(PdfTextRegion region,String key){
-        double inset=Math.min(.65,Math.max(.15,Math.min(region.width(),region.height())*.04));
-        TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,region.pageIndex(),region.x()+inset,region.y()+inset,Math.max(1,region.width()-inset*2),Math.max(1,region.height()-inset*2));
-        mask.setFillColor(sampleBackgroundColor(region.pageIndex(), region.x(), region.y(), region.width(), region.height()));mask.setStrokeColor(mask.getFillColor());mask.setStrokeWidth(0);mask.setLocked(true);mask.setReplacementSourceKey(key);mask.setSourceMaskSafe(isBackgroundUniform(region.pageIndex(),region.x(),region.y(),region.width(),region.height()));return mask;
+        TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,region.pageIndex(),region.x()-0.5,region.y()-0.5,Math.max(1,region.width()+1.0),Math.max(1,region.height()+1.0));
+        mask.setFillColor(sampleBackgroundColor(region.pageIndex(), region.x(), region.y(), region.width(), region.height()));
+        mask.setStrokeColor(mask.getFillColor());
+        mask.setStrokeWidth(0);
+        mask.setFillEnabled(true);
+        mask.setStrokeEnabled(false);
+        mask.setLocked(true);
+        mask.setReplacementSourceKey(key);
+        mask.setSourceMaskSafe(isBackgroundUniform(region.pageIndex(),region.x(),region.y(),region.width(),region.height()));
+        return mask;
     }
 
     private TemplateElement materializeSourceForm(PdfFormFieldRegion region) {
@@ -2825,10 +2998,40 @@ public class PdfStudioController implements ScreenLifecycle {
         return -1;
     }
 
-    @FXML private void addSelectedField(){TemplateFieldDefinition f=lstFields.getSelectionModel().getSelectedItem();if(f!=null)dropField(f,pageWidth/2,pageHeight/2);}
+    @FXML private void addSelectedField(){
+        TemplateFieldDefinition f=lstFields.getSelectionModel().getSelectedItem();
+        if(f==null)return;
+        TemplateElement selected = editableSelectionFromSource();
+        if(selected!=null){
+            checkpoint();
+            ManualTemplateMappingService.mapField(selected, f);
+            if(selectedSourceText!=null && !f.image()){
+                remapSourceTextGeometry(selected, selectedSourceText, f.key());
+            }
+            autosave();
+            populateInspector(selected);
+            renderCanvas();
+            updateManualMappingState();
+            return;
+        }
+        dropField(f,pageWidth/2,pageHeight/2);
+    }
 
     private PdfFormFieldRegion findSourceFormAt(double x,double y){return formCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
-    private PdfTextRegion findSourceTextAt(double x,double y){return textCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
+    private PdfTextRegion findSourceTextAt(double x,double y){
+        List<PdfTextRegion> regions = textCache.getOrDefault(pageIndex,List.of());
+        PdfTextRegion exact = regions.stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);
+        if(exact!=null)return exact;
+        double padX = 6.0, padY = 5.0;
+        return regions.stream()
+                .filter(r->x>=r.x()-padX&&x<=r.x()+r.width()+padX&&y>=r.y()-padY&&y<=r.y()+r.height()+padY)
+                .min(Comparator.comparingDouble(r -> {
+                    double cx = r.x() + r.width() / 2.0;
+                    double cy = r.y() + r.height() / 2.0;
+                    return Math.hypot(x - cx, y - cy);
+                }))
+                .orElse(null);
+    }
     private PdfImageRegion findSourceImageAt(double x,double y){return imageCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
     private PdfImageExtractionService.VectorRegion findSourceVectorAt(double x,double y){
         return vectorCache.getOrDefault(pageIndex,List.of()).stream()
@@ -3060,6 +3263,7 @@ public class PdfStudioController implements ScreenLifecycle {
             AppDialogService.info(root, "Design-only template", "PDF Studio", "Choose an automatic ERP document type before setting a system default.");
             return;
         }
+        ManualTemplateMappingService.autoHealMultilineElements(template);
         TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
         if (!readiness.readyForDefault()) {
             showValidationIssues("Cannot publish this template as Default", readiness);
@@ -3086,6 +3290,7 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void saveDraft(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "save a PDF template draft");
         if(template==null)return;
         try{
+            ManualTemplateMappingService.autoHealMultilineElements(template);
             TemplateStorageService.saveDraft(template);
             refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("Draft saved • production unchanged");
@@ -3095,6 +3300,7 @@ public class PdfStudioController implements ScreenLifecycle {
 
     @FXML private void publishTemplate(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "publish a PDF template");
         if(template==null)return;
+        ManualTemplateMappingService.autoHealMultilineElements(template);
         TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
         if (!readiness.readyForDefault()) {
             showValidationIssues("Cannot publish this template", readiness);
@@ -3120,6 +3326,7 @@ public class PdfStudioController implements ScreenLifecycle {
             AppDialogService.info(root,"Publish required","PDF Studio","Publish the current design first. Draft and preview changes never affect production.");
             return;
         }
+        ManualTemplateMappingService.autoHealMultilineElements(template);
         TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
         if (!readiness.readyForDefault()) {
             showValidationIssues("Cannot make this template Default", readiness);

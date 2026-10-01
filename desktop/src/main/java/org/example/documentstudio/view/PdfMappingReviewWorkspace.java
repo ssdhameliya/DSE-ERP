@@ -1,10 +1,13 @@
 package org.example.documentstudio.view;
 
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import org.example.documentstudio.model.TemplateFieldDefinition;
 import org.example.documentstudio.service.PdfMappingReviewSession;
@@ -27,6 +30,7 @@ public final class PdfMappingReviewWorkspace extends BorderPane {
     private final Label summary = new Label();
     private final Label sectionTitle = new Label();
     private final Label sectionHelp = new Label();
+    private final TextField sectionFilter = new TextField();
 
     public PdfMappingReviewWorkspace(PdfMappingReviewSession session, Section initialSection) {
         this.session = Objects.requireNonNull(session);
@@ -79,7 +83,22 @@ public final class PdfMappingReviewWorkspace extends BorderPane {
         VBox titleBox = new VBox(3, sectionTitle, sectionHelp);
         titleBox.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(titleBox, Priority.ALWAYS);
-        VBox heading = new VBox(8, titleBox, actions);
+
+        sectionFilter.setPromptText("Quick search mapping rows (e.g. address, invoice, date, total)...");
+        sectionFilter.getStyleClass().add("dse-workspace-filter-input");
+        HBox.setHgrow(sectionFilter, Priority.ALWAYS);
+        Button clearFilter = mini("✕", "clear", () -> { sectionFilter.clear(); sectionFilter.requestFocus(); });
+        clearFilter.setMinWidth(28); clearFilter.setPrefWidth(28); clearFilter.setMaxWidth(28);
+        clearFilter.setVisible(false);
+        sectionFilter.textProperty().addListener((obs,o,n) -> {
+            clearFilter.setVisible(n != null && !n.isBlank());
+            renderSection(sections.getSelectionModel().getSelectedItem());
+        });
+        HBox filterBox = new HBox(6, sectionFilter, clearFilter);
+        filterBox.setAlignment(Pos.CENTER_LEFT);
+        filterBox.setMaxWidth(Double.MAX_VALUE);
+
+        VBox heading = new VBox(8, titleBox, actions, filterBox);
         actions.setMaxWidth(Double.MAX_VALUE);
 
         ScrollPane scroller = new ScrollPane(rows);
@@ -130,8 +149,19 @@ public final class PdfMappingReviewWorkspace extends BorderPane {
         summary.setText("Auto " + session.autoCount() + "   •   Confirmed " + session.confirmedCount()
                 + "   •   Manual override " + session.overrideCount() + "   •   Need review " + session.reviewRequired());
         List<Entry> entries = session.entries(item);
+        String q = sectionFilter.getText() == null ? "" : sectionFilter.getText().trim().toLowerCase(Locale.ROOT);
+        if (!q.isBlank()) {
+            entries = entries.stream().filter(e ->
+                    (e.sourceLabel() != null && e.sourceLabel().toLowerCase(Locale.ROOT).contains(q))
+                    || (e.sourceValue() != null && e.sourceValue().toLowerCase(Locale.ROOT).contains(q))
+                    || (e.fieldKey() != null && e.fieldKey().toLowerCase(Locale.ROOT).contains(q))
+                    || (e.autoFieldKey() != null && e.autoFieldKey().toLowerCase(Locale.ROOT).contains(q))
+                    || (e.displayFieldLabel() != null && e.displayFieldLabel().toLowerCase(Locale.ROOT).contains(q))
+                    || (e.blockLabel() != null && e.blockLabel().toLowerCase(Locale.ROOT).contains(q))
+            ).toList();
+        }
         if (entries.isEmpty()) {
-            Label empty = new Label("No detected or mapped fields in this section yet. Use Auto Map or click a printed PDF value and map it manually.");
+            Label empty = new Label("No detected or mapped fields in this section matching your search. Use Auto Map or click a printed PDF value and map it manually.");
             empty.setWrapText(true); empty.getStyleClass().add("dse-workspace-empty");
             rows.getChildren().add(empty); return;
         }
@@ -174,14 +204,68 @@ public final class PdfMappingReviewWorkspace extends BorderPane {
 
         ComboBox<TemplateFieldDefinition> field = new ComboBox<>();
         List<TemplateFieldDefinition> options = session.fieldOptions(entry);
-        field.setItems(FXCollections.observableArrayList(options));
+        ObservableList<TemplateFieldDefinition> allOptions = FXCollections.observableArrayList(options);
+        FilteredList<TemplateFieldDefinition> filteredOptions = new FilteredList<>(allOptions, p -> true);
+        field.setItems(filteredOptions);
         field.setEditable(false); field.setMinWidth(270); field.setPrefWidth(300); field.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(field, Priority.ALWAYS);
+        field.setCellFactory(lv -> new ListCell<>() {
+            @Override protected void updateItem(TemplateFieldDefinition item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); }
+                else { setText(item.label() + " (" + item.key() + ")"); }
+            }
+        });
+        field.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(TemplateFieldDefinition item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); }
+                else { setText(item.label()); }
+            }
+        });
         selectField(field, entry.fieldKey());
         field.valueProperty().addListener((obs,o,n) -> {
             if (n != null && !Objects.equals(entry.fieldKey(), n.key())) { entry.chooseField(n.key()); refresh(); }
         });
         field.getStyleClass().add("dse-workspace-field-picker");
+
+        TextField fieldSearch = new TextField();
+        fieldSearch.setPromptText("Search field dropdown (e.g. address, phone)...");
+        fieldSearch.getStyleClass().add("dse-workspace-field-search");
+        HBox.setHgrow(fieldSearch, Priority.ALWAYS);
+        Button clearFieldSearch = mini("✕", "clear", () -> { fieldSearch.clear(); fieldSearch.requestFocus(); });
+        clearFieldSearch.setMinWidth(28); clearFieldSearch.setPrefWidth(28); clearFieldSearch.setMaxWidth(28);
+        clearFieldSearch.setVisible(false);
+        fieldSearch.textProperty().addListener((obs, oldQ, newQ) -> {
+            String query = newQ == null ? "" : newQ.trim().toLowerCase(Locale.ROOT);
+            clearFieldSearch.setVisible(!query.isBlank());
+            filteredOptions.setPredicate(def -> {
+                if (query.isBlank()) return true;
+                if (def.label() != null && def.label().toLowerCase(Locale.ROOT).contains(query)) return true;
+                if (def.key() != null && def.key().toLowerCase(Locale.ROOT).contains(query)) return true;
+                if (def.category() != null && def.category().toLowerCase(Locale.ROOT).contains(query)) return true;
+                return def.aliases() != null && def.aliases().stream().anyMatch(a -> a != null && a.toLowerCase(Locale.ROOT).contains(query));
+            });
+            if (!query.isBlank()) {
+                field.show();
+            }
+        });
+        fieldSearch.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.DOWN) {
+                field.requestFocus();
+                field.show();
+                event.consume();
+            } else if (event.getCode() == KeyCode.ENTER && !filteredOptions.isEmpty()) {
+                field.getSelectionModel().select(filteredOptions.get(0));
+                event.consume();
+            } else if (event.getCode() == KeyCode.ESCAPE) {
+                fieldSearch.clear();
+                event.consume();
+            }
+        });
+        HBox searchLine = new HBox(4, fieldSearch, clearFieldSearch);
+        searchLine.setAlignment(Pos.CENTER_LEFT);
+        searchLine.setMaxWidth(Double.MAX_VALUE);
 
         Label confidence = new Label(entry.autoFieldKey().isBlank() ? "—" : Math.round(entry.confidence()*100) + "%");
         confidence.setMinWidth(54); confidence.setAlignment(Pos.CENTER);
@@ -200,7 +284,7 @@ public final class PdfMappingReviewWorkspace extends BorderPane {
 
         Label behavior = new Label(entry.behaviorSummary());
         behavior.setWrapText(true); behavior.getStyleClass().add("dse-workspace-secondary");
-        VBox fieldBox = new VBox(4, field, fieldKeyLabel(entry), behavior);
+        VBox fieldBox = new VBox(4, searchLine, field, fieldKeyLabel(entry), behavior);
         HBox.setHgrow(fieldBox, Priority.ALWAYS);
 
         HBox row = new HBox(12, sourceBox, fieldBox, confidence, status, actions);
@@ -328,7 +412,9 @@ public final class PdfMappingReviewWorkspace extends BorderPane {
     private static String statusClass(String state) { return "dse-workspace-status-" + (state == null ? "unmapped" : state.toLowerCase(Locale.ROOT).replace('_','-')); }
     private static void selectField(ComboBox<TemplateFieldDefinition> combo, String key) {
         if (key == null || key.isBlank()) return;
-        combo.getItems().stream().filter(f -> key.equals(f.key())).findFirst().ifPresent(combo.getSelectionModel()::select);
+        combo.getItems().stream()
+                .filter(f -> key.equals(f.key()) || (f.aliases() != null && f.aliases().stream().anyMatch(a -> a != null && a.equalsIgnoreCase(key))))
+                .findFirst().ifPresent(combo.getSelectionModel()::select);
     }
     private static TextField numeric(double value) { TextField f = new TextField(String.format(Locale.ROOT,"%.1f",value)); f.setPrefColumnCount(8); return f; }
     private static double parse(TextField field, double fallback) { try { return Double.parseDouble(field.getText().trim()); } catch (Exception ignored) { return fallback; } }

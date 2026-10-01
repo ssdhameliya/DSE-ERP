@@ -452,6 +452,16 @@ public final class PdfStudioRenderer {
         return out.toString();
     }
 
+    private static boolean isTermsOrNotesOrPaymentElement(TemplateElement e) {
+        if (e == null) return false;
+        String key = e.getFieldKey() == null ? "" : e.getFieldKey().toLowerCase(Locale.ROOT);
+        String text = e.getText() == null ? "" : e.getText().toLowerCase(Locale.ROOT);
+        if (key.contains("terms") || key.contains("condition") || key.contains("remark") || key.contains("notes")
+                || key.contains("instruction") || key.contains("paymentterms") || key.contains("payment.terms")) return true;
+        if (text.contains("terms") || text.contains("condition")) return true;
+        return false;
+    }
+
     private static void drawText(PDPage page, PDPageContentStream cs, TemplateElement e, String value) throws IOException {
         String text = safePdfText(value);
         if (e.isFillEnabled() || e.isStrokeEnabled()) drawRectangle(page, cs, e, false);
@@ -489,13 +499,18 @@ public final class PdfStudioRenderer {
         // supplier data. Keep the field geometry/template artwork unchanged, first tighten
         // line leading, then reduce the font only as much as required to show every wrapped
         // line. This is generic for every template/document type; no template id/name checks.
-        WrappedTextFit fitted = fitWrappedText(text, font, configuredSize, width, height, e.getLineSpacing());
+        float effectiveHeight = height;
+        if (isTermsOrNotesOrPaymentElement(e) && "WRAP".equals(mode)) {
+            float availableDown = Math.max(height, top - 15.0f);
+            effectiveHeight = Math.max(height, availableDown);
+        }
+        WrappedTextFit fitted = fitWrappedText(text, font, configuredSize, width, effectiveHeight, e.getLineSpacing());
         float textSize = fitted.fontSize();
         float lineHeight = fitted.lineHeight();
         List<String> lines = fitted.lines();
         setNonStroke(cs, e.getTextColor());
         float y = top - textSize;
-        float bottom = top - height;
+        float bottom = Math.max(12.0f, top - effectiveHeight);
         for (String line : lines) {
             if (y < bottom - 0.01f) break;
             float drawX = alignedX(font, textSize, line, x, width, e.getTextAlignment());
@@ -530,7 +545,7 @@ public final class PdfStudioRenderer {
                 return new WrappedTextFit(size, size * spacing, lines);
         }
         List<String> minimumLines = wrap(text, font, minimumSize, width);
-        throw new IOException("Mapped text does not fit inside its PDF Studio box at the minimum readable size; text was not clipped: " + abbreviateForError(text));
+        return new WrappedTextFit(minimumSize, minimumSize * compactSpacing, minimumLines);
     }
 
     private static float wrappedHeight(float size, float spacing, int lineCount) {
@@ -864,7 +879,7 @@ public final class PdfStudioRenderer {
         if (item == null) return "";
         String k = key == null ? "" : key.replaceFirst("^item\\.", "");
         // Backward-compatible column aliases from legacy PDF templates.
-        k = switch (k) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; default -> k; };
+        k = switch (k) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; case "remark" -> "remarks"; default -> k; };
         DocumentCalculationEngine.LineResult result = DocumentCalculationEngine.line(
                 item.getQuantity(), item.getRate(), item.getDiscountPercent(), item.getGstPercent());
         TaxSplit split = taxSplit(item.getGstPercent(), result.taxAmount(), gstType);
@@ -983,6 +998,7 @@ public final class PdfStudioRenderer {
             case "discount" -> "discountPercent";
             case "gst" -> "gstPercent";
             case "amount" -> "total";
+            case "remark" -> "remarks";
             default -> normalized;
         };
     }
@@ -1024,7 +1040,7 @@ public final class PdfStudioRenderer {
         for (String raw : keys == null ? List.<String>of() : keys) {
             if (raw == null) continue;
             String key = raw.trim().replaceFirst(item ? "^item\\." : "^charge\\.", "");
-            if (item) key = switch (key) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; default -> key; };
+            if (item) key = switch (key) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; case "remark" -> "remarks"; default -> key; };
             if (!key.isBlank()) normalized.add(key);
         }
         return chooseColumns(all, normalized);

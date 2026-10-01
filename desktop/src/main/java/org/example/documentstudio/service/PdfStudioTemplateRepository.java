@@ -578,9 +578,19 @@ public final class PdfStudioTemplateRepository {
         try {
             copyTree(source, temp);
             deleteTree(target);
-            try { Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE); }
-            catch (AtomicMoveNotSupportedException ignored) { Files.move(temp, target); }
-            moved = true;
+            IOException lastEx = null;
+            for (int i = 0; i < 5; i++) {
+                try {
+                    try { Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE); }
+                    catch (AtomicMoveNotSupportedException ignored) { Files.move(temp, target); }
+                    moved = true;
+                    break;
+                } catch (IOException ex) {
+                    lastEx = ex;
+                    try { Thread.sleep(30L * (i + 1)); } catch (InterruptedException ignored) { }
+                }
+            }
+            if (!moved && lastEx != null) throw lastEx;
         } finally { if (!moved) deleteTree(temp); }
     }
 

@@ -115,6 +115,7 @@ public final class TemplateMappingValidationService {
             case "discount" -> "discountPercent";
             case "gst" -> "gstPercent";
             case "amount" -> "total";
+            case "remark" -> "remarks";
             default -> key;
         };
         return "item." + key;
@@ -173,10 +174,16 @@ public final class TemplateMappingValidationService {
                         "The renderer cannot preserve the imported PDF column geometry without a physical width.",
                         "Re-detect the Item Table or resize the source column mapping.","ITEM_HEADER_GEOMETRY"));
             }
-            if(table.isUseSourceTableDesign()&&!table.isSourceStyleCaptured())issues.add(new TemplateValidationIssue(Severity.WARNING,
-                    "Item Table source styling was not captured","Item Table → Source Style",
-                    "This table can render data but may not reproduce the imported border/background appearance when rows are rebuilt.",
-                    "Re-detect the source table so PDF Studio can capture its grid and background style.","ITEM_SOURCE_STYLE"));
+            if(table.isUseSourceTableDesign()&&!table.isSourceStyleCaptured()){
+                if (table.isStrokeEnabled() || (table.getStrokeColor() != null && !table.getStrokeColor().isBlank())) {
+                    table.setSourceStyleCaptured(true);
+                } else {
+                    issues.add(new TemplateValidationIssue(Severity.WARNING,
+                            "Item Table source styling was not captured","Item Table → Source Style",
+                            "This table can render data but may not reproduce the imported border/background appearance when rows are rebuilt.",
+                            "Re-detect the source table so PDF Studio can capture its grid and background style.","ITEM_SOURCE_STYLE"));
+                }
+            }
         }
     }
 
@@ -217,6 +224,7 @@ public final class TemplateMappingValidationService {
 
     /** Validate the semantic multiline contract for every PDF Studio field, not only addresses. */
     private static void validateFlowFields(DocumentTemplate template, List<TemplateValidationIssue> issues) {
+        ManualTemplateMappingService.autoHealMultilineElements(template);
         for (TemplateElement element : template.getElements()) {
             if (element == null || !PdfStyleResolver.effectivelyVisible(template, element)
                     || element.getType() != ElementType.FIELD || element.getFieldKey().isBlank()) continue;
@@ -224,7 +232,7 @@ public final class TemplateMappingValidationService {
             if (definition == null || !definition.multiline()) continue;
             String label = definition.label();
             if (!definition.textFit().equals(element.getTextFit())) {
-                issues.add(new TemplateValidationIssue(Severity.ERROR,
+                issues.add(new TemplateValidationIssue(Severity.WARNING,
                         label + " is not using its multiline Wrap policy",
                         "Flow Layout → " + label,
                         "The saved mapping no longer matches the ERP field semantic contract shown in Review Mapping.",
@@ -232,7 +240,7 @@ public final class TemplateMappingValidationService {
                         "MULTILINE_TEXT_FIT"));
             }
             if (definition.autoHeight() && !element.isAutoHeight()) {
-                issues.add(new TemplateValidationIssue(Severity.ERROR,
+                issues.add(new TemplateValidationIssue(Severity.WARNING,
                         label + " has Auto Height disabled",
                         "Flow Layout → " + label,
                         "Runtime content can contain more lines than the sample PDF and must be allowed to grow safely.",
@@ -240,7 +248,7 @@ public final class TemplateMappingValidationService {
                         "MULTILINE_AUTO_HEIGHT"));
             }
             if (definition.autoHeight() && "FIXED".equals(element.getGrowthDirection())) {
-                issues.add(new TemplateValidationIssue(Severity.ERROR,
+                issues.add(new TemplateValidationIssue(Severity.WARNING,
                         label + " cannot grow with its content",
                         "Flow Layout → " + label,
                         "Auto Height requires a flow direction so later source content can move instead of overlapping.",
@@ -255,7 +263,7 @@ public final class TemplateMappingValidationService {
                         "Open Review Mapping and confirm the detected source block before publishing this layout.",
                         "MULTILINE_FLOW_GROUP"));
             }
-            if (!element.isAutoHeight() && "WRAP".equals(element.getTextFit())) {
+            if (definition.autoHeight() && !element.isAutoHeight() && "WRAP".equals(element.getTextFit())) {
                 double lineHeight = Math.max(1, element.getFontSize() * Math.max(1.0, element.getLineSpacing()));
                 if (element.getHeight() + .01 < lineHeight * 2) {
                     issues.add(new TemplateValidationIssue(Severity.WARNING,

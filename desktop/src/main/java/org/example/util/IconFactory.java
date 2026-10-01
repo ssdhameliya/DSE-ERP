@@ -910,6 +910,14 @@ public final class IconFactory {
             case "snapshot" -> "fas-camera";
             case "preserve" -> "fas-lock";
             case "installer" -> "fas-compact-disc";
+            case "approve" -> "fas-thumbs-up";
+            case "reject" -> "fas-ban";
+            case "publish" -> "fas-cloud-upload-alt";
+            case "set-default" -> "fas-star";
+            case "archive" -> "fas-archive";
+            case "duplicate" -> "fas-clone";
+            case "transporter" -> "fas-truck-moving";
+            case "vehicle" -> "fas-truck";
             default -> "fas-question-circle";
         };
     }
@@ -919,11 +927,11 @@ public final class IconFactory {
         String registered = UiSemanticRegistry.colour(semantic);
         if (registered != null) return registered;
         return switch (semantic) {
-            case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate" -> "green";
+            case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate", "approve", "publish" -> "green";
             case "export", "excel" -> "blue";
-            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
-            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application", "calendar", "audit" -> "purple";
-            case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
+            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle" -> "orange";
+            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application", "calendar", "audit", "archive", "duplicate" -> "purple";
+            case "report", "delete", "error", "cancel", "pdf", "debit", "reject" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
             case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
             case "credit" -> "green";

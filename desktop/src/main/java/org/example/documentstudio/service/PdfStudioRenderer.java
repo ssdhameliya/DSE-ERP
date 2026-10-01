@@ -295,6 +295,7 @@ public final class PdfStudioRenderer {
             // height and fail before drawText's WRAP fitter gets a chance to reduce the font.
             double safeHeight=maxSafeFlowHeight(field,out,pageHeight);
             if(safeHeight>0)actual=Math.min(actual,safeHeight);
+            actual=Math.min(actual,Math.max(1,pageHeight-field.getY()-4.0));
             actual=Math.max(1,actual);
             double delta=Math.max(0,actual-base);
             if("UP".equals(field.getGrowthDirection())&&delta>=.01)field.setY(Math.max(0,field.getY()-delta));
@@ -302,12 +303,21 @@ public final class PdfStudioRenderer {
             if(delta<.01)continue;
 
             String group=field.getFlowGroupId();
-            if(group!=null&&!group.isBlank()){
-                double originalBottom=(original==null?field.getY():original.getY())+base;
-                for(TemplateElement follower:out){
-                    if(follower==field||!group.equals(follower.getFlowGroupId()))continue;
-                    TemplateElement of=originals.get(follower.getId()); double oy=of==null?follower.getY():of.getY();
-                    if(oy>=originalBottom-2)follower.setY(follower.getY()+delta);
+            double originalBottom=(original==null?field.getY():original.getY())+base;
+            for(TemplateElement follower:out){
+                if(follower==field)continue;
+                boolean sameGroup = group!=null && !group.isBlank() && group.equals(follower.getFlowGroupId());
+                double hOverlap = Math.min(field.getX() + field.getWidth(), follower.getX() + follower.getWidth())
+                        - Math.max(field.getX(), follower.getX());
+                boolean partyFollower = isPartyLayoutElement(field) && isPartyLayoutElement(follower)
+                        && follower.getPageIndex() == field.getPageIndex()
+                        && samePartyBlock(field, follower)
+                        && hOverlap > 8.0;
+                if(!sameGroup && !partyFollower)continue;
+                TemplateElement of=originals.get(follower.getId()); double oy=of==null?follower.getY():of.getY();
+                if(oy>=originalBottom-2) {
+                    double targetY = follower.getY() + delta;
+                    follower.setY(Math.min(targetY, Math.max(0, pageHeight - follower.getHeight() - 4.0)));
                 }
             }
         }
@@ -353,6 +363,9 @@ public final class PdfStudioRenderer {
         }
         for(TemplateElement e:out){
             if(e.getType()==ElementType.WHITEOUT||"PAGINATE".equals(e.getOverflowPolicy()))continue;
+            if(("WRAP".equals(e.getTextFit()) || isPartyLayoutElement(e)) && e.getY() + e.getHeight() > pageHeight) {
+                e.setHeight(Math.max(1, pageHeight - e.getY() - 4.0));
+            }
             if((e.getY() < -0.01 || e.getY()+e.getHeight() > pageHeight+0.01) && "ERROR".equals(e.getOverflowPolicy()))
                 throw new IOException("PDF Studio runtime flow exceeds the page for "
                         +(e.getFieldKey().isBlank()?e.getFlowRole():e.getFieldKey())
@@ -405,17 +418,55 @@ public final class PdfStudioRenderer {
         return e.getType().name()+" "+e.getId().substring(0,Math.min(8,e.getId().length()));
     }
 
+    private static boolean isTermsOrNotesOrPaymentElement(TemplateElement e) {
+        if (e == null) return false;
+        String key = e.getFieldKey() == null ? "" : e.getFieldKey().toLowerCase(Locale.ROOT);
+        String text = e.getText() == null ? "" : e.getText().toLowerCase(Locale.ROOT);
+        String role = e.getFlowRole() == null ? "" : e.getFlowRole().toLowerCase(Locale.ROOT);
+        if (key.contains("terms") || key.contains("condition") || key.contains("remark") || key.contains("notes")
+                || key.contains("instruction") || key.contains("paymentterms") || key.contains("payment.terms")) return true;
+        if (text.contains("terms") || text.contains("condition")) return true;
+        if (role.contains("terms") || role.contains("closing_note")) return true;
+        return false;
+    }
+
     private static boolean isPartyLayoutElement(TemplateElement e){
         if(e==null)return false;
         if(e.getFlowRole()!=null&&e.getFlowRole().startsWith("PARTY"))return true;
         String block=e.getMappingBlockType()==null?"":e.getMappingBlockType();
-        return "BILLING".equals(block)||"DELIVERY".equals(block);
+        if("BILLING".equals(block)||"DELIVERY".equals(block))return true;
+        String key=e.getFieldKey()==null?"":e.getFieldKey().toLowerCase(Locale.ROOT);
+        return key.startsWith("customer.") || key.startsWith("party.") || key.startsWith("supplier.")
+                || key.contains("billing") || key.contains("delivery") || key.contains("shipping");
+    }
+
+    private static boolean isBilling(TemplateElement e) {
+        if (e == null) return false;
+        String block = e.getMappingBlockType() == null ? "" : e.getMappingBlockType();
+        String key = e.getFieldKey() == null ? "" : e.getFieldKey().toLowerCase(Locale.ROOT);
+        return "BILLING".equals(block) || key.contains("billing") || key.startsWith("customer.");
+    }
+
+    private static boolean isDelivery(TemplateElement e) {
+        if (e == null) return false;
+        String block = e.getMappingBlockType() == null ? "" : e.getMappingBlockType();
+        String key = e.getFieldKey() == null ? "" : e.getFieldKey().toLowerCase(Locale.ROOT);
+        return "DELIVERY".equals(block) || key.contains("delivery") || key.contains("shipping");
+    }
+
+    private static boolean samePartyBlock(TemplateElement a, TemplateElement b) {
+        if (a == null || b == null) return false;
+        if (!a.getMappingBlockId().isBlank() && a.getMappingBlockId().equals(b.getMappingBlockId())) return true;
+        if (isBilling(a) && isBilling(b)) return true;
+        if (isDelivery(a) && isDelivery(b)) return true;
+        return false;
     }
 
     private static double maxSafeFlowHeight(TemplateElement field,List<TemplateElement> elements,double pageHeight){
         if(field==null)return 0;
+        double absoluteMax = Math.max(1, pageHeight - field.getY() - 4.0);
         boolean party=isPartyLayoutElement(field);
-        if(!party)return Math.max(1,pageHeight-field.getY()-4);
+        if(!party)return absoluteMax;
 
         double safeBottom=Math.max(field.getY()+1,pageHeight-8);
         TemplateElement table=elements.stream()
@@ -426,11 +477,32 @@ public final class PdfStudioRenderer {
             double movable=Math.max(0,table.getHeight()-minimumTable);
             safeBottom=Math.min(safeBottom,table.getY()+movable-4);
         }
+
+        double tableTop = table != null ? table.getY() : pageHeight - 8.0;
+        // Strict non-overlap guarantee: protect lower fields (Mobile, GSTIN, PAN, State Code) above table
+        List<TemplateElement> belowElements = elements.stream()
+                .filter(e -> e != null && e != field && e.isVisible() && e.getType() != ElementType.WHITEOUT && e.getType() != ElementType.ITEM_TABLE)
+                .filter(e -> e.getPageIndex() == field.getPageIndex())
+                .filter(e -> e.getY() >= field.getY() + 1.0 && e.getY() < tableTop)
+                .filter(e -> samePartyBlock(field, e))
+                .filter(e -> !e.getFieldKey().isBlank() || e.getType() == ElementType.BLOCK || e.getType() == ElementType.IMAGE_FIELD)
+                .filter(e -> (Math.min(field.getX() + field.getWidth(), e.getX() + e.getWidth())
+                            - Math.max(field.getX(), e.getX()) > 4.0))
+                .sorted(Comparator.comparingDouble(TemplateElement::getY))
+                .toList();
+        if (!belowElements.isEmpty()) {
+            TemplateElement nearestBelow = belowElements.getFirst();
+            double maxLowerBottom = belowElements.stream().mapToDouble(e -> e.getY() + e.getHeight()).max().orElse(nearestBelow.getY() + nearestBelow.getHeight());
+            double maxAllowedShift = Math.max(0, tableTop - maxLowerBottom - 4.0);
+            double maxFieldBottomWithShift = nearestBelow.getY() + maxAllowedShift - 2.0;
+            safeBottom = Math.min(safeBottom, maxFieldBottomWithShift);
+        }
+
         double available=safeBottom-field.getY();
         // Never make the runtime box smaller than one readable line merely because the imported
         // source geometry is unusually tight. WRAP fitting will reduce text only when needed.
         double oneLine=Math.max(4,field.getFontSize()+field.getPaddingTop()+field.getPaddingBottom());
-        return Math.max(oneLine,available);
+        return Math.min(absoluteMax, Math.max(oneLine,available));
     }
 
 
@@ -545,8 +617,29 @@ public final class PdfStudioRenderer {
     private static TemplateData enrichPartyLocationData(TemplateData data) {
         if (data == null) return new TemplateData(Map.of(), Map.of(), List.of(), List.of(), "");
         Map<String,String> values = new LinkedHashMap<>(data.values());
+        String rawAddress = firstNonBlank(values.get("party.address"), values.get("party.billingAddress"),
+                values.get("party.deliveryAddress"), values.get("customer.address"), values.get("supplier.address"),
+                values.get("sales.billingAddress"), values.get("sales.deliveryAddress"));
+        if (!blank(rawAddress)) {
+            values.putIfAbsent("party.address", rawAddress);
+            values.putIfAbsent("party.billingAddress", rawAddress);
+            values.putIfAbsent("customer.address", rawAddress);
+            values.putIfAbsent("supplier.address", rawAddress);
+        }
         String gstin = firstNonBlank(values.get("party.billingGstin"), values.get("party.gstin"),
+                values.get("customer.gstin"), values.get("supplier.gstin"),
                 values.get("sales.billingGstin"), values.get("sales.gstin"));
+        if (!blank(gstin)) {
+            values.putIfAbsent("party.gstin", gstin);
+            values.putIfAbsent("party.billingGstin", gstin);
+        }
+        String phone = firstNonBlank(values.get("party.contact"), values.get("party.phone"),
+                values.get("party.mobile"), values.get("customer.contact"), values.get("customer.mobile"));
+        if (!blank(phone)) {
+            values.putIfAbsent("party.contact", phone);
+            values.putIfAbsent("party.phone", phone);
+            values.putIfAbsent("party.mobile", phone);
+        }
         if (blank(values.get("party.stateCode")) && gstin != null) {
             String compact = gstin.replaceAll("\\s+", "");
             if (compact.length() >= 2 && Character.isDigit(compact.charAt(0)) && Character.isDigit(compact.charAt(1)))
@@ -554,7 +647,7 @@ public final class PdfStudioRenderer {
         }
         if (blank(values.get("party.placeOfSupply"))) {
             String address = firstNonBlank(values.get("party.billingAddress"), values.get("party.deliveryAddress"),
-                    values.get("sales.billingAddress"), values.get("sales.deliveryAddress"));
+                    values.get("party.address"), values.get("sales.billingAddress"), values.get("sales.deliveryAddress"));
             String state = stateFromAddress(address);
             if (!blank(state)) values.put("party.placeOfSupply", state);
         }
@@ -610,6 +703,9 @@ public final class PdfStudioRenderer {
         float topY = (float) (e.getY() + e.getPaddingTop());
         float width = (float) Math.max(1, e.getWidth() - e.getPaddingLeft() - e.getPaddingRight());
         float height = (float) Math.max(1, e.getHeight() - e.getPaddingTop() - e.getPaddingBottom());
+        if (isPartyLayoutElement(e) && "WRAP".equals(e.getTextFit()) && height < 20.0f) {
+            height = (float) Math.max(height, 24.0f);
+        }
         float top = toPdfY(page, topY);
         String mode = e.getTextFit();
 
@@ -637,13 +733,18 @@ public final class PdfStudioRenderer {
         // supplier data. Keep the field geometry/template artwork unchanged, first tighten
         // line leading, then reduce the font only as much as required to show every wrapped
         // line. This is generic for every template/document type; no template id/name checks.
-        WrappedTextFit fitted = fitWrappedText(text, font, configuredSize, width, height, e.getLineSpacing());
+        float effectiveHeight = height;
+        if (isTermsOrNotesOrPaymentElement(e) && "WRAP".equals(mode)) {
+            float availableDown = Math.max(height, top - 15.0f);
+            effectiveHeight = Math.max(height, availableDown);
+        }
+        WrappedTextFit fitted = fitWrappedText(text, font, configuredSize, width, effectiveHeight, e.getLineSpacing());
         float textSize = fitted.fontSize();
         float lineHeight = fitted.lineHeight();
         List<String> lines = fitted.lines();
         setNonStroke(cs, e.getTextColor());
         float y = top - textSize;
-        float bottom = top - height;
+        float bottom = Math.max(12.0f, top - effectiveHeight);
         for (String line : lines) {
             if (y < bottom - 0.01f) break;
             float drawX = alignedX(font, textSize, line, x, width, e.getTextAlignment());
@@ -678,7 +779,7 @@ public final class PdfStudioRenderer {
                 return new WrappedTextFit(size, size * spacing, lines);
         }
         List<String> minimumLines = wrap(text, font, minimumSize, width);
-        throw new IOException("Mapped text does not fit inside its PDF Studio box at the minimum readable size; text was not clipped: " + abbreviateForError(text));
+        return new WrappedTextFit(minimumSize, minimumSize * compactSpacing, minimumLines);
     }
 
     private static float wrappedHeight(float size, float spacing, int lineCount) {
@@ -1029,7 +1130,7 @@ public final class PdfStudioRenderer {
             setStroke(cs, "#9FB3C8"); cs.setLineWidth(.65f); cs.moveTo(x, rowBottom); cs.lineTo(x + width, rowBottom); cs.stroke();
         }
         PDFont font = fontFor(e);
-        float fontSize = (float)Math.max(3.5, Math.min(e.getFontSize(), rowH * .58));
+        float fontSize = (float)Math.max(5, Math.min(e.getFontSize(), rowH * .58));
         List<String> alignments = columnAlignments(e, columns.size());
         for (int i = 0; i < columns.size(); i++) {
             Column column = columns.get(i);
@@ -1086,7 +1187,7 @@ public final class PdfStudioRenderer {
         if (item == null) return "";
         String k = key == null ? "" : key.replaceFirst("^item\\.", "");
         // Backward-compatible column aliases from legacy PDF templates.
-        k = switch (k) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; default -> k; };
+        k = switch (k) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; case "remark" -> "remarks"; default -> k; };
         DocumentCalculationEngine.LineResult result = DocumentCalculationEngine.line(
                 item.getQuantity(), item.getRate(), item.getDiscountPercent(), item.getGstPercent());
         TaxSplit split = taxSplit(item.getGstPercent(), result.taxAmount(), gstType);
@@ -1231,7 +1332,7 @@ public final class PdfStudioRenderer {
         for (String raw : keys == null ? List.<String>of() : keys) {
             if (raw == null) continue;
             String key = raw.trim().replaceFirst(item ? "^item\\." : "^charge\\.", "");
-            if (item) key = switch (key) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; default -> key; };
+            if (item) key = switch (key) { case "qty" -> "quantity"; case "discount" -> "discountPercent"; case "gst" -> "gstPercent"; case "amount" -> "total"; case "remark" -> "remarks"; default -> key; };
             if (!key.isBlank()) normalized.add(key);
         }
         return chooseColumns(all, normalized);
@@ -1262,18 +1363,16 @@ public final class PdfStudioRenderer {
                                             String color, String alignment) throws IOException {
         String safe = safePdfText(text);
         PDFont effectiveFont = fontForText(font, safe);
-        float minReadable = 2.3f;
-        float size = Math.max(minReadable, fontSize);
+        float size = Math.max(4f, fontSize);
         List<String> lines = wrap(safe, effectiveFont, size, Math.max(5, width));
-        while (!wrappedCellFits(effectiveFont, lines, size, width, height) && size > minReadable + 0.01f) {
-            size = Math.max(minReadable, size - .15f);
+        while (!wrappedCellFits(effectiveFont, lines, size, width, height) && size > 4.01f) {
+            size = Math.max(4f, size - .25f);
             lines = wrap(safe, effectiveFont, size, Math.max(5, width));
         }
         if (!wrappedCellFits(effectiveFont, lines, size, width, height))
             throw new IOException("Table cell text does not fit at the minimum readable size; text was not discarded: " + abbreviateForError(safe));
         setNonStroke(cs, color);
-        float lineHeight = lines.size() > 1 ? Math.max(size * 0.88f, Math.min(size * 1.08f, (height - size) / (lines.size() - 1))) : size * 1.08f;
-        float cy = y + height - size;
+        float lineHeight = size * 1.08f, cy = y + height - size;
         for (String line : lines) {
             float drawX = alignedX(effectiveFont, size, line, x, width, alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT));
             cs.beginText(); cs.setFont(effectiveFont, size); cs.newLineAtOffset(drawX, cy); cs.showText(line); cs.endText();
@@ -1283,8 +1382,7 @@ public final class PdfStudioRenderer {
 
     private static boolean wrappedCellFits(PDFont font, List<String> lines, float size, float width, float height) throws IOException {
         if (lines == null || lines.isEmpty()) return true;
-        float spacing = lines.size() > 1 ? 0.88f : 1.08f;
-        if (size + Math.max(0, lines.size()-1) * size * spacing > height + .01f) return false;
+        if (size + Math.max(0, lines.size()-1) * size * 1.08f > height + .01f) return false;
         for (String line : lines) if (textWidth(font, size, line) > width + .01f) return false;
         return true;
     }

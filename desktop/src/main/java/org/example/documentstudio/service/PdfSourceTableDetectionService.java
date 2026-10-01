@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
 /**
@@ -41,15 +42,17 @@ public final class PdfSourceTableDetectionService {
         if (grid != null) header = constrainHeaderToGrid(header, grid);
 
         double x = grid == null ? header.x() : grid.x();
-        double y = grid == null ? header.y() : grid.y();
+        double top = (grid != null && header.y() < grid.y()) ? header.y() : (grid == null ? header.y() : grid.y());
         double width = grid == null ? header.width() : grid.width();
-        double height = grid == null
-                ? Math.max(header.height() + inferSourceRowHeight(null, header, text) * 8.0, 160.0)
-                : grid.height();
-        double headerHeight = Math.max(8.0, (header.y() + header.height()) - y + 1.0);
+        double bottom = grid == null
+                ? Math.max(header.height() + inferSourceRowHeight(null, header, text) * 8.0, 160.0) + top
+                : grid.y() + grid.height();
+        double height = Math.max(80.0, bottom - top);
+        double headerBottom = header.y() + header.height();
+        double headerHeight = top >= headerBottom - 2.0 ? 0.0 : Math.max(0.0, headerBottom - top);
         double rowHeight = inferSourceRowHeight(grid, header, text);
 
-        TemplateElement table = TemplateElement.of(ElementType.ITEM_TABLE, pageIndex, x, y, width, height);
+        TemplateElement table = TemplateElement.of(ElementType.ITEM_TABLE, pageIndex, x, top, width, height);
         table.setUseSourceTableDesign(true);
         table.setHeaderHeight(headerHeight);
         table.setRowHeight(rowHeight);
@@ -158,9 +161,20 @@ public final class PdfSourceTableDetectionService {
             }
         }
         double bodyTop = sourceBodyTop(grid, header);
-        if (Double.isFinite(bodyTop) && bodyTop > table.getY() + 4 && bodyTop < table.getY() + Math.min(80, table.getHeight())) {
-            table.setHeaderHeight(bodyTop - table.getY());
-            changed = true;
+        double headerBottom = header == null ? table.getY() : header.y() + header.height();
+        if (header != null && (Double.isNaN(bodyTop) || bodyTop > headerBottom + 6.0)) {
+            // Clamped: in imported templates with sample rows, vertical lines cluster after sample rows.
+            // Body begins immediately at the bottom of the header row.
+            bodyTop = headerBottom;
+        }
+        if (Double.isFinite(bodyTop)) {
+            if (table.getY() >= bodyTop - 2.0) {
+                table.setHeaderHeight(0.0);
+                changed = true;
+            } else if (bodyTop < table.getY() + Math.min(80, table.getHeight())) {
+                table.setHeaderHeight(bodyTop - table.getY());
+                changed = true;
+            }
         }
         double bodyBottom = sourceBodyBottom(grid, header);
         if (Double.isFinite(bodyBottom) && bodyBottom > table.getY() + table.getHeaderHeight() + 10) {
@@ -176,19 +190,32 @@ public final class PdfSourceTableDetectionService {
         return applySourceTableGeometry(table, grid, header);
     }
 
-    /** Detect the physical header/body separator from the repeated long vertical body rules. */
+    /** Detect the physical header/body separator from horizontal dividing lines or vertical body rules. */
     static double sourceBodyTop(PdfImageExtractionService.VectorRegion grid, PdfAutoMappingService.ItemHeaderLayout header) {
         if (grid == null) return Double.NaN;
+        // Check horizontal separator rules at header bottom first
+        if (header != null) {
+            double hb = header.y() + header.height();
+            OptionalDouble hLine = grid.primitives().stream()
+                    .filter(p -> p != null && p.stroked())
+                    .filter(p -> p.height() <= Math.max(3.0, grid.height() * .015))
+                    .filter(p -> p.width() >= grid.width() * .35)
+                    .mapToDouble(PdfImageExtractionService.VectorPrimitive::y)
+                    .filter(y -> Math.abs(y - hb) <= 6.0)
+                    .findFirst();
+            if (hLine.isPresent()) return hLine.getAsDouble();
+        }
         double minY = header == null ? grid.y() + 2 : header.y() + header.height() - 2;
+        double maxY = header == null ? grid.y() + Math.min(90, grid.height() * .35) : header.y() + header.height() + 6;
         List<Double> starts = grid.primitives().stream()
                 .filter(p -> p != null && p.stroked())
                 .filter(p -> p.width() <= Math.max(2.5, grid.width() * .008))
-                .filter(p -> p.height() >= Math.max(30, grid.height() * .35))
+                .filter(p -> p.height() >= Math.max(12, grid.height() * .10))
                 .map(PdfImageExtractionService.VectorPrimitive::y)
                 .filter(Double::isFinite)
-                .filter(y -> y >= minY && y <= grid.y() + Math.min(90, grid.height() * .35))
+                .filter(y -> y >= minY && y <= maxY)
                 .sorted().toList();
-        if (starts.isEmpty()) return Double.NaN;
+        if (starts.isEmpty()) return header == null ? Double.NaN : header.y() + header.height();
         List<List<Double>> clusters = new ArrayList<>();
         for (double y : starts) {
             if (clusters.isEmpty() || Math.abs(clusters.get(clusters.size()-1).get(0) - y) > 1.0) {
@@ -198,7 +225,7 @@ public final class PdfSourceTableDetectionService {
         return clusters.stream()
                 .max(Comparator.<List<Double>>comparingInt(List::size).thenComparingDouble(c -> c.get(0)))
                 .map(c -> c.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN))
-                .orElse(Double.NaN);
+                .orElse(header == null ? Double.NaN : header.y() + header.height());
     }
 
     /** Detect the physical body bottom from the repeated long vertical column rules. */
@@ -378,6 +405,9 @@ public final class PdfSourceTableDetectionService {
         } else {
             // Absence of a source fill is itself meaningful; do not invent white paint.
             table.setFillEnabled(false);
+        }
+        if (!captured && (table.isStrokeEnabled() || (table.getStrokeColor() != null && !table.getStrokeColor().isBlank()))) {
+            captured = true;
         }
         table.setSourceStyleCaptured(captured);
         return captured;

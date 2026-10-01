@@ -9658,25 +9658,60 @@
 .erp-button-secondary .erp-action-glyph, .erp-button-icon .erp-action-glyph {
 -fx-icon-color: #73a9ff;
 }
-.erp-action-glyph-blue {
+.erp-action-glyph-blue,
+.erp-action-glyph.erp-action-glyph-blue,
+.erp-button .erp-action-glyph.erp-action-glyph-blue,
+.erp-button-secondary .erp-action-glyph.erp-action-glyph-blue,
+.erp-button-icon .erp-action-glyph.erp-action-glyph-blue,
+.context-menu .erp-action-glyph.erp-action-glyph-blue {
 -fx-icon-color: #73a9ff;
 }
-.erp-action-glyph-green {
+.erp-action-glyph-green,
+.erp-action-glyph.erp-action-glyph-green,
+.erp-button .erp-action-glyph.erp-action-glyph-green,
+.erp-button-secondary .erp-action-glyph.erp-action-glyph-green,
+.erp-button-icon .erp-action-glyph.erp-action-glyph-green,
+.context-menu .erp-action-glyph.erp-action-glyph-green {
 -fx-icon-color: #4ade80;
 }
-.erp-action-glyph-orange {
+.erp-action-glyph-orange,
+.erp-action-glyph.erp-action-glyph-orange,
+.erp-button .erp-action-glyph.erp-action-glyph-orange,
+.erp-button-secondary .erp-action-glyph.erp-action-glyph-orange,
+.erp-button-icon .erp-action-glyph.erp-action-glyph-orange,
+.context-menu .erp-action-glyph.erp-action-glyph-orange {
 -fx-icon-color: #fbbf24;
 }
-.erp-action-glyph-purple {
+.erp-action-glyph-purple,
+.erp-action-glyph.erp-action-glyph-purple,
+.erp-button .erp-action-glyph.erp-action-glyph-purple,
+.erp-button-secondary .erp-action-glyph.erp-action-glyph-purple,
+.erp-button-icon .erp-action-glyph.erp-action-glyph-purple,
+.context-menu .erp-action-glyph.erp-action-glyph-purple {
 -fx-icon-color: #c4b5fd;
 }
-.erp-action-glyph-pink {
+.erp-action-glyph-pink,
+.erp-action-glyph.erp-action-glyph-pink,
+.erp-button .erp-action-glyph.erp-action-glyph-pink,
+.erp-button-secondary .erp-action-glyph.erp-action-glyph-pink,
+.erp-button-icon .erp-action-glyph.erp-action-glyph-pink,
+.context-menu .erp-action-glyph.erp-action-glyph-pink {
 -fx-icon-color: #fb7185;
 }
-.erp-action-glyph-teal {
+.erp-action-glyph-teal,
+.erp-action-glyph.erp-action-glyph-teal,
+.erp-button .erp-action-glyph.erp-action-glyph-teal,
+.erp-button-secondary .erp-action-glyph.erp-action-glyph-teal,
+.erp-button-icon .erp-action-glyph.erp-action-glyph-teal,
+.context-menu .erp-action-glyph.erp-action-glyph-teal {
 -fx-icon-color: #5eead4;
 }
-.erp-action-glyph-indigo {
+.erp-action-glyph-indigo,
+.erp-action-glyph.erp-action-glyph-indigo,
+.erp-button .erp-action-glyph.erp-action-glyph-indigo,
+.erp-button-secondary .erp-action-glyph.erp-action-glyph-indigo,
+.erp-button-icon .erp-action-glyph.erp-action-glyph-indigo,
+.context-menu .erp-action-glyph.erp-action-glyph-indigo {
 -fx-icon-color: #a5b4fc;
 }
 .erp-table-header-icon {
@@ -15662,13 +15697,27 @@
 .erp-ui-standard .erp-table-standard .table-cell.status-positive .label { -fx-text-fill: #62e3ad; }
 
 /* Ordinary table values follow the same semantic colour family as their headers. */
-.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-blue { -fx-text-fill: #86b8ff; }
-.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-green { -fx-text-fill: #62e3ad; }
-.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-orange { -fx-text-fill: #ffc66b; }
-.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-purple { -fx-text-fill: #c4b5fd; }
-.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-pink { -fx-text-fill: #f9a8d4; }
-.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-teal { -fx-text-fill: #5eead4; }
-.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-indigo { -fx-text-fill: #a5b4fc; }
+.table-cell.erp-table-value-colour-blue,
+.table-cell.erp-table-value-colour-blue .text,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-blue { -fx-text-fill: #86b8ff; -fx-fill: #86b8ff; }
+.table-cell.erp-table-value-colour-green,
+.table-cell.erp-table-value-colour-green .text,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-green { -fx-text-fill: #62e3ad; -fx-fill: #62e3ad; }
+.table-cell.erp-table-value-colour-orange,
+.table-cell.erp-table-value-colour-orange .text,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-orange { -fx-text-fill: #ffc66b; -fx-fill: #ffc66b; }
+.table-cell.erp-table-value-colour-purple,
+.table-cell.erp-table-value-colour-purple .text,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-purple { -fx-text-fill: #c4b5fd; -fx-fill: #c4b5fd; }
+.table-cell.erp-table-value-colour-pink,
+.table-cell.erp-table-value-colour-pink .text,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-pink { -fx-text-fill: #f9a8d4; -fx-fill: #f9a8d4; }
+.table-cell.erp-table-value-colour-teal,
+.table-cell.erp-table-value-colour-teal .text,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-teal { -fx-text-fill: #5eead4; -fx-fill: #5eead4; }
+.table-cell.erp-table-value-colour-indigo,
+.table-cell.erp-table-value-colour-indigo .text,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-indigo { -fx-text-fill: #a5b4fc; -fx-fill: #a5b4fc; }
 
 /* Consistent ERP empty-table state on dark surfaces. */
 .erp-ui-standard .table-view .placeholder,

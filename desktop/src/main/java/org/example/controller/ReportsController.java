@@ -103,6 +103,8 @@ public class ReportsController implements ScreenLifecycle {
         cmbReportType.getSelectionModel().selectFirst();
         setCell(colSaleNo,0); setCell(colSaleDate,1); setCell(colSaleParty,2); setCell(colSaleAmount,3); setCell(colSaleStatus,4);
         setCell(colPurchaseNo,0); setCell(colPurchaseDate,1); setCell(colPurchaseParty,2); setCell(colPurchaseAmount,3); setCell(colPurchaseStatus,4);
+        colSaleAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("blue"));
+        colPurchaseAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("orange"));
 
         configureReportSearch();
         configureReportCardGrid();
@@ -560,8 +562,10 @@ public class ReportsController implements ScreenLifecycle {
         btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));miCsv.setGraphic(IconFactory.icon("document",15));
         reportSalesIcon.getChildren().setAll(IconFactory.icon("sales",22));reportPurchaseIcon.getChildren().setAll(IconFactory.icon("purchase",22));reportProfitIcon.getChildren().setAll(IconFactory.icon("chart",22));reportReceivableIcon.getChildren().setAll(IconFactory.icon("payment",22));reportStockIcon.getChildren().setAll(IconFactory.icon("inventory",22));reportCustomerIcon.getChildren().setAll(IconFactory.icon("customer",22));
     }
-    private void configureStatusCells(){statusCell(colSaleStatus);statusCell(colPurchaseStatus);}
-    private void statusCell(TableColumn<String[],String> column){column.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);getStyleClass().removeAll("report-status-paid","report-status-pending","report-status-other");if(empty||value==null){setText(null);return;}setText(value);String v=value.toUpperCase(Locale.ROOT);getStyleClass().add(v.contains("PAID")||v.contains("COMPLETED")?"report-status-paid":v.contains("PENDING")?"report-status-pending":"report-status-other");}});}
+    private void configureStatusCells(){
+        colSaleStatus.setCellFactory(c -> org.example.util.SemanticTableCells.status("document"));
+        colPurchaseStatus.setCellFactory(c -> org.example.util.SemanticTableCells.status("document"));
+    }
     @Override public void onScreenShown(boolean reusedFromCache){
         applyPendingTab();
         if(!filtersLoaded)loadFiltersAsync();

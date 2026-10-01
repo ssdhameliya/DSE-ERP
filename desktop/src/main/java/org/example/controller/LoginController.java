@@ -441,7 +441,7 @@ public class LoginController {
                         pendingEnrollmentSetup = null;
                         dlg.setResult(Boolean.TRUE);
                         dlg.close();
-                        completeLogin(authenticated);
+                        javafx.application.Platform.runLater(() -> completeLogin(authenticated));
                     }, failure -> {
                         verifyButton.setDisable(false);
                         error.setText(failure.getMessage() == null ? "Authenticator verification failed." : failure.getMessage());
@@ -612,7 +612,7 @@ public class LoginController {
                         updateLoginMode();
                         dlg.setResult(Boolean.TRUE);
                         dlg.close();
-                        showAuthenticatorEnrollment(setup);
+                        javafx.application.Platform.runLater(() -> showAuthenticatorEnrollment(setup));
                     }, failure -> {
                         verifyButton.setDisable(false);
                         error.setText(failure.getMessage() == null ? "Email verification failed." : failure.getMessage());
@@ -627,26 +627,37 @@ public class LoginController {
 
     private void completeLogin(AppUser user) {
         setLoginBusy(true, "OPENING ERP...");
-        UiTaskExecutor.submitAction("login-complete", () -> user, authenticated -> {
-            saveRememberedLogin();
-            SessionService.signIn(authenticated);
+        saveRememberedLogin();
+        SessionService.signIn(user);
+        UiTaskExecutor.submitAction("login-complete", () -> {
             try {
                 PermissionService.refreshStrict();
-                NotificationPreferenceService.refreshStrict();
-            } catch (org.example.api.ApiSession.AuthenticationRequiredException authenticationFailure) {
-                SessionService.clear();
-                setLoginBusy(false, null);
-                message("Login session could not be verified by the ERP server. Please try signing in again.", true);
-                return;
+            } catch (org.example.api.ApiSession.AuthenticationRequiredException authEx) {
+                throw authEx;
+            } catch (Exception ex) {
+                System.err.println("[Login] Permission refresh warning: " + ex.getMessage());
             }
+            try {
+                NotificationPreferenceService.refreshStrict();
+            } catch (Exception ex) {
+                System.err.println("[Login] Notification preference refresh warning: " + ex.getMessage());
+            }
+            return user;
+        }, authenticated -> {
             SceneManager.showDashboard();
             setLoginBusy(false, null);
             long elapsed = PerformanceMonitor.finish("login-click");
             if (elapsed >= 0) PerformanceBudgets.record("login", elapsed, PerformanceBudgets.LOGIN_MS);
         }, failure -> {
-            setLoginBusy(false, null);
-            PerformanceMonitor.finish("login-click");
-            message("Login failed: " + failure.getMessage(), true);
+            if (failure instanceof org.example.api.ApiSession.AuthenticationRequiredException) {
+                SessionService.clear();
+                setLoginBusy(false, null);
+                message("Login session could not be verified by the ERP server. Please try signing in again.", true);
+            } else {
+                setLoginBusy(false, null);
+                PerformanceMonitor.finish("login-click");
+                message("Login failed: " + failure.getMessage(), true);
+            }
         });
     }
 
