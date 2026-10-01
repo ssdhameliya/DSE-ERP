@@ -441,7 +441,6 @@ public class ReminderCenterController implements ScreenLifecycle {
             {
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Open reminder actions"));
-                actions.getProperties().put("erp.icon.skip", true);
                 actions.setAccessibleText("Reminder actions");
                 actions.setText("Actions");
                 actions.setGraphic(IconFactory.compactIcon("actions",15));

@@ -59,9 +59,17 @@ public final class Supplier360Controller {
 
     private void configureTables(){
         rpNo.setCellValueFactory(c->s(c.getValue().invoiceNo()));rpDate.setCellValueFactory(c->s(c.getValue().invoiceDate()));rpAmount.setCellValueFactory(c->s(money(c.getValue().totalAmount())));rpOutstanding.setCellValueFactory(c->s(money(c.getValue().outstanding())));
+        rpAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("orange"));
+        rpOutstanding.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("pink"));
         rpayDate.setCellValueFactory(c->s(c.getValue().paymentDate()));rpayInvoice.setCellValueFactory(c->s(c.getValue().invoiceNo()));rpayAmount.setCellValueFactory(c->s(money(c.getValue().amount())));rpayMode.setCellValueFactory(c->s(c.getValue().paymentMode()));
+        rpayAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("green"));
         pNo.setCellValueFactory(c->s(c.getValue().invoiceNo()));pDate.setCellValueFactory(c->s(c.getValue().invoiceDate()));pAmount.setCellValueFactory(c->s(money(c.getValue().totalAmount())));pPaid.setCellValueFactory(c->s(money(c.getValue().paidAmount())));pOutstanding.setCellValueFactory(c->s(money(c.getValue().outstanding())));pStatus.setCellValueFactory(c->s(paymentStatus(c.getValue())));
+        pAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("orange"));
+        pPaid.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("green"));
+        pOutstanding.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("pink"));
+        pStatus.setCellFactory(c -> org.example.util.SemanticTableCells.status("payment"));
         payDate.setCellValueFactory(c->s(c.getValue().paymentDate()));payInvoice.setCellValueFactory(c->s(c.getValue().invoiceNo()));payMode.setCellValueFactory(c->s(c.getValue().paymentMode()));payReference.setCellValueFactory(c->s(c.getValue().referenceNo()));payAmount.setCellValueFactory(c->s(money(c.getValue().amount())));payNotes.setCellValueFactory(c->s(c.getValue().notes()));
+        payAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("green"));
         cName.setCellValueFactory(c->s(c.getValue().name()));cDesignation.setCellValueFactory(c->s(c.getValue().designation()));cDepartment.setCellValueFactory(c->s(c.getValue().department()));cMobile.setCellValueFactory(c->s(c.getValue().mobile()));cEmail.setCellValueFactory(c->s(c.getValue().email()));cPrimary.setCellValueFactory(c->s(c.getValue().primary()?"Primary":""));
         nDate.setCellValueFactory(c->s(c.getValue().updatedAt().isBlank()?c.getValue().createdAt():c.getValue().updatedAt()));nBy.setCellValueFactory(c->s(c.getValue().updatedBy().isBlank()?c.getValue().createdBy():c.getValue().updatedBy()));nText.setCellValueFactory(c->s(c.getValue().note()));
         dName.setCellValueFactory(c->s(c.getValue().fileName()));dUploaded.setCellValueFactory(c->s(c.getValue().createdAt()));dBy.setCellValueFactory(c->s(c.getValue().createdBy()));

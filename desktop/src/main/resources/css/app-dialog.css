@@ -307,6 +307,13 @@
 .dse-dialog-pane .dse-workspace-action { -fx-min-height: 35; -fx-padding: 7 11; -fx-background-radius: 7; -fx-border-radius: 7; -fx-font-size: 10.5px; -fx-font-weight: bold; }
 .dse-dialog-pane .dse-workspace-action-mini { -fx-min-width: 112; -fx-pref-width: 112; -fx-font-size: 9.5px; }
 .dse-dialog-pane .dse-workspace-empty { -fx-padding: 18; -fx-font-size: 12px; -fx-wrap-text: true; }
+.dse-dialog-pane .dse-workspace-filter-input,
+.dse-dialog-pane .dse-workspace-field-search {
+    -fx-padding: 6 10;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-font-size: 11px;
+}
 
 .dse-theme-light.dse-dialog-pane .dse-workspace-nav-card,
 .dse-theme-light.dse-dialog-pane .dse-workspace-section-card,
@@ -332,6 +339,15 @@
 .dse-theme-light .dse-dialog-pane .dse-workspace-nav-help { -fx-text-fill: #64748b; }
 .dse-theme-light.dse-dialog-pane .dse-workspace-action,
 .dse-theme-light .dse-dialog-pane .dse-workspace-action { -fx-background-color: #ffffff; -fx-border-color: #cbd5e1; -fx-text-fill: #334155; }
+.dse-theme-light.dse-dialog-pane .dse-workspace-filter-input,
+.dse-theme-light.dse-dialog-pane .dse-workspace-field-search,
+.dse-theme-light .dse-dialog-pane .dse-workspace-filter-input,
+.dse-theme-light .dse-dialog-pane .dse-workspace-field-search {
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #cbd5e1;
+    -fx-text-fill: #0f172a;
+    -fx-prompt-text-fill: #94a3b8;
+}
 
 .dse-theme-dark.dse-dialog-pane .dse-workspace-nav-card,
 .dse-theme-dark.dse-dialog-pane .dse-workspace-section-card,
@@ -357,6 +373,15 @@
 .dse-theme-dark .dse-dialog-pane .dse-workspace-nav-help { -fx-text-fill: #94a3b8; }
 .dse-theme-dark.dse-dialog-pane .dse-workspace-action,
 .dse-theme-dark .dse-dialog-pane .dse-workspace-action { -fx-background-color: #172033; -fx-border-color: #475569; -fx-text-fill: #e2e8f0; }
+.dse-theme-dark.dse-dialog-pane .dse-workspace-filter-input,
+.dse-theme-dark.dse-dialog-pane .dse-workspace-field-search,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-filter-input,
+.dse-theme-dark .dse-dialog-pane .dse-workspace-field-search {
+    -fx-background-color: #0b1329;
+    -fx-border-color: #334155;
+    -fx-text-fill: #f8fafc;
+    -fx-prompt-text-fill: #64748b;
+}
 
 .small-display .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell,
 .ultra-compact-shell .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell { -fx-min-width: 760; -fx-pref-width: 900; -fx-min-height: 540; }

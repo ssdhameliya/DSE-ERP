@@ -1,5 +1,6 @@
 package org.example.documentstudio.service;
 
+import org.example.documentstudio.model.DocumentTemplate;
 import org.example.documentstudio.model.ElementType;
 import org.example.documentstudio.model.TemplateElement;
 import org.example.documentstudio.model.TemplateFieldDefinition;
@@ -7,6 +8,9 @@ import org.example.documentstudio.model.TemplateColumnBinding;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Single mutation path for user-driven PDF Studio field mapping.
@@ -26,6 +30,10 @@ public final class ManualTemplateMappingService {
                     : "The selected PDF element is not a text/field element.");
         }
         element.markUserMapping(field.key());
+        element.setSourceReplacementMode("OBJECT");
+        if (element.getReplacementGroupId() == null || element.getReplacementGroupId().isBlank()) {
+            element.setReplacementGroupId("replace-" + java.util.UUID.randomUUID());
+        }
         if (field.image()) {
             element.setType(ElementType.IMAGE_FIELD);
             element.setText(field.label());
@@ -33,7 +41,18 @@ public final class ManualTemplateMappingService {
             element.setStrokeEnabled(false);
         } else {
             if (element.getType() == ElementType.TEXT) element.setType(ElementType.FIELD);
-            element.setText("{{" + field.key() + "}}");
+            String existing = element.getText();
+            int colon = existing == null ? -1 : existing.indexOf(':');
+            if (colon > 1 && colon <= Math.min(55, existing.length() - 1)) {
+                String prefixPart = existing.substring(0, colon).trim();
+                if (prefixPart.chars().anyMatch(Character::isLetter)) {
+                    element.setText(existing.substring(0, colon + 1) + " {{" + field.key() + "}}");
+                } else {
+                    element.setText("{{" + field.key() + "}}");
+                }
+            } else {
+                element.setText("{{" + field.key() + "}}");
+            }
             applyFieldSemantics(element, field);
         }
     }
@@ -46,12 +65,96 @@ public final class ManualTemplateMappingService {
         if (element == null || field == null || field.image()) return;
         element.setTextFit(field.textFit());
         if (field.multiline()) {
-            element.setLineSpacing(Math.max(1.05, element.getLineSpacing()));
-            element.setAutoHeight(field.autoHeight());
-            element.setGrowthDirection(field.growthDirection());
+            element.setLineSpacing(Math.max(1.15, element.getLineSpacing()));
+            element.setAutoHeight(true);
+            element.setGrowthDirection(field.growthDirection() == null || "FIXED".equalsIgnoreCase(field.growthDirection()) ? "DOWN" : field.growthDirection());
             element.setOverflowPolicy(field.overflowPolicy());
+            element.setTextFit("WRAP");
+            if (element.getHeight() < 24.0) {
+                element.setHeight(Math.max(element.getHeight(), 36.0));
+            }
             if (element.getFlowRole().isBlank() && !field.blockRole().isBlank()) element.setFlowRole(field.blockRole());
         }
+    }
+
+    /** Auto-heals multiline elements across the entire template before validation/publishing. */
+    public static void autoHealMultilineElements(DocumentTemplate template) {
+        if (template == null) return;
+        Pattern bindingPattern = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.]+)\\s*}}");
+        for (TemplateElement element : template.getElements()) {
+            if (element == null) continue;
+            String key = element.getFieldKey();
+            if (key == null || key.isBlank()) {
+                if (element.getText() != null && element.getText().contains("{{")) {
+                    Matcher m = bindingPattern.matcher(element.getText());
+                    if (m.find()) key = m.group(1);
+                }
+            }
+            if (key == null || key.isBlank()) continue;
+            TemplateFieldDefinition definition = TemplateFieldCatalog.findPdf(template.getDocumentType(), key);
+            if (definition != null && definition.multiline()) {
+                applyFieldSemantics(element, definition);
+            }
+        }
+    }
+
+    /** Preserve inline source labels (colon, dash, keywords) while replacing changing values. */
+    public static String sourceAwareExpression(String raw, String fieldKey) {
+        if (fieldKey == null || fieldKey.isBlank()) return raw == null ? "" : raw;
+        if (raw == null || raw.isBlank()) return "{{" + fieldKey + "}}";
+        String trimmed = raw.trim();
+
+        // 1. Colon check: "GSTIN: ...", "Bank: ..."
+        int colon = trimmed.indexOf(':');
+        if (colon > 0 && colon <= Math.min(55, trimmed.length() - 1)) {
+            String prefixPart = trimmed.substring(0, colon).trim();
+            if (prefixPart.chars().anyMatch(Character::isLetter)) {
+                return prefixPart + ": {{" + fieldKey + "}}";
+            }
+        }
+
+        // 2. Dash / Hyphen check: "GSTIN- BEEPD123456H", "Transporter - XYZ"
+        for (char dash : new char[]{'-', '–', '—'}) {
+            int dashIdx = trimmed.indexOf(dash);
+            if (dashIdx > 1 && dashIdx <= Math.min(55, trimmed.length() - 1)) {
+                String prefixPart = trimmed.substring(0, dashIdx).trim();
+                long letterCount = prefixPart.chars().filter(Character::isLetter).count();
+                if (letterCount >= 2) {
+                    return prefixPart + " " + dash + " {{" + fieldKey + "}}";
+                }
+            }
+        }
+
+        // 3. Keyword prefix check without colon/dash: "GSTIN BEEPD...", "A/C No. 123456..."
+        String upper = trimmed.toUpperCase(Locale.ROOT);
+        String[] keywords = {
+            "GSTIN NO.", "GSTIN NO", "GSTIN", "GST NO.", "GST NO",
+            "PAN NO.", "PAN NO", "PAN",
+            "TRANSPORTER NAME", "TRANSPORTER", "TRANSPORT",
+            "VEHICLE NO.", "VEHICLE NO", "VEHICLE NUMBER", "VEHICLE",
+            "A/C NO.", "A/C NO", "ACCOUNT NO.", "ACCOUNT NO", "A/C NUMBER", "BANK A/C",
+            "IFSC CODE", "IFSC",
+            "BRANCH NAME", "BRANCH",
+            "BANK NAME", "BANK",
+            "LR NO.", "LR NO", "AWB NO.", "AWB NO",
+            "PO NO.", "PO NO", "ORDER NO.", "ORDER NO"
+        };
+        for (String kw : keywords) {
+            if (upper.startsWith(kw)) {
+                int kwLen = kw.length();
+                if (trimmed.length() > kwLen) {
+                    char nextChar = trimmed.charAt(kwLen);
+                    if (Character.isWhitespace(nextChar) || nextChar == '.' || nextChar == '-' || nextChar == ':') {
+                        while (kwLen < trimmed.length() && (trimmed.charAt(kwLen) == '.' || trimmed.charAt(kwLen) == '-' || trimmed.charAt(kwLen) == ':')) {
+                            kwLen++;
+                        }
+                        return trimmed.substring(0, kwLen).trim() + " {{" + fieldKey + "}}";
+                    }
+                }
+            }
+        }
+
+        return "{{" + fieldKey + "}}";
     }
 
     /** Backward-compatible entry point delegated to the centralized PDF catalogue. */
@@ -112,6 +215,7 @@ public final class ManualTemplateMappingService {
             case "discount" -> "discountPercent";
             case "gst" -> "gstPercent";
             case "amount" -> "total";
+            case "remark" -> "remarks";
             default -> normalized;
         };
     }
@@ -127,13 +231,29 @@ public final class ManualTemplateMappingService {
         if (detected == null || detected.isEmpty()) return List.of();
         List<TemplateColumnBinding> prior = existing == null ? List.of() : existing;
         List<TemplateColumnBinding> merged = new ArrayList<>();
-        for (TemplateColumnBinding candidate : detected) {
+        for (int i = 0; i < detected.size(); i++) {
+            TemplateColumnBinding candidate = detected.get(i);
             TemplateColumnBinding next = candidate.copy();
             String label = PdfAutoMappingService.normalize(candidate.getSourceLabel());
+            final int index = i;
             TemplateColumnBinding best = prior.stream()
-                    .filter(b -> PdfAutoMappingService.normalize(b.getSourceLabel()).equals(label))
+                    .filter(b -> PdfAutoMappingService.normalize(b.getSourceLabel()).equals(label)
+                            || (!b.getFieldKey().isBlank() && b.getFieldKey().equals(candidate.getAutoDetectedFieldKey())))
                     .min(java.util.Comparator.comparingDouble(b -> Math.abs(b.getXOffset() - candidate.getXOffset())))
                     .orElse(null);
+            if (best == null && prior.size() == detected.size() && index < prior.size()) {
+                TemplateColumnBinding byIndex = prior.get(index);
+                if ("CONFIRMED".equals(byIndex.getMappingState()) || "MANUAL_OVERRIDE".equals(byIndex.getMappingState())) {
+                    best = byIndex;
+                }
+            }
+            if (best == null) {
+                best = prior.stream()
+                        .filter(b -> "CONFIRMED".equals(b.getMappingState()) || "MANUAL_OVERRIDE".equals(b.getMappingState()))
+                        .filter(b -> Math.abs(b.getXOffset() - candidate.getXOffset()) <= Math.max(15.0, candidate.getWidth() * 0.40))
+                        .min(java.util.Comparator.comparingDouble(b -> Math.abs(b.getXOffset() - candidate.getXOffset())))
+                        .orElse(null);
+            }
             if (best != null) {
                 String state = best.getMappingState();
                 if ("STATIC".equals(state)) {

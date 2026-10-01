@@ -450,10 +450,11 @@ public final class TemplateFieldCatalog {
             Map.entry("customer.gstin", List.of("customer gstin", "buyer gstin", "gst-in", "gstin")),
             Map.entry("supplier.name", List.of("supplier", "vendor", "party name")),
             Map.entry("supplier.gstin", List.of("supplier gstin", "vendor gstin", "gst-in", "gstin")),
-            Map.entry("item.serial", List.of("sr no", "sr", "s no", "sl no", "serial", "line")),
+            Map.entry("item.serial", List.of("sr no", "sr", "s no", "sl no", "serial", "line", "#", "no")),
             Map.entry("item.code", List.of("item code", "part number", "part no", "sku", "code", "product code")),
             Map.entry("item.description", List.of("particulars", "description", "product", "item")),
             Map.entry("item.descriptionWithRemarks", List.of("description remarks", "product description", "item description", "description + remarks")),
+            Map.entry("item.remarks", List.of("remarks", "remark", "item remarks", "item remark", "notes")),
             Map.entry("item.hsn", List.of("hsn code", "hsn sac", "hsn", "sac")),
             Map.entry("item.quantity", List.of("quantity", "qty", "nos", "pcs")),
             Map.entry("item.unit", List.of("uom", "unit")),
@@ -474,10 +475,11 @@ public final class TemplateFieldCatalog {
         TemplateFieldDefinition.ContentMode mode = image ? TemplateFieldDefinition.ContentMode.IMAGE
                 : multiline ? TemplateFieldDefinition.ContentMode.MULTILINE : TemplateFieldDefinition.ContentMode.SINGLE_LINE;
         String role = PARTY_ADDRESS_FIELDS.contains(field.key()) ? "PARTY_ADDRESS" : multiline ? "FLOW_TEXT" : "";
+        boolean autoHeight = multiline;
         return new TemplateFieldDefinition(field.key(), field.label(), field.category(), image,
                 PDF_ALIASES.getOrDefault(field.key(), List.of()), mode,
-                multiline ? "WRAP" : "SHRINK", multiline, multiline ? "DOWN" : "FIXED",
-                multiline ? "ERROR" : "ERROR", role);
+                multiline ? "WRAP" : "SHRINK", autoHeight, autoHeight ? "DOWN" : "FIXED",
+                autoHeight ? "ERROR" : "ERROR", role);
     }
 
     private static List<TemplateFieldDefinition> enrichPdfFields(List<TemplateFieldDefinition> fields) {
@@ -493,6 +495,7 @@ public final class TemplateFieldCatalog {
             "party.deliveryAddress", "party.deliveryGstin", "sales.deliveryAddress", "sales.shippingAddress",
             "sales.deliveryGstin", "sales.shippingGstin", "purchase.deliveryAddress", "purchase.deliveryGstin", "delivery.address");
     private static final Set<String> BILLING_REVIEW_FIELDS = Set.of(
+            "party.address", "party.name", "party.gstin", "customer.address", "supplier.address",
             "party.billingAddress", "party.billingGstin", "sales.billingAddress", "sales.billingGstin",
             "purchase.billingAddress", "purchase.billingGstin");
     private static final Set<String> TERMS_REVIEW_FIELDS = Set.of(

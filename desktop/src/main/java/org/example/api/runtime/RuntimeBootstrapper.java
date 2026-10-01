@@ -255,6 +255,7 @@ public final class RuntimeBootstrapper {
             command.add("package");
             command.add("-DskipTests");
             command.add("-Ddse.server.finalName=" + finalName);
+            command.add("-Drevision=" + org.example.update.BuildInfo.version());
 
             try {
                 ProcessBuilder builder = new ProcessBuilder(command);

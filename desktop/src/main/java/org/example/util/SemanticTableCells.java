@@ -79,6 +79,58 @@ public final class SemanticTableCells {
         };
     }
 
+    public static <S> TableCell<S, String> moneyString() {
+        return moneyString("green");
+    }
+
+    public static <S> TableCell<S, String> moneyString(String color) {
+        final String colorClass = color == null || color.isBlank() ? "erp-table-value-colour-green" : "erp-table-value-colour-" + color.toLowerCase(Locale.ROOT);
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    setText(null);
+                    setGraphic(null);
+                    getStyleClass().removeAll("erp-table-value-colour-blue", "erp-table-value-colour-green", "erp-table-value-colour-orange", "erp-table-value-colour-purple", "erp-table-value-colour-pink", "erp-table-value-colour-teal", "erp-table-value-colour-indigo");
+                    return;
+                }
+                setText(item);
+                setAlignment(Pos.CENTER_RIGHT);
+                if (!getStyleClass().contains(colorClass)) {
+                    getStyleClass().removeAll("erp-table-value-colour-blue", "erp-table-value-colour-green", "erp-table-value-colour-orange", "erp-table-value-colour-purple", "erp-table-value-colour-pink", "erp-table-value-colour-teal", "erp-table-value-colour-indigo");
+                    getStyleClass().add(colorClass);
+                }
+            }
+        };
+    }
+
+    public static <S> TableCell<S, Double> money() {
+        return money("green");
+    }
+
+    public static <S> TableCell<S, Double> money(String color) {
+        final String colorClass = color == null || color.isBlank() ? "erp-table-value-colour-green" : "erp-table-value-colour-" + color.toLowerCase(Locale.ROOT);
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    getStyleClass().removeAll("erp-table-value-colour-blue", "erp-table-value-colour-green", "erp-table-value-colour-orange", "erp-table-value-colour-purple", "erp-table-value-colour-pink", "erp-table-value-colour-teal", "erp-table-value-colour-indigo");
+                    return;
+                }
+                setText(String.format(Locale.of("en", "IN"), "₹ %,.2f", item));
+                setAlignment(Pos.CENTER_RIGHT);
+                if (!getStyleClass().contains(colorClass)) {
+                    getStyleClass().removeAll("erp-table-value-colour-blue", "erp-table-value-colour-green", "erp-table-value-colour-orange", "erp-table-value-colour-purple", "erp-table-value-colour-pink", "erp-table-value-colour-teal", "erp-table-value-colour-indigo");
+                    getStyleClass().add(colorClass);
+                }
+            }
+        };
+    }
+
     private static Presentation presentation(String role, String value) {
         String v = value.trim().toUpperCase(Locale.ROOT);
         State state = classify(v);

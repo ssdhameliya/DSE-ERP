@@ -98,7 +98,24 @@ public final class PdfStudioFlowBlockDetector {
                 if (e.getMappingBlockType().isBlank()) e.setMappingBlockType(type);
                 if (e.getMappingBlockLabel().isBlank()) e.setMappingBlockLabel(label);
                 TemplateFieldDefinition def = TemplateFieldCatalog.findPdf(template.getDocumentType(), e.getFieldKey());
-                if (def != null && def.multiline()) ManualTemplateMappingService.applyDetectedFlowBlock(e, def, group.getKey());
+                if (def != null && def.multiline()) {
+                    ManualTemplateMappingService.applyDetectedFlowBlock(e, def, group.getKey());
+                    double cx = e.getX() + e.getWidth() / 2.0, cy = e.getY() + e.getHeight() / 2.0;
+                    List<PdfImageExtractionService.VectorRegion> pageVectors = vectors.computeIfAbsent(e.getPageIndex(), p -> {
+                        try { return PdfImageExtractionService.extractVectors(sourcePdf, p); } catch (Exception ex) { return List.of(); }
+                    });
+                    Optional<PdfImageExtractionService.VectorRegion> cont = pageVectors.stream()
+                            .filter(v -> v != null && v.width() >= 30.0 && v.height() >= 15.0)
+                            .filter(v -> cx >= v.x() - 1 && cx <= v.x() + v.width() + 1 && cy >= v.y() - 1 && cy <= v.y() + v.height() + 1)
+                            .filter(v -> v.width() >= e.getWidth() * 0.75 && v.height() >= e.getHeight())
+                            .min(Comparator.comparingDouble(v -> v.width() * v.height()));
+                    if (cont.isPresent()) {
+                        double availWidth = Math.max(e.getWidth(), cont.get().x() + cont.get().width() - 4.0 - e.getX());
+                        double availHeight = Math.max(e.getHeight(), cont.get().y() + cont.get().height() - 4.0 - e.getY());
+                        if (e.getWidth() < availWidth * 0.70) e.setWidth(availWidth);
+                        if (e.getHeight() < Math.max(36.0, availHeight)) e.setHeight(Math.max(36.0, availHeight));
+                    }
+                }
                 else if (e.getFlowRole().isBlank()) e.setFlowRole("FLOW_MEMBER");
             }
         }
@@ -134,7 +151,8 @@ public final class PdfStudioFlowBlockDetector {
             catch (Exception ignored) { return List.of(); }
         });
         double cx = e.getX() + e.getWidth() / 2.0, cy = e.getY() + e.getHeight() / 2.0;
-        return all.stream().filter(v -> "BLOCK".equals(v.kind()) || "TABLE / GRID".equals(v.kind()))
+        return all.stream().filter(v -> v != null && v.width() >= 30.0 && v.height() >= 15.0
+                        && (v.kind().contains("BLOCK") || v.kind().contains("GRID") || v.kind().contains("PATH")))
                 .filter(v -> cx >= v.x()-1 && cx <= v.x()+v.width()+1 && cy >= v.y()-1 && cy <= v.y()+v.height()+1)
                 .filter(v -> v.width() >= e.getWidth()*.75 && v.height() >= e.getHeight())
                 .min(Comparator.comparingDouble(v -> v.width()*v.height()))

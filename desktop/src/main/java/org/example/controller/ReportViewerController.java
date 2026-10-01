@@ -204,8 +204,45 @@ public class ReportViewerController implements ScreenLifecycle {
             ReportColumn meta=result.columns().get(index);CheckMenuItem item=new CheckMenuItem(meta.label());item.setSelected(visibleKeys.contains(meta.key()));item.selectedProperty().addListener((o,a,b)->{if(b)visibleKeys.add(meta.key());else visibleKeys.remove(meta.key());configureColumns(current);});btnColumns.getItems().add(item);
             if(!visibleKeys.contains(meta.key()))continue;
             final int p=index;TableColumn<ReportRow,String> col=new TableColumn<>(meta.label());col.setSortable(false);col.setCellValueFactory(v->new SimpleStringProperty(value(v.getValue(),p)));
-            IconFactory.applyTableHeaderIcon(col,semanticForColumn(meta.key()));
-            col.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String v,boolean empty){super.updateItem(v,empty);if(empty||v==null){setText(null);getStyleClass().remove("report-number-cell");return;}setText(display(meta,v));if(meta.numeric()&&!getStyleClass().contains("report-number-cell"))getStyleClass().add("report-number-cell");setStyle(meta.numeric()?"-fx-alignment:CENTER-RIGHT;":"");}});
+            if ("status".equals(semanticForColumn(meta.key()))) {
+                col.setCellFactory(c -> SemanticTableCells.status("status"));
+            } else if (meta.numeric()) {
+                String color = meta.key().toLowerCase(Locale.ROOT).contains("profit") ? "green"
+                             : meta.key().toLowerCase(Locale.ROOT).contains("purchase") ? "orange"
+                             : "blue";
+                col.setCellFactory(c -> new TableCell<>() {
+                    @Override protected void updateItem(String v, boolean empty) {
+                        super.updateItem(v, empty);
+                        if (empty || v == null) {
+                            setText(null);
+                            setGraphic(null);
+                            getStyleClass().removeAll("erp-table-value-colour-blue", "erp-table-value-colour-green", "erp-table-value-colour-orange", "erp-table-value-colour-purple", "erp-table-value-colour-pink", "erp-table-value-colour-teal", "erp-table-value-colour-indigo", "report-number-cell");
+                            return;
+                        }
+                        setText(display(meta, v));
+                        setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+                        String colorClass = "erp-table-value-colour-" + color;
+                        if (!getStyleClass().contains(colorClass)) {
+                            getStyleClass().removeAll("erp-table-value-colour-blue", "erp-table-value-colour-green", "erp-table-value-colour-orange", "erp-table-value-colour-purple", "erp-table-value-colour-pink", "erp-table-value-colour-teal", "erp-table-value-colour-indigo");
+                            getStyleClass().add(colorClass);
+                        }
+                        if (!getStyleClass().contains("report-number-cell")) getStyleClass().add("report-number-cell");
+                    }
+                });
+            } else {
+                col.setCellFactory(c -> new TableCell<>() {
+                    @Override protected void updateItem(String v, boolean empty) {
+                        super.updateItem(v, empty);
+                        if (empty || v == null) {
+                            setText(null);
+                            setGraphic(null);
+                            return;
+                        }
+                        setText(display(meta, v));
+                        setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                    }
+                });
+            }
             tblReport.getColumns().add(col);
         }
     }

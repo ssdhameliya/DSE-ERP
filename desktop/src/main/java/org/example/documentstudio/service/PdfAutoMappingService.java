@@ -78,7 +78,9 @@ public final class PdfAutoMappingService {
 
         List<Mapping> out = new ArrayList<>();
         Set<PdfTextRegion> used = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<String> usedRegionKeys = new HashSet<>();
         Set<String> mappedKeys = new HashSet<>();
+        Set<String> mappedCanonicalKeys = new HashSet<>();
 
         // First pass: compare printed values with the selected real ERP sample.
         for (PdfTextRegion region : regions) {
@@ -87,6 +89,8 @@ public final class PdfAutoMappingService {
             Candidate best = null;
             for (Map.Entry<String,String> entry : values.entrySet()) {
                 if (!allowedKeys.contains(entry.getKey())) continue;
+                String canonicalKey = canonical(entry.getKey());
+                if (mappedCanonicalKeys.contains(canonicalKey)) continue;
                 String raw = clean(entry.getValue());
                 String valueNorm = normalize(raw);
                 if (valueNorm.length() < 2 || isWeakValue(valueNorm)) continue;
@@ -99,7 +103,10 @@ public final class PdfAutoMappingService {
             if (best != null && best.score >= .90) {
                 String expression = replaceValue(region.text(), best.rawValue, "{{" + best.key + "}}");
                 out.add(new Mapping(region, best.key, expression, Math.min(.99, best.score), "ERP value match"));
-                used.add(region); mappedKeys.add(best.key);
+                used.add(region);
+                usedRegionKeys.add(regionKey(region));
+                mappedKeys.add(best.key);
+                mappedCanonicalKeys.add(canonical(best.key));
             }
         }
 
@@ -110,7 +117,8 @@ public final class PdfAutoMappingService {
             if (labelNorm.isBlank()) continue;
             for (TemplateFieldDefinition field : fields) {
                 String key = field.key();
-                if (mappedKeys.contains(key)) continue;
+                String canonicalKey = canonical(key);
+                if (mappedKeys.contains(key) || mappedCanonicalKeys.contains(canonicalKey) || key.startsWith("item.") || key.startsWith("charge.")) continue;
                 Optional<String> aliasMatch = aliasesFor(field).stream().filter(a -> labelNorm.contains(normalize(a)))
                         .max(Comparator.comparingInt(String::length));
                 if (aliasMatch.isEmpty()) continue;
@@ -123,12 +131,16 @@ public final class PdfAutoMappingService {
                     valueRegion = nearestValueRegion(label, regions, used);
                     if (valueRegion == null) continue;
                 }
+                if (usedRegionKeys.contains(regionKey(valueRegion))) continue;
                 String raw = clean(values.get(key));
                 if (!raw.isBlank() && normalize(valueRegion.text()).contains(normalize(raw)))
                     expression = replaceValue(valueRegion.text(), raw, "{{" + key + "}}");
                 else expression = "{{" + key + "}}";
                 out.add(new Mapping(valueRegion, key, expression, .74, "Catalogue label/proximity match"));
-                used.add(valueRegion); mappedKeys.add(key);
+                used.add(valueRegion);
+                usedRegionKeys.add(regionKey(valueRegion));
+                mappedKeys.add(key);
+                mappedCanonicalKeys.add(canonicalKey);
             }
         }
 
@@ -479,10 +491,42 @@ public final class PdfAutoMappingService {
         return count==0?0:sum/count;
     }
 
+    private static String canonical(String key) {
+        if (key == null) return "";
+        return switch (key) {
+            case "sales.number", "purchase.number" -> "document.number";
+            case "sales.date", "purchase.date" -> "document.date";
+            case "sales.poNumber", "purchase.poNumber", "sales.orderNo", "purchase.orderNo" -> "document.poNumber";
+            case "sales.poDate", "purchase.poDate" -> "document.poDate";
+            case "sales.paymentTerms", "purchase.paymentTerms" -> "document.paymentTerms";
+            case "customer.name", "supplier.name" -> "party.name";
+            case "customer.gstin", "supplier.gstin" -> "party.gstin";
+            case "customer.address", "supplier.address" -> "party.address";
+            case "sales.billingAddress" -> "party.billingAddress";
+            case "sales.deliveryAddress", "sales.shippingAddress" -> "party.deliveryAddress";
+            default -> key;
+        };
+    }
+
+    private static boolean isSectionHeaderOrLabel(String raw, String norm) {
+        if (raw == null || norm == null || norm.isBlank()) return false;
+        if (norm.endsWith("address") || norm.endsWith("details") || norm.endsWith("conditions")
+                || norm.equals("tax invoice") || norm.equals("original for buyer")
+                || norm.contains("signatory") || norm.equals("product description")
+                || norm.equals("hsn code") || norm.equals("unit rate")) {
+            return true;
+        }
+        return false;
+    }
+
     private static PdfTextRegion nearestValueRegion(PdfTextRegion label, List<PdfTextRegion> all, Set<PdfTextRegion> used) {
         PdfTextRegion best = null; double bestScore = Double.MAX_VALUE;
         for (PdfTextRegion candidate : all) {
             if (candidate == label || used.contains(candidate) || candidate.pageIndex() != label.pageIndex()) continue;
+            String text = candidate.text() == null ? "" : candidate.text().trim();
+            if (text.isEmpty() || text.matches("[:\\-–—|/]+")) continue; // Skip standalone delimiter tokens like ':'
+            String norm = normalize(text);
+            if (isSectionHeaderOrLabel(text, norm)) continue;
             double dy = Math.abs((candidate.y() + candidate.height()/2) - (label.y() + label.height()/2));
             double dx = candidate.x() - (label.x() + label.width());
             boolean right = dx >= -3 && dx <= 260 && dy <= Math.max(16, label.height() * 1.8);
@@ -557,7 +601,7 @@ public final class PdfAutoMappingService {
         String v = value.toLowerCase(Locale.ROOT)
                 .replace('\u00a0',' ')
                 .replaceAll("[\\r\\n\\t]+", " ")
-                .replaceAll("[^a-z0-9%]+", " ")
+                .replaceAll("[^a-z0-9%#]+", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
         return v;

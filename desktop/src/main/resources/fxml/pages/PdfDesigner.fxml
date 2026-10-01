@@ -39,6 +39,7 @@
                 <Separator orientation="VERTICAL" prefHeight="24"/>
                 <Button text="Auto Map Fields" onAction="#autoMapNow" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Detect Item Headers" onAction="#detectItemHeaders" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Block-Wise Mapping" onAction="#openBlockMappingHub" styleClass="approved-button,approved-primary-button"/>
                 <Button text="Review Mapping" onAction="#reviewMapping" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Validate Mapping" onAction="#validateMapping" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Mapping Guide PDF" onAction="#downloadMappingGuide" styleClass="approved-button,approved-secondary-button"/>

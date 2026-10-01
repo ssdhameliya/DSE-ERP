@@ -99,7 +99,6 @@ public abstract class PartyMasterController {
             private final MenuItem delete = new MenuItem("Delete " + displayName(), IconFactory.compactIcon("delete", 16));
             {
                 actions.getStyleClass().addAll("row-actions", "table-action-menu");
-                actions.getProperties().put("erp.icon.skip", true);
                 actions.setGraphic(IconFactory.compactIcon("actions", 16));
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);

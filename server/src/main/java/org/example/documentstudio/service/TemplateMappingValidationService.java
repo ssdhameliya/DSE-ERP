@@ -107,6 +107,7 @@ public final class TemplateMappingValidationService {
             case "discount" -> "discountPercent";
             case "gst" -> "gstPercent";
             case "amount" -> "total";
+            case "remark" -> "remarks";
             default -> key;
         };
         return "item." + key;
