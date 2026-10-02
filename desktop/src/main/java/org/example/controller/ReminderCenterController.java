@@ -3,6 +3,7 @@ package org.example.controller;
 import org.example.util.ScreenRefreshPolicy;
 import org.example.navigation.ScreenLifecycle;
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
@@ -282,6 +283,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         TextField reference = new TextField(row == null ? "" : rawReference(row.reference.get()));
         reference.setPromptText("Invoice, quotation, PO or other reference");
         DatePicker due = new DatePicker(row == null ? BusinessClock.today() : parse(row.due.get(), BusinessClock.today()));
+        DatePickerFormatter.attach(due);
         ComboBox<String> priority = new ComboBox<>();
         priority.getItems().setAll("LOW", "NORMAL", "HIGH", "URGENT");
         priority.setValue(row == null ? "NORMAL" : row.priority.get());
@@ -394,6 +396,7 @@ public class ReminderCenterController implements ScreenLifecycle {
     private void snooze(ReminderRow row) {
         if (row == null) return;
         DatePicker picker = new DatePicker(BusinessClock.today().plusDays(1));
+        DatePickerFormatter.attach(picker);
         Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Snooze Reminder"); dialog.setHeaderText(row.title.get());
         dialog.getDialogPane().setContent(new javafx.scene.layout.VBox(8, new Label("Snooze until"), picker));

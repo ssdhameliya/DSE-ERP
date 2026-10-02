@@ -4,6 +4,7 @@ import org.example.document.DocumentLookupPolicy;
 import org.example.document.DocumentChargeDialog;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.shared.DocumentCalculationEngine;
 
 import org.example.util.OwnedChoiceDialog;
@@ -224,6 +225,7 @@ public class PurchaseController implements ScreenLifecycle {
 
     @FXML
     public void initialize(){
+        DatePickerFormatter.attachAll(dpInvoiceDate, txtPoDate, dpDueDate, dpDeliveryDate);
         if(purchasePageIcon!=null)purchasePageIcon.getChildren().setAll(IconFactory.icon("purchase",24));
         if(btnSaveView!=null)btnSaveView.setGraphic(IconFactory.compactIcon("save",15));
         if(savedViewsMenu!=null)savedViewsMenu.setGraphic(IconFactory.compactIcon("view",15));

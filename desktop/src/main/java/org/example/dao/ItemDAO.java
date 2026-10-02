@@ -18,9 +18,9 @@ public class ItemDAO {
     }
     public void delete(Item item) { if (item == null) return; api.deleteItem(item.getItemCode(), item.getRowVersion()); }
     public void deleteByCode(String itemCode) {
-        Item item = getAll().stream().filter(x -> java.util.Objects.equals(x.getItemCode(), itemCode)).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Item not found: " + itemCode));
-        delete(item);
+        if (itemCode != null && !itemCode.isBlank()) {
+            api.deleteItem(itemCode);
+        }
     }
     public List<Item> getAll() { return api.items(); }
     public List<Item> getByCodes(Collection<String> codes) { return api.itemsByCodes(codes); }

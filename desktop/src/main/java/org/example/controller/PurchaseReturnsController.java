@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 
 
 import javafx.beans.property.SimpleDoubleProperty;
@@ -63,6 +64,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private boolean suppressAutoFilter;
 
     @FXML public void initialize() {
+        DatePickerFormatter.attachAll(dpFrom, dpTo);
         installKpiIcons();
         cNo.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().no()));
         cDate.setCellValueFactory(x -> new SimpleStringProperty(BusinessClock.formatDate(x.getValue().date())));

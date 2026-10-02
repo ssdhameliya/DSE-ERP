@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.documentstudio.service.ExcelOutputService;
 
 import org.example.util.OwnedDialog;
@@ -102,6 +103,7 @@ public class SalesListController implements ScreenLifecycle {
     private String pendingSavedViewName;
 
     @FXML public void initialize(){
+        DatePickerFormatter.attachAll(dpFrom, dpTo);
         configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();org.example.util.RegisterColumnPreferences.install(tableSales,"SALES_REGISTER");
         RegisterUiSupport.configureHeaderSearch(txtSearch,salesHeaderSearchIcon,"Search invoice, customer, mobile or GSTIN...");
         simplifyFilters();
@@ -237,7 +239,7 @@ public class SalesListController implements ScreenLifecycle {
 
     private void configureColumns(){
         colInvoice.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().getInvoiceNo()));
-        colDate.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().getInvoiceDate().format(BusinessClock.dateFormatter())));
+        colDate.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(BusinessClock.formatDate(v.getValue().getInvoiceDate())));
         colCustomer.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().getCustomer().getName()));
         colMobile.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(safe(v.getValue().getCustomer().getPhone())));
         colGstin.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(safe(v.getValue().getCustomer().getGstin())));
@@ -261,9 +263,77 @@ public class SalesListController implements ScreenLifecycle {
 private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);}};}
     private TableCell<Sales,Double> totalMoneyCell(){return coloredMoneyCell("erp-table-value-colour-pink","erp-table-value-colour-pink");}
     private TableCell<Sales,Double> balanceMoneyCell(){return coloredMoneyCell("erp-table-value-colour-blue","erp-table-value-colour-green");}
-    private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeIf(style->style!=null&&style.startsWith("erp-table-value-colour-"));if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
-    private TableCell<Sales,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeIf(style->style!=null&&style.startsWith("erp-table-value-colour-"));if(!e&&v!=null)getStyleClass().add(v>.009?"erp-table-value-colour-green":"erp-table-value-colour-pink");}};}
-    private TableCell<Sales,String> statusCell(String semantic){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("pill-success","pill-warning","pill-danger","pill-neutral");if(!e&&v!=null){boolean returned=v.equalsIgnoreCase("RETURNED"),partialReturn=v.equalsIgnoreCase("PARTIALLY RETURNED");boolean good=v.equalsIgnoreCase("COMPLETED")||v.equalsIgnoreCase("PAID")||v.equalsIgnoreCase("SENT")||returned;boolean pending=v.equalsIgnoreCase("IN PROGRESS")||v.equalsIgnoreCase("PARTIAL")||v.equalsIgnoreCase("PENDING")||v.equalsIgnoreCase("PENDING APPROVAL")||partialReturn;getStyleClass().add(good?"pill-success":pending?"pill-warning":"pill-danger");String icon = returned||partialReturn ? "return" : (good ? semantic : (pending ? ("status".equals(semantic)?"reminder":semantic) : "error"));setGraphic(IconFactory.compactIcon(icon,15));}}};}
+    private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){
+        return new TableCell<>(){
+            private String currentClass;
+            @Override protected void updateItem(Double v,boolean e){
+                super.updateItem(v,e);
+                setText(e||v==null?null:money(v));
+                setAlignment(Pos.CENTER_RIGHT);
+                if(e||v==null){
+                    if(currentClass!=null){getStyleClass().remove(currentClass);currentClass=null;}
+                    return;
+                }
+                String targetClass=v>.009?positiveClass:zeroClass;
+                if(!java.util.Objects.equals(currentClass,targetClass)){
+                    if(currentClass!=null)getStyleClass().remove(currentClass);
+                    if(targetClass!=null&&!getStyleClass().contains(targetClass))getStyleClass().add(targetClass);
+                    currentClass=targetClass;
+                }
+            }
+        };
+    }
+    private TableCell<Sales,Double> paidMoneyCell(){
+        return new TableCell<>(){
+            private String currentClass;
+            @Override protected void updateItem(Double v,boolean e){
+                super.updateItem(v,e);
+                setText(e||v==null?null:money(v));
+                setAlignment(Pos.CENTER_RIGHT);
+                if(e||v==null){
+                    if(currentClass!=null){getStyleClass().remove(currentClass);currentClass=null;}
+                    return;
+                }
+                String targetClass=v>.009?"erp-table-value-colour-green":"erp-table-value-colour-pink";
+                if(!java.util.Objects.equals(currentClass,targetClass)){
+                    if(currentClass!=null)getStyleClass().remove(currentClass);
+                    if(!getStyleClass().contains(targetClass))getStyleClass().add(targetClass);
+                    currentClass=targetClass;
+                }
+            }
+        };
+    }
+    private TableCell<Sales,String> statusCell(String semantic){
+        return new TableCell<>(){
+            private String currentPill;
+            private Node currentIconNode;
+            private String currentIconKey;
+            @Override protected void updateItem(String v,boolean e){
+                super.updateItem(v,e);
+                setText(e?null:v);
+                if(e||v==null){
+                    if(currentPill!=null){getStyleClass().remove(currentPill);currentPill=null;}
+                    setGraphic(null);
+                    return;
+                }
+                boolean returned=v.equalsIgnoreCase("RETURNED"),partialReturn=v.equalsIgnoreCase("PARTIALLY RETURNED");
+                boolean good=v.equalsIgnoreCase("COMPLETED")||v.equalsIgnoreCase("PAID")||v.equalsIgnoreCase("SENT")||returned;
+                boolean pending=v.equalsIgnoreCase("IN PROGRESS")||v.equalsIgnoreCase("PARTIAL")||v.equalsIgnoreCase("PENDING")||v.equalsIgnoreCase("PENDING APPROVAL")||partialReturn;
+                String targetPill = good ? "pill-success" : pending ? "pill-warning" : "pill-danger";
+                if(!java.util.Objects.equals(currentPill, targetPill)){
+                    if(currentPill!=null) getStyleClass().remove(currentPill);
+                    if(!getStyleClass().contains(targetPill)) getStyleClass().add(targetPill);
+                    currentPill = targetPill;
+                }
+                String icon = returned||partialReturn ? "return" : (good ? semantic : (pending ? ("status".equals(semantic)?"reminder":semantic) : "error"));
+                if(!java.util.Objects.equals(currentIconKey, icon)){
+                    currentIconNode = IconFactory.compactIcon(icon, 15);
+                    currentIconKey = icon;
+                }
+                setGraphic(currentIconNode);
+            }
+        };
+    }
     private String documentStatus(Sales sale){
         String stored=safe(sale==null?null:sale.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
         return stored.isBlank()?"PENDING APPROVAL":stored;
@@ -602,7 +672,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         ComboBox<String>mode=new ComboBox<>(FXCollections.observableArrayList(paymentModes));
         if(paymentModes.stream().anyMatch(v->"Bank".equalsIgnoreCase(v)))mode.setValue(paymentModes.stream().filter(v->"Bank".equalsIgnoreCase(v)).findFirst().orElse(paymentModes.getFirst()));
         else mode.setValue(paymentModes.getFirst());
-        DatePicker date=new DatePicker(BusinessClock.today());
+        DatePicker date=DatePickerFormatter.attach(new DatePicker(BusinessClock.today()));
         javafx.scene.layout.GridPane g=new javafx.scene.layout.GridPane();
         g.setHgap(10);g.setVgap(10);
         g.addRow(0,new Label("Date"),date);g.addRow(1,new Label("Amount"),amount);g.addRow(2,new Label("Mode"),mode);g.addRow(3,new Label("Reference"),ref);g.addRow(4,new Label("Notes"),notes);
@@ -689,9 +759,9 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         File f=chooseSave("Export Sales Register PDF","Sales_Register.pdf","PDF","*.pdf");if(f==null)return;
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";String selectedCustomer=customer;
         String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue(),returnStatus=cmbReturnStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
-        UiTaskExecutor.submitAction("sales-register-export-pdf",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,returnStatus,min,max);org.example.service.BrandedRegisterPdfService.export(f.toPath(),"Sales Register",new String[]{"Invoice","Date","Customer","Amount","Paid","Pending","Document Status","Payment Status"},rows.stream().map(x->new String[]{x.getInvoiceNo(),str(x.getInvoiceDate()),x.getCustomer()==null?"":safe(x.getCustomer().getName()),exportMoney(x.getTotalAmount()),exportMoney(x.getPaidAmount()),exportMoney(x.getBalanceAmount()),documentStatus(x),paymentStatusDisplay(x)}).toList(),new float[]{2,1.3f,2.4f,1.3f,1.3f,1.3f,1.5f,1.6f});return rows.size();},count->info("Sales register PDF exported • "+count+" records."),this::error);
+        UiTaskExecutor.submitAction("sales-register-export-pdf",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,returnStatus,min,max);org.example.service.BrandedRegisterPdfService.export(f.toPath(),"Sales Register",new String[]{"Invoice","Date","Customer","Amount","Paid","Pending","Document Status","Payment Status"},rows.stream().map(x->new String[]{x.getInvoiceNo(),BusinessClock.formatDate(x.getInvoiceDate()),x.getCustomer()==null?"":safe(x.getCustomer().getName()),exportMoney(x.getTotalAmount()),exportMoney(x.getPaidAmount()),exportMoney(x.getBalanceAmount()),documentStatus(x),paymentStatusDisplay(x)}).toList(),new float[]{2,1.3f,2.4f,1.3f,1.3f,1.3f,1.5f,1.6f});return rows.size();},count->info("Sales register PDF exported • "+count+" records."),this::error);
     }
-    private void writeSalesExcel(File f,List<Sales> rows)throws Exception{try(Workbook w=new XSSFWorkbook();FileOutputStream out=new FileOutputStream(f)){Sheet sh=w.createSheet("Sales Register");String[]h={"Invoice No","Date","Customer","Mobile","GSTIN","Amount","Paid","Pending","Due Date","Document Status","Payment Status","Email","WhatsApp"};Row row=sh.createRow(0);for(int i=0;i<h.length;i++)row.createCell(i).setCellValue(h[i]);int n=1;for(Sales x:rows){row=sh.createRow(n++);org.example.model.Party party=x.getCustomer();Object[]v={x.getInvoiceNo(),str(x.getInvoiceDate()),party==null?"":safe(party.getName()),party==null?"":safe(party.getPhone()),party==null?"":safe(party.getGstin()),x.getTotalAmount(),x.getPaidAmount(),x.getBalanceAmount(),dueLabel(x),documentStatus(x),paymentStatusDisplay(x),x.isEmailSent()?"Sent":"Not Sent",x.isWhatsappSent()?"Sent":"Not Sent"};for(int i=0;i<v.length;i++){if(v[i] instanceof Number z)row.createCell(i).setCellValue(z.doubleValue());else row.createCell(i).setCellValue(String.valueOf(v[i]));}}for(int i=0;i<h.length;i++)sh.autoSizeColumn(i);w.write(out);}}
+    private void writeSalesExcel(File f,List<Sales> rows)throws Exception{try(Workbook w=new XSSFWorkbook();FileOutputStream out=new FileOutputStream(f)){Sheet sh=w.createSheet("Sales Register");String[]h={"Invoice No","Date","Customer","Mobile","GSTIN","Amount","Paid","Pending","Due Date","Document Status","Payment Status","Email","WhatsApp"};Row row=sh.createRow(0);for(int i=0;i<h.length;i++)row.createCell(i).setCellValue(h[i]);int n=1;for(Sales x:rows){row=sh.createRow(n++);org.example.model.Party party=x.getCustomer();Object[]v={x.getInvoiceNo(),BusinessClock.formatDate(x.getInvoiceDate()),party==null?"":safe(party.getName()),party==null?"":safe(party.getPhone()),party==null?"":safe(party.getGstin()),x.getTotalAmount(),x.getPaidAmount(),x.getBalanceAmount(),dueLabel(x),documentStatus(x),paymentStatusDisplay(x),x.isEmailSent()?"Sent":"Not Sent",x.isWhatsappSent()?"Sent":"Not Sent"};for(int i=0;i<v.length;i++){if(v[i] instanceof Number z)row.createCell(i).setCellValue(z.doubleValue());else row.createCell(i).setCellValue(String.valueOf(v[i]));}}for(int i=0;i<h.length;i++)sh.autoSizeColumn(i);w.write(out);}}
     private String exportMoney(double value){return NumberFormat.getCurrencyInstance(Locale.of("en","IN")).format(value).replace("₹","₹ ");}
     @FXML private void printRegister(){PrinterJob job=PrinterJob.createPrinterJob();if(job!=null&&job.showPrintDialog(tableSales.getScene().getWindow())){boolean ok=job.printPage(tableSales);if(ok)job.endJob();}}
     private File chooseSave(String title,String name,String label,String pattern){FileChooser c=new FileChooser();c.setTitle(title);c.setInitialFileName(name);try{Path folder=org.example.config.WorkspaceStorageManager.reportFolder("Sales",dpFrom.getValue());if(Files.isDirectory(folder))c.setInitialDirectory(folder.toFile());}catch(Exception ignored){}c.getExtensionFilters().add(new FileChooser.ExtensionFilter(label,pattern));return c.showSaveDialog(tableSales.getScene().getWindow());}

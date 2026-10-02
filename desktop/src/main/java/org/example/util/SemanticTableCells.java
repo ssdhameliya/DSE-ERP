@@ -4,6 +4,8 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.TableCell;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -21,7 +23,10 @@ public final class SemanticTableCells {
             @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 reset(this, empty ? null : value);
-                if (empty || value == null || value.isBlank()) return;
+                if (empty || value == null || value.isBlank()) {
+                    clearState(this);
+                    return;
+                }
                 apply(this, presentation(role, value));
             }
         };
@@ -29,18 +34,28 @@ public final class SemanticTableCells {
 
     public static <S> TableCell<S, Boolean> activeBoolean() {
         return new CachedGraphicCell<>() {
+            private State currentState;
             @Override protected void updateItem(Boolean value, boolean empty) {
                 super.updateItem(value, empty);
                 setText(null);
                 setGraphic(null);
                 setStyle("");
                 setAlignment(Pos.CENTER_LEFT);
-                getStyleClass().removeAll("pill-success","pill-info","pill-warning","pill-danger","pill-neutral","semantic-register-cell");
-                if (empty || value == null) return;
+                if (empty || value == null) {
+                    if (currentState != null) {
+                        getStyleClass().remove(currentState.styleClass);
+                        currentState = null;
+                    }
+                    return;
+                }
                 if (!getStyleClass().contains("semantic-register-cell")) getStyleClass().add("semantic-register-cell");
                 setText(value ? "Active" : "Inactive");
                 Presentation p = value ? new Presentation("complete", State.SUCCESS) : new Presentation("cancel", State.DANGER);
-                getStyleClass().add(p.state.styleClass);
+                if (currentState != p.state) {
+                    if (currentState != null) getStyleClass().remove(currentState.styleClass);
+                    if (!getStyleClass().contains(p.state.styleClass)) getStyleClass().add(p.state.styleClass);
+                    currentState = p.state;
+                }
                 setGraphic(graphic(p));
                 setGraphicTextGap(5);
             }
@@ -52,7 +67,10 @@ public final class SemanticTableCells {
             @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 reset(this, empty ? null : value);
-                if (empty || value == null || value.isBlank()) return;
+                if (empty || value == null || value.isBlank()) {
+                    clearState(this);
+                    return;
+                }
                 String v = value.trim().toUpperCase(Locale.ROOT);
                 Presentation p;
                 if (v.startsWith("PAID") || v.contains("CLOSED") || v.contains("SETTLED") || v.contains("COMPLETE")) {
@@ -75,6 +93,70 @@ public final class SemanticTableCells {
                     p = new Presentation("calendar", State.INFO);
                 }
                 apply(this, p);
+            }
+        };
+    }
+
+    public static <S> TableCell<S, LocalDate> date() {
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                setText(BusinessClock.formatDate(item));
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        };
+    }
+
+    public static <S> TableCell<S, String> dateString() {
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                setText(BusinessClock.formatDate(item));
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        };
+    }
+
+    public static <S> TableCell<S, Instant> timestamp() {
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(Instant item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                setText(BusinessClock.formatTimestamp(item));
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        };
+    }
+
+    public static <S> TableCell<S, String> timestampString() {
+        return new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                setText(BusinessClock.formatTimestamp(item));
+                setAlignment(Pos.CENTER_LEFT);
             }
         };
     }
@@ -228,17 +310,36 @@ public final class SemanticTableCells {
         };
     }
 
+    private static final String STATE_PROP = "erp.semantic.state";
+
     private static void reset(TableCell<?, String> cell, String value) {
         cell.setText(value);
         cell.setGraphic(null);
         cell.setStyle("");
         cell.setAlignment(Pos.CENTER_LEFT);
-        cell.getStyleClass().removeAll("pill-success","pill-info","pill-warning","pill-danger","pill-neutral");
-        if (!cell.getStyleClass().contains("semantic-register-cell")) cell.getStyleClass().add("semantic-register-cell");
+        if (!cell.getStyleClass().contains("semantic-register-cell")) {
+            cell.getStyleClass().add("semantic-register-cell");
+        }
+    }
+
+    private static void clearState(TableCell<?, ?> cell) {
+        State current = (State) cell.getProperties().remove(STATE_PROP);
+        if (current != null) {
+            cell.getStyleClass().remove(current.styleClass);
+        }
     }
 
     private static void apply(TableCell<?, String> cell, Presentation p) {
-        cell.getStyleClass().add(p.state.styleClass);
+        State current = (State) cell.getProperties().get(STATE_PROP);
+        if (current != p.state) {
+            if (current != null) {
+                cell.getStyleClass().remove(current.styleClass);
+            }
+            if (!cell.getStyleClass().contains(p.state.styleClass)) {
+                cell.getStyleClass().add(p.state.styleClass);
+            }
+            cell.getProperties().put(STATE_PROP, p.state);
+        }
         // VirtualFlow reuses the same TableCell instances while scrolling. Cache one
         // status glyph per semantic/state on each realized cell so row recycling does
         // not allocate a fresh FontIcon/CSS node on every scroll pulse.

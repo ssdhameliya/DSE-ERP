@@ -17,6 +17,7 @@ import org.example.api.support.SupportApiClient;
 import org.example.model.Party;
 import org.example.navigation.NavigationManager;
 import org.example.service.PartyService;
+import org.example.util.DatePickerFormatter;
 import org.example.config.ConfigManager;
 import org.example.service.LookupService;
 import org.example.service.SessionService;
@@ -79,6 +80,7 @@ public final class QuotationEditorController {
         btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view",15));
         btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete",15));
 
+        DatePickerFormatter.attachAll(dpDate, dpValid, dpFollowUp);
         dpDate.setValue(BusinessClock.today());
         dpValid.setValue(BusinessClock.today().plusDays(30));
         dpFollowUp.setValue(BusinessClock.today().plusDays(7));

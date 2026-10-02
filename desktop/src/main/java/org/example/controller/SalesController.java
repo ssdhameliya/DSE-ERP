@@ -4,6 +4,7 @@ import org.example.document.DocumentLookupPolicy;
 import org.example.document.DocumentChargeDialog;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.shared.DocumentCalculationEngine;
 
 import org.example.util.OwnedAlert;
@@ -230,6 +231,7 @@ public class SalesController {
 
     @FXML
     public void initialize() {
+        DatePickerFormatter.attachAll(dpInvoiceDate, txtPoDate);
         if (btnAddCustomer != null) { btnAddCustomer.setGraphic(IconFactory.compactIcon("customer", 20)); btnAddCustomer.getProperties().put("erp-icon-preserve", true); }
         if (chkSameAsBilling != null) {
             // Keep this control as a conventional checkbox + label. A zero-size,

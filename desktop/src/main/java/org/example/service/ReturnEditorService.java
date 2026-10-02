@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.util.DynamicTableLayoutManager;
 import org.example.util.IconFactory;
 
@@ -96,6 +97,7 @@ public final class ReturnEditorService {
         dialog.setHeaderText("Select invoice items and enter the quantity to return.");
 
         DatePicker returnDate = new DatePicker(BusinessClock.today());
+        DatePickerFormatter.attach(returnDate);
         returnDate.setMaxWidth(Double.MAX_VALUE);
         Label total = PopupTableWorkspace.metricValue(money(0), "warning");
 

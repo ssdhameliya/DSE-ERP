@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -74,6 +75,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     private final LookupService lookupService = new LookupService();
 
     @FXML public void initialize() {
+        DatePickerFormatter.attachAll(paymentDate, historyFromDate, historyToDate);
         if (paymentPageIcon != null) paymentPageIcon.getChildren().setAll(IconFactory.icon("payment",24));
         decorateSectionTitles();
         configureHistoryTable();

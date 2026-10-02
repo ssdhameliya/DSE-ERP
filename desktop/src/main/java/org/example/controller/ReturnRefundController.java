@@ -17,6 +17,7 @@ import org.example.service.LookupService;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.ScreenRefreshPolicy;
@@ -56,6 +57,7 @@ public class ReturnRefundController implements ScreenLifecycle {
     @Override public void onScreenShown(boolean reusedFromCache){load();}
 
     private void configureForm(){
+        DatePickerFormatter.attach(refundDate);
         refundDate.setValue(BusinessClock.today());
         refreshMasterLookups();
         mode.setOnShowing(e->refreshMasterLookups());bankAccount.setOnShowing(e->refreshMasterLookups());

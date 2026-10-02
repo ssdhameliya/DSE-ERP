@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 
 
 import javafx.beans.property.SimpleDoubleProperty;
@@ -64,6 +65,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     private final RegisterPageState pageState=new RegisterPageState(); private static final int PAGE_SIZE=25;
 
     @FXML public void initialize() {
+        DatePickerFormatter.attachAll(dpFrom, dpTo);
         no.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().no()));
         date.setCellValueFactory(x -> new SimpleStringProperty(BusinessClock.formatDate(x.getValue().date())));
         invoice.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().invoice()));

@@ -79,6 +79,8 @@ public class ReportsController implements ScreenLifecycle {
     public static void requestTab(int index) { pendingTab = Math.max(0, Math.min(3, index)); }
 
     @FXML public void initialize() {
+        DatePickerFormatter.attach(dpFrom);
+        DatePickerFormatter.attach(dpTo);
         configureIcons();
         ResponsiveKpiLayoutManager.install(reportDashboardKpiGrid);
         RegisterUiSupport.configureHeaderSearch(txtReportSearch,reportCenterSearchIcon,"Search reports, e.g. GST...");
@@ -101,8 +103,12 @@ public class ReportsController implements ScreenLifecycle {
 
         cmbReportType.getItems().setAll("All Reports","Sales","Purchase","Inventory","Payments");
         cmbReportType.getSelectionModel().selectFirst();
-        setCell(colSaleNo,0); setCell(colSaleDate,1); setCell(colSaleParty,2); setCell(colSaleAmount,3); setCell(colSaleStatus,4);
-        setCell(colPurchaseNo,0); setCell(colPurchaseDate,1); setCell(colPurchaseParty,2); setCell(colPurchaseAmount,3); setCell(colPurchaseStatus,4);
+        setCell(colSaleNo,0);
+        colSaleDate.setCellValueFactory(v -> new SimpleStringProperty(BusinessClock.formatDate(part(v.getValue(), 1))));
+        setCell(colSaleParty,2); setCell(colSaleAmount,3); setCell(colSaleStatus,4);
+        setCell(colPurchaseNo,0);
+        colPurchaseDate.setCellValueFactory(v -> new SimpleStringProperty(BusinessClock.formatDate(part(v.getValue(), 1))));
+        setCell(colPurchaseParty,2); setCell(colPurchaseAmount,3); setCell(colPurchaseStatus,4);
         colSaleAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("blue"));
         colPurchaseAmount.setCellFactory(c -> org.example.util.SemanticTableCells.moneyString("orange"));
 

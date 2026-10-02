@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -88,6 +89,9 @@ public class BankExpenseController implements ScreenLifecycle {
     private Integer pendingSelectEntryId;
 
     @FXML public void initialize() {
+        DatePickerFormatter.attach(entryDate);
+        DatePickerFormatter.attach(filterFrom);
+        DatePickerFormatter.attach(filterTo);
         entryDate.setValue(BusinessClock.today());
         creditRadio.setToggleGroup(typeGroup); debitRadio.setToggleGroup(typeGroup); creditRadio.setSelected(true);
         installKpiIcons();
@@ -279,7 +283,7 @@ public class BankExpenseController implements ScreenLifecycle {
     }
 
     private void configureTable() {
-        colDate.setCellValueFactory(v->v.getValue().date); colType.setCellValueFactory(v->v.getValue().type); colDescription.setCellValueFactory(v->v.getValue().description);
+        colDate.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatDate(v.getValue().date.get()))); colType.setCellValueFactory(v->v.getValue().type); colDescription.setCellValueFactory(v->v.getValue().description);
         colAccount.setCellValueFactory(v->v.getValue().account); colMode.setCellValueFactory(v->v.getValue().paymentMode); colReference.setCellValueFactory(v->v.getValue().reference); colAmount.setCellValueFactory(v->v.getValue().amount); colMatch.setCellValueFactory(v->v.getValue().match);
         colAmount.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(Number n, boolean empty){ super.updateItem(n,empty); getStyleClass().removeAll("erp-value-positive","erp-value-negative"); if(empty||n==null){setText(null);return;} EntryRow row=getTableRow()==null?null:getTableRow().getItem(); setText(money(n.doubleValue())); boolean positive=row!=null && row.rawType.contains("DEPOSIT"); getStyleClass().add(positive ? "erp-value-positive" : "erp-value-negative"); }});
         colMatch.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String text, boolean empty){ super.updateItem(text,empty); setText(null); setGraphic(null); if(empty||text==null||text.isBlank()||getIndex()<0||getIndex()>=getTableView().getItems().size())return; EntryRow row=getTableView().getItems().get(getIndex()); Hyperlink link=new Hyperlink(row.statementTransactionId!=null?"View Bank Statement":text); link.getStyleClass().add("bank-match-link"); link.setGraphic(IconFactory.compactIcon(row.statementTransactionId!=null?"bank":"link",13)); link.setOnAction(e->{if(row.statementTransactionId!=null)openBankStatement(row);else openLinkedErp(row);}); setGraphic(link);} });
@@ -400,8 +404,8 @@ public class BankExpenseController implements ScreenLifecycle {
 
     private void showEntryDetails(EntryRow row){
         if(row==null||detailDrawer==null)return;detailRow=row;String noun=mode==Mode.EXPENSE?"Expense":"Bank Entry";String status=row.type.get();
-        detailDrawer.showRecord(noun+" Details",row.date.get()+" • "+status,List.of(
-            RegisterDetailDrawer.field("Date",row.date.get(),"calendar"),
+        detailDrawer.showRecord(noun+" Details",BusinessClock.formatDate(row.date.get())+" • "+status,List.of(
+            RegisterDetailDrawer.field("Date",BusinessClock.formatDate(row.date.get()),"calendar"),
             RegisterDetailDrawer.field(mode==Mode.EXPENSE?"Category":"Type",status,RegisterDetailDrawer.statusSemantic(status)),
             RegisterDetailDrawer.field("Amount",money(row.amount.get()),row.rawType.contains("DEPOSIT")?"complete":row.rawType.contains("WITHDRAW")?"error":"currency"),
             RegisterDetailDrawer.field("Account",row.account.get(),"bank"),

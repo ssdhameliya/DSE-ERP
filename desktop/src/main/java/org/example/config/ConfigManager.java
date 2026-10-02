@@ -1,6 +1,7 @@
 package org.example.config;
 
 import org.example.shared.SecretValueCodec;
+import org.example.util.DatePickerFormatter;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -18,6 +19,7 @@ public final class ConfigManager {
     private static volatile String runtimeInternalBridgeToken;
     private static volatile String runtimeBusinessZone;
     private static volatile String runtimeBusinessDateFormat;
+    private static volatile String runtimeBusinessTimeFormat;
 
     private ConfigManager() {}
 
@@ -94,6 +96,7 @@ public final class ConfigManager {
             new org.example.api.support.SupportApiClient().setSetting(key, remote == null ? "" : remote);
         }
         if (value == null) properties.remove(key); else properties.setProperty(key, "smtp.appPassword".equals(key)?SecretValueCodec.encrypt(value.replaceAll("\\s+","")):value);
+        syncRuntimeBusinessPolicy(key, value);
         save();
     }
 
@@ -113,6 +116,7 @@ public final class ConfigManager {
             new org.example.api.support.SupportApiClient().setSetting(key, remote == null ? "" : remote);
         }
         if (value == null) properties.remove(key); else properties.setProperty(key, "smtp.appPassword".equals(key)?SecretValueCodec.encrypt(value.replaceAll("\\s+","")):value);
+        syncRuntimeBusinessPolicy(key, value);
     }
 
     public static synchronized void remove(String key) {
@@ -330,12 +334,30 @@ public final class ConfigManager {
         return "BETA".equalsIgnoreCase(value == null ? "" : value.trim()) ? "BETA" : "STABLE";
     }
 
-    public static synchronized void applyServerBusinessPolicy(String zone,String dateFormat){
-        runtimeBusinessZone=zone==null?null:zone.trim();
-        runtimeBusinessDateFormat=dateFormat==null?null:dateFormat.trim();
+    public static synchronized void applyServerBusinessPolicy(String zone, String dateFormat, String timeFormat) {
+        runtimeBusinessZone = zone == null ? null : zone.trim();
+        runtimeBusinessDateFormat = dateFormat == null ? null : dateFormat.trim();
+        runtimeBusinessTimeFormat = timeFormat == null ? null : timeFormat.trim();
+        DatePickerFormatter.refreshAll();
     }
-    public static String runtimeBusinessZone(){return runtimeBusinessZone;}
-    public static String runtimeBusinessDateFormat(){return runtimeBusinessDateFormat;}
+    public static synchronized void applyServerBusinessPolicy(String zone, String dateFormat) {
+        applyServerBusinessPolicy(zone, dateFormat, null);
+    }
+    public static String runtimeBusinessZone() { return runtimeBusinessZone; }
+    public static String runtimeBusinessDateFormat() { return runtimeBusinessDateFormat; }
+    public static String runtimeBusinessTimeFormat() { return runtimeBusinessTimeFormat; }
+
+    public static void syncRuntimeBusinessPolicy(String key, String value) {
+        if ("company.dateFormat".equals(key) || "date.format".equals(key)) {
+            runtimeBusinessDateFormat = value == null || value.isBlank() ? null : value.trim();
+            DatePickerFormatter.refreshAll();
+        } else if ("company.timeZone".equals(key) || "timezone.business".equals(key)) {
+            runtimeBusinessZone = value == null || value.isBlank() ? null : value.trim();
+            DatePickerFormatter.refreshAll();
+        } else if ("company.timeFormat".equals(key)) {
+            runtimeBusinessTimeFormat = value == null || value.isBlank() ? null : value.trim();
+        }
+    }
 
     public static String getConfiguredServerUrl() {
         String value;
