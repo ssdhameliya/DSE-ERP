@@ -9663,7 +9663,8 @@
 .erp-button .erp-action-glyph.erp-action-glyph-blue,
 .erp-button-secondary .erp-action-glyph.erp-action-glyph-blue,
 .erp-button-icon .erp-action-glyph.erp-action-glyph-blue,
-.context-menu .erp-action-glyph.erp-action-glyph-blue {
+.context-menu .erp-action-glyph.erp-action-glyph-blue,
+.menu-item .erp-action-glyph.erp-action-glyph-blue {
 -fx-icon-color: #73a9ff;
 }
 .erp-action-glyph-green,
@@ -9671,7 +9672,8 @@
 .erp-button .erp-action-glyph.erp-action-glyph-green,
 .erp-button-secondary .erp-action-glyph.erp-action-glyph-green,
 .erp-button-icon .erp-action-glyph.erp-action-glyph-green,
-.context-menu .erp-action-glyph.erp-action-glyph-green {
+.context-menu .erp-action-glyph.erp-action-glyph-green,
+.menu-item .erp-action-glyph.erp-action-glyph-green {
 -fx-icon-color: #4ade80;
 }
 .erp-action-glyph-orange,
@@ -9679,7 +9681,8 @@
 .erp-button .erp-action-glyph.erp-action-glyph-orange,
 .erp-button-secondary .erp-action-glyph.erp-action-glyph-orange,
 .erp-button-icon .erp-action-glyph.erp-action-glyph-orange,
-.context-menu .erp-action-glyph.erp-action-glyph-orange {
+.context-menu .erp-action-glyph.erp-action-glyph-orange,
+.menu-item .erp-action-glyph.erp-action-glyph-orange {
 -fx-icon-color: #fbbf24;
 }
 .erp-action-glyph-purple,
@@ -9687,7 +9690,8 @@
 .erp-button .erp-action-glyph.erp-action-glyph-purple,
 .erp-button-secondary .erp-action-glyph.erp-action-glyph-purple,
 .erp-button-icon .erp-action-glyph.erp-action-glyph-purple,
-.context-menu .erp-action-glyph.erp-action-glyph-purple {
+.context-menu .erp-action-glyph.erp-action-glyph-purple,
+.menu-item .erp-action-glyph.erp-action-glyph-purple {
 -fx-icon-color: #c4b5fd;
 }
 .erp-action-glyph-pink,
@@ -9695,7 +9699,8 @@
 .erp-button .erp-action-glyph.erp-action-glyph-pink,
 .erp-button-secondary .erp-action-glyph.erp-action-glyph-pink,
 .erp-button-icon .erp-action-glyph.erp-action-glyph-pink,
-.context-menu .erp-action-glyph.erp-action-glyph-pink {
+.context-menu .erp-action-glyph.erp-action-glyph-pink,
+.menu-item .erp-action-glyph.erp-action-glyph-pink {
 -fx-icon-color: #fb7185;
 }
 .erp-action-glyph-teal,
@@ -9703,7 +9708,8 @@
 .erp-button .erp-action-glyph.erp-action-glyph-teal,
 .erp-button-secondary .erp-action-glyph.erp-action-glyph-teal,
 .erp-button-icon .erp-action-glyph.erp-action-glyph-teal,
-.context-menu .erp-action-glyph.erp-action-glyph-teal {
+.context-menu .erp-action-glyph.erp-action-glyph-teal,
+.menu-item .erp-action-glyph.erp-action-glyph-teal {
 -fx-icon-color: #5eead4;
 }
 .erp-action-glyph-indigo,
@@ -9711,7 +9717,8 @@
 .erp-button .erp-action-glyph.erp-action-glyph-indigo,
 .erp-button-secondary .erp-action-glyph.erp-action-glyph-indigo,
 .erp-button-icon .erp-action-glyph.erp-action-glyph-indigo,
-.context-menu .erp-action-glyph.erp-action-glyph-indigo {
+.context-menu .erp-action-glyph.erp-action-glyph-indigo,
+.menu-item .erp-action-glyph.erp-action-glyph-indigo {
 -fx-icon-color: #a5b4fc;
 }
 .erp-table-header-icon {

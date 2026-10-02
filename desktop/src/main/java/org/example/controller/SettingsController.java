@@ -7,6 +7,7 @@ import org.example.service.SettingsAssetPreviewLoader;
 import org.example.service.WorkspaceSettingsService;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.navigation.ScreenLifecycle;
 
 import org.example.util.OwnedAlert;
@@ -218,6 +219,9 @@ public class SettingsController implements ScreenLifecycle {
 
     @FXML
     private ComboBox<String> cmbDateFormat;
+
+    @FXML
+    private ComboBox<String> cmbTimeFormat;
 
     /* =========================================================
        EMAIL FIELDS
@@ -503,6 +507,9 @@ public class SettingsController implements ScreenLifecycle {
                 cmbCurrency.setItems(FXCollections.observableArrayList("INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","AED - UAE Dirham"));
                 cmbTimeZone.setItems(FXCollections.observableArrayList("Asia/Kolkata","Asia/Dubai","Europe/London","America/New_York","America/Los_Angeles","UTC"));
                 cmbDateFormat.setItems(FXCollections.observableArrayList("dd/MM/yyyy","dd-MM-yyyy","yyyy-MM-dd","MM/dd/yyyy","dd MMM yyyy"));
+                if (cmbTimeFormat != null) {
+                    cmbTimeFormat.setItems(FXCollections.observableArrayList("hh:mm a","hh:mm:ss a","HH:mm","HH:mm:ss"));
+                }
                 BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
                 BrandImagePresenter.contain(imgSignature, signaturePreview);
                 refreshAllAssetPreviewsAsync();
@@ -635,7 +642,8 @@ public class SettingsController implements ScreenLifecycle {
                     ConfigManager.get("company.shipAddress", ""), ConfigManager.get("company.terms", ""),
                     ConfigManager.get("company.currency", "INR - Indian Rupee"),
                     ConfigManager.get("company.timeZone", BusinessClock.zone().getId()),
-                    ConfigManager.get("company.dateFormat", "dd/MM/yyyy"));
+                    ConfigManager.get("company.dateFormat", "dd/MM/yyyy"),
+                    ConfigManager.get("company.timeFormat", "hh:mm a"));
             case EMAIL -> readEmailSettingsSnapshot();
             case SECURITY -> {
                 var support = new org.example.api.support.SupportApiClient();
@@ -684,6 +692,7 @@ public class SettingsController implements ScreenLifecycle {
                 else starting = starting.replace(org.example.service.BrandingService.technicalProductName(), applicationName);
                 txtApplicationStartingText.setText(starting);
                 selectComboValue(cmbBusinessType, value.businessType()); selectComboValue(cmbIndustry, value.industry());
+                DatePickerFormatter.attach(dpFinancialYearStart);
                 dpFinancialYearStart.setValue(parseDate(value.financialYearStart()));
             }
             case PAYMENT -> {
@@ -699,6 +708,7 @@ public class SettingsController implements ScreenLifecycle {
                 txtCompanyAddress.setText(value.address()); txtCompanyState.setText(value.state()); txtCompanyWebsite.setText(value.website());
                 txtCompanyTagline.setText(value.tagline()); txtShipAddress.setText(value.shipAddress()); txtInvoiceTerms.setText(value.terms());
                 selectComboValue(cmbCurrency, value.currency()); selectComboValue(cmbTimeZone, value.timeZone()); selectComboValue(cmbDateFormat, value.dateFormat());
+                if (cmbTimeFormat != null) selectComboValue(cmbTimeFormat, value.timeFormat());
             }
             case EMAIL -> {
                 EmailSettingsSnapshot value = (EmailSettingsSnapshot) snapshot;
@@ -740,7 +750,7 @@ public class SettingsController implements ScreenLifecycle {
     private record PaymentSettingsSnapshot(String upiId, String accountHolder, String bankName, String accountNumber, String ifsc,
                                            String branch, String accountType, List<String> accountTypes, String roundingTolerance) { }
     private record InvoiceSettingsSnapshot(String address, String state, String website, String tagline, String shipAddress,
-                                           String terms, String currency, String timeZone, String dateFormat) { }
+                                           String terms, String currency, String timeZone, String dateFormat, String timeFormat) { }
     private record EmailSettingsSnapshot(String email, String password, String host, String port, boolean passwordConfigured, boolean editable) { }
     private record SecuritySettingsSnapshot(String timeout, String warning, String mfaPolicy) { }
     private record StorageRetentionSnapshot(String logs, String reports, String exports, String diagnostics, String importResults,
@@ -1998,6 +2008,7 @@ private record AssetPreviewRequest(
                 org.example.service.BrandingService.invalidateSharedIdentity();
             }
             SharedApplicationFooter.refreshAll();
+            DatePickerFormatter.refreshAll();
             if (section == Section.COMPANY) {
                 org.example.util.SceneManager.refreshApplicationTitle();
                 DashboardController.refreshBranding();
@@ -2280,6 +2291,7 @@ private record AssetPreviewRequest(
         putSetting("company.currency", valueOrEmpty(cmbCurrency));
         putSetting("company.timeZone", valueOrEmpty(cmbTimeZone));
         putSetting("company.dateFormat", valueOrEmpty(cmbDateFormat));
+        if (cmbTimeFormat != null) putSetting("company.timeFormat", valueOrEmpty(cmbTimeFormat));
     }
 
 

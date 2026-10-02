@@ -18,7 +18,7 @@ public class ItemService {
     public void update(Item i){if(useApi())api.updateItem(i);else dao.update(i);invalidate();}
     public void delete(int id){if(useApi()){Item match=getAll().stream().filter(x->x.getId()==id).findFirst().orElseThrow();api.deleteItem(match.getItemCode(),match.getRowVersion());}else dao.delete(id);invalidate();}
     public void delete(Item item){if(item==null)return;if(useApi())api.deleteItem(item.getItemCode(),item.getRowVersion());else dao.delete(item);invalidate();}
-    public void delete(String c){if(useApi()){Item match=getAll().stream().filter(x->Objects.equals(x.getItemCode(),c)).findFirst().orElseThrow();delete(match);}else{dao.deleteByCode(c);invalidate();}}
+    public void delete(String c){if(useApi()){api.deleteItem(c);invalidate();}else{dao.deleteByCode(c);invalidate();}}
     public List<Item> getAll(){return useApi()?ReferenceDataCache.getList("ITEM:ALL",api::items,ItemService::copy):dao.getAll();}
     public String nextCode(){return useApi()?api.nextItemCode():dao.nextCode();}
     public void saveOrUpdate(Item i){if(existsByCode(i.getItemCode()))update(i);else save(i);}

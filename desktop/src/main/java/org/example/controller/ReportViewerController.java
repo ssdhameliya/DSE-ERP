@@ -64,6 +64,8 @@ public class ReportViewerController implements ScreenLifecycle {
     private volatile boolean definitionLoaded;
 
     @FXML public void initialize(){
+        DatePickerFormatter.attach(dpFrom);
+        DatePickerFormatter.attach(dpTo);
         cmbDatePreset.getItems().setAll("Today","Yesterday","This Week","Last Week","This Month","Last Month","This Quarter","Last Quarter","This Financial Year","Last Financial Year","Last 7 Days","Last 30 Days","Custom");
         cmbDatePreset.setValue("This Month");
         cmbRows.getItems().setAll(25,50,100,250);cmbRows.setValue(25);

@@ -82,17 +82,33 @@ public final class BusinessClock {
         return text;
     }
 
+    public static String timePattern() {
+        String configured = ConfigManager.runtimeBusinessTimeFormat();
+        if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.timeFormat", "hh:mm a");
+        return (configured == null || configured.isBlank()) ? "hh:mm a" : configured.trim();
+    }
+
     public static String formatInstant(Instant value, String timePattern) {
         if (value == null) return "";
         String pattern = datePattern() + (timePattern == null || timePattern.isBlank() ? "" : " " + timePattern.trim());
         return DateTimeFormatter.ofPattern(pattern, Locale.getDefault()).withZone(zone()).format(value);
     }
 
+    public static String formatTimestamp(Instant value) {
+        if (value == null) return "";
+        return formatInstant(value, timePattern());
+    }
+
     /** Formats canonical or legacy persisted timestamps in the Application Settings timezone. */
     public static String formatTimestamp(String value) {
         if (value == null || value.isBlank()) return "";
-        try { return formatInstant(parseTimestamp(value), "hh:mm a"); }
+        try { return formatInstant(parseTimestamp(value), timePattern()); }
         catch (RuntimeException ignored) { return value; }
+    }
+
+    public static String formatTime(Instant value) {
+        if (value == null) return "";
+        return DateTimeFormatter.ofPattern(timePattern(), Locale.getDefault()).withZone(zone()).format(value);
     }
 
     /** Returns the configured business-local date represented by a canonical or legacy timestamp. */

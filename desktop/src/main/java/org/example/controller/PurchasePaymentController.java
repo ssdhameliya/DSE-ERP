@@ -19,6 +19,7 @@ import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
 import org.example.service.*;
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.UiTaskExecutor;
@@ -72,6 +73,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     private boolean proofRemovalPending;
 
     @FXML public void initialize() {
+        DatePickerFormatter.attach(paymentDate);
         if (paymentPageIcon != null) paymentPageIcon.getChildren().setAll(IconFactory.icon("payment",24));
         decorateSectionTitles();
         configureHistoryTable();

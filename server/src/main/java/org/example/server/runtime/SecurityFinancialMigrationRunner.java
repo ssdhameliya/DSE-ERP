@@ -151,7 +151,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V10_0_18__final_defect_hardening",
                     "db/migration/V10_0_18__final_defect_hardening.sql"),
             new Migration("V10_0_20__authenticator_enrollment_recovery",
-                    "db/migration/V10_0_20__authenticator_enrollment_recovery.sql")
+                    "db/migration/V10_0_20__authenticator_enrollment_recovery.sql"),
+            new Migration("V10_0_27__performance_indexes",
+                    "db/migration/V10_0_27__performance_indexes.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

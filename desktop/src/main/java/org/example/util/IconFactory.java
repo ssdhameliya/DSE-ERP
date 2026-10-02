@@ -929,17 +929,18 @@ public final class IconFactory {
         return switch (semantic) {
             case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate", "approve", "publish" -> "green";
             case "export", "excel" -> "blue";
-            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle" -> "orange";
-            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application", "calendar", "audit", "archive", "duplicate" -> "purple";
-            case "report", "delete", "error", "cancel", "pdf", "debit", "reject" -> "pink";
-            case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
-            case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
+            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle", "lock" -> "orange";
+            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "reset", "notes", "print", "application", "calendar", "audit", "archive", "duplicate" -> "purple";
+            case "report", "delete", "error", "cancel", "pdf", "debit", "reject", "exit" -> "pink";
+            case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email", "backup" -> "teal";
+            case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
             case "credit" -> "green";
             case "adjust", "bank", "delivery", "dispatch", "project", "update", "permission", "register", "draft", "restart", "workflow", "reconcile", "version" -> "purple";
             case "compatibility", "database-backup", "snapshot", "recovery" -> "blue";
             case "preserve" -> "green";
             case "installer" -> "orange";
             case "login", "test" -> "blue";
+            case "security", "access" -> "indigo";
             default -> "indigo";
         };
     }

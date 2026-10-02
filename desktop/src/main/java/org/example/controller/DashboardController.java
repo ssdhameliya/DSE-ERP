@@ -1351,11 +1351,11 @@ public class DashboardController {
                 : text.contains("setting") ? "settings"
                 : text.contains("backup") ? "backup"
                 : text.contains("reminder") ? "reminder"
-                : text.contains("user access") ? "user"
+                : text.contains("user access") ? "security"
                 : text.contains("import") ? "import"
                 : text.contains("document studio") ? "document"
                 : text.contains("password") ? "lock"
-                : text.contains("logout") ? "lock"
+                : text.contains("logout") ? "exit"
                 : "document";
             item.setGraphic(IconFactory.compactIcon(semantic, 15));
         }

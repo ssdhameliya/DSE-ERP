@@ -23,6 +23,7 @@ import org.example.service.SessionService;
 import org.example.service.LookupService;
 import org.example.service.PermissionService;
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
@@ -81,6 +82,10 @@ public class BankStatementController implements ScreenLifecycle {
     }
 
     @FXML public void initialize() {
+        DatePickerFormatter.attach(fromDate);
+        DatePickerFormatter.attach(toDate);
+        DatePickerFormatter.attach(historyFrom);
+        DatePickerFormatter.attach(historyTo);
         installIcons();
         cmbStatus.setItems(FXCollections.observableArrayList("All Status","UNMATCHED","SUGGESTED","MATCHED","EXPENSE","REVIEW","IGNORED"));
         cmbStatus.setValue("All Status");
@@ -168,7 +173,7 @@ public class BankStatementController implements ScreenLifecycle {
         colSelect.setGraphic(headerSelection);
         colSelect.getStyleClass().add("bank-select-column");
         colSelect.getProperties().put("erp-header-preserve",true);
-        colDate.setCellValueFactory(v->v.getValue().date); colValueDate.setCellValueFactory(v->v.getValue().valueDate);
+        colDate.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatDate(v.getValue().date.get()))); colValueDate.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatDate(v.getValue().valueDate.get())));
         colReference.setCellValueFactory(v->v.getValue().reference); colDescription.setCellValueFactory(v->v.getValue().description);
         colDebit.setCellValueFactory(v->v.getValue().debit); colCredit.setCellValueFactory(v->v.getValue().credit); colBalance.setCellValueFactory(v->v.getValue().balance);
         colStatus.setCellValueFactory(v->v.getValue().status); colMatch.setCellValueFactory(v->v.getValue().match);
@@ -281,7 +286,11 @@ public class BankStatementController implements ScreenLifecycle {
         if(tableHistory==null)return;
         colHistoryImported.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatTimestamp(v.getValue().importedAt())));
         colHistoryBank.setCellValueFactory(v->new SimpleStringProperty(batchBankLabel(v.getValue())));
-        colHistoryPeriod.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().statementFrom())+" to "+safe(v.getValue().statementTo())));
+        colHistoryPeriod.setCellValueFactory(v->new SimpleStringProperty(
+            (v.getValue().statementFrom()==null?"":BusinessClock.formatDate(v.getValue().statementFrom()))
+            + " to "
+            + (v.getValue().statementTo()==null?"":BusinessClock.formatDate(v.getValue().statementTo()))
+        ));
         colHistoryStatus.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().status())));
         colHistoryRows.setCellValueFactory(v->new SimpleIntegerProperty(v.getValue().transactionCount()));
         colHistoryImported.setCellFactory(c->historyTextCell());

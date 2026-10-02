@@ -19,7 +19,7 @@ public class PartyService {
     public void update(Party p){if(useApi())api.updateParty(p);else dao.update(p);invalidate(p==null?null:p.getPartyType());}
     public boolean existsByCode(String c){return useApi()?api.partyExists(c):dao.existsByCode(c);}
     public void delete(Party p){if(p==null)return;if(useApi())api.deleteParty(p.getId(),p.getRowVersion());else dao.delete(p);invalidate(p.getPartyType());}
-    public void delete(int id){if(useApi()){Party p=getByType("CUSTOMER").stream().filter(x->x.getId()==id).findFirst().orElseGet(()->getByType("SUPPLIER").stream().filter(x->x.getId()==id).findFirst().orElseThrow());delete(p);}else{dao.delete(id);ReferenceDataCache.invalidate("PARTY");}}
+    public void delete(int id){if(useApi()){api.deleteParty(id);invalidate(null);}else{dao.delete(id);ReferenceDataCache.invalidate("PARTY");}}
     public List<Party> getByType(String t){String type=t==null?"":t.trim().toUpperCase(Locale.ROOT);return useApi()?ReferenceDataCache.getList("PARTY:"+type,()->api.parties(type),PartyService::copy):dao.getByType(type);}
     public String nextCode(String t){return useApi()?api.nextPartyCode(t):dao.nextCode(t);}
     public void saveOrUpdate(Party p){if(existsByCode(p.getPartyCode()))update(p);else save(p);}

@@ -35,6 +35,8 @@ public final class RegisterUiSupport {
 
     /** Applies a deterministic date interval without duplicating date math in controllers. */
     public static void setDateRange(DatePicker from, DatePicker to, LocalDate start, LocalDate end) {
+        DatePickerFormatter.attach(from);
+        DatePickerFormatter.attach(to);
         if (from != null) from.setValue(start);
         if (to != null) to.setValue(end);
     }

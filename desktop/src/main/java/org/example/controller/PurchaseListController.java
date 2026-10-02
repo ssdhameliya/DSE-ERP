@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.util.DatePickerFormatter;
 
 import org.example.api.support.SupportApiClient;
 import org.example.util.OwnedAlert;
@@ -30,6 +31,7 @@ public class PurchaseListController implements ScreenLifecycle{
  @FXML private Label lblTotal,lblTotalCount,lblToday,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblPaid,lblSummary,lblPageInfo,lblPageNumber,lblDetailInvoice,lblDetailSupplier,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailGst,lblDetailReference,lblDetailPaymentTerms,lblDetailContactPerson,lblDetailPhone,lblDetailEmail,lblDetailGstin,lblDetailCharges,lblDetailChargeTax,lblDetailGstType,lblDetailTransporter,lblDetailVehicle,lblDetailNotes,lblDetailAttachment,lblDetailBillingAddress,lblDetailDeliveryAddress;@FXML private Button btnNewPurchase,btnReset,btnRefresh,btnFirstPage,btnPreviousPage,btnNextPage,btnLastPage,btnExportExcel,btnExportPdf,btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnApprovePurchase,btnRejectPurchase;@FXML private TextField txtSearch;@FXML private ComboBox<String>cmbSupplier,cmbPaymentStatus,cmbMailStatus,cmbDocumentStatus,cmbReturnStatus;@FXML private ComboBox<Integer>cmbPageSize;@FXML private DatePicker dpFrom,dpTo;@FXML private ToggleButton btnAdvanced;@FXML private GridPane advancedFilters;@FXML private TableView<Purchase>tablePurchase;@FXML private TableColumn<Purchase,String>colInvoice,colDate,colSupplier,colMobile,colDue,colStatus,colPaymentStatus,colReturnStatus,colMail;@FXML private TableColumn<Purchase,Double>colAmount,colPaid,colBalance;@FXML private TableColumn<Purchase,Void>colActions;@FXML private SplitPane mainSplit;@FXML private VBox detailDrawer,approvalActionBox;@FXML private Button btnCloseDetails;@FXML private StackPane purchasePageIcon,purchaseHeaderSearchIcon,purchaseTotalIcon,purchaseOrdersIcon,purchaseSuppliersIcon,purchaseItemsIcon,purchasePaidIcon;
  private final PurchaseService service=new PurchaseService();private final SupportApiClient support=new SupportApiClient();private boolean explicitRefreshPending;private final FxDebouncer searchDebouncer=new FxDebouncer(java.time.Duration.ofMillis(220));private final NumberFormat money=NumberFormat.getCurrencyInstance(Locale.of("en", "IN"));private List<Purchase>all=List.of(),filtered=List.of();private Purchase selected;private boolean applyingSavedView;private boolean suppressFilterEvents;private String pendingSavedViewName;private final RegisterPageState pageState=new RegisterPageState();
  @FXML public void initialize(){
+        DatePickerFormatter.attachAll(dpFrom, dpTo);
         org.example.shortcut.ShortcutRegistry.bindLabel(btnNewPurchase,org.example.shortcut.ShortcutRegistry.Action.NEW_PURCHASE,"Create Purchase");
         if(purchasePageIcon!=null)purchasePageIcon.getChildren().setAll(IconFactory.icon("purchase",24));RegisterUiSupport.configureHeaderSearch(txtSearch,purchaseHeaderSearchIcon,"Search invoice, supplier, mobile or GSTIN...");installKpiIcons();applyRangeButtonIcons();configureExplicitButtonIcons();configureDetailsCloseButton();decorateDetailDrawer();colInvoice.setCellValueFactory(v->new SimpleStringProperty(v.getValue().getInvoiceNo()));colDate.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatDate(v.getValue().getInvoiceDate())));colSupplier.setCellValueFactory(v->new SimpleStringProperty(v.getValue().getSupplier().getName()));colMobile.setCellValueFactory(v->new SimpleStringProperty(s(v.getValue().getSupplier().getPhone())));colAmount.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().getTotalAmount()).asObject());colPaid.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().getPaidAmount()).asObject());colBalance.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().getBalanceAmount()).asObject());colDue.setCellValueFactory(v->new SimpleStringProperty(due(v.getValue())));colStatus.setCellValueFactory(v->new SimpleStringProperty(documentStatus(v.getValue())));colPaymentStatus.setCellValueFactory(v->new SimpleStringProperty(paymentStatusDisplay(v.getValue())));if(colReturnStatus!=null)colReturnStatus.setCellValueFactory(v->new SimpleStringProperty(v.getValue()==null?"N/A":v.getValue().getReturnStatus()));colMail.setCellValueFactory(v->new SimpleStringProperty(v.getValue().isEmailSent()?"Sent":"Not Sent"));colAmount.setCellFactory(x->totalMoneyCell());colPaid.setCellFactory(x->paidMoneyCell());colBalance.setCellFactory(x->balanceMoneyCell());colStatus.setCellFactory(x->SemanticTableCells.status("document"));colPaymentStatus.setCellFactory(x->SemanticTableCells.status("payment"));if(colReturnStatus!=null)colReturnStatus.setCellFactory(x->SemanticTableCells.status("return"));colMail.setCellFactory(x->pill());setupActions();cmbPaymentStatus.getItems().setAll("All","PENDING","PARTIAL","PAID","OVERDUE");cmbPaymentStatus.setValue("All");cmbMailStatus.getItems().setAll("All","Sent","Not Sent");cmbMailStatus.setValue("All");cmbDocumentStatus.getItems().setAll("All","DRAFT","PENDING APPROVAL","APPROVED","REJECTED","CANCELLED");cmbDocumentStatus.setValue("All");cmbReturnStatus.getItems().setAll("All","N/A","PENDING APPROVAL","PARTIALLY RETURNED","FULLY RETURNED");cmbReturnStatus.setValue("All");org.example.util.PartySearchUi.install(cmbSupplier,"SUPPLIER","All Suppliers","purchase-register-supplier-search");cmbPageSize.getItems().setAll(10,25,50,100);cmbPageSize.setValue(25);cmbPageSize.valueProperty().addListener((o,a,b)->{pageState.reset();reloadPage(false);});dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());if(advancedFilters!=null){advancedFilters.setVisible(false);advancedFilters.setManaged(false);}if(btnAdvanced!=null){btnAdvanced.setVisible(false);btnAdvanced.setManaged(false);}if(btnCustomRange!=null){btnCustomRange.setVisible(false);btnCustomRange.setManaged(false);}txtSearch.textProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())searchDebouncer.submit(this::filter);});cmbSupplier.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed()&&!org.example.util.PartySearchUi.isInternalUpdate(cmbSupplier))filter();});cmbPaymentStatus.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filter();});dpFrom.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filter();});dpTo.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filter();});cmbMailStatus.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filter();});cmbDocumentStatus.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filter();});cmbReturnStatus.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filter();});RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tablePurchase);org.example.util.OperationalUiSupport.installEscapeClose(mainSplit,()->detailDrawer!=null&&detailDrawer.isVisible(),this::closeDetails);org.example.util.OperationalUiSupport.focusWorkArea(tablePurchase);refresh();configureModernTable();installRegisterTools();org.example.util.RegisterColumnPreferences.install(tablePurchase,"PURCHASE_REGISTER");}
 
@@ -55,8 +57,46 @@ public class PurchaseListController implements ScreenLifecycle{
  private TableCell<Purchase,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);}};}
  private TableCell<Purchase,Double> totalMoneyCell(){return coloredMoneyCell("erp-table-value-colour-pink","erp-table-value-colour-pink");}
  private TableCell<Purchase,Double> balanceMoneyCell(){return coloredMoneyCell("erp-table-value-colour-blue","erp-table-value-colour-green");}
- private TableCell<Purchase,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeIf(style->style!=null&&style.startsWith("erp-table-value-colour-"));if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
- private TableCell<Purchase,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeIf(style->style!=null&&style.startsWith("erp-table-value-colour-"));if(!e&&v!=null)getStyleClass().add(v>.009?"erp-table-value-colour-green":"erp-table-value-colour-pink");}};}
+ private TableCell<Purchase,Double> coloredMoneyCell(String positiveClass,String zeroClass){
+  return new TableCell<>(){
+   private String currentClass;
+   @Override protected void updateItem(Double v,boolean e){
+    super.updateItem(v,e);
+    setText(e||v==null?null:fmt(v));
+    setAlignment(Pos.CENTER_RIGHT);
+    if(e||v==null){
+     if(currentClass!=null){getStyleClass().remove(currentClass);currentClass=null;}
+     return;
+    }
+    String targetClass=v>.009?positiveClass:zeroClass;
+    if(!java.util.Objects.equals(currentClass,targetClass)){
+     if(currentClass!=null)getStyleClass().remove(currentClass);
+     if(targetClass!=null&&!getStyleClass().contains(targetClass))getStyleClass().add(targetClass);
+     currentClass=targetClass;
+    }
+   }
+  };
+ }
+ private TableCell<Purchase,Double> paidMoneyCell(){
+  return new TableCell<>(){
+   private String currentClass;
+   @Override protected void updateItem(Double v,boolean e){
+    super.updateItem(v,e);
+    setText(e||v==null?null:fmt(v));
+    setAlignment(Pos.CENTER_RIGHT);
+    if(e||v==null){
+     if(currentClass!=null){getStyleClass().remove(currentClass);currentClass=null;}
+     return;
+    }
+    String targetClass=v>.009?"erp-table-value-colour-green":"erp-table-value-colour-pink";
+    if(!java.util.Objects.equals(currentClass,targetClass)){
+     if(currentClass!=null)getStyleClass().remove(currentClass);
+     if(!getStyleClass().contains(targetClass))getStyleClass().add(targetClass);
+     currentClass=targetClass;
+    }
+   }
+  };
+ }
  private void configureExplicitButtonIcons(){
   setButtonIcon(btnNewPurchase,"purchase");setButtonIcon(btnReset,"reset");setButtonIcon(btnRefresh,"refresh");
   setButtonIcon(btnFirstPage,"first");setButtonIcon(btnPreviousPage,"previous");setButtonIcon(btnNextPage,"next");setButtonIcon(btnLastPage,"last");
@@ -77,49 +117,96 @@ public class PurchaseListController implements ScreenLifecycle{
  private void installRegisterTools(){Node parent=tablePurchase.getParent();if(!(parent instanceof VBox box))return;HBox bar=null;for(Node n:box.getChildren())if(n instanceof HBox h&&h.getStyleClass().contains("export-bar")){bar=h;break;}if(bar==null||bar.getProperties().putIfAbsent("tools-installed",true)!=null)return;Button print=new Button("Print");print.setGraphic(IconFactory.icon("print"));print.getStyleClass().add("secondary-button");print.setOnAction(e->printRegister());bar.getChildren().add(Math.min(2,bar.getChildren().size()),print);}
  private void printRegister(){PrinterJob job=PrinterJob.createPrinterJob();if(job!=null&&job.showPrintDialog(tablePurchase.getScene().getWindow())){if(job.printPage(tablePurchase))job.endJob();}}
  private void setupActions(){
-  colActions.setCellFactory(c->new TableCell<>(){
-   final MenuButton m=new MenuButton();
-   final MenuItem edit;
-   final MenuItem payment;
-   final MenuItem createReturn;
-   final MenuItem cancel;
-   final MenuItem delete;
-   {
-    m.getProperties().put("erp.icon.semantic","actions");m.setGraphic(IconFactory.compactIcon("actions",15));
-    item("View Purchase","view",e->view(row()));
-    item("Audit Trail","history",e->org.example.util.ActivityTimelineDialog.show(tablePurchase,"PURCHASE",row().getId(),row().getInvoiceNo()));
-    edit=item("Edit Purchase","edit",e->edit(row()));
-    item("Duplicate Purchase","copy",e->duplicate(row()));
-    item("Preview / Download PDF","print",e->pdf(row()));
-    item("View / Download Excel","excel",e->excel(row()));
-    item("Send Email","email",e->email(row()));
-    item("Send WhatsApp","whatsapp",e->whatsapp(row()));
-    payment=item("View / Record Payments","payment",e->payment(row()));
-    createReturn=item("Create Purchase Return","return",e->createReturn(row()));
-    item("Notes / Remarks","notes",e->notes(row()));
-    cancel=item("Cancel Purchase","cancel",e->cancelPurchase(row()));
-    delete=item("Delete Purchase","delete",e->delete(row()));
-    delete.getStyleClass().add("danger-menu-item");
-    m.setOnShowing(e->updateAvailability());
-    m.getStyleClass().add("row-actions");m.setGraphic(IconFactory.compactIcon("actions",16));m.setText("Actions");m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.setTooltip(new Tooltip("Actions"));IconFactory.decorateActionMenu(m);
-   }
-   private void updateAvailability(){
-    Purchase current=getTableRow()==null?null:getTableRow().getItem();
-    if(current==null){edit.setDisable(true);payment.setDisable(true);createReturn.setDisable(true);cancel.setDisable(true);delete.setDisable(true);return;}
-    String status=s(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
-    boolean cancelled="CANCELLED".equals(status),deleted="DELETED".equals(status),inactive=cancelled||deleted;
-    boolean locked=isFinanciallyLocked(current);
-    edit.setDisable(inactive);
-    payment.setDisable(inactive||"DRAFT".equals(status)||isApprovalLocked(current));
-    createReturn.setDisable(!isReturnEligible(current));
-    cancel.setDisable(locked||inactive);
-    delete.setDisable(locked||deleted);
-    cancel.setVisible(true);delete.setVisible(true);
-   }
-   private Purchase row(){Purchase value=getTableRow()==null?null:getTableRow().getItem();if(value==null)throw new IllegalStateException("This purchase row is no longer available. Refresh the register and try again.");return value;}
-   private MenuItem item(String n,String icon,javafx.event.EventHandler<javafx.event.ActionEvent>h){MenuItem i=new MenuItem(n);i.getProperties().put("erp.icon.semantic",icon);i.setGraphic(IconFactory.compactIcon(icon,16));i.setOnAction(event->{try{h.handle(event);}catch(Throwable failure){error(failure);}});m.getItems().add(i);return i;}
-   @Override protected void updateItem(Void v,boolean e){super.updateItem(v,e);setGraphic(e?null:m);setAlignment(Pos.CENTER);}
+  final ContextMenu sharedMenu = new ContextMenu();
+  final javafx.beans.property.ObjectProperty<Purchase> target = new javafx.beans.property.SimpleObjectProperty<>();
+
+  MenuItem view = purchaseActionItem("View Purchase", "view", () -> view(requirePurchaseActionTarget(target)));
+  MenuItem audit = purchaseActionItem("Audit Trail", "history", () -> {
+   Purchase row = requirePurchaseActionTarget(target);
+   org.example.util.ActivityTimelineDialog.show(tablePurchase, "PURCHASE", row.getId(), row.getInvoiceNo());
   });
+  editActionItem = purchaseActionItem("Edit Purchase", "edit", () -> edit(requirePurchaseActionTarget(target)));
+  MenuItem duplicate = purchaseActionItem("Duplicate Purchase", "copy", () -> duplicate(requirePurchaseActionTarget(target)));
+  MenuItem pdf = purchaseActionItem("Preview / Download PDF", "print", () -> pdf(requirePurchaseActionTarget(target)));
+  MenuItem excel = purchaseActionItem("View / Download Excel", "excel", () -> excel(requirePurchaseActionTarget(target)));
+  MenuItem email = purchaseActionItem("Send Email", "email", () -> email(requirePurchaseActionTarget(target)));
+  MenuItem whatsapp = purchaseActionItem("Send WhatsApp", "whatsapp", () -> whatsapp(requirePurchaseActionTarget(target)));
+  paymentActionItem = purchaseActionItem("View / Record Payments", "payment", () -> payment(requirePurchaseActionTarget(target)));
+  returnActionItem = purchaseActionItem("Create Purchase Return", "return", () -> createReturn(requirePurchaseActionTarget(target)));
+  MenuItem notes = purchaseActionItem("Notes / Remarks", "notes", () -> notes(requirePurchaseActionTarget(target)));
+  cancelActionItem = purchaseActionItem("Cancel Purchase", "cancel", () -> cancelPurchase(requirePurchaseActionTarget(target)));
+  deleteActionItem = purchaseActionItem("Delete Purchase", "delete", () -> delete(requirePurchaseActionTarget(target)));
+  deleteActionItem.getStyleClass().add("danger-menu-item");
+
+  sharedMenu.getItems().setAll(view, audit, editActionItem, duplicate, pdf, excel, email, whatsapp, paymentActionItem, returnActionItem, notes, cancelActionItem, deleteActionItem);
+  IconFactory.decorateActionMenu(sharedMenu);
+
+  java.util.function.Consumer<Purchase> updateAvailability = current -> {
+   if (current == null) {
+    editActionItem.setDisable(true); paymentActionItem.setDisable(true); returnActionItem.setDisable(true); cancelActionItem.setDisable(true); deleteActionItem.setDisable(true);
+    return;
+   }
+   String status = s(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+   boolean cancelled = "CANCELLED".equals(status), deleted = "DELETED".equals(status), inactive = cancelled || deleted;
+   boolean locked = isFinanciallyLocked(current);
+   editActionItem.setDisable(inactive);
+   paymentActionItem.setDisable(inactive || "DRAFT".equals(status) || isApprovalLocked(current));
+   returnActionItem.setDisable(!isReturnEligible(current));
+   cancelActionItem.setDisable(locked || inactive);
+   deleteActionItem.setDisable(locked || deleted);
+   cancelActionItem.setVisible(true); deleteActionItem.setVisible(true);
+  };
+  sharedMenu.setOnHidden(event -> target.set(null));
+
+  colActions.setCellFactory(c -> new TableCell<>() {
+   final Button button = new Button("Actions");
+   {
+    button.getProperties().put("erp.icon.semantic", "actions");
+    button.setGraphic(IconFactory.compactIcon("actions", 16));
+    button.getStyleClass().add("row-actions");
+    button.setContentDisplay(ContentDisplay.LEFT);
+    button.setGraphicTextGap(6);
+    button.setTooltip(new Tooltip("Actions"));
+    button.setOnAction(event -> {
+     Purchase row = getTableRow() == null ? null : getTableRow().getItem();
+     if (row == null) return;
+     getTableView().getSelectionModel().select(getIndex());
+     target.set(row);
+     updateAvailability.accept(row);
+     if (sharedMenu.isShowing()) sharedMenu.hide();
+     sharedMenu.show(button, javafx.geometry.Side.BOTTOM, 0, 0);
+    });
+   }
+   @Override protected void updateItem(Void value, boolean empty) {
+    super.updateItem(value, empty);
+    if (empty) {
+     if (sharedMenu.isShowing() && target.get() != null && getTableRow() != null && getTableRow().getItem() == target.get()) {
+      sharedMenu.hide();
+     }
+     setGraphic(null);
+    } else {
+     setGraphic(button);
+     setAlignment(Pos.CENTER);
+    }
+   }
+  });
+ }
+
+ private MenuItem editActionItem, paymentActionItem, returnActionItem, cancelActionItem, deleteActionItem;
+ private MenuItem purchaseActionItem(String text, String icon, Runnable action) {
+  MenuItem item = new MenuItem(text);
+  item.getProperties().put("erp.icon.semantic", icon);
+  item.setGraphic(IconFactory.compactIcon(icon, 16));
+  item.setOnAction(event -> {
+   try { action.run(); } catch (Throwable failure) { error(failure); }
+  });
+  return item;
+ }
+
+ private Purchase requirePurchaseActionTarget(javafx.beans.property.ObjectProperty<Purchase> target) {
+  Purchase row = target.get();
+  if (row == null) throw new IllegalStateException("This purchase row is no longer available. Refresh the register and try again.");
+  return row;
  }
 
  @FXML public void refresh(){reloadPage(true);}
