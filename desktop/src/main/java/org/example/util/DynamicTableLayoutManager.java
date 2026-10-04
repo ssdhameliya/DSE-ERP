@@ -7,6 +7,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -49,7 +50,7 @@ public final class DynamicTableLayoutManager {
     private static final double MIN_READABLE_COLUMN = 58.0;
     private static final double DENSE_MIN_READABLE_COLUMN = 44.0;
     private static final double ABSOLUTE_MIN_COLUMN = 34.0;
-    private static final double LAYOUT_TOLERANCE = 0.75;
+    private static final double LAYOUT_TOLERANCE = 1.25;
 
     private DynamicTableLayoutManager() { }
 
@@ -72,7 +73,26 @@ public final class DynamicTableLayoutManager {
         bindColumns(table);
         bindItems(table, null, table.getItems());
 
-        table.widthProperty().addListener((obs, oldValue, newValue) -> requestSettledLayout(table));
+        if (table.getPlaceholder() == null) {
+            Label placeholder = new Label("No records found");
+            placeholder.getStyleClass().add("erp-table-empty-placeholder");
+            placeholder.setStyle("-fx-text-fill: -color-fg-muted; -fx-font-size: 13px; -fx-padding: 24px;");
+            table.setPlaceholder(placeholder);
+        }
+
+        table.widthProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue == null || oldValue == null || Math.abs(newValue.doubleValue() - oldValue.doubleValue()) < 1.0) {
+                requestSettledLayout(table);
+                return;
+            }
+            javafx.animation.PauseTransition debouncer = (javafx.animation.PauseTransition) table.getProperties().get("erp.table.dynamic-layout.debouncer");
+            if (debouncer == null) {
+                debouncer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(50));
+                debouncer.setOnFinished(e -> requestSettledLayout(table));
+                table.getProperties().put("erp.table.dynamic-layout.debouncer", debouncer);
+            }
+            debouncer.playFromStart();
+        });
         table.itemsProperty().addListener((obs, oldItems, newItems) -> bindItems(table, oldItems, newItems));
         table.sceneProperty().addListener((obs, oldScene, newScene) -> requestSettledLayout(table));
         table.skinProperty().addListener((obs, oldSkin, newSkin) -> requestSettledLayout(table));

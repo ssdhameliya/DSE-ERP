@@ -135,6 +135,9 @@ public final class ExcelTemplateRenderer {
         // Repeating rows can contain relative Excel formulas. POI stores the adjusted
         // formulas below and Excel recalculates the final workbook on first open.
         workbook.setForceFormulaRecalculation(true);
+        try {
+            workbook.getCreationHelper().createFormulaEvaluator().evaluateAll();
+        } catch (Exception ignored) {}
     }
 
     /** Excel-only derived values kept out of the shared PDF field catalog. */

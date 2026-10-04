@@ -115,6 +115,8 @@
               <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="quick-range-yesterday,sales-range-button,quick-range-button,quick-range-yesterday,approved-button,approved-secondary-button"/>
               <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="sales-range-button,quick-range-button,quick-range-seven,approved-button,approved-secondary-button"/>
               <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="sales-range-button,quick-range-button,quick-range-thirty,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnThisFyRange" text="This FY" onAction="#showThisFinancialYear" styleClass="sales-range-button,quick-range-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnThisQuarterRange" text="This Quarter" onAction="#showThisQuarter" styleClass="sales-range-button,quick-range-button,approved-button,approved-secondary-button"/>
               <Button fx:id="btnCustomRange" text="Custom Range" onAction="#focusCustomRange" visible="false" managed="false" styleClass="sales-range-button,sales-custom-range-button,approved-button,approved-secondary-button"/>
               <Region HBox.hgrow="ALWAYS"/>
               <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="register-action-button,register-reset-button,approved-button,approved-secondary-button"/>

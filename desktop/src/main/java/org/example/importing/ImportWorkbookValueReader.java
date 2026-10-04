@@ -4,15 +4,26 @@ import org.apache.poi.ss.usermodel.*;
 import org.example.util.SpreadsheetLayoutDetector;
 
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /** Spreadsheet cell/date access shared by import processors. */
 public final class ImportWorkbookValueReader {
+    private static final Map<Workbook, FormulaEvaluator> EVALUATOR_CACHE =
+            Collections.synchronizedMap(new WeakHashMap<>());
+
     private ImportWorkbookValueReader() { }
+
+    private static FormulaEvaluator evaluatorFor(Workbook workbook) {
+        if (workbook == null) return null;
+        return EVALUATOR_CACHE.computeIfAbsent(workbook, wb -> wb.getCreationHelper().createFormulaEvaluator());
+    }
 
     public static String cellValue(Row row, String header) {
         if (row == null || header == null) return null;
         Workbook workbook = row.getSheet().getWorkbook();
-        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        FormulaEvaluator evaluator = evaluatorFor(workbook);
         int colIndex = findColumn(row, header, evaluator);
         if (colIndex >= 0 && row.getCell(colIndex) != null) {
             return SpreadsheetLayoutDetector.format(row.getCell(colIndex), evaluator);
@@ -24,7 +35,7 @@ public final class ImportWorkbookValueReader {
         if (row == null) throw new IllegalArgumentException("Missing " + field + " row");
         if (header == null || header.isBlank()) throw new IllegalArgumentException("Missing " + field + " mapping");
         Workbook workbook = row.getSheet().getWorkbook();
-        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        FormulaEvaluator evaluator = evaluatorFor(workbook);
         int colIndex = findColumn(row, header, evaluator);
         if (colIndex < 0) throw new IllegalArgumentException("Missing " + field + " column");
         Cell cell = row.getCell(colIndex);

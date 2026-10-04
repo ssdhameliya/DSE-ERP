@@ -17191,3 +17191,7 @@
     -fx-background-color: #eefaf4;
     -fx-border-color: #a9dcc2;
 }
+.approved-kpi-grid > .sales-metric-card {
+    -fx-cursor: hand;
+}
+

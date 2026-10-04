@@ -26,9 +26,12 @@ public final class InvoiceTaxCalculator {
         DocumentCalculationEngine.Totals totals = DocumentCalculationEngine.totals(
                 lineInputs, chargeInputs, DocumentCalculationEngine.taxMode(gstType));
         double nonTaxableCharges = DocumentCalculationEngine.money(totals.chargeAmount() - totals.taxableCharges());
+        double exactGrand = totals.grandTotal();
+        double roundedGrand = Math.round(exactGrand);
+        double roundOff = DocumentCalculationEngine.money(roundedGrand - exactGrand);
         return new InvoiceTotals(
                 totals.grossItems(), totals.discountAmount(), totals.chargeAmount(), totals.taxableAmount(), nonTaxableCharges,
-                totals.cgstAmount(), totals.sgstAmount(), totals.igstAmount(), 0d, totals.grandTotal());
+                totals.cgstAmount(), totals.sgstAmount(), totals.igstAmount(), roundOff, roundedGrand);
     }
 
     /** Backward-compatible entry point for legacy single non-taxable freight invoices. */

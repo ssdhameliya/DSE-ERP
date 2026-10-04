@@ -26,6 +26,10 @@ public class BusinessOperationsService {
  private final SalesHeaderRepository sales; private final SalesLineRepository salesLines; private final SalesChargeRepository salesCharges; private final PurchaseHeaderRepository purchases; private final PurchaseLineRepository purchaseLines; private final PurchaseChargeRepository purchaseCharges; private final PartyRepository parties; private final ItemRepository items; private final LookupRepository lookups; private final MasterCategoryRepository categories; private final FinanceRegisterRepository finance; private final BankReconciliationAllocationRepository reconciliationAllocations; private final JpaNativeRepository jdbc; private final AuditService audit; private final CashPositionService cashPosition;
  public BusinessOperationsService(SalesHeaderRepository s,SalesLineRepository sl,SalesChargeRepository sc,PurchaseHeaderRepository p,PurchaseLineRepository pl,PurchaseChargeRepository pc,PartyRepository pa,ItemRepository i,LookupRepository l,MasterCategoryRepository c,FinanceRegisterRepository f,BankReconciliationAllocationRepository ra,JpaNativeRepository jdbc,AuditService audit,CashPositionService cashPosition){sales=s;salesLines=sl;salesCharges=sc;purchases=p;purchaseLines=pl;purchaseCharges=pc;parties=pa;items=i;lookups=l;categories=c;finance=f;reconciliationAllocations=ra;this.jdbc=jdbc;this.audit=audit;this.cashPosition=cashPosition;}
 
+ private void onBusinessDataChanged() {
+  org.example.server.insights.InsightsService.invalidateDashboardCache();
+ }
+
  @Transactional(readOnly=true) public List<OperationDtos.SaleDto> sales(){
   Map<Integer,Double> quantities=saleQuantityTotals();
   Map<Integer,List<OperationDtos.ChargeDto>> charges=saleChargeSummaries();
@@ -96,6 +100,7 @@ public class BusinessOperationsService {
   replaceSaleCharges(h.getId(),normalizedCharges(d));
   if("PENDING".equalsIgnoreCase(h.getApprovalStatus()))notifyApprovalRequired("SALE",h.getId(),h.getInvoiceNo());
   audit.log("SALE",h.getId(),"CREATED",h.getInvoiceNo());
+  onBusinessDataChanged();
   return saleDto(h,true);
  }
  @Transactional public OperationDtos.SaleDto updateSale(OperationDtos.SaleDto d){
@@ -175,6 +180,7 @@ public class BusinessOperationsService {
   if(chargesChanged)replaceSaleCharges(h.getId(),newCharges);
   sales.flush();
   audit.logChanges("SALE",h.getId(),"UPDATED",h.getInvoiceNo(),auditChanges);
+  onBusinessDataChanged();
   return saleDto(h,true);
  }
  @Transactional public OperationDtos.SaleDto duplicateSale(int id){
@@ -188,8 +194,8 @@ public class BusinessOperationsService {
   audit.log("SALE",created.id(),"DUPLICATED","From "+source.getInvoiceNo());
   return created;
  }
- @Transactional public void deleteSale(String invoice){CurrentUser.requirePermission("SALES.DELETE","Delete Sale");SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(hasActiveReturn("SALES RETURN",h.getInvoiceNo()))throw new IllegalStateException("A Sale with an active Sales Return cannot be deleted. Reverse/cancel the return first.");String previous=up(h.getDocumentStatus());if(Boolean.TRUE.equals(h.getInventoryPosted())){restoreSaleStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("DELETED");audit.logChange("SALE",h.getId(),"DELETED",h.getInvoiceNo(),"Document Status",previous,"DELETED");}
- @Transactional public void cancelSale(String invoice){CurrentUser.requirePermission("SALES.EDIT","Cancel Sale");SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"cancelled");String status=up(h.getDocumentStatus());if("DELETED".equals(status))throw new IllegalStateException("Deleted Sales invoices cannot be cancelled.");if("CANCELLED".equals(status))return;if(hasActiveReturn("SALES RETURN",h.getInvoiceNo()))throw new IllegalStateException("A Sale with an active Sales Return cannot be cancelled. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restoreSaleStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("CANCELLED");audit.logChange("SALE",h.getId(),"CANCELLED",h.getInvoiceNo(),"Document Status",status,"CANCELLED");}
+ @Transactional public void deleteSale(String invoice){CurrentUser.requirePermission("SALES.DELETE","Delete Sale");SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(hasActiveReturn("SALES RETURN",h.getInvoiceNo()))throw new IllegalStateException("A Sale with an active Sales Return cannot be deleted. Reverse/cancel the return first.");String previous=up(h.getDocumentStatus());if(Boolean.TRUE.equals(h.getInventoryPosted())){restoreSaleStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("DELETED");audit.logChange("SALE",h.getId(),"DELETED",h.getInvoiceNo(),"Document Status",previous,"DELETED");onBusinessDataChanged();}
+ @Transactional public void cancelSale(String invoice){CurrentUser.requirePermission("SALES.EDIT","Cancel Sale");SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"cancelled");String status=up(h.getDocumentStatus());if("DELETED".equals(status))throw new IllegalStateException("Deleted Sales invoices cannot be cancelled.");if("CANCELLED".equals(status))return;if(hasActiveReturn("SALES RETURN",h.getInvoiceNo()))throw new IllegalStateException("A Sale with an active Sales Return cannot be cancelled. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restoreSaleStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("CANCELLED");audit.logChange("SALE",h.getId(),"CANCELLED",h.getInvoiceNo(),"Document Status",status,"CANCELLED");onBusinessDataChanged();}
  @Transactional public void markSaleEmail(int id){CurrentUser.requirePermission("SALES.EDIT","Update Sale email status");SalesHeaderEntity h=sales.findById(id).orElseThrow();h.setEmailSent(1);audit.log("SALE",h.getId(),"EMAIL_SENT",h.getInvoiceNo());}
  @Transactional public String nextSalesInvoice(){return configuredNextAtomicSql("REF_SALES","IN/DD-MM-YYYY/XXXX","sales_header","invoice_no");}
  @Transactional(readOnly=true) public String previewSalesInvoice(){return configuredPreviewAtomicSql("REF_SALES","IN/DD-MM-YYYY/XXXX","sales_header","invoice_no");}
@@ -246,6 +252,7 @@ public class BusinessOperationsService {
   replacePurchaseCharges(h.getId(),normalizedPurchaseCharges(d));
   if("PENDING".equalsIgnoreCase(h.getApprovalStatus()))notifyApprovalRequired("PURCHASE",h.getId(),h.getInvoiceNo());
   audit.log("PURCHASE",h.getId(),"CREATED",h.getInvoiceNo());
+  onBusinessDataChanged();
   return purchaseDto(h,true);
  }
  @Transactional public OperationDtos.PurchaseDto updatePurchase(OperationDtos.PurchaseDto d){
@@ -346,10 +353,11 @@ public class BusinessOperationsService {
   if(chargesChanged)replacePurchaseCharges(h.getId(),newCharges);
   purchases.flush();
   audit.logChanges("PURCHASE",h.getId(),"UPDATED",h.getInvoiceNo(),auditChanges);
+  onBusinessDataChanged();
   return purchaseDto(h,true);
  }
- @Transactional public void deletePurchase(String invoice){CurrentUser.requirePermission("PURCHASE.DELETE","Delete Purchase");PurchaseHeaderEntity h=purchases.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Purchase not found: "+invoice));assertDocumentHasNoPayments("PURCHASE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(hasActiveReturn("PURCHASE RETURN",h.getInvoiceNo()))throw new IllegalStateException("A purchase with an active Purchase Return cannot be deleted. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restorePurchaseStock(h.getId());h.setInventoryPosted(false);}String previous=normalizePurchaseStatus(h.getDocumentStatus());h.setDocumentStatus("DELETED");audit.logChange("PURCHASE",h.getId(),"DELETED",h.getInvoiceNo(),"Document Status",previous,"DELETED");}
- @Transactional public void cancelPurchase(String invoice){CurrentUser.requirePermission("PURCHASE.EDIT","Cancel Purchase");PurchaseHeaderEntity h=purchases.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Purchase not found: "+invoice));assertDocumentHasNoPayments("PURCHASE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"cancelled");String status=normalizePurchaseStatus(h.getDocumentStatus());if("DELETED".equals(status))throw new IllegalStateException("Deleted purchases cannot be cancelled.");if("CANCELLED".equals(status))return;if(hasActiveReturn("PURCHASE RETURN",h.getInvoiceNo()))throw new IllegalStateException("A purchase with an active Purchase Return cannot be cancelled. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restorePurchaseStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("CANCELLED");audit.logChange("PURCHASE",h.getId(),"CANCELLED",h.getInvoiceNo(),"Document Status",status,"CANCELLED");}
+ @Transactional public void deletePurchase(String invoice){CurrentUser.requirePermission("PURCHASE.DELETE","Delete Purchase");PurchaseHeaderEntity h=purchases.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Purchase not found: "+invoice));assertDocumentHasNoPayments("PURCHASE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(hasActiveReturn("PURCHASE RETURN",h.getInvoiceNo()))throw new IllegalStateException("A purchase with an active Purchase Return cannot be deleted. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restorePurchaseStock(h.getId());h.setInventoryPosted(false);}String previous=normalizePurchaseStatus(h.getDocumentStatus());h.setDocumentStatus("DELETED");audit.logChange("PURCHASE",h.getId(),"DELETED",h.getInvoiceNo(),"Document Status",previous,"DELETED");onBusinessDataChanged();}
+ @Transactional public void cancelPurchase(String invoice){CurrentUser.requirePermission("PURCHASE.EDIT","Cancel Purchase");PurchaseHeaderEntity h=purchases.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Purchase not found: "+invoice));assertDocumentHasNoPayments("PURCHASE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"cancelled");String status=normalizePurchaseStatus(h.getDocumentStatus());if("DELETED".equals(status))throw new IllegalStateException("Deleted purchases cannot be cancelled.");if("CANCELLED".equals(status))return;if(hasActiveReturn("PURCHASE RETURN",h.getInvoiceNo()))throw new IllegalStateException("A purchase with an active Purchase Return cannot be cancelled. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restorePurchaseStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("CANCELLED");audit.logChange("PURCHASE",h.getId(),"CANCELLED",h.getInvoiceNo(),"Document Status",status,"CANCELLED");onBusinessDataChanged();}
  @Transactional public void markPurchaseEmail(int id){CurrentUser.requirePermission("PURCHASE.EDIT","Update Purchase email status");PurchaseHeaderEntity h=purchases.findById(id).orElseThrow();h.setEmailSent(1);audit.log("PURCHASE",h.getId(),"EMAIL_SENT",h.getInvoiceNo());}
  @Transactional public String nextPurchaseInvoice(){return configuredNextAtomicSql("REF_PURCHASE","PUR/DD-MM-YYYY/XXXX","purchase_header","invoice_no");}
  @Transactional(readOnly=true) public String previewPurchaseInvoice(){return configuredPreviewAtomicSql("REF_PURCHASE","PUR/DD-MM-YYYY/XXXX","purchase_header","invoice_no");}
@@ -362,7 +370,7 @@ public class BusinessOperationsService {
   if(!"PENDING".equals(up(h.getApprovalStatus()))||!"PENDING APPROVAL".equals(up(h.getDocumentStatus())))throw new IllegalStateException("This Sale is not waiting for approval.");
   if(!Boolean.TRUE.equals(h.getInventoryPosted())){postSaleStock(h.getId());h.setInventoryPosted(true);}
   h.setDocumentStatus("APPROVED");h.setApprovalStatus("APPROVED");h.setApprovedBy(CurrentUser.require().username());h.setApprovedAt(BusinessClock.nowUtcText());h.setRejectionReason(null);jdbc.update("UPDATE sales_header SET rejected_by=NULL,rejected_at=NULL WHERE id=?",h.getId());
-  notifyApprovalDecision("SALE",h.getId(),h.getInvoiceNo(),true,null);audit.logChanges("SALE",h.getId(),"APPROVED",h.getInvoiceNo(),List.of(new AuditService.Change("Approval Status","PENDING","APPROVED"),new AuditService.Change("Document Status","PENDING APPROVAL","APPROVED")));
+  notifyApprovalDecision("SALE",h.getId(),h.getInvoiceNo(),true,null);audit.logChanges("SALE",h.getId(),"APPROVED",h.getInvoiceNo(),List.of(new AuditService.Change("Approval Status","PENDING","APPROVED"),new AuditService.Change("Document Status","PENDING APPROVAL","APPROVED")));onBusinessDataChanged();
  }
  @Transactional public void rejectSale(String invoice,String reason){
   requireAdminApprovalAuthority();
@@ -370,7 +378,7 @@ public class BusinessOperationsService {
   if(!"PENDING".equals(up(h.getApprovalStatus())))throw new IllegalStateException("This Sale is not waiting for approval.");
   if(Boolean.TRUE.equals(h.getInventoryPosted())){restoreSaleStock(h.getId());h.setInventoryPosted(false);}
   h.setDocumentStatus("REJECTED");h.setApprovalStatus("REJECTED");h.setApprovedBy(null);h.setApprovedAt(null);h.setRejectionReason(blank(reason)?"Rejected by Admin":reason.trim());jdbc.update("UPDATE sales_header SET rejected_by=?,rejected_at=? WHERE id=?",CurrentUser.require().username(),BusinessClock.nowUtcText(),h.getId());
-  notifyApprovalDecision("SALE",h.getId(),h.getInvoiceNo(),false,h.getRejectionReason());audit.logChanges("SALE",h.getId(),"REJECTED",h.getInvoiceNo()+" • "+h.getRejectionReason(),List.of(new AuditService.Change("Approval Status","PENDING","REJECTED"),new AuditService.Change("Document Status","PENDING APPROVAL","REJECTED"),new AuditService.Change("Rejection Reason",null,h.getRejectionReason())));
+  notifyApprovalDecision("SALE",h.getId(),h.getInvoiceNo(),false,h.getRejectionReason());audit.logChanges("SALE",h.getId(),"REJECTED",h.getInvoiceNo()+" • "+h.getRejectionReason(),List.of(new AuditService.Change("Approval Status","PENDING","REJECTED"),new AuditService.Change("Document Status","PENDING APPROVAL","REJECTED"),new AuditService.Change("Rejection Reason",null,h.getRejectionReason())));onBusinessDataChanged();
  }
  @Transactional public void approvePurchase(String invoice){
   requireAdminApprovalAuthority();
@@ -378,7 +386,7 @@ public class BusinessOperationsService {
   if(!"PENDING".equals(up(h.getApprovalStatus()))||!"PENDING APPROVAL".equals(up(h.getDocumentStatus())))throw new IllegalStateException("This Purchase is not waiting for approval.");
   if(!Boolean.TRUE.equals(h.getInventoryPosted())){postPurchaseStock(h.getId());h.setInventoryPosted(true);}
   h.setDocumentStatus("APPROVED");h.setApprovalStatus("APPROVED");h.setApprovedBy(CurrentUser.require().username());h.setApprovedAt(BusinessClock.nowUtcText());h.setRejectionReason(null);jdbc.update("UPDATE purchase_header SET rejected_by=NULL,rejected_at=NULL WHERE id=?",h.getId());
-  notifyApprovalDecision("PURCHASE",h.getId(),h.getInvoiceNo(),true,null);audit.logChanges("PURCHASE",h.getId(),"APPROVED",h.getInvoiceNo(),List.of(new AuditService.Change("Approval Status","PENDING","APPROVED"),new AuditService.Change("Document Status","PENDING APPROVAL","APPROVED")));
+  notifyApprovalDecision("PURCHASE",h.getId(),h.getInvoiceNo(),true,null);audit.logChanges("PURCHASE",h.getId(),"APPROVED",h.getInvoiceNo(),List.of(new AuditService.Change("Approval Status","PENDING","APPROVED"),new AuditService.Change("Document Status","PENDING APPROVAL","APPROVED")));onBusinessDataChanged();
  }
  @Transactional public void rejectPurchase(String invoice,String reason){
   requireAdminApprovalAuthority();
@@ -386,13 +394,13 @@ public class BusinessOperationsService {
   if(!"PENDING".equals(up(h.getApprovalStatus())))throw new IllegalStateException("This Purchase is not waiting for approval.");
   if(Boolean.TRUE.equals(h.getInventoryPosted())){restorePurchaseStock(h.getId());h.setInventoryPosted(false);}
   h.setDocumentStatus("REJECTED");h.setApprovalStatus("REJECTED");h.setApprovedBy(null);h.setApprovedAt(null);h.setRejectionReason(blank(reason)?"Rejected by Admin":reason.trim());jdbc.update("UPDATE purchase_header SET rejected_by=?,rejected_at=? WHERE id=?",CurrentUser.require().username(),BusinessClock.nowUtcText(),h.getId());
-  notifyApprovalDecision("PURCHASE",h.getId(),h.getInvoiceNo(),false,h.getRejectionReason());audit.logChanges("PURCHASE",h.getId(),"REJECTED",h.getInvoiceNo()+" • "+h.getRejectionReason(),List.of(new AuditService.Change("Approval Status","PENDING","REJECTED"),new AuditService.Change("Document Status","PENDING APPROVAL","REJECTED"),new AuditService.Change("Rejection Reason",null,h.getRejectionReason())));
+  notifyApprovalDecision("PURCHASE",h.getId(),h.getInvoiceNo(),false,h.getRejectionReason());audit.logChanges("PURCHASE",h.getId(),"REJECTED",h.getInvoiceNo()+" • "+h.getRejectionReason(),List.of(new AuditService.Change("Approval Status","PENDING","REJECTED"),new AuditService.Change("Document Status","PENDING APPROVAL","REJECTED"),new AuditService.Change("Rejection Reason",null,h.getRejectionReason())));onBusinessDataChanged();
  }
 
  @Transactional(readOnly=true) public List<OperationDtos.FinanceDto> finance(){return finance.findAllByOrderByVoucherDateDescIdDesc().stream().map(this::financeDto).toList();}
  @Transactional(readOnly=true) public OperationDtos.FinancePage financePage(int page,int size,String mode,String period,String type,String q,String from,String to){int safeSize=Math.max(10,Math.min(size,200)),safePage=Math.max(0,page);SqlWhere where=new SqlWhere("1=1");String modeFilter=up(mode),periodFilter=up(period),typeFilter=up(type),query=trim(q),fromDate=trim(from),toDate=trim(to);String dateExpr=sqlDate("f.voucher_date");if("BANK".equals(modeFilter))where.add("UPPER(COALESCE(f.voucher_type,'')) IN ('BANK DEPOSIT','BANK WITHDRAWAL')");else if("EXPENSE".equals(modeFilter))where.add("UPPER(COALESCE(f.voucher_type,''))='EXPENSE'");if(!blank(fromDate))where.add(dateExpr+">=TO_DATE(?,'YYYY-MM-DD')",fromDate);if(!blank(toDate))where.add(dateExpr+"<=TO_DATE(?,'YYYY-MM-DD')",toDate);if(blank(fromDate)&&blank(toDate)&&!blank(periodFilter)&&!"ALL TIME".equals(periodFilter)){switch(periodFilter){case "THIS MONTH"->where.add(dateExpr+">=DATE_TRUNC('month',CURRENT_DATE)::date");case "THIS YEAR"->where.add(dateExpr+">=DATE_TRUNC('year',CURRENT_DATE)::date");case "3 MONTHS"->where.add(dateExpr+">=CURRENT_DATE-INTERVAL '3 months'");case "6 MONTHS"->where.add(dateExpr+">=CURRENT_DATE-INTERVAL '6 months'");default->{}}}if(!blank(typeFilter)&&!typeFilter.startsWith("ALL")){if("BANK".equals(modeFilter)){if(typeFilter.contains("DEPOSIT"))where.add("UPPER(COALESCE(f.voucher_type,''))='BANK DEPOSIT'");else if(typeFilter.contains("WITHDRAW"))where.add("UPPER(COALESCE(f.voucher_type,''))='BANK WITHDRAWAL'");}else where.add("UPPER(COALESCE(f.category,''))=?",typeFilter);}if(!blank(query))where.add("LOWER(CONCAT_WS(' ',COALESCE(f.voucher_type,''),COALESCE(f.notes,''),COALESCE(f.account_name,''),COALESCE(f.reference_no,''),COALESCE(f.category,''))) LIKE ?","%"+query.toLowerCase(Locale.ROOT)+"%");String sqlFrom=" FROM finance_register f ";long total=jdbc.queryForObject("SELECT COUNT(*)"+sqlFrom+where.sql(),Long.class,where.args());int totalPages=total==0?0:(int)Math.ceil(total/(double)safeSize);if(totalPages>0&&safePage>=totalPages)safePage=totalPages-1;List<Integer> ids=jdbc.query("SELECT f.id"+sqlFrom+where.sql()+" ORDER BY "+dateExpr+" DESC NULLS LAST,f.id DESC LIMIT ? OFFSET ?",(r,i)->r.getInt(1),where.argsWith(safeSize,(long)safePage*safeSize));Map<Integer,FinanceRegisterEntity> byId=new HashMap<>();finance.findAllById(ids).forEach(e->byId.put(e.getId(),e));List<OperationDtos.FinanceDto> rows=ids.stream().map(byId::get).filter(Objects::nonNull).map(this::financeDto).toList();return new OperationDtos.FinancePage(rows,safePage,safeSize,total,totalPages);}
  @Transactional(readOnly=true) public OperationDtos.FinanceDto finance(int id){return financeDto(finance.findById(id).orElseThrow(()->new IllegalArgumentException("Finance entry not found")));}
- @Transactional public OperationDtos.FinanceDto saveFinance(OperationDtos.FinanceDto d){CurrentUser.requirePermission("BANK_EXPENSE.CREATE","Create finance entry");validateFinance(d);FinanceRegisterEntity e=new FinanceRegisterEntity();copyFinance(d,e);if(blank(e.getVoucherNo()))e.setVoucherNo(nextVoucher());e.setCreatedAt(BusinessClock.nowUtcText());e=finance.saveAndFlush(e);audit.log("FINANCE",e.getId(),"CREATED",e.getVoucherNo());return financeDto(e);}
+ @Transactional public OperationDtos.FinanceDto saveFinance(OperationDtos.FinanceDto d){CurrentUser.requirePermission("BANK_EXPENSE.CREATE","Create finance entry");validateFinance(d);FinanceRegisterEntity e=new FinanceRegisterEntity();copyFinance(d,e);if(blank(e.getVoucherNo()))e.setVoucherNo(nextVoucher());e.setCreatedAt(BusinessClock.nowUtcText());e=finance.saveAndFlush(e);audit.log("FINANCE",e.getId(),"CREATED",e.getVoucherNo());onBusinessDataChanged();return financeDto(e);}
  @Transactional public OperationDtos.FinanceDto updateFinance(OperationDtos.FinanceDto d){
   CurrentUser.requirePermission("BANK_EXPENSE.EDIT","Edit finance entry");validateFinance(d);
   FinanceRegisterEntity e=finance.findById(req(d.id())).orElseThrow(()->new IllegalArgumentException("Finance entry not found"));
@@ -411,13 +419,13 @@ public class BusinessOperationsService {
   auditChanges.add(new AuditService.Change("Account Name",e.getAccountName(),d.accountName()));
   auditChanges.add(new AuditService.Change("Bill Attachment",e.getBillPath(),d.billPath()==null?e.getBillPath():d.billPath()));
   Integer reconciled=e.getReconciled();copyFinance(d,e);e.setReconciled(reconciled);
-  finance.flush();audit.logChanges("FINANCE",e.getId(),"UPDATED",e.getVoucherNo(),auditChanges);return financeDto(e);
+  finance.flush();audit.logChanges("FINANCE",e.getId(),"UPDATED",e.getVoucherNo(),auditChanges);onBusinessDataChanged();return financeDto(e);
  }
  @Transactional public void deleteFinance(int id,long rowVersion){
   CurrentUser.requirePermission("BANK_EXPENSE.DELETE","Delete finance entry");FinanceRegisterEntity e=finance.findById(id).orElseThrow(()->new IllegalArgumentException("Finance entry not found"));
   assertVersion(rowVersion,e.getRowVersion(),"Finance entry "+e.getVoucherNo());
   if(n(e.getReconciled())!=0||!reconciliationAllocations.findByFinanceEntryIdAndReversedAtIsNull(e.getId()).isEmpty())throw new IllegalStateException("Reconciled finance entries must be reversed from Bank Statement before deletion.");
-  String ref=e.getVoucherNo();finance.delete(e);audit.log("FINANCE",id,"DELETED",ref);
+  String ref=e.getVoucherNo();finance.delete(e);audit.log("FINANCE",id,"DELETED",ref);onBusinessDataChanged();
  }
  @Transactional public String nextVoucher(){return configuredNextAtomicSql("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX","finance_register","voucher_no");}
  @Transactional(readOnly=true) public String previewVoucher(){return configuredPreviewAtomic("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX",()->finance.findAll().stream().map(FinanceRegisterEntity::getVoucherNo).filter(Objects::nonNull).toList());}
@@ -448,6 +456,7 @@ public class BusinessOperationsService {
    if(current+delta<-.0001)throw new IllegalArgumentException("Adjustment would make stock negative");
    changeStockCost(d.itemCode(),delta,delta<0,currentAverageCost(d.itemCode(),n(item.getPurchasePrice())),"STOCK_ADJUSTMENT",null);
    jdbc.update("INSERT INTO stock_adjustment(item_code,adjustment_date,adjustment_type,quantity,reason,reference_no,created_by,created_at) VALUES(?,?,?,?,?,?,?,?)",d.itemCode(),BusinessClock.today(),type,delta,d.reason(),d.referenceNo(),CurrentUser.require().username(),BusinessClock.nowUtcText());
+   onBusinessDataChanged();
    audit.log("ITEM",item.getId(),"STOCK_ADJUSTED",d.itemCode()+" • "+type+" • "+delta);
  }
  @Transactional(readOnly=true) public OperationDtos.FinanceMetrics financeMetrics(){

@@ -64,10 +64,14 @@ public class PaymentIntegrityService {
                 type.name(), request.documentId(), date, amount, mode, clean(request.reference()), clean(request.notes()),
                 clean(request.receivedFrom()), paymentType, null, CurrentUser.require().username());
         BigDecimal paid = authoritativePaid.add(amount).setScale(2, RoundingMode.HALF_UP);
-        String status = paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
+        boolean isChequePdc = (mode != null && (mode.equalsIgnoreCase("Cheque") || mode.equalsIgnoreCase("PDC")))
+                || "PDC".equalsIgnoreCase(paymentType)
+                || "CLEARING_PENDING".equalsIgnoreCase(paymentType);
+        String status = isChequePdc ? "CLEARING_PENDING" : (paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL");
         if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=?,row_version=row_version+1 WHERE id=?",
                 paid, status, BusinessClock.nowUtcText(), request.documentId()) != 1) throw new IllegalStateException("Payment target changed while saving");
         if (paymentId == null || paymentId <= 0) throw new IllegalStateException("Payment id was not returned after saving");
+        org.example.server.insights.InsightsService.invalidateDashboardCache();
         audit.logChanges(type.name(), request.documentId(), "PAYMENT_RECORDED",
                 "Payment #"+paymentId+" • "+mode+" • "+amount.toPlainString(),
                 List.of(new AuditService.Change("Payment Status", paymentStatus(authoritativePaid,target.total), status),
@@ -133,14 +137,18 @@ public class PaymentIntegrityService {
         if (updated != 1) throw new IllegalStateException("Payment record changed while saving");
 
         BigDecimal paid = effectivePaid(existing.type, existing.documentId, null);
-        String status = paid.compareTo(ZERO) <= 0 ? "PENDING"
-                : paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
+        boolean isChequePdc = (paymentMode != null && (paymentMode.equalsIgnoreCase("Cheque") || paymentMode.equalsIgnoreCase("PDC")))
+                || "PDC".equalsIgnoreCase(existing.paymentType)
+                || "CLEARING_PENDING".equalsIgnoreCase(existing.paymentType);
+        String status = isChequePdc ? "CLEARING_PENDING" : (paid.compareTo(ZERO) <= 0 ? "PENDING"
+                : paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL");
 
         if (jdbc.update("UPDATE " + existing.type.table +
                         " SET paid_amount=?,payment_status=?,updated_at=?,row_version=row_version+1 WHERE id=?",
                 paid, status, BusinessClock.nowUtcText(), existing.documentId) != 1) {
             throw new IllegalStateException("Payment target changed while saving");
         }
+        org.example.server.insights.InsightsService.invalidateDashboardCache();
 
         BigDecimal difference = newAmount.subtract(existing.amount).setScale(2, RoundingMode.HALF_UP);
         String detail = "Payment #" + paymentId + " edited; old amount=" + existing.amount.toPlainString()

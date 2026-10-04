@@ -205,7 +205,7 @@ public final class ShortcutRegistry {
         return Scope.fromStored(ConfigManager.get(optionKey(action,"scope"),action.scope().name()),action.scope());
     }
     public static boolean allowInTextInput(Action action){
-        return boolOption(action,"allowText",action==Action.TOGGLE_SIDEBAR);
+        return boolOption(action,"allowText",action==Action.TOGGLE_SIDEBAR || action==Action.GLOBAL_SEARCH);
     }
     public static boolean requireSelection(Action action){
         boolean fallback=action==Action.EDIT_CURRENT||action==Action.OPEN_SELECTED||action==Action.DELETE_SELECTED;

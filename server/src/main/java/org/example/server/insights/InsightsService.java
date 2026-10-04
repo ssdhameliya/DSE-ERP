@@ -14,12 +14,22 @@ public class InsightsService {
  private static final String POSTED_PURCHASES = BusinessKpiPolicy.purchasesActive("purchase_header");
  private final JpaNativeRepository jdbc; private final CashPositionService cashPosition; public InsightsService(JpaNativeRepository jdbc,CashPositionService cashPosition){this.jdbc=jdbc;this.cashPosition=cashPosition;}
 
+ private static final long DASHBOARD_CACHE_TTL_MS = 30_000L;
+ private static final java.util.concurrent.ConcurrentHashMap<String, CachedBundle> CACHED_DASHBOARDS = new java.util.concurrent.ConcurrentHashMap<>();
+ private record CachedBundle(InsightDtos.DashboardBundle bundle, long timestamp) {}
+ public static void invalidateDashboardCache() { CACHED_DASHBOARDS.clear(); }
+
  // Dashboard sections are deliberately not wrapped in one database transaction.
  // A malformed historical value or one failing optional query must not leave the
  // PostgreSQL transaction aborted and prevent the remaining independent sections.
  public InsightDtos.DashboardBundle dashboard(String period){
    CurrentUser.requirePermission("DASHBOARD.VIEW","View Dashboard");
    String selectedPeriod=period==null||period.isBlank()?"This Month":period;
+   long now = System.currentTimeMillis();
+   CachedBundle cached = CACHED_DASHBOARDS.get(selectedPeriod);
+   if (cached != null && (now - cached.timestamp()) < DASHBOARD_CACHE_TTL_MS) {
+     return cached.bundle();
+   }
    String salesPeriod=periodSql(selectedPeriod,"h.invoice_date"),purchasePeriod=periodSql(selectedPeriod,"h.invoice_date");
    long[] master=dashboardSection("master totals",()->jdbc.query("""
      SELECT
@@ -67,7 +77,9 @@ public class InsightsService {
      (r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)},today.minusDays(30),today.minusDays(30),today.minusDays(21),today.minusDays(20),today.minusDays(11),today.minusDays(10),today.minusDays(1),today,"SALE").getFirst(),new double[]{0,0,0,0,0});
    List<String> ageing=List.of("Overdue (> 30 Days)|"+buckets[0],"21 - 30 Days|"+buckets[1],"11 - 20 Days|"+buckets[2],"1 - 10 Days|"+buckets[3],"Not Due|"+buckets[4]);
    List<InsightDtos.NotificationDto> activity=dashboardSection("notifications",()->notifications(5),List.of());
-   return new InsightDtos.DashboardBundle(snap,recent,top,ageing,activity);
+   InsightDtos.DashboardBundle bundleResult = new InsightDtos.DashboardBundle(snap,recent,top,ageing,activity);
+   CACHED_DASHBOARDS.put(selectedPeriod, new CachedBundle(bundleResult, now));
+   return bundleResult;
  }
  private String periodSql(String p,String c){LocalDate today=BusinessClock.today();LocalDate start=switch(p==null?"":p){case "This Month"->today.withDayOfMonth(1);case "This Quarter"->{int m=((today.getMonthValue()-1)/3)*3+1;yield LocalDate.of(today.getYear(),m,1);}case "This Year"->LocalDate.of(today.getYear(),1,1);default->null;};return start==null?"1=1":"("+safeDateSql(c)+")>=DATE '"+start+"'";}
  static String safeDateSql(String c){

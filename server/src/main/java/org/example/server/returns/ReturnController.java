@@ -22,6 +22,7 @@ public class ReturnController {
     @PostMapping("/{no}/refund") public ReturnDtos.Ok refund(@PathVariable String no,@RequestBody ReturnDtos.RefundRequest request){service.requireAccess(no);service.refund(no,request.amount());return ok("Recorded");}
     @GetMapping("/{no}/refunds") public List<ReturnDtos.RefundRow> refunds(@PathVariable String no){service.requireAccess(no);return service.refunds(no);}
     @PostMapping("/{no}/refunds") public ReturnDtos.RefundCreated recordRefund(@PathVariable String no,@RequestBody ReturnDtos.RefundCreateRequest request){service.requireAccess(no);return new ReturnDtos.RefundCreated(service.recordRefund(no,request));}
+    @PostMapping("/{no}/quick-apply") public ReturnDtos.Ok quickApply(@PathVariable String no){service.requireAccess(no);int count=service.applyCreditNoteToOutstandingInvoices(no);return ok("Credit note applied to "+count+" invoice(s)");}
 
     @PostMapping("/{no}/approve") public ReturnDtos.Ok approve(@PathVariable String no){service.approve(no);return ok("Return approved");}
     @PostMapping("/{no}/reject") public ReturnDtos.Ok reject(@PathVariable String no,@RequestParam(required=false) String reason){service.reject(no,reason);return ok("Return rejected");}

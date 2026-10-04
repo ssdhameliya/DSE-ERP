@@ -77,4 +77,8 @@ public class Item {
     public void setRemarks(String remarks) { this.remarks = remarks; }
     public long getRowVersion() { return rowVersion; }
     public void setRowVersion(long rowVersion) { this.rowVersion = Math.max(0, rowVersion); }
+
+    private String gstSupplyType;
+    public String getGstSupplyType() { return gstSupplyType == null || gstSupplyType.isBlank() ? (gst > 0 ? "TAXABLE" : "NIL_RATED") : gstSupplyType; }
+    public void setGstSupplyType(String gstSupplyType) { this.gstSupplyType = gstSupplyType; }
 }

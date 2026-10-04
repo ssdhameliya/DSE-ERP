@@ -378,6 +378,12 @@ public class DashboardHomeController implements ScreenLifecycle {
         }catch(Exception e){org.example.util.AppDialogService.error(actionOwner(event),"Item Master could not open","Dashboard remains available",e.getMessage()==null?e.toString():e.getMessage());}
     }
 
+    @FXML private void openSalesFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/SalesList.fxml"); }
+    @FXML private void openPurchaseFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/PurchaseList.fxml"); }
+    @FXML private void openReceivablesFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/SalesList.fxml"); }
+    @FXML private void openPayablesFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/PurchaseList.fxml"); }
+    @FXML private void openInventoryFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/Inventory.fxml"); }
+
     private void open(ActionEvent event, String fxml) {
         NavigationManager.navigateOrReport(fxml);
     }

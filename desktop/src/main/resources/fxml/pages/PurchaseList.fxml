@@ -26,6 +26,8 @@
     <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="quick-range-yesterday,quick-range-button,quick-range-yesterday,approved-button,approved-secondary-button"/>
     <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="quick-range-button,quick-range-seven,approved-button,approved-secondary-button"/>
     <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="quick-range-button,quick-range-thirty,approved-button,approved-secondary-button"/>
+    <Button fx:id="btnThisFyRange" text="This FY" onAction="#showThisFinancialYear" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
+    <Button fx:id="btnThisQuarterRange" text="This Quarter" onAction="#showThisQuarter" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
     <Button fx:id="btnCustomRange" text="Custom Range" onAction="#showCustomRange" visible="false" managed="false" styleClass="quick-range-button,quick-range-custom,approved-button,approved-secondary-button"/>
     <Region HBox.hgrow="ALWAYS"/>
     <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="register-action-button,register-reset-button,approved-button,approved-secondary-button"/>

@@ -67,9 +67,10 @@ public final class SettingsAssetService {
                 throw new InterruptedException("Image upload was superseded.");
             }
             try {
-                ConfigManager.set(configKey, destination.toAbsolutePath().toString());
-                String persisted = ConfigManager.get(configKey, "");
-                if (!ConfigManager.isSharedClient() && !destination.toAbsolutePath().toString().equals(persisted)) {
+                String normDest = destination.toAbsolutePath().toString().replace('\\', '/');
+                ConfigManager.set(configKey, normDest);
+                String persisted = ConfigManager.get(configKey, "").replace('\\', '/');
+                if (!ConfigManager.isSharedClient() && !normDest.equals(persisted)) {
                     throw new IllegalStateException("The saved image path could not be verified.");
                 }
                 configCommitted = true;

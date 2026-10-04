@@ -28,7 +28,7 @@ import java.nio.file.Path;import java.text.NumberFormat;import java.time.LocalDa
 public class PurchaseListController implements ScreenLifecycle{
  public PurchaseListController(){}
  private Button btnSaveView; private MenuButton savedViewsMenu;
- @FXML private Label lblTotal,lblTotalCount,lblToday,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblPaid,lblSummary,lblPageInfo,lblPageNumber,lblDetailInvoice,lblDetailSupplier,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailGst,lblDetailReference,lblDetailPaymentTerms,lblDetailContactPerson,lblDetailPhone,lblDetailEmail,lblDetailGstin,lblDetailCharges,lblDetailChargeTax,lblDetailGstType,lblDetailTransporter,lblDetailVehicle,lblDetailNotes,lblDetailAttachment,lblDetailBillingAddress,lblDetailDeliveryAddress;@FXML private Button btnNewPurchase,btnReset,btnRefresh,btnFirstPage,btnPreviousPage,btnNextPage,btnLastPage,btnExportExcel,btnExportPdf,btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnApprovePurchase,btnRejectPurchase;@FXML private TextField txtSearch;@FXML private ComboBox<String>cmbSupplier,cmbPaymentStatus,cmbMailStatus,cmbDocumentStatus,cmbReturnStatus;@FXML private ComboBox<Integer>cmbPageSize;@FXML private DatePicker dpFrom,dpTo;@FXML private ToggleButton btnAdvanced;@FXML private GridPane advancedFilters;@FXML private TableView<Purchase>tablePurchase;@FXML private TableColumn<Purchase,String>colInvoice,colDate,colSupplier,colMobile,colDue,colStatus,colPaymentStatus,colReturnStatus,colMail;@FXML private TableColumn<Purchase,Double>colAmount,colPaid,colBalance;@FXML private TableColumn<Purchase,Void>colActions;@FXML private SplitPane mainSplit;@FXML private VBox detailDrawer,approvalActionBox;@FXML private Button btnCloseDetails;@FXML private StackPane purchasePageIcon,purchaseHeaderSearchIcon,purchaseTotalIcon,purchaseOrdersIcon,purchaseSuppliersIcon,purchaseItemsIcon,purchasePaidIcon;
+ @FXML private Label lblTotal,lblTotalCount,lblToday,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblPaid,lblSummary,lblPageInfo,lblPageNumber,lblDetailInvoice,lblDetailSupplier,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailGst,lblDetailReference,lblDetailPaymentTerms,lblDetailContactPerson,lblDetailPhone,lblDetailEmail,lblDetailGstin,lblDetailCharges,lblDetailChargeTax,lblDetailGstType,lblDetailTransporter,lblDetailVehicle,lblDetailNotes,lblDetailAttachment,lblDetailBillingAddress,lblDetailDeliveryAddress;@FXML private Button btnNewPurchase,btnReset,btnRefresh,btnFirstPage,btnPreviousPage,btnNextPage,btnLastPage,btnExportExcel,btnExportPdf,btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnThisFyRange,btnThisQuarterRange,btnCustomRange,btnApprovePurchase,btnRejectPurchase;@FXML private TextField txtSearch;@FXML private ComboBox<String>cmbSupplier,cmbPaymentStatus,cmbMailStatus,cmbDocumentStatus,cmbReturnStatus;@FXML private ComboBox<Integer>cmbPageSize;@FXML private DatePicker dpFrom,dpTo;@FXML private ToggleButton btnAdvanced;@FXML private GridPane advancedFilters;@FXML private TableView<Purchase>tablePurchase;@FXML private TableColumn<Purchase,String>colInvoice,colDate,colSupplier,colMobile,colDue,colStatus,colPaymentStatus,colReturnStatus,colMail;@FXML private TableColumn<Purchase,Double>colAmount,colPaid,colBalance;@FXML private TableColumn<Purchase,Void>colActions;@FXML private SplitPane mainSplit;@FXML private VBox detailDrawer,approvalActionBox;@FXML private Button btnCloseDetails;@FXML private StackPane purchasePageIcon,purchaseHeaderSearchIcon,purchaseTotalIcon,purchaseOrdersIcon,purchaseSuppliersIcon,purchaseItemsIcon,purchasePaidIcon;
  private final PurchaseService service=new PurchaseService();private final SupportApiClient support=new SupportApiClient();private boolean explicitRefreshPending;private final FxDebouncer searchDebouncer=new FxDebouncer(java.time.Duration.ofMillis(220));private final NumberFormat money=NumberFormat.getCurrencyInstance(Locale.of("en", "IN"));private List<Purchase>all=List.of(),filtered=List.of();private Purchase selected;private boolean applyingSavedView;private boolean suppressFilterEvents;private String pendingSavedViewName;private final RegisterPageState pageState=new RegisterPageState();
  @FXML public void initialize(){
         DatePickerFormatter.attachAll(dpFrom, dpTo);
@@ -225,6 +225,20 @@ public class PurchaseListController implements ScreenLifecycle{
  @FXML private void showYesterday(){LocalDate d=BusinessClock.today().minusDays(1);applyDateRange(d,d);}
  @FXML private void showSevenDays(){applyDateRange(BusinessClock.today().minusDays(6),BusinessClock.today());}
  @FXML private void showThirtyDays(){applyDateRange(BusinessClock.today().minusDays(29),BusinessClock.today());}
+ @FXML private void showThisFinancialYear(){
+  LocalDate today=BusinessClock.today();
+  int startYear=today.getMonthValue()>=4?today.getYear():today.getYear()-1;
+  applyDateRange(LocalDate.of(startYear,4,1),LocalDate.of(startYear+1,3,31));
+ }
+ @FXML private void showThisQuarter(){
+  LocalDate today=BusinessClock.today();
+  int m=today.getMonthValue(),startMonth,endMonth,y=today.getYear();
+  if(m>=4&&m<=6){startMonth=4;endMonth=6;}
+  else if(m>=7&&m<=9){startMonth=7;endMonth=9;}
+  else if(m>=10&&m<=12){startMonth=10;endMonth=12;}
+  else{startMonth=1;endMonth=3;}
+  applyDateRange(LocalDate.of(y,startMonth,1),LocalDate.of(y,endMonth,java.time.YearMonth.of(y,endMonth).lengthOfMonth()));
+ }
  @FXML private void showCustomRange(){dpFrom.requestFocus();}
  private void applyDateRange(LocalDate from,LocalDate to){batchFilterUpdate(()->{dpFrom.setValue(from);dpTo.setValue(to);});filter();}
  @FXML private void saveCurrentView(){
@@ -324,7 +338,7 @@ private void configureDetailsCloseButton(){
 
     private void applyRangeButtonIcons() {
         applyIcon(btnAllDatesRange,"calendar"); applyIcon(btnTodayRange,"calendar"); applyIcon(btnYesterdayRange,"history");
-        applyIcon(btnSevenDaysRange,"calendar"); applyIcon(btnThirtyDaysRange,"calendar"); applyIcon(btnCustomRange,"calendar");
+        applyIcon(btnSevenDaysRange,"calendar"); applyIcon(btnThirtyDaysRange,"calendar"); applyIcon(btnThisFyRange,"calendar"); applyIcon(btnThisQuarterRange,"calendar"); applyIcon(btnCustomRange,"calendar");
     }
     private void applyIcon(ButtonBase b,String semantic){ if(b!=null){b.setGraphic(IconFactory.compactIcon(semantic,15));b.getProperties().put("erp-icon-preserve",true);} }
  @Override public void onScreenShown(boolean reusedFromCache){org.example.shortcut.ShortcutRegistry.bindLabel(btnNewPurchase,org.example.shortcut.ShortcutRegistry.Action.NEW_PURCHASE,"Create Purchase");org.example.util.OperationalUiSupport.focusWorkArea(tablePurchase);if(ImportViewContext.consume("Purchases")){batchFilterUpdate(()->{dpFrom.setValue(BusinessClock.today().minusYears(20));dpTo.setValue(BusinessClock.today());});pageState.reset();reloadPage(true);return;}if(!reusedFromCache)return;if(ScreenRefreshPolicy.shouldRefresh("purchase-register",ScreenRefreshPolicy.Mode.WHEN_STALE))refresh();}

@@ -153,7 +153,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V10_0_20__authenticator_enrollment_recovery",
                     "db/migration/V10_0_20__authenticator_enrollment_recovery.sql"),
             new Migration("V10_0_27__performance_indexes",
-                    "db/migration/V10_0_27__performance_indexes.sql")
+                    "db/migration/V10_0_27__performance_indexes.sql"),
+            new Migration("V10_0_28__defect_hardening",
+                    "db/migration/V10_0_28__defect_hardening.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -254,6 +256,7 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("bank_reconciliation_allocation", "reversed_at");
         requireColumn("party_master", "row_version");
         requireColumn("item_master", "row_version");
+        requireColumn("item_master", "gst_supply_type");
         requireColumn("lookup_master", "row_version");
         requireColumn("master_category", "row_version");
         requireColumn("recon_supplier", "row_version");

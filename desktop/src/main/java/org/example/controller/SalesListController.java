@@ -66,7 +66,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private StackPane salesTitleIcon,salesHeaderSearchIcon,totalSalesIcon,todaySalesIcon,pendingSalesIcon,overdueSalesIcon,dueSoonIcon,emailRateIcon;
     @FXML private Button btnNewSale,btnResetFilters,btnRefreshSales,btnExportExcel,btnExportPdf,btnPrintRegister;
     private Button btnSaveView; private MenuButton savedViewsMenu;
-    @FXML private Button btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnCloseDetails,btnApproveSale,btnRejectSale;
+    @FXML private Button btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnThisFyRange,btnThisQuarterRange,btnCustomRange,btnCloseDetails,btnApproveSale,btnRejectSale;
     @FXML private TextField txtSearch,txtInvoice,txtAmountFrom,txtAmountTo;
     @FXML private ComboBox<String> cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus,cmbReturnStatus;
     @FXML private DatePicker dpFrom,dpTo;
@@ -103,6 +103,9 @@ public class SalesListController implements ScreenLifecycle {
     private String pendingSavedViewName;
 
     @FXML public void initialize(){
+        if (dueChart != null) dueChart.setAnimated(false);
+        if (customerChart != null) customerChart.setAnimated(false);
+        if (salesChart != null) salesChart.setAnimated(false);
         DatePickerFormatter.attachAll(dpFrom, dpTo);
         configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();org.example.util.RegisterColumnPreferences.install(tableSales,"SALES_REGISTER");
         RegisterUiSupport.configureHeaderSearch(txtSearch,salesHeaderSearchIcon,"Search invoice, customer, mobile or GSTIN...");
@@ -167,8 +170,10 @@ public class SalesListController implements ScreenLifecycle {
         setButtonIcon(btnYesterdayRange,"calendar");
         setButtonIcon(btnSevenDaysRange,"calendar");
         setButtonIcon(btnThirtyDaysRange,"calendar");
+        setButtonIcon(btnThisFyRange,"calendar");
+        setButtonIcon(btnThisQuarterRange,"calendar");
         setButtonIcon(btnCustomRange,"calendar"); setButtonIcon(btnCloseDetails,"close");
-        decorateSalesDrawer();
+        javafx.application.Platform.runLater(this::decorateSalesDrawer);
     }
 
     private void decorateSalesDrawer(){
@@ -617,6 +622,20 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     @FXML private void showYesterday(){LocalDate day=BusinessClock.today().minusDays(1);applyDateRange(day,day);}
     @FXML private void showSevenDays(){applyDateRange(BusinessClock.today().minusDays(6),BusinessClock.today());}
     @FXML private void showThirtyDays(){applyDateRange(BusinessClock.today().minusDays(29),BusinessClock.today());}
+    @FXML private void showThisFinancialYear(){
+        LocalDate today=BusinessClock.today();
+        int startYear=today.getMonthValue()>=4?today.getYear():today.getYear()-1;
+        applyDateRange(LocalDate.of(startYear,4,1),LocalDate.of(startYear+1,3,31));
+    }
+    @FXML private void showThisQuarter(){
+        LocalDate today=BusinessClock.today();
+        int m=today.getMonthValue(),startMonth,endMonth,y=today.getYear();
+        if(m>=4&&m<=6){startMonth=4;endMonth=6;}
+        else if(m>=7&&m<=9){startMonth=7;endMonth=9;}
+        else if(m>=10&&m<=12){startMonth=10;endMonth=12;}
+        else{startMonth=1;endMonth=3;}
+        applyDateRange(LocalDate.of(y,startMonth,1),LocalDate.of(y,endMonth,java.time.YearMonth.of(y,endMonth).lengthOfMonth()));
+    }
     @FXML private void focusCustomRange(){dpFrom.requestFocus();}
     private void applyDateRange(LocalDate from,LocalDate to){batchFilterUpdate(()->{dpFrom.setValue(from);dpTo.setValue(to);});applyFilters();}
 

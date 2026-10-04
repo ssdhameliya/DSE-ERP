@@ -1,5 +1,5 @@
 name: Build Native Release
-run-name: Release ${{ github.ref_name }}
+run-name: Release ${{ github.ref_name }} - ${{ github.event.head_commit.message }}
 
 on:
   push:

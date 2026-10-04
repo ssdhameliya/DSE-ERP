@@ -36,6 +36,8 @@ public class ItemEntity {
     public String getLocation(){return location;} public void setLocation(String v){location=v;}
     public String getRemarks(){return remarks;} public void setRemarks(String v){remarks=v;}
     public Integer getActive(){return active;} public void setActive(Integer v){active=v;}
+    @Column(name="gst_supply_type") private String gstSupplyType;
+    public String getGstSupplyType(){return gstSupplyType;} public void setGstSupplyType(String v){gstSupplyType=v;}
 
  public Long getRowVersion(){return rowVersion;} public void setRowVersion(Long v){rowVersion=v==null?0L:v;}
 }
