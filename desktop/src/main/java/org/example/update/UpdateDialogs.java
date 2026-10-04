@@ -480,7 +480,7 @@ public final class UpdateDialogs {
     }
 
     private static <T> TableColumn<T,String> column(String title, java.util.function.Function<T,String> getter) { TableColumn<T,String> c=new TableColumn<>(title); c.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(getter.apply(v.getValue()))); return c; }
-    private static <T> Dialog<T> baseDialog(Window owner, String title, javafx.scene.Node content, double width, double height) { Dialog<T> d=new OwnedDialog<>(); if(owner!=null)d.initOwner(owner); d.setTitle(title); d.getDialogPane().setContent(content); d.getDialogPane().setPrefSize(width,height); d.getDialogPane().getStyleClass().add("update-dialog"); return d; }
+    private static <T> Dialog<T> baseDialog(Window owner, String title, javafx.scene.Node content, double width, double height) { Dialog<T> d=new OwnedDialog<>(); if(owner!=null)d.initOwner(owner); d.setTitle(title); d.setGraphic(IconFactory.compactIcon("info", 24)); d.getDialogPane().setContent(content); d.getDialogPane().setPrefSize(width,height); d.getDialogPane().getStyleClass().add("update-dialog"); return d; }
     private static void info(Window owner,String header,String message){Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,message,ButtonType.OK);if(owner!=null)a.initOwner(owner);a.setHeaderText(header);a.showAndWait();}
     private static void error(Window owner,String header,String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message,ButtonType.OK);if(owner!=null)a.initOwner(owner);a.setHeaderText(header);a.showAndWait();}
     private static String safeBackupCount() { try { return BackupManager.countValidBackups() + " valid backup(s)"; } catch (Exception e) { return "Unavailable: " + rootMessage(e); } }

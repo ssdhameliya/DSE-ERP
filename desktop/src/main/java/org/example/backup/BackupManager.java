@@ -240,6 +240,19 @@ public final class BackupManager {
             moveToTrash(ordinary.get(i));
             moved++;
         }
+
+        List<Path> beforeRestore = managed.stream()
+                .filter(file -> file.getFileName().toString().startsWith("Before-Restore-"))
+                .toList();
+        long cutoff30DaysMillis = System.currentTimeMillis() - Duration.ofDays(30).toMillis();
+        for (int i = 5; i < beforeRestore.size(); i++) {
+            Path file = beforeRestore.get(i);
+            if (modified(file) < cutoff30DaysMillis) {
+                moveToTrash(file);
+                moved++;
+            }
+        }
+
         purgeTrash(Duration.ofDays(7));
         return moved;
     }

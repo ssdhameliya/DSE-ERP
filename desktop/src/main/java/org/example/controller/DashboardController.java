@@ -242,6 +242,37 @@ public class DashboardController {
                 UpdateDialogs.showWhatsNewOnce(contentPane.getScene().getWindow());
         });
         applyRolePermissions();
+        Timeline idlePrewarm = new Timeline(
+            new KeyFrame(Duration.millis(1200), evt -> {
+                NavigationManager.prewarmPage("/fxml/pages/SalesList.fxml");
+                NavigationManager.prewarmPage("/fxml/pages/PurchaseList.fxml");
+                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    try {
+                        new org.example.api.master.MasterApiClient().parties("CUSTOMER");
+                        new org.example.api.master.MasterApiClient().parties("SUPPLIER");
+                    } catch (Exception ignored) {}
+                });
+            }),
+            new KeyFrame(Duration.millis(2500), evt -> {
+                NavigationManager.prewarmPage("/fxml/pages/Quotations.fxml");
+                NavigationManager.prewarmPage("/fxml/pages/QuotationEditor.fxml");
+                NavigationManager.prewarmPage("/fxml/pages/Inventory.fxml");
+                NavigationManager.prewarmPage("/fxml/pages/DeliveryChallan.fxml");
+                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    try {
+                        new org.example.api.master.MasterApiClient().items();
+                    } catch (Exception ignored) {}
+                });
+            }),
+            new KeyFrame(Duration.millis(4000), evt -> {
+                NavigationManager.prewarmPage("/fxml/pages/Customer.fxml");
+                NavigationManager.prewarmPage("/fxml/pages/Suppliers.fxml");
+                NavigationManager.prewarmPage("/fxml/pages/Reports.fxml");
+            })
+        );
+        idlePrewarm.setCycleCount(1);
+        idlePrewarm.play();
+
         notificationRefresh = new Timeline(
             new KeyFrame(Duration.seconds(3), event -> { PerformanceMonitor.event("recurring-task", "shell-indicators"); refreshShellIndicatorsAsync(); }));
         notificationRefresh.setCycleCount(Timeline.INDEFINITE);
@@ -501,6 +532,7 @@ public class DashboardController {
         Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Keyboard Shortcuts");
         dialog.setHeaderText("Quick navigation from anywhere in " + org.example.service.BrandingService.applicationName() + "");
+        dialog.setGraphic(IconFactory.compactIcon("shortcut", 28));
         if (btnShortcutInfo != null && btnShortcutInfo.getScene() != null
                 && btnShortcutInfo.getScene().getWindow() != null) {
             dialog.initOwner(btnShortcutInfo.getScene().getWindow());
@@ -1358,6 +1390,8 @@ public class DashboardController {
                 : text.contains("logout") ? "exit"
                 : "document";
             item.setGraphic(IconFactory.compactIcon(semantic, 15));
+            item.getProperties().put("erp.icon.semantic", semantic);
+            item.getProperties().put("erp.icon.decorated", true);
         }
     }
 

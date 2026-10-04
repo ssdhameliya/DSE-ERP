@@ -177,8 +177,12 @@ public class MasterDataService {
         if (!usages.isEmpty()) {
             throw new IllegalStateException("This " + e.getPartyType().toLowerCase(Locale.ROOT) + " cannot be deleted because it is used by ERP transactions (" + String.join(", ", usages) + "). Edit the party and mark it Inactive instead so historical documents remain valid.");
         }
-        parties.delete(e);
-        parties.flush();
+        try {
+            parties.delete(e);
+            parties.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+            throw new IllegalStateException("This " + e.getPartyType().toLowerCase(Locale.ROOT) + " cannot be deleted because it is linked to transactions in the ERP. Mark the party Inactive instead so historical documents remain valid.", dive);
+        }
         audit.log("PARTY", e.getId(), "DELETED", e.getPartyType() + " " + e.getPartyCode());
     }
 

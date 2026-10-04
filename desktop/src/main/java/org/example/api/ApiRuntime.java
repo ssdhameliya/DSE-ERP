@@ -36,7 +36,10 @@ public final class ApiRuntime {
         if (status == 401) return "Your session has expired. Please sign in again.";
         if (status == 403) return serverMessage.isBlank() ? "You do not have permission to perform this action." : serverMessage;
         if (status == 404) return serverMessage.isBlank() ? "The requested ERP endpoint or record could not be found. Confirm that this desktop is supported by the company server and that both use the same API revision." : serverMessage;
-        if (status == 409) return serverMessage.isBlank() ? "This operation conflicts with the latest ERP data. Reload and try again." : serverMessage;
+        if (status == 409) {
+            if (serverMessage.isBlank()) return "This record was updated by another user or session. Please reload the latest version to review changes before saving again.";
+            return serverMessage + "\n\nTip: Reload the record to view current edits. You can then re-apply your changes without overwriting other users' work.";
+        }
         if (status >= 400 && status < 500) return serverMessage.isBlank() ? "Please review the entered information and try again." : serverMessage;
         String operation = area == null || area.isBlank() ? "this request" : area.trim();
         return "The ERP server could not complete " + operation + ". Please try again. If the problem continues, check the server log.";

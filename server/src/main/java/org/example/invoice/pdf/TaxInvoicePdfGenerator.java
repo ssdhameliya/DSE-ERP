@@ -1168,6 +1168,22 @@ public final class TaxInvoicePdfGenerator {
                 // Try the next platform font.
             }
         }
+        // Register Indic/Unicode fallback fonts for regional script coverage
+        String[] fallbackFonts = new String[]{
+                "C:/Windows/Fonts/Nirmala.ttf",
+                "C:/Windows/Fonts/NirmalaB.ttf",
+                "C:/Windows/Fonts/NirmalaS.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSansGujarati-Regular.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        };
+        for (String fontPath : fallbackFonts) {
+            try {
+                if (Files.isRegularFile(Path.of(fontPath))) {
+                    provider.addFont(fontPath);
+                }
+            } catch (Exception ignored) {}
+        }
         if (family == null) {
             provider.addStandardPdfFonts();
             family = "Helvetica";

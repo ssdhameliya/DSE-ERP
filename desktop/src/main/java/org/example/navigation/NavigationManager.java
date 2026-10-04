@@ -367,6 +367,31 @@ public class NavigationManager {
         }
     }
 
+    /**
+     * Pre-warms an FXML page in the background when the application is idle.
+     * Compiles the FXML and runs the pre-enhancement so when the user navigates
+     * to this page, it loads instantly from cache.
+     */
+    public static void prewarmPage(String fxml) {
+        if (fxml == null || fxml.isBlank() || NON_CACHEABLE.contains(fxml)) return;
+        if (pageCache.containsKey(fxml)) return;
+        Platform.runLater(() -> {
+            try {
+                if (pageCache.containsKey(fxml)) return;
+                URL url = org.example.util.ResourceLocator.require(fxml);
+                long loadStarted = System.nanoTime();
+                FXMLLoader loader = new FXMLLoader(url);
+                Node page = loader.load();
+                CachedPage cached = new CachedPage(page, loader.getController());
+                pageCache.put(fxml, cached);
+                ScreenRefreshPolicy.markRefreshed(fxml);
+                PerformanceMonitor.event("navigation-manager", "prewarmed | page=" + fxml + " | " + ((System.nanoTime() - loadStarted) / 1_000_000L) + " ms");
+            } catch (Exception e) {
+                PerformanceMonitor.event("navigation-manager", "prewarm-skipped | page=" + fxml + " | " + e.getMessage());
+            }
+        });
+    }
+
     private static void notifyShown(Object controller, boolean reused) {
         if (controller instanceof ScreenLifecycle lifecycle) {
             lifecycle.onScreenShown(reused);

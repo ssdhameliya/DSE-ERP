@@ -1,0 +1,57 @@
+A comprehensive architectural, code-level, and user-flow audit was conducted across the entire project (**Desktop**, **Server**, **Shared**, **Database**, and **Document Studio**).
+
+The project is mature and stable (backed by **284 automated JUnit tests** and **30+ Python release gate audit contracts**), meaning there are **no crashing showstoppers** in standard workflows. However, across edge cases, scaling limits, UI polish, and accounting specifics, there are **23 identified defects, latent bugs, and architectural gaps**.
+
+Here is the complete categorized list:
+
+---
+
+### Summary by Severity
+
+| Severity | Count | Impact |
+|:---|:---:|:---|
+| **High (Edge-Case Business & Data Integrity)** | **5** | Multi-line rounding, invoice number sequence gaps, large Excel import OOM, concurrent edit conflict experience, credit note settlement. |
+| **Medium (Performance & Document Studio)** | **9** | Secondary screen cold-starts, PDF text wrap overflow, formula refresh in Excel, dashboard KPI query load, attachment cross-platform path separators. |
+| **Low (UI/UX Polish & Visual Inconsistencies)** | **9** | Secondary dialog icon colors, toast notification overlap, empty table states, unsanitized export filenames, backup disk pruning. |
+| **Total** | **23** | |
+
+---
+
+## Detailed Defect List Across the Entire Project
+
+### Category 1: Performance & Screen Latency
+
+#### 1. Cold-Start Latency on Secondary Transaction Screens (Quotation, Delivery Challan, Inventory)
+- **Severity:** Medium
+- **Location:** [QuotationEditor.fxml](file:///c:/Users/JATIN%20DHAMELIYA/Downloads/DSE-ERP-10.0.25-INTELLIJ-READY-FINAL-V19/DSE-ERP-10.0.25/desktop/src/main/resources/fxml/pages/QuotationEditor.fxml), [Inventory.fxml](file:///c:/Users/JATIN%20DHAMELIYA/Downloads/DSE-ERP-10.0.25-INTELLIJ-READY-FINAL-V19/DSE-ERP-10.0.25/desktop/src/main/resources/fxml/pages/Inventory.fxml)
+- **Defect:** While Sales and Purchases cold-start was resolved in `10.0.28` via background pre-warming, opening Quotation Editor or Inventory for the first time still blocks th
+<truncated 14586 bytes>
+nager.java:185](file:///c:/Users/JATIN%20DHAMELIYA/Downloads/DSE-ERP-10.0.25-INTELLIJ-READY-FINAL-V19/DSE-ERP-10.0.25/desktop/src/main/java/org/example/service/SessionActivityManager.java#L185)
+- **Defect:** When the 10-minute inactivity timer locks the screen, unsaved invoice lines remain in memory. If the user closes the modal or logs in as a different user, unsaved lines are cleared without an automated local recovery draft.
+- **Fix:** Persist an auto-recovery draft in SQLite/local JSON before executing idle logout.
+
+#### 23. In-App Audit Trail Log Query Pagination on Long Date Ranges
+- **Severity:** Low
+- **Location:** [AuditLogService.java](file:///c:/Users/JATIN%20DHAMELIYA/Downloads/DSE-ERP-10.0.25-INTELLIJ-READY-FINAL-V19/DSE-ERP-10.0.25/server/src/main/java/org/example/server/audit)
+- **Defect:** Querying the Audit Trail screen for "All Time" without selecting a specific entity type loads all audit rows into memory, causing table lag on databases with years of audit logs.
+- **Fix:** Enforce a default 100-row page limit with server-side pagination on the Audit Trail screen.
+
+---
+
+### Recommended Prioritization for Upcoming Releases
+
+1. **Immediate Focus (Next in `10.0.28` / `10.0.29`):**
+   - **#8:** Prevent invoice sequence counter gaps on cancelled forms.
+   - **#1:** Extend async pre-warming to Quotations and Inventory.
+   - **#11 & #12:** PDF Studio item description text wrap and Unicode font fallback.
+   - **#18:** Apply semantic colored icons to secondary dialogs.
+2. **Intermediate Focus (`10.0.30`):**
+   - **#4:** GST 1-paisa roundoff line-item adjustment.
+   - **#9:** Concurrent edit conflict resolution popup.
+   - **#15:** Excel import streaming optimization for large files.
+   - **#21:** Automated 30-day backup disk auto-pruning.
+3. **Long-Term Enhancements:**
+   - **#6:** Automated Credit Note FIFO settlement.
+   - **#22:** Inactivity auto-recovery draft persistence.
+
+Would you like to prioritize and address the top items (such as the invoice sequence gap or PDF description wrapping) right now?

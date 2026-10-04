@@ -86,8 +86,8 @@ public class AuditService {
         CurrentUser.requirePermission("AUDIT.VIEW","View audit trail");
         String type=normalize(entityType);
         if ("CUSTOMER".equals(type) || "SUPPLIER".equals(type))
-            return load("WHERE e.entity_type IN ('PARTY',?) AND e.entity_id=? ORDER BY e.created_at DESC,e.id DESC LIMIT 1000", type,entityId);
-        return load("WHERE e.entity_type=? AND e.entity_id=? ORDER BY e.created_at DESC,e.id DESC LIMIT 1000", type,entityId);
+            return load("WHERE e.entity_type IN ('PARTY',?) AND e.entity_id=? ORDER BY e.created_at DESC,e.id DESC LIMIT 100", type,entityId);
+        return load("WHERE e.entity_type=? AND e.entity_id=? ORDER BY e.created_at DESC,e.id DESC LIMIT 100", type,entityId);
     }
 
     @Transactional(readOnly = true)

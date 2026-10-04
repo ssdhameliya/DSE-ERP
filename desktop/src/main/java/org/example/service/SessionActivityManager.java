@@ -14,6 +14,8 @@ import org.example.util.SceneManager;
 import org.example.util.OwnedDialog;
 import org.example.util.UiActionIcons;
 import org.example.api.support.SupportApiClient;
+import org.example.config.ConfigManager;
+import org.example.model.AppUser;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.HashSet;
@@ -181,6 +183,7 @@ public final class SessionActivityManager {
         if (!loggingOut.compareAndSet(false, true)) return;
         closeWarning();
         ticker.stop();
+        saveIdleRecoveryDraft();
         Thread worker = new Thread(() -> {
             try { new UserService().logoutIdle(); } catch (Exception ignored) { }
             finally { SessionService.clear(); }
@@ -191,6 +194,23 @@ public final class SessionActivityManager {
         }, "dse-idle-logout");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    private void saveIdleRecoveryDraft() {
+        try {
+            AppUser user = SessionService.current();
+            if (user == null || user.getUsername() == null || user.getUsername().isBlank()) return;
+            java.nio.file.Path recoveryFolder = ConfigManager.getConfigurationFolder().resolve("recovery");
+            java.nio.file.Files.createDirectories(recoveryFolder);
+            String safeUser = user.getUsername().replaceAll("[^a-zA-Z0-9_-]", "_");
+            java.nio.file.Path draftFile = recoveryFolder.resolve("idle_recovery_" + safeUser + ".json");
+            String json = String.format(java.util.Locale.ROOT,
+                "{\"username\":\"%s\",\"timestamp\":\"%s\",\"role\":\"%s\",\"reason\":\"IDLE_TIMEOUT\"}",
+                safeUser, java.time.Instant.now().toString(), String.valueOf(user.getRole()));
+            java.nio.file.Files.writeString(draftFile, json, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+            // Non-blocking best-effort draft snapshot
+        }
     }
 
     private void closeWarning() {

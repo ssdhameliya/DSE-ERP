@@ -186,7 +186,17 @@ public final class UniversalPdfEngine {
                             stream.addRect(x, y, w, h);
                             stream.fill();
                         }
-                        stream.drawImage(img, x, y, w, h);
+                        float imgW = img.getWidth();
+                        float imgH = img.getHeight();
+                        float drawW = w, drawH = h;
+                        if (imgW > 0 && imgH > 0) {
+                            float scale = Math.min(w / imgW, h / imgH);
+                            drawW = imgW * scale;
+                            drawH = imgH * scale;
+                        }
+                        float drawX = x + (w - drawW) / 2.0f;
+                        float drawY = y + (h - drawH) / 2.0f;
+                        stream.drawImage(img, drawX, drawY, drawW, drawH);
                     } catch (Exception ignored) {}
                 }
                 continue;
@@ -317,12 +327,13 @@ public final class UniversalPdfEngine {
                     // Multi-line Description + Remark
                     float descX = curX + 4.0f;
                     float titleY = rowPdfY + rowH - 8.5f;
+                    float maxDescW = colW - 8.0f;
                     stream.setNonStrokingColor(Color.BLACK);
-                    drawText(stream, fontBold, 6.45f, descX, titleY, item.getDescription());
+                    drawWrappedText(stream, fontBold, 6.45f, descX, titleY, maxDescW, item.getDescription());
 
                     if (item.getRemarks() != null && !item.getRemarks().isBlank()) {
                         stream.setNonStrokingColor(MUTED);
-                        drawText(stream, fontRegular, 6.35f, descX, titleY - 7.5f, item.getRemarks());
+                        drawWrappedText(stream, fontRegular, 6.35f, descX, titleY - 7.5f, maxDescW, item.getRemarks());
                     }
                 } else {
                     String cellVal = formatItemValue(item, key, i + 1);

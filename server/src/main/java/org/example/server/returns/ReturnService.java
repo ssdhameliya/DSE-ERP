@@ -10,6 +10,7 @@ import org.example.server.util.BusinessClock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.example.server.insights.InsightsService;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -343,6 +344,118 @@ public class ReturnService {
         }
         jdbc.update("UPDATE return_register SET refund_amount=0,refund_status=?,updated_at=? WHERE return_no=?", rs, BusinessClock.nowUtcText(), no);
         if (paid > .0001) jdbc.update("UPDATE return_register SET refund_amount=? WHERE id=(SELECT MIN(id) FROM return_register WHERE return_no=?)", paid, no);
+    }
+
+    @Transactional
+    public int applyCreditNoteToOutstandingInvoices(String no) {
+        requireReturnPermission(no, "EDIT");
+        String current = currentStateForUpdate(no);
+        if (!"APPROVED".equals(current)) {
+            throw new IllegalStateException("Only approved returns / credit notes can be applied to outstanding invoices.");
+        }
+        double totalCredit = total(no);
+        double alreadyRefunded = refundTotal(no);
+        double remainingCredit = Math.max(0, totalCredit - alreadyRefunded);
+        if (remainingCredit <= 0.009) {
+            return 0;
+        }
+
+        ReturnOrigin origin = origin(no);
+        boolean isSales = "SALES RETURN".equalsIgnoreCase(origin.type());
+        int partyId = sourcePartyId(isSales, origin.invoice());
+        String partyName = jdbc.queryForObject("SELECT COALESCE(name, '') FROM party_master WHERE id=?", String.class, partyId);
+        if (partyName == null) partyName = "";
+        String actor = CurrentUser.require().username();
+        int appliedCount = 0;
+
+        if (isSales) {
+            List<Map<String, Object>> openInvoices = jdbc.queryForList(
+                "SELECT id, invoice_no, total_amount, paid_amount FROM sales_header " +
+                "WHERE customer_id=? AND UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED','REJECTED','PENDING APPROVAL') " +
+                "AND UPPER(COALESCE(payment_status,'')) NOT IN ('PAID','SETTLED') " +
+                "ORDER BY " + returnDateSql("invoice_date") + " ASC, id ASC",
+                partyId
+            );
+            for (Map<String, Object> inv : openInvoices) {
+                if (remainingCredit <= 0.009) break;
+                int docId = ((Number) inv.get("id")).intValue();
+                String invNo = Objects.toString(inv.get("invoice_no"), "");
+                double docTotal = n(inv.get("total_amount"));
+                double cachedPaid = n(inv.get("paid_amount"));
+                double recPaid = recordedPayments("SALE", docId);
+                double currentPaid = Math.max(cachedPaid, recPaid);
+                double outstanding = Math.max(0, docTotal - currentPaid);
+                if (outstanding <= 0.009) continue;
+
+                double amountToApply = Math.min(remainingCredit, outstanding);
+                jdbc.update(
+                    "INSERT INTO payment_record(document_type,document_id,payment_date,amount,payment_mode,reference_no,notes,received_from,payment_type,created_by) " +
+                    "VALUES('SALE',?,?,?,'Credit Note',?,?,'Customer',?,?)",
+                    docId, BusinessClock.today(), amountToApply, no, "Offset against Credit Note " + no,
+                    (currentPaid + amountToApply + 0.009 >= docTotal ? "FULL" : "PARTIAL"), actor
+                );
+                double newPaid = money(currentPaid + amountToApply);
+                String newStatus = (newPaid + 0.009 >= docTotal ? "PAID" : "PARTIAL");
+                jdbc.update("UPDATE sales_header SET paid_amount=?, payment_status=?, updated_at=? WHERE id=?",
+                    newPaid, newStatus, BusinessClock.nowUtcText(), docId);
+
+                jdbc.update(
+                    "INSERT INTO return_refund(return_no,refund_date,amount,payment_mode,reference_no,refunded_party,notes,refund_type,created_by,created_at) " +
+                    "VALUES(?,?,?,'Credit Note',?,?,'Offset against Sales Invoice ' || ?,'INVOICE_OFFSET',?,?)",
+                    no, BusinessClock.today(), amountToApply, invNo, partyName, invNo, actor, BusinessClock.nowUtcText()
+                );
+
+                remainingCredit = money(Math.max(0, remainingCredit - amountToApply));
+                appliedCount++;
+            }
+        } else {
+            List<Map<String, Object>> openInvoices = jdbc.queryForList(
+                "SELECT id, invoice_no, total_amount, paid_amount FROM purchase_header " +
+                "WHERE supplier_id=? AND UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED') " +
+                "AND UPPER(COALESCE(payment_status,'')) NOT IN ('PAID','SETTLED') " +
+                "ORDER BY " + returnDateSql("invoice_date") + " ASC, id ASC",
+                partyId
+            );
+            for (Map<String, Object> inv : openInvoices) {
+                if (remainingCredit <= 0.009) break;
+                int docId = ((Number) inv.get("id")).intValue();
+                String invNo = Objects.toString(inv.get("invoice_no"), "");
+                double docTotal = n(inv.get("total_amount"));
+                double cachedPaid = n(inv.get("paid_amount"));
+                double recPaid = recordedPayments("PURCHASE", docId);
+                double currentPaid = Math.max(cachedPaid, recPaid);
+                double outstanding = Math.max(0, docTotal - currentPaid);
+                if (outstanding <= 0.009) continue;
+
+                double amountToApply = Math.min(remainingCredit, outstanding);
+                jdbc.update(
+                    "INSERT INTO payment_record(document_type,document_id,payment_date,amount,payment_mode,reference_no,notes,received_from,payment_type,created_by) " +
+                    "VALUES('PURCHASE',?,?,?,'Debit Note',?,?,'Supplier',?,?)",
+                    docId, BusinessClock.today(), amountToApply, no, "Offset against Debit Note " + no,
+                    (currentPaid + amountToApply + 0.009 >= docTotal ? "FULL" : "PARTIAL"), actor
+                );
+                double newPaid = money(currentPaid + amountToApply);
+                String newStatus = (newPaid + 0.009 >= docTotal ? "PAID" : "PARTIAL");
+                jdbc.update("UPDATE purchase_header SET paid_amount=?, payment_status=?, updated_at=? WHERE id=?",
+                    newPaid, newStatus, BusinessClock.nowUtcText(), docId);
+
+                jdbc.update(
+                    "INSERT INTO return_refund(return_no,refund_date,amount,payment_mode,reference_no,refunded_party,notes,refund_type,created_by,created_at) " +
+                    "VALUES(?,?,?,'Debit Note',?,?,'Offset against Purchase Invoice ' || ?,'INVOICE_OFFSET',?,?)",
+                    no, BusinessClock.today(), amountToApply, invNo, partyName, invNo, actor, BusinessClock.nowUtcText()
+                );
+
+                remainingCredit = money(Math.max(0, remainingCredit - amountToApply));
+                appliedCount++;
+            }
+        }
+
+        if (appliedCount > 0) {
+            syncRefundState(no);
+            audit.log(returnEntityType(no), returnAuditId(no), "QUICK_APPLIED", no + " • applied to " + appliedCount + " invoice(s)");
+            InsightsService.invalidateDashboardCache();
+        }
+        return appliedCount;
     }
 
     @Transactional

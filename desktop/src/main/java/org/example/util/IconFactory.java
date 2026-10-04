@@ -30,6 +30,8 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.geometry.Pos;
+import javafx.scene.paint.Color;
+import org.example.theme.ThemeManager;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -69,7 +71,8 @@ public final class IconFactory {
         String semantic = normalize(name);
         FontIcon glyph = new FontIcon(literal(semantic));
         glyph.setIconSize(Math.max(12, (int) Math.round(size * 0.68)));
-        glyph.getStyleClass().addAll("erp-ikonli-glyph", "erp-icon-glyph-" + colour(semantic));
+        String colourName = colour(semantic);
+        glyph.getStyleClass().addAll("erp-ikonli-glyph", "erp-icon-glyph-" + colourName);
         glyph.setMouseTransparent(true);
         glyph.getProperties().put("erp.icon.factory", true);
         glyph.getProperties().put("erp.icon.semantic", semantic);
@@ -563,6 +566,13 @@ public final class IconFactory {
         if (item.getGraphic() == null || Boolean.TRUE.equals(item.getProperties().get("erp.icon.decorated"))) {
             item.setGraphic(actionIcon(semantic, 16));
             item.getProperties().put("erp.icon.decorated", true);
+        } else if (item.getGraphic() instanceof FontIcon existingGlyph) {
+            String colourName = colour(semantic);
+            existingGlyph.getStyleClass().removeIf(style -> style.startsWith("erp-action-glyph-"));
+            if (!existingGlyph.getStyleClass().contains("erp-action-glyph")) {
+                existingGlyph.getStyleClass().add("erp-action-glyph");
+            }
+            existingGlyph.getStyleClass().add("erp-action-glyph-" + colourName);
         }
         if (colourActionText) {
             item.getStyleClass().removeIf(style -> style.startsWith("erp-menu-semantic-"));
@@ -578,9 +588,19 @@ public final class IconFactory {
     private static Node actionIcon(String semantic, double size) {
         FontIcon glyph = new FontIcon(literal(semantic));
         glyph.setIconSize(Math.max(14, (int) Math.round(size)));
+        String colourName = colour(semantic);
+        String hex = hexColor(colourName);
+        glyph.setIconColor(Color.web(hex));
+        String existingStyle = glyph.getStyle();
+        String colorStyle = "-fx-icon-color: " + hex + ";";
+        if (existingStyle == null || existingStyle.isBlank()) {
+            glyph.setStyle(colorStyle);
+        } else {
+            glyph.setStyle(existingStyle.trim() + " " + colorStyle);
+        }
         glyph.getStyleClass().addAll(
             "erp-action-glyph",
-            "erp-action-glyph-" + colour(semantic)
+            "erp-action-glyph-" + colourName
         );
         glyph.setMouseTransparent(true);
         glyph.getProperties().put("erp.icon.factory", true);
@@ -945,6 +965,21 @@ public final class IconFactory {
         };
     }
 
+    /** Resolves canonical hex codes according to active theme for direct styling. */
+    public static String hexColor(String colourName) {
+        boolean dark = ThemeManager.getCurrentTheme() == ThemeManager.Theme.DARK;
+        return switch (colourName == null ? "" : colourName.toLowerCase(Locale.ROOT)) {
+            case "blue" -> dark ? "#73a9ff" : "#2563eb";
+            case "green" -> dark ? "#4ade80" : "#16a34a";
+            case "orange" -> dark ? "#fbbf24" : "#d97706";
+            case "purple" -> dark ? "#c4b5fd" : "#7c3aed";
+            case "pink" -> dark ? "#fb7185" : "#e11d48";
+            case "teal" -> dark ? "#5eead4" : "#0d9488";
+            case "indigo" -> dark ? "#a5b4fc" : "#4f46e5";
+            default -> dark ? "#94a3b8" : "#64748b";
+        };
+    }
+
     /** Maps user-facing labels to semantic icons without touching their actions. */
 
     /**
@@ -1122,7 +1157,7 @@ public final class IconFactory {
         if (value.contains("rectangle")) return "category";
         if (value.equals("line")) return "line";
         if (value.contains("dashboard")) return "dashboard";
-        if (value.equals("today") || value.equals("yesterday") || value.contains("days") || value.contains("month") || value.contains("custom range")) return "calendar";
+        if (value.equals("today") || value.equals("yesterday") || value.contains("days") || value.contains("month") || value.contains("custom range") || value.contains("this fy") || value.contains("financial year") || value.contains("quarter") || value.equals("fy")) return "calendar";
         if (value.contains("dark")) return "moon";
         if (value.contains("light")) return "sun";
         if (value.contains("logout") || value.contains("sign out")) return "exit";
