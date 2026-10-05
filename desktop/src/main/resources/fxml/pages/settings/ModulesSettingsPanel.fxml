@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelModules" visible="false" managed="false" maxWidth="Infinity" spacing="16" styleClass="settings-card,settings-card-tall-compact">
+
+    <VBox spacing="3">
+        <Label text="Module Activation &amp; Feature Control" styleClass="settings-section-title"/>
+        <Label text="Control ERP business modules, statutory engines, and smart operational automations. Deactivated modules are hidden from navigation and bypassed with zero overhead." wrapText="true" styleClass="settings-section-description"/>
+    </VBox>
+
+    <Separator/>
+
+    <!-- 1. GENERAL LEDGER & ACCOUNTING -->
+    <VBox spacing="8" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                <Label text="General Ledger &amp; Double-Entry Accounting" styleClass="settings-form-label,bold-label"/>
+                <Label text="Master Chart of Accounts, debit/credit journal vouchers, real-time Trial Balance, and Profit &amp; Loss." wrapText="true" styleClass="settings-field-hint"/>
+            </VBox>
+            <CheckBox fx:id="chkGlEnabled" text="Enable GL Module" styleClass="approved-checkbox"/>
+        </HBox>
+        <HBox spacing="24" alignment="CENTER_LEFT">
+            <CheckBox fx:id="chkGlAutoPost" text="Auto-post Journal Vouchers from Sales &amp; Purchases" styleClass="approved-checkbox"/>
+            <CheckBox fx:id="chkGlTrialBalance" text="Maintain Live Trial Balance" styleClass="approved-checkbox"/>
+        </HBox>
+    </VBox>
+
+    <Separator/>
+
+    <!-- 2. GST & TAX COMPLIANCE -->
+    <VBox spacing="8" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                <Label text="GST Statutory Compliance &amp; GSTR-2B Auto-Reconciliation" styleClass="settings-form-label,bold-label"/>
+                <Label text="Automated Place of Supply tax split, GSTR-1 government JSON exports, and GSTR-2B ITC fuzzy reconciliation." wrapText="true" styleClass="settings-field-hint"/>
+            </VBox>
+            <CheckBox fx:id="chkGstEnabled" text="Enable GST Engine" styleClass="approved-checkbox"/>
+        </HBox>
+        <HBox spacing="24" alignment="CENTER_LEFT">
+            <CheckBox fx:id="chkGstAuto2bMatch" text="Auto-Reconcile GSTR-2B Purchases" styleClass="approved-checkbox"/>
+            <CheckBox fx:id="chkGstPosGating" text="Strict Place of Supply Gating" styleClass="approved-checkbox"/>
+            <CheckBox fx:id="chkTdsEnabled" text="TDS / TCS Withholding (Sec 194Q &amp; 206C)" styleClass="approved-checkbox"/>
+        </HBox>
+    </VBox>
+
+    <Separator/>
+
+    <!-- 3. SMART OPERATIONAL AUTOMATIONS -->
+    <VBox spacing="8" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                <Label text="Smart Operational Automations Suite" styleClass="settings-form-label,bold-label"/>
+                <Label text="Automate purchase bill verification against PO/GRN, dynamic stock replenishment, and smart FIFO payment matching." wrapText="true" styleClass="settings-field-hint"/>
+            </VBox>
+        </HBox>
+        <GridPane hgap="16" vgap="8">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+            </columnConstraints>
+            <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                <CheckBox fx:id="chkThreeWayMatch" text="Smart 3-Way Purchase Matching (PO vs GRN vs Bill)" styleClass="approved-checkbox"/>
+                <CheckBox fx:id="chkAutoDraftDebitNote" text="Auto-generate draft debit notes for short shipments" styleClass="approved-checkbox"/>
+            </VBox>
+            <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <CheckBox fx:id="chkStockAutoReorder" text="Dynamic Safety Stock &amp; Auto-Reorder Alerts" styleClass="approved-checkbox"/>
+                <CheckBox fx:id="chkCreditHardStop" text="Customer Overdue Credit Hard Stop (Block Invoicing)" styleClass="approved-checkbox"/>
+            </VBox>
+        </GridPane>
+    </VBox>
+
+    <Separator/>
+
+    <!-- 4. EXECUTIVE 8:00 PM BRIEFING -->
+    <VBox spacing="8" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                <Label text="Executive 8:00 PM Daily Briefing" styleClass="settings-form-label,bold-label"/>
+                <Label text="Daily evening summary of sales, customer collections, vendor payments, bank balances, and overdue accounts." wrapText="true" styleClass="settings-field-hint"/>
+            </VBox>
+            <CheckBox fx:id="chkDailyBriefing" text="Enable Daily Briefing" styleClass="approved-checkbox"/>
+        </HBox>
+        <HBox spacing="24" alignment="CENTER_LEFT">
+            <CheckBox fx:id="chkBriefingWa" text="WhatsApp Channel" styleClass="approved-checkbox"/>
+            <CheckBox fx:id="chkBriefingEmail" text="Email Channel" styleClass="approved-checkbox"/>
+            <Label text="Mobile No:" styleClass="settings-form-label"/>
+            <TextField fx:id="txtBriefingPhone" promptText="+91 98765 43210" styleClass="approved-input"/>
+        </HBox>
+    </VBox>
+
+    <Separator/>
+
+    <!-- 5. WAREHOUSE & BATCH REGISTRY -->
+    <VBox spacing="8" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                <Label text="Multi-Warehouse, Batch/Expiry (FEFO) &amp; Serial Registry" styleClass="settings-form-label,bold-label"/>
+                <Label text="Track stock across multiple storage depots, enforce First-Expired First-Out dispatches, and track equipment serial warranties." wrapText="true" styleClass="settings-field-hint"/>
+            </VBox>
+            <CheckBox fx:id="chkBatchSerialTracking" text="Enable Batch/Serial Tracking" styleClass="approved-checkbox"/>
+        </HBox>
+    </VBox>
+
+</VBox>

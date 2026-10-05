@@ -155,7 +155,17 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V10_0_27__performance_indexes",
                     "db/migration/V10_0_27__performance_indexes.sql"),
             new Migration("V10_0_28__defect_hardening",
-                    "db/migration/V10_0_28__defect_hardening.sql")
+                    "db/migration/V10_0_28__defect_hardening.sql"),
+            new Migration("V10_0_29_1__chart_of_accounts_and_gl",
+                    "db/migration/V10_0_29_1__chart_of_accounts_and_gl.sql"),
+            new Migration("V10_0_29_2__gst_compliance_tables",
+                    "db/migration/V10_0_29_2__gst_compliance_tables.sql"),
+            new Migration("V10_0_29_3__automation_and_feature_flags",
+                    "db/migration/V10_0_29_3__automation_and_feature_flags.sql"),
+            new Migration("V10_0_29_4__warehouse_batch_serial",
+                    "db/migration/V10_0_29_4__warehouse_batch_serial.sql"),
+            new Migration("V10_0_29_5__security_permissions_alignment",
+                    "db/migration/V10_0_29_5__security_permissions_alignment.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

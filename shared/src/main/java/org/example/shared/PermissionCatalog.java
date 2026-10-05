@@ -36,6 +36,10 @@ public final class PermissionCatalog {
             entry("INVENTORY", "Inventory / Item Master", "Inventory", "inventory", 40),
             entry("IMPORT", "Data Import", "Inventory", "import", 41),
             entry("BANK_EXPENSE", "Finance & Banking", "Finance & Banking", "bank", 50),
+            entry("GST_COMPLIANCE", "GST Compliance", "Finance & Compliance", "tax", 52),
+            entry("PURCHASE_RECON", "Purchase Recon (2B)", "Finance & Compliance", "reconcile", 54),
+            entry("RECON_SUPPLIER", "Recon Suppliers", "Finance & Compliance", "supplier", 55),
+            entry("GENERAL_LEDGER", "General Ledger & Accounts", "Finance & Compliance", "ledger", 56),
             entry("MASTERS", "Masters", "Masters", "master", 60),
             entry("REPORTS", "Reports", "Reports", "report", 70),
             entry("DOCUMENT_STUDIO", "Document Studio", "Document Studio", "document", 80),
@@ -43,13 +47,15 @@ public final class PermissionCatalog {
             entry("SETTINGS", "Settings", "Administration", "settings", 91),
             entry("BACKUP", "Backup & Restore", "Administration", "backup", 92),
             entry("APPLICATION_UPDATES", "Application Updates", "Administration", "update", 93),
-            entry("SAFE_ROLLBACK", "Safe Rollback", "Administration", "rollback", 94)
+            entry("SAFE_ROLLBACK", "Safe Rollback", "Administration", "rollback", 94),
+            entry("AUTOMATION", "Automation Center", "Administration", "automation", 95),
+            entry("AUDIT", "Global Audit Trail", "Administration", "audit", 96)
     );
 
     private static final Set<String> SALES_MODULES = Set.of(
             "DASHBOARD", "SALES", "QUOTATION", "CUSTOMERS", "COMMUNICATION", "REMINDERS", "REPORTS", "INVENTORY");
     private static final Set<String> ADMINISTRATION_MODULES = Set.of(
-            "USERS", "SETTINGS", "BACKUP", "APPLICATION_UPDATES", "SAFE_ROLLBACK");
+            "USERS", "SETTINGS", "BACKUP", "APPLICATION_UPDATES", "SAFE_ROLLBACK", "AUTOMATION", "AUDIT");
 
     private PermissionCatalog() {}
 
@@ -72,6 +78,11 @@ public final class PermissionCatalog {
             case "MANAGE_TEMPLATES" -> "Manage Templates";
             case "MANAGE_ROLES" -> "Manage Roles";
             case "MANAGE_PERMISSIONS" -> "Manage Permissions";
+            case "GLOBAL" -> "Global Audit";
+            case "RECONCILE" -> "Reconcile";
+            case "MATCH" -> "Match";
+            case "EXECUTE" -> "Execute";
+            case "POST" -> "Post";
             default -> title(normalized.replace('_', ' '));
         };
     }
@@ -110,6 +121,12 @@ public final class PermissionCatalog {
         }
         if ("BANK_EXPENSE".equals(module)) {
             return Set.of("VIEW", "CREATE", "EDIT", "EXPORT", "RECONCILE", "APPROVE").contains(action);
+        }
+        if ("GST_COMPLIANCE".equals(module)) {
+            return Set.of("VIEW", "EXPORT", "RECONCILE").contains(action);
+        }
+        if ("GENERAL_LEDGER".equals(module)) {
+            return Set.of("VIEW", "CREATE", "POST", "EXPORT").contains(action);
         }
         return !"DELETE".equals(action) || Set.of("SALES", "PURCHASE", "QUOTATION", "CUSTOMERS", "SUPPLIERS", "INVENTORY", "MASTERS").contains(module);
     }

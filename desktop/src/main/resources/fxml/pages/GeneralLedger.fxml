@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.GeneralLedgerController" styleClass="approved-screen,erp-screen-root,recon-page">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="General Ledger &amp; Financial Accounting" styleClass="screen-title"/>
+          <Label text="Double-entry journals, Chart of Accounts hierarchy, and automated financial statements" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnNewJournal" text="New Journal Voucher" onAction="#openNewJournalDialog" styleClass="primary-action,approved-button,approved-primary-button"/>
+        <Button fx:id="btnExportLedger" text="Export Statement" onAction="#exportStatement" styleClass="approved-button,approved-secondary-button"/>
+        <Button fx:id="btnRefreshLedger" text="Refresh" onAction="#refreshJournals" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiAssetsIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Total Assets" styleClass="metric-label"/>
+            <Label fx:id="kpiTotalAssets" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Bank + Debtors + Stock" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiLiabilitiesIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Total Liabilities" styleClass="metric-label"/>
+            <Label fx:id="kpiTotalLiabilities" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Payables + GST Due" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiRevenueIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Operating Revenue" styleClass="metric-label"/>
+            <Label fx:id="kpiTotalRevenue" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Net Sales Turnover" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-red" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiExpenseIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Total Expenses" styleClass="metric-label"/>
+            <Label fx:id="kpiTotalExpense" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Purchases + Overhead" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-teal" GridPane.columnIndex="4">
+          <StackPane fx:id="kpiProfitIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Net Profit / Loss" styleClass="metric-label"/>
+            <Label fx:id="kpiNetProfit" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Net Operating Margin" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <TabPane fx:id="glTabPane" styleClass="approved-tab-pane,erp-tab-pane">
+      <tabs>
+        <Tab text="Journal Vouchers" closable="false">
+          <VBox spacing="8" styleClass="approved-card">
+            <HBox spacing="8" alignment="CENTER_LEFT">
+              <TextField fx:id="txtJournalSearch" promptText="Search voucher no, narration, reference..." HBox.hgrow="ALWAYS"/>
+              <ComboBox fx:id="cmbVoucherFilter" promptText="Filter by Type" prefWidth="160"/>
+              <Button fx:id="btnJournalRefresh" text="Refresh" onAction="#refreshJournals" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+            <SplitPane fx:id="journalSplit" VBox.vgrow="ALWAYS" dividerPositions="1.0" styleClass="register-split-pane">
+              <TableView fx:id="tblJournals" styleClass="approved-table,erp-table-profile-responsive,erp-purple-selection-table">
+                <columns>
+                  <TableColumn fx:id="colEntryNumber" text="Voucher No."/>
+                  <TableColumn fx:id="colEntryDate" text="Date"/>
+                  <TableColumn fx:id="colEntryType" text="Type"/>
+                  <TableColumn fx:id="colReferenceNo" text="Ref Document"/>
+                  <TableColumn fx:id="colNarration" text="Narration"/>
+                  <TableColumn fx:id="colTotalDebit" text="Debit (₹)"/>
+                  <TableColumn fx:id="colTotalCredit" text="Credit (₹)"/>
+                  <TableColumn fx:id="colStatus" text="Status"/>
+                  <TableColumn fx:id="colActions" text="Actions" sortable="false"/>
+                </columns>
+                <placeholder>
+                  <VBox alignment="CENTER" spacing="8">
+                    <Label text="No Journal Entries Found" styleClass="empty-title"/>
+                    <Label text="Post a new journal voucher or record invoices." styleClass="empty-note"/>
+                  </VBox>
+                </placeholder>
+              </TableView>
+              <VBox fx:id="journalDetailDrawer" visible="false" managed="false" spacing="9" prefWidth="400" minWidth="350" maxWidth="450" styleClass="approved-card,detail-drawer">
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                  <VBox HBox.hgrow="ALWAYS">
+                    <Label text="Journal Voucher Details" styleClass="section-title"/>
+                    <Label text="Double-Entry Financial Audit" styleClass="page-subtitle"/>
+                  </VBox>
+                  <Button fx:id="btnDrawerAudit" text="Audit Trail" onAction="#auditSelected" styleClass="approved-button,approved-secondary-button"/>
+                  <Button fx:id="btnCloseJournalDrawer" text="Close" onAction="#closeJournalDetails" styleClass="secondary-button,drawer-close-button,approved-button,approved-secondary-button"/>
+                </HBox>
+                <Separator/>
+                <VBox spacing="6" styleClass="drawer-summary-card">
+                  <HBox alignment="CENTER_LEFT">
+                    <Label text="Voucher No:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblDrawerVoucherNo" text="-" styleClass="meta-value-bold"/>
+                  </HBox>
+                  <HBox alignment="CENTER_LEFT">
+                    <Label text="Voucher Date:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblDrawerDate" text="-" styleClass="meta-value"/>
+                  </HBox>
+                  <HBox alignment="CENTER_LEFT">
+                    <Label text="Type:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblDrawerType" text="-" styleClass="status-pill"/>
+                  </HBox>
+                  <HBox alignment="CENTER_LEFT">
+                    <Label text="Ref Document:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblDrawerRef" text="-" styleClass="meta-value"/>
+                  </HBox>
+                  <HBox alignment="CENTER_LEFT">
+                    <Label text="Posting Status:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblDrawerStatus" text="POSTED" styleClass="status-pill,status-positive"/>
+                  </HBox>
+                </VBox>
+                <VBox spacing="4" styleClass="drawer-summary-card">
+                  <Label text="Narration" styleClass="meta-label"/>
+                  <Label fx:id="lblDrawerNarration" text="-" wrapText="true" styleClass="meta-value"/>
+                </VBox>
+                <VBox spacing="6" styleClass="drawer-summary-card">
+                  <Label text="Double-Entry Breakdown" styleClass="section-title-sm"/>
+                  <HBox alignment="CENTER_LEFT">
+                    <Label fx:id="lblDrawerDrHead" text="Dr. Account:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblDrawerDrAmount" text="₹ 0.00" styleClass="meta-value-bold,text-primary"/>
+                  </HBox>
+                  <HBox alignment="CENTER_LEFT">
+                    <Label fx:id="lblDrawerCrHead" text="Cr. Account:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblDrawerCrAmount" text="₹ 0.00" styleClass="meta-value-bold,text-success"/>
+                  </HBox>
+                  <Separator/>
+                  <HBox alignment="CENTER_LEFT">
+                    <Label text="Audit Check:" styleClass="meta-label"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label text="BALANCED (Dr = Cr)" styleClass="status-pill,status-positive"/>
+                  </HBox>
+                </VBox>
+                <Region VBox.vgrow="ALWAYS"/>
+                <HBox spacing="8" alignment="CENTER_RIGHT">
+                  <Button fx:id="btnCopyVoucher" text="Copy Voucher No" onAction="#copyVoucherNumber" styleClass="approved-button,approved-secondary-button"/>
+                  <Button fx:id="btnOpenLinkedDoc" text="Open Document" onAction="#openLinkedDocument" styleClass="primary-action,approved-button,approved-primary-button"/>
+                </HBox>
+              </VBox>
+            </SplitPane>
+          </VBox>
+        </Tab>
+
+        <Tab text="Chart of Accounts" closable="false">
+          <VBox spacing="8" styleClass="approved-card">
+            <HBox spacing="8" alignment="CENTER_LEFT">
+              <TextField fx:id="txtAccountSearch" promptText="Search account code, name, category..." HBox.hgrow="ALWAYS"/>
+              <ComboBox fx:id="cmbAccountFilter" promptText="Filter by Category" prefWidth="160"/>
+            </HBox>
+            <TableView fx:id="tblAccounts" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-purple-selection-table">
+              <columns>
+                <TableColumn fx:id="colAccountCode" text="A/c Code"/>
+                <TableColumn fx:id="colAccountName" text="Account Name"/>
+                <TableColumn fx:id="colAccountType" text="Category"/>
+                <TableColumn fx:id="colAccountSubtype" text="Subtype"/>
+                <TableColumn fx:id="colOpeningBalance" text="Opening (₹)"/>
+                <TableColumn fx:id="colCurrentBalance" text="Balance (₹)"/>
+                <TableColumn fx:id="colAccountActive" text="Active"/>
+              </columns>
+              <placeholder>
+                <VBox alignment="CENTER" spacing="8"><Label text="Chart of Accounts is empty" styleClass="empty-title"/></VBox>
+              </placeholder>
+            </TableView>
+          </VBox>
+        </Tab>
+
+        <Tab text="Trial Balance" closable="false">
+          <VBox spacing="8" styleClass="approved-card">
+            <HBox spacing="8" alignment="CENTER_LEFT">
+              <TextField fx:id="txtTbSearch" promptText="Search account head, code, type..." HBox.hgrow="ALWAYS"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Button fx:id="btnExportTb" text="Export Statement" onAction="#exportStatement" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+            <TableView fx:id="tblTrialBalance" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-purple-selection-table">
+              <columns>
+                <TableColumn fx:id="colTbCode" text="Code"/>
+                <TableColumn fx:id="colTbName" text="Account Head"/>
+                <TableColumn fx:id="colTbType" text="Type"/>
+                <TableColumn fx:id="colTbOpening" text="Opening (₹)"/>
+                <TableColumn fx:id="colTbDebit" text="Debit (₹)"/>
+                <TableColumn fx:id="colTbCredit" text="Credit (₹)"/>
+                <TableColumn fx:id="colTbClosing" text="Closing (₹)"/>
+              </columns>
+              <placeholder>
+                <VBox alignment="CENTER" spacing="8"><Label text="No trial balance data" styleClass="empty-title"/></VBox>
+              </placeholder>
+            </TableView>
+          </VBox>
+        </Tab>
+      </tabs>
+    </TabPane>
+  </center>
+</BorderPane>

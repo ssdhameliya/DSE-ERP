@@ -20,6 +20,7 @@ import org.example.util.InvoicePaymentDetailsDialog;
 import org.example.util.RegisterPageState;
 import org.example.util.RegisterUiSupport;
 import org.example.util.AttachmentPreviewSupport;
+import org.example.util.LiveOperationDialog;
 import org.example.documentstudio.service.ExcelOutputService;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
@@ -308,7 +309,32 @@ private void configureDetailsCloseButton(){
  }
  private void pdf(Purchase p){try{Purchase full=requirePurchase(p);java.awt.Desktop.getDesktop().open(ManagedInvoicePdfService.purchase(full).toFile());}catch(Exception e){error(e);}}
  private void excel(Purchase p){try{Purchase full=requirePurchase(p);Path file=ExcelOutputService.purchase(full);if(java.awt.Desktop.isDesktopSupported())java.awt.Desktop.getDesktop().open(file.toFile());else info("Excel file created: "+file);}catch(Exception e){error(e);}}
- private void email(Purchase p){if(isApprovalLocked(p)){info("Approve this Purchase before sending it externally.");return;}String stage="loading the purchase invoice";String recipient="";try{Purchase full=requirePurchase(p);if(full.getSupplier()==null)throw new IllegalStateException("No supplier is linked to "+full.getInvoiceNo()+".");recipient=s(full.getSupplier().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Supplier email is missing for "+full.getSupplier().getName()+". Update Supplier Master and try again.");stage="generating the purchase invoice PDF";Path pdf=ManagedInvoicePdfService.purchase(full);stage="sending the email";EmailService.send(recipient,"Purchase Invoice "+full.getInvoiceNo(),"Dear "+s(full.getSupplier().getName())+",\n\nPlease find the purchase invoice attached.\n\nRegards,\n"+org.example.service.BrandingService.companyName(),pdf);service.markEmailSent(full.getId());logCommunication(full.getId(),recipient,"Purchase Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Email sent successfully to "+recipient+".");}catch(Exception failure){logCommunication(p.getId(),recipient,"Purchase Invoice "+p.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}
+ private void email(Purchase p){
+  if(isApprovalLocked(p)){info("Approve this Purchase before sending it externally.");return;}
+  LiveOperationDialog.run(tablePurchase,"Sending Purchase Order Email","email","Loading purchase order...",reporter->{
+   reporter.stage(1,4,"Loading purchase order #"+p.getInvoiceNo()+"...");
+   Purchase full=requirePurchase(p);
+   if(full.getSupplier()==null)throw new IllegalStateException("No supplier is linked to "+full.getInvoiceNo()+".");
+   String target=s(full.getSupplier().getEmail()).trim();
+   if(target.isBlank())throw new IllegalStateException("Supplier email is missing for "+full.getSupplier().getName()+". Update Supplier Master and try again.");
+   reporter.stage(2,4,"Generating purchase invoice PDF...");
+   Path pdf=ManagedInvoicePdfService.purchase(full);
+   reporter.stage(3,4,"Connecting to SMTP and sending email to "+target+"...");
+   MessageTemplateService.FormattedMessage msg=MessageTemplateService.formatPurchaseEmail(full);
+   EmailService.send(target,msg.subject(),msg.body(),pdf);
+   reporter.stage(4,4,"Recording communication status...");
+   service.markEmailSent(full.getId());
+   logCommunication(full.getId(),target,msg.subject(),"SENT",null);
+   reporter.log("Email delivered to "+target);
+  },()->{
+   refresh();
+   info("Email sent successfully to supplier.");
+  },failure->{
+   String target=p.getSupplier()==null?"":s(p.getSupplier().getEmail());
+   logCommunication(p.getId(),target,"Purchase Invoice "+p.getInvoiceNo(),"FAILED","sending the email: "+rootMessage(failure));
+   error(new IllegalStateException("Email delivery failed:\n\n"+rootMessage(failure),failure));
+  });
+ }
  private Purchase requirePurchase(Purchase row){Purchase full=service.getByInvoice(row.getInvoiceNo());if(full==null)throw new IllegalStateException("Purchase invoice "+row.getInvoiceNo()+" was not found. Refresh the register and try again.");return full;}
  private void logCommunication(int id,String recipient,String subject,String status,String error){try{support.communication(new SupportApiClient.CommunicationRequest("PURCHASE",id,"EMAIL",recipient,subject,status,error,user()));}catch(Exception ignored){}}
  private String rootMessage(Throwable failure){Throwable root=failure;while(root.getCause()!=null)root=root.getCause();String message=root.getMessage();return message==null||message.isBlank()?root.getClass().getSimpleName():message;}

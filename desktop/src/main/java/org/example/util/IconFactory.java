@@ -938,6 +938,9 @@ public final class IconFactory {
             case "duplicate" -> "fas-clone";
             case "transporter" -> "fas-truck-moving";
             case "vehicle" -> "fas-truck";
+            case "ledger" -> "fas-book";
+            case "automation" -> "fas-cogs";
+            case "module" -> "fas-cubes";
             default -> "fas-question-circle";
         };
     }
@@ -961,6 +964,9 @@ public final class IconFactory {
             case "installer" -> "orange";
             case "login", "test" -> "blue";
             case "security", "access" -> "indigo";
+            case "ledger" -> "blue";
+            case "automation" -> "teal";
+            case "module" -> "purple";
             default -> "indigo";
         };
     }
@@ -1157,14 +1163,14 @@ public final class IconFactory {
         if (value.contains("rectangle")) return "category";
         if (value.equals("line")) return "line";
         if (value.contains("dashboard")) return "dashboard";
-        if (value.equals("today") || value.equals("yesterday") || value.contains("days") || value.contains("month") || value.contains("custom range") || value.contains("this fy") || value.contains("financial year") || value.contains("quarter") || value.equals("fy")) return "calendar";
+        if (value.equals("today") || value.equals("yesterday") || value.contains("days") || value.contains("month") || value.contains("year") || value.contains("all time") || value.contains("period") || value.contains("custom range") || value.contains("this fy") || value.contains("financial year") || value.contains("quarter") || value.equals("fy")) return "calendar";
         if (value.contains("dark")) return "moon";
         if (value.contains("light")) return "sun";
         if (value.contains("logout") || value.contains("sign out")) return "exit";
         if (value.contains("login") || value.contains("sign in")) return "login";
         if (value.contains("register") || value.contains("create account")) return "register";
         if (value.contains("test connection") || value.contains("test email")) return "test";
-        if (value.contains("report information")) return "info";
+        if (value.contains("information") || value.contains("guidance") || value.contains("report information") || value.equals("info")) return "info";
         if (value.equals("report center") || value.contains("open report center")) return "report";
         if (value.contains("saved report")) return "save";
         if (value.equals("scheduled") || value.contains("scheduled report") || value.contains("schedule report")) return "schedule";
@@ -1248,6 +1254,9 @@ public final class IconFactory {
         if (value.contains("open folder") || value.contains("choose file") || value.contains("choose backup") || value.contains("browse") || value.contains("open location")) return "folder";
         if (value.contains("copy") || value.contains("duplicate")) return "copy";
         if (value.contains("lock") || value.contains("password")) return "lock";
+        if (value.contains("ledger")) return "ledger";
+        if (value.contains("automation")) return "automation";
+        if (value.contains("module")) return "module";
         if (value.equals("...") || value.equals("…") || value.equals("⋮") || value.equals("actions") || value.equals("action") || value.contains("action menu") || value.contains("options")) return "actions";
         if (value.contains("more")) return "more";
         if (value.contains("whatsapp")) return "whatsapp";
@@ -1270,7 +1279,7 @@ public final class IconFactory {
         if (value.contains("edit") || value.contains("rename")) return "edit";
         if (value.contains("delete") || value.contains("remove")) return "delete";
         if (value.contains("clear filter") || value.contains("reset filter")) return "refresh";
-        if (value.contains("clear selection") || value.contains("clear search") || value.equals("clear")) return "cancel";
+        if (value.contains("clear selection") || value.contains("clear search") || value.contains("clear")) return "cancel";
         if (value.contains("back")) return "previous";
         if (value.contains("cancel") || value.contains("close")) return "cancel";
         if (value.contains("refresh") || value.contains("reset")) return "refresh";

@@ -14,6 +14,7 @@ import org.example.util.UiTaskExecutor;
 import org.example.util.RegisterPageState;
 import org.example.util.RegisterUiSupport;
 import org.example.util.AttachmentPreviewSupport;
+import org.example.util.LiveOperationDialog;
 import com.itextpdf.kernel.pdf.PdfDocument;import com.itextpdf.kernel.pdf.PdfWriter;import com.itextpdf.layout.Document;import com.itextpdf.layout.element.Paragraph;import com.itextpdf.layout.element.Table;
 import javafx.beans.property.*;import javafx.fxml.FXML;import javafx.geometry.Pos;import javafx.scene.chart.*;import javafx.scene.control.*;import javafx.scene.layout.*;import javafx.stage.FileChooser;
 import org.apache.poi.ss.usermodel.*;import org.apache.poi.xssf.usermodel.XSSFWorkbook;import org.example.config.ConfigManager;import org.example.config.WorkspaceManager;import org.example.api.quotation.QuotationApiClient;import org.example.api.support.SupportApiClient;import org.example.api.insights.InsightsApiClient;import org.example.service.*;
@@ -86,14 +87,51 @@ private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final
  private Path quotePdf(QuoteRow q)throws Exception{return ManagedInvoicePdfService.quotation(q.no.get());}
  private void openPdf(QuoteRow q){try{java.awt.Desktop.getDesktop().open(quotePdf(q).toFile());log(q.id,"PDF_OPENED",q.no.get());}catch(Exception e){error(e);}}
  private void openExcel(QuoteRow q){if(q==null)return;try{java.awt.Desktop.getDesktop().open(org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.QUOTATION,q.no.get()).toFile());log(q.id,"EXCEL_OPENED",q.no.get());}catch(Exception e){error(e);}}
- private void sendEmail(QuoteRow q){try{if(q.email.isBlank())throw new IllegalStateException("Customer email is missing");EmailService.send(q.email,"Quotation "+q.no.get(),"Please find our quotation attached.",quotePdf(q));quotationApi.markSent(q.id,"EMAIL",q.rowVersion);comm(q,"EMAIL",q.email,"SENT",null);refresh();}catch(Exception e){comm(q,"EMAIL",q.email,"FAILED",e.getMessage());error(e);}}
+ private void sendEmail(QuoteRow q){
+  if(q.email.isBlank()){error(new IllegalStateException("Customer email is missing"));return;}
+  LiveOperationDialog.run(table,"Sending Quotation Email","email","Preparing quotation document...",reporter->{
+   reporter.stage(1,3,"Generating branded quotation PDF...");
+   Path pdf=quotePdf(q);
+   reporter.stage(2,3,"Connecting to SMTP and sending email to "+q.email+"...");
+   LocalDate qDate=null; try{if(q.date!=null&&!q.date.get().isBlank())qDate=LocalDate.parse(q.date.get());}catch(Exception ignored){}
+   MessageTemplateService.FormattedMessage msg=MessageTemplateService.formatQuotationEmail(q.no.get(),q.customer.get(),qDate,q.amount.get());
+   EmailService.send(q.email,msg.subject(),msg.body(),pdf);
+   reporter.stage(3,3,"Recording communication history...");
+   quotationApi.markSent(q.id,"EMAIL",q.rowVersion);
+   comm(q,"EMAIL",q.email,"SENT",null);
+  },()->{
+   refresh();
+   org.example.util.ToastManager.success(table,"Quotation emailed","Quotation "+q.no.get()+" sent successfully to "+q.email+".");
+  },e->{
+   comm(q,"EMAIL",q.email,"FAILED",e.getMessage());
+   error(asException(e));
+  });
+ }
  @FXML private void attachSelected(){QuoteRow q=req();if(q==null)return;FileChooser chooser=new FileChooser();chooser.setTitle("Attach quotation document");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documents","*.pdf","*.png","*.jpg","*.jpeg","*.doc","*.docx","*.xls","*.xlsx","*.csv","*.txt"));File file=chooser.showOpenDialog(table.getScene().getWindow());if(file==null)return;Path path=file.toPath();UiTaskExecutor.submitAction("quotation-attachment-upload-"+q.id,()->supportApi.uploadDocumentAttachment("QUOTATION",q.id,path),attachment->{q.attachment=attachment;updateAttachmentActions(q);log(q.id,"ATTACHMENT","Quotation attachment added/replaced");success("Quotation attachment saved.");},failure->error(asException(failure)));}
  @FXML private void previewAttachmentSelected(){QuoteRow q=req();if(q==null)return;if(q.attachment==null||q.attachment.isBlank()){info("No quotation attachment is available.");updateAttachmentActions(q);return;}UiTaskExecutor.submitLatest("quotation-attachment-preview-"+q.id,()->materializeQuotationAttachment(supportApi.documentAttachment("QUOTATION",q.id)),target->{try{java.awt.Desktop.getDesktop().open(target.toFile());}catch(Exception e){error(e);}},failure->error(asException(failure)));}
  private Path materializeQuotationAttachment(SupportApiClient.DownloadedAttachment d)throws Exception{return AttachmentPreviewSupport.materializeRequired(d,"quotation-attachment");}
  @FXML private void removeAttachmentSelected(){QuoteRow q=req();if(q==null)return;if(q.attachment==null||q.attachment.isBlank()){info("No quotation attachment is available.");updateAttachmentActions(q);return;}if(!confirm("Remove the quotation attachment?"))return;UiTaskExecutor.submitAction("quotation-attachment-delete-"+q.id,()->{supportApi.deleteDocumentAttachment("QUOTATION",q.id);return true;},ignored->{q.attachment="";updateAttachmentActions(q);log(q.id,"ATTACHMENT","Quotation attachment removed");success("Quotation attachment removed.");},failure->error(asException(failure)));}
  private String attachmentDisplayName(String value){if(value==null||value.isBlank())return "No document attached";String normalized=value.replace('\\','/');int i=normalized.lastIndexOf('/');return i>=0&&i+1<normalized.length()?normalized.substring(i+1):normalized;}
 
- private void sendWhatsapp(QuoteRow q){try{String phone=q.phone.replaceAll("\\D","");if(phone.length()==10)phone="91"+phone;if(phone.isBlank())throw new IllegalStateException("Customer mobile number is missing");WhatsappService.openWhatsappWithMessage(phone,PaymentMessageService.quotationMessage(q.id),quotePdf(q),PaymentMessageService.configuredQrPath());quotationApi.markSent(q.id,"WHATSAPP",q.rowVersion);comm(q,"WHATSAPP",phone,"SENT",null);refresh();success("WhatsApp is ready. The quotation PDF and configured UPI QR are on the clipboard for attachment.");}catch(Exception e){error(e);}}
+ private void sendWhatsapp(QuoteRow q){
+  String phone=q.phone.replaceAll("\\D","");if(phone.length()==10)phone="91"+phone;
+  if(phone.isBlank()){error(new IllegalStateException("Customer mobile number is missing"));return;}
+  String finalPhone=phone;
+  LiveOperationDialog.run(table,"Preparing WhatsApp Notification","whatsapp","Loading quotation details...",reporter->{
+   reporter.stage(1,3,"Generating branded quotation PDF...");
+   Path pdf=quotePdf(q);
+   reporter.stage(2,3,"Formatting WhatsApp message...");
+   LocalDate qDate=null; try{if(q.date!=null&&!q.date.get().isBlank())qDate=LocalDate.parse(q.date.get());}catch(Exception ignored){}
+   String message=MessageTemplateService.formatQuotationWhatsapp(q.id,q.no.get(),q.customer.get(),qDate,q.amount.get());
+   reporter.stage(3,3,"Opening WhatsApp application...");
+   WhatsappService.openWhatsappWithMessage(finalPhone,message,pdf,PaymentMessageService.configuredQrPath());
+   quotationApi.markSent(q.id,"WHATSAPP",q.rowVersion);
+   comm(q,"WHATSAPP",finalPhone,"SENT",null);
+  },()->{
+   refresh();
+   success("WhatsApp is ready. The quotation PDF and configured UPI QR are on the clipboard for attachment.");
+  },failure->error(asException(failure)));
+ }
  private void followUp(QuoteRow q){if(q==null)return;if(q.converted.get()!=null&&!q.converted.get().isBlank()){info("Converted quotations are read-only. Duplicate the quotation if a new follow-up/revision is required.");return;}DatePicker date=DatePickerFormatter.attach(new DatePicker(q.followDate==null?BusinessClock.today().plusDays(1):q.followDate));Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Create Follow Up");TextArea notes=new TextArea("Follow up for "+q.no.get());VBox box=new VBox(8,new Label("Follow-up date"),date,new Label("Notes"),notes);d.getDialogPane().setContent(box);d.getDialogPane().getButtonTypes().addAll(ButtonType.OK,ButtonType.CANCEL);d.showAndWait().filter(b->b==ButtonType.OK).ifPresent(b->{String due=date.getValue().toString(),text=notes.getText();UiTaskExecutor.submitAction("quotation-followup-"+q.id,()->{quotationApi.followUp(q.id,due,text,q.rowVersion);return true;},ignored->{org.example.util.ToastManager.success(table,"Follow-up saved",q.no.get()+" follow-up was scheduled successfully.");refresh();},failure->error(asException(failure)));});}
  private void convert(QuoteRow q){if(q.converted.get()!=null&&!q.converted.get().isBlank()){info("Already converted to "+q.converted.get());return;}String state=safe(q.status.get()).toUpperCase(java.util.Locale.ROOT);if("REJECTED".equals(state)||"EXPIRED".equals(state)){info("A "+state.toLowerCase(java.util.Locale.ROOT)+" quotation cannot be converted to a Sale.");return;}if(!confirm("Convert "+q.no.get()+" to a sales invoice and reduce stock?"))return;String actor=user();UiTaskExecutor.submitSerial("quotation-convert-"+q.id,()->quotationApi.convert(q.id,actor,q.rowVersion),invoice->{log(q.id,"CONVERTED",invoice);refresh();org.example.util.ToastManager.success(table,"Sale created","Sales invoice "+invoice+" created.");},failure->error(asException(failure)));}
  private void duplicate(QuoteRow q){if(!confirm("Duplicate "+q.no.get()+"?"))return;String actor=user();UiTaskExecutor.submitAction("quotation-duplicate-"+q.id,()->{quotationApi.duplicate(q.id,actor);return true;},ignored->{org.example.util.ToastManager.success(table,"Quotation duplicated",q.no.get()+" was duplicated successfully.");refresh();},failure->error(asException(failure)));}

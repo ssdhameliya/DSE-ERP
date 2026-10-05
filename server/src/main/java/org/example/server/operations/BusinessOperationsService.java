@@ -51,7 +51,7 @@ public class BusinessOperationsService {
   String derivedStatus=currentPaymentStatusSql(effectivePaid,"h");
   if(!blank(fromDate))where.add(invoiceDate+">=TO_DATE(?,'YYYY-MM-DD')",fromDate);if(!blank(toDate))where.add(invoiceDate+"<=TO_DATE(?,'YYYY-MM-DD')",toDate);
   if(minAmount!=null&&Double.isFinite(minAmount))where.add("COALESCE(h.total_amount,0)>=?",minAmount);if(maxAmount!=null&&Double.isFinite(maxAmount))where.add("COALESCE(h.total_amount,0)<=?",maxAmount);
-  if(!blank(payment)&&!"ALL".equals(payment)){if("OVERDUE".equals(payment))where.add(balance+">0.01 AND "+dueDate+"<CURRENT_DATE");else where.add("("+derivedStatus+")=?",payment);}
+  if(!blank(payment)&&!"ALL".equals(payment)){if("OVERDUE".equals(payment))where.add(balance+">0.01 AND "+dueDate+"<CURRENT_DATE");else if("RECEIVABLES".equals(payment)||"RECEIVABLE".equals(payment))where.add(balance+">0.01");else where.add("("+derivedStatus+")=?",payment);}
   if(!blank(dueFilter)&&!"ALL".equals(dueFilter)){where.add(balance+">0.01");switch(dueFilter){case "OVERDUE"->where.add(dueDate+"<CURRENT_DATE");case "DUE TODAY"->where.add(dueDate+"=CURRENT_DATE");case "NEXT 7 DAYS"->where.add(dueDate+" BETWEEN CURRENT_DATE AND CURRENT_DATE+7");case "NEXT 30 DAYS"->where.add(dueDate+" BETWEEN CURRENT_DATE AND CURRENT_DATE+30");default->{}}}
   if("SENT".equals(mailFilter))where.add("COALESCE(h.email_sent,0)<>0");else if("NOT SENT".equals(mailFilter))where.add("COALESCE(h.email_sent,0)=0");
   if("SENT".equals(whatsappFilter))where.add("COALESCE(h.whatsapp_sent,0)<>0");else if("NOT SENT".equals(whatsappFilter))where.add("COALESCE(h.whatsapp_sent,0)=0");
@@ -709,7 +709,7 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
   return configuredReferenceSql(lookupCode,fallback,table,column,true);
  }
  private String configuredReferenceSql(String lookupCode,String fallback,String table,String column,boolean allocate){
-  Set<String> allowed=Set.of("sales_header.invoice_no","purchase_header.invoice_no","finance_register.voucher_no");
+  Set<String> allowed=Set.of("sales_header.invoice_no","purchase_header.invoice_no","finance_register.voucher_no","journal_entry.entry_number");
   if(!allowed.contains(table+"."+column))throw new IllegalArgumentException("Unsupported reference source");
   String dated=datedReferenceFormat(configuredFormat(lookupCode,fallback));Matcher sequence=ReferenceFormatRules.sequenceMatcher(dated);int width=sequence.end()-sequence.start();
   String prefix=dated.substring(0,sequence.start()),suffix=dated.substring(sequence.end());String scope=prefix+"\u0000"+suffix;String counterKey=lookupCode+"|"+UUID.nameUUIDFromBytes(scope.getBytes(java.nio.charset.StandardCharsets.UTF_8));

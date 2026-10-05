@@ -155,6 +155,10 @@ public class DashboardController {
     @FXML private Button btnSettingsWorkspace;
     @FXML private Button btnSettingsShortcuts;
     @FXML private Button btnSettingsUpdates;
+    @FXML private Button btnSettingsModules;
+    @FXML private Button btnGeneralLedger;
+    @FXML private Button btnGstCompliance;
+    @FXML private Button btnAutomationCenter;
 
     @FXML
     private Label lblPageTitle;
@@ -316,6 +320,10 @@ public class DashboardController {
         UiActionIcons.apply(btnSettingsSecurity,"security","Security & Session");
         UiActionIcons.apply(btnSafeRollback,"rollback","Safe Rollback");
         UiActionIcons.apply(btnBackup,"backup","Backup & Restore");
+        if (btnGeneralLedger != null) UiActionIcons.apply(btnGeneralLedger, "ledger", "General Ledger");
+        if (btnGstCompliance != null) UiActionIcons.apply(btnGstCompliance, "tax", "GST Compliance");
+        if (btnAutomationCenter != null) UiActionIcons.apply(btnAutomationCenter, "automation", "Automation Center");
+        if (btnSettingsModules != null) UiActionIcons.apply(btnSettingsModules, "module", "Module Activation");
     }
 
     /** Keeps visible shell/navigation labels synchronized with the user shortcut registry. */
@@ -438,6 +446,9 @@ public class DashboardController {
         protect(btnReports, "REPORTS.VIEW"); protect(btnReminders, "REMINDERS.VIEW");
         protect(btnUserAccess, "USERS.VIEW"); protect(btnAuditTrail, "AUDIT.GLOBAL"); protect(btnBackup, "BACKUP.VIEW");
         protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "SAFE_ROLLBACK.VIEW"); protect(btnDocumentStudio, "DOCUMENT_STUDIO.VIEW"); protect(btnImport, "IMPORT.VIEW");
+        protect(btnGeneralLedger, "GENERAL_LEDGER.VIEW");
+        protect(btnGstCompliance, "GST_COMPLIANCE.VIEW");
+        protect(btnAutomationCenter, "AUTOMATION.VIEW");
 
         // Quotations have their own permission but live inside the Sales accordion.
         // Keep the parent expandable when either Sales or Quotations is available.
@@ -893,7 +904,7 @@ public class DashboardController {
             return NavGroup.DOCUMENT_STUDIO;
         if (button == btnSettings || button == btnSettingsCompany || button == btnSettingsPayment
                 || button == btnSettingsInvoice || button == btnSettingsNotifications || button == btnSettingsEmail || button == btnSettingsSecurity
-                || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates)
+                || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates || button == btnSettingsModules)
             return NavGroup.SETTINGS;
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
         if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
@@ -944,7 +955,9 @@ public class DashboardController {
                 btnImport, btnInventory, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnAuditTrail, btnCommunication,
                 btnDocumentStudio, btnPdfStudio, btnExcelStudio, btnSettings, btnSettingsCompany, btnSettingsPayment,
                 btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace,
-                btnSettingsShortcuts, btnSettingsUpdates, btnSafeRollback, btnBackup)
+                btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules,
+                btnGeneralLedger, btnGstCompliance, btnAutomationCenter,
+                btnSafeRollback, btnBackup)
             .filter(java.util.Objects::nonNull)
             .toList();
     }
@@ -1035,6 +1048,9 @@ public class DashboardController {
         if (path.contains("bankexpense") || path.contains("bankstatement")) return "BANK_EXPENSE.VIEW";
         if (path.contains("purchaserecon")) return "PURCHASE_RECON.VIEW";
         if (path.contains("reconsupplier")) return "RECON_SUPPLIER.VIEW";
+        if (path.contains("generalledger")) return "GENERAL_LEDGER.VIEW";
+        if (path.contains("gstcompliance")) return "GST_COMPLIANCE.VIEW";
+        if (path.contains("automationcenter")) return "AUTOMATION.VIEW";
         return null;
     }
 
@@ -1299,6 +1315,22 @@ public class DashboardController {
 
     @FXML private void openSettingsUpdates() {
         openSettingsSection(btnSettingsUpdates, SettingsController.Section.UPDATES, "Application Updates");
+    }
+
+    @FXML private void openSettingsModules() {
+        openSettingsSection(btnSettingsModules, SettingsController.Section.MODULES, "Module Activation");
+    }
+
+    @FXML private void openGeneralLedger() {
+        openPage(btnGeneralLedger, "General Ledger & Accounting", "/fxml/pages/GeneralLedger.fxml");
+    }
+
+    @FXML private void openGstCompliance() {
+        openPage(btnGstCompliance, "GST Compliance Center", "/fxml/pages/GstComplianceCenter.fxml");
+    }
+
+    @FXML private void openAutomationCenter() {
+        openPage(btnAutomationCenter, "Smart Automation Center", "/fxml/pages/AutomationCenter.fxml");
     }
 
     private void openSettingsSection(Button selectedButton, SettingsController.Section section, String title) {

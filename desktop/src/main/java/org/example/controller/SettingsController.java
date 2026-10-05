@@ -65,6 +65,8 @@ import org.example.shortcut.ShortcutRegistry.Action;
 import org.example.shortcut.SettingsShortcutSupport;
 import org.example.util.UiTaskExecutor;
 import org.example.util.UiDiagnostics;
+import org.example.service.MessageTemplateService;
+import org.example.util.LiveOperationDialog;
 import javafx.application.Platform;
 
 import java.io.File;
@@ -76,6 +78,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
@@ -90,7 +93,7 @@ import java.util.Properties;
  */
 public class SettingsController implements ScreenLifecycle {
     public enum Section {
-        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, SECURITY, WORKSPACE, SHORTCUTS, UPDATES
+        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, SECURITY, WORKSPACE, SHORTCUTS, UPDATES, MODULES
     }
 
     private static volatile Section requestedSection = Section.COMPANY;
@@ -238,6 +241,28 @@ public class SettingsController implements ScreenLifecycle {
 
     @FXML
     private TextField txtSmtpPort;
+
+    @FXML private TextArea txtEmailSignature;
+    @FXML private Label lblSignatureImageStatus;
+    @FXML private ImageView imgSignaturePreview;
+    @FXML private Button btnBrowseSignatureImage;
+    @FXML private Button btnClearSignatureImage;
+    @FXML private Button btnEmailSecurityInfo;
+    @FXML private Button btnLivePreview;
+    @FXML private ComboBox<String> cmbMessageTemplateDoc;
+    @FXML private VBox boxEmailSubject;
+    @FXML private TextField txtMessageTemplateSubject;
+    @FXML private TextArea txtMessageTemplateBody;
+    @FXML private Label lblTemplatePreview;
+    @FXML private Button btnTokenCustomer, btnTokenDocNo, btnTokenDate, btnTokenTotal, btnTokenBalance, btnTokenSignature, btnResetTemplate;
+
+    private String selectedSignatureImagePath = "";
+    private Tooltip livePreviewTooltip;
+    private String currentPreviewText = "";
+
+    private final Map<String, String> templateSubjectDrafts = new HashMap<>();
+    private final Map<String, String> templateBodyDrafts = new HashMap<>();
+    private String currentSelectedTemplateDoc = "Sales Invoice (Email)";
 
     /* =========================================================
        NOTIFICATIONS
@@ -425,6 +450,28 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private HBox settingsPageHeader;
 
     /* =========================================================
+       MODULE ACTIVATION & FEATURE FLAGS
+       ========================================================= */
+    @FXML private HBox navModules;
+    @FXML private VBox panelModules;
+    @FXML private CheckBox chkGlEnabled;
+    @FXML private CheckBox chkGlAutoPost;
+    @FXML private CheckBox chkGlTrialBalance;
+    @FXML private CheckBox chkGstEnabled;
+    @FXML private CheckBox chkGstAuto2bMatch;
+    @FXML private CheckBox chkGstPosGating;
+    @FXML private CheckBox chkTdsEnabled;
+    @FXML private CheckBox chkThreeWayMatch;
+    @FXML private CheckBox chkAutoDraftDebitNote;
+    @FXML private CheckBox chkStockAutoReorder;
+    @FXML private CheckBox chkCreditHardStop;
+    @FXML private CheckBox chkDailyBriefing;
+    @FXML private CheckBox chkBriefingWa;
+    @FXML private CheckBox chkBriefingEmail;
+    @FXML private TextField txtBriefingPhone;
+    @FXML private CheckBox chkBatchSerialTracking;
+
+    /* =========================================================
        CONFIGURATION KEYS
        ========================================================= */
 
@@ -471,6 +518,7 @@ public class SettingsController implements ScreenLifecycle {
             case WORKSPACE -> "WorkspaceSettingsPanel.fxml";
             case SHORTCUTS -> "ShortcutsSettingsPanel.fxml";
             case UPDATES -> "UpdatesSettingsPanel.fxml";
+            case MODULES -> "ModulesSettingsPanel.fxml";
         };
         try {
             FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/settings/" + file));
@@ -525,7 +573,10 @@ public class SettingsController implements ScreenLifecycle {
                         this::applyNotificationPreferences,
                         failure -> System.err.println("[Settings] Notification preferences unavailable: " + failure.getMessage()));
             }
-            case EMAIL -> loadSectionDataAsync(section);
+            case EMAIL -> {
+                initEmailTemplatesAndSignature();
+                loadSectionDataAsync(section);
+            }
             case SECURITY -> {
                 if (cmbMfaPolicy != null) cmbMfaPolicy.getItems().setAll("Required", "Admin Controlled", "Disabled");
                 if (chkUiDiagnostics != null) chkUiDiagnostics.setSelected(UiDiagnostics.isEnabled());
@@ -572,6 +623,10 @@ public class SettingsController implements ScreenLifecycle {
                 chkDownloadInBackground.setSelected(Boolean.parseBoolean(ConfigManager.get("update.downloadInBackground", "false")));
                 refreshUpdateSummary();
                 if (btnCheckUpdates != null) { btnCheckUpdates.setGraphic(IconFactory.icon("update", 16)); btnCheckUpdates.getProperties().put("erp-icon-preserve", true); }
+                readySections.add(section);
+            }
+            case MODULES -> {
+                loadModulesSettings();
                 readySections.add(section);
             }
         }
@@ -771,6 +826,7 @@ public class SettingsController implements ScreenLifecycle {
             case WORKSPACE -> showWorkspace();
             case SHORTCUTS -> showShortcuts();
             case UPDATES -> showUpdates();
+            case MODULES -> showModules();
             case COMPANY -> showCompany();
         }
     }
@@ -1141,7 +1197,7 @@ private record AssetPreviewRequest(
             btnTestEmail.setManaged(emailSection);
         }
         updateSectionReadyState();
-        HBox[] navigationItems = {navCompany, navPayment, navInvoice, navNotifications, navEmail, navWorkspace, navUpdates};
+        HBox[] navigationItems = {navCompany, navPayment, navInvoice, navNotifications, navEmail, navWorkspace, navUpdates, navModules};
         for (HBox item : navigationItems) if (item != null) item.getStyleClass().remove("settings-navigation-item-selected");
         if (selectedNavigation != null && !selectedNavigation.getStyleClass().contains("settings-navigation-item-selected")) {
             selectedNavigation.getStyleClass().add("settings-navigation-item-selected");
@@ -1184,6 +1240,7 @@ private record AssetPreviewRequest(
             case WORKSPACE -> "Save Workspace";
             case SHORTCUTS -> "Save Shortcuts";
             case UPDATES -> "Save Updates";
+            case MODULES -> "Save Modules";
         };
         btnSaveSettings.setText(label);
         btnSaveSettings.setAccessibleText(label);
@@ -1196,6 +1253,7 @@ private record AssetPreviewRequest(
     @FXML private void showNotifications() { selectSection(Section.NOTIFICATIONS, navNotifications, ensureSectionLoaded(Section.NOTIFICATIONS)); }
     @FXML private void showEmail() { selectSection(Section.EMAIL, navEmail, ensureSectionLoaded(Section.EMAIL)); }
     @FXML private void showSecurity() { selectSection(Section.SECURITY, null, ensureSectionLoaded(Section.SECURITY)); }
+    @FXML private void showModules() { selectSection(Section.MODULES, navModules, ensureSectionLoaded(Section.MODULES)); }
 
 
 
@@ -2038,6 +2096,7 @@ private record AssetPreviewRequest(
             case WORKSPACE -> "Workspace settings";
             case SHORTCUTS -> "Shortcut settings";
             case UPDATES -> "Update settings";
+            case MODULES -> "Module activation settings";
         };
     }
 
@@ -2067,6 +2126,7 @@ private record AssetPreviewRequest(
                 case WORKSPACE -> { saveDeploymentSettings(); saveStorageRetentionSettings(); }
                 case SHORTCUTS -> saveShortcutSettings();
                 case UPDATES -> saveUpdateSettings();
+                case MODULES -> saveModulesSettings();
             }
             ConfigManager.save();
         } finally {
@@ -2301,6 +2361,14 @@ private record AssetPreviewRequest(
         String host = txtSmtpHost.getText() == null ? "" : txtSmtpHost.getText().trim();
         String portText = txtSmtpPort.getText() == null ? "587" : txtSmtpPort.getText().trim();
         int port = portText.isBlank() ? 587 : Integer.parseInt(portText);
+        if (txtEmailSignature != null) {
+            putSetting("email.signature", txtEmailSignature.getText() == null ? "" : txtEmailSignature.getText().trim());
+        }
+        if (selectedSignatureImagePath != null) {
+            putSetting("email.signature.image", selectedSignatureImagePath.trim());
+        }
+        saveActiveMessageTemplate();
+        saveAllDraftMessageTemplates();
         if (ConfigManager.isSharedClient()) {
             if (!SessionService.isAdmin()) return;
             new org.example.api.authority.BusinessEmailClient().saveSettings(
@@ -2311,6 +2379,269 @@ private record AssetPreviewRequest(
         putSetting("smtp.appPassword", password);
         putSetting("smtp.host", host);
         putSetting("smtp.port", Integer.toString(port));
+    }
+
+    private void initEmailTemplatesAndSignature() {
+        if (cmbMessageTemplateDoc == null) return;
+        cmbMessageTemplateDoc.setItems(javafx.collections.FXCollections.observableArrayList(
+            "Sales Invoice (Email)",
+            "Quotation (Email)",
+            "Purchase Bill (Email)",
+            "Payment Receipt (Email)",
+            "Sales Return (Email)",
+            "Sales Invoice (WhatsApp)",
+            "Quotation (WhatsApp)"
+        ));
+
+        if (txtEmailSignature != null) {
+            txtEmailSignature.setText(MessageTemplateService.getSignature());
+            txtEmailSignature.textProperty().addListener((obs, oldVal, newVal) -> updateTemplatePreview());
+        }
+        selectedSignatureImagePath = ConfigManager.get("email.signature.image", "").trim();
+        updateSignatureImagePreview(selectedSignatureImagePath);
+
+        cmbMessageTemplateDoc.setValue("Sales Invoice (Email)");
+        loadTemplateIntoUi("Sales Invoice (Email)");
+
+        cmbMessageTemplateDoc.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (oldVal != null) {
+                saveTemplateFromUiToDraft(oldVal);
+            }
+            if (newVal != null) {
+                loadTemplateIntoUi(newVal);
+            }
+        });
+
+        if (txtMessageTemplateSubject != null) {
+            txtMessageTemplateSubject.textProperty().addListener((obs, o, n) -> updateTemplatePreview());
+        }
+        if (txtMessageTemplateBody != null) {
+            txtMessageTemplateBody.textProperty().addListener((obs, o, n) -> updateTemplatePreview());
+        }
+        updateTemplatePreview();
+    }
+
+    private void saveTemplateFromUiToDraft(String docOption) {
+        if (docOption == null) return;
+        boolean isWhatsapp = docOption.contains("WhatsApp");
+        if (!isWhatsapp && txtMessageTemplateSubject != null) {
+            templateSubjectDrafts.put(docOption, txtMessageTemplateSubject.getText());
+        }
+        if (txtMessageTemplateBody != null) {
+            templateBodyDrafts.put(docOption, txtMessageTemplateBody.getText());
+        }
+    }
+
+    private void loadTemplateIntoUi(String docOption) {
+        if (docOption == null) return;
+        currentSelectedTemplateDoc = docOption;
+        boolean isWhatsapp = docOption.contains("WhatsApp");
+        if (boxEmailSubject != null) {
+            boxEmailSubject.setVisible(!isWhatsapp);
+            boxEmailSubject.setManaged(!isWhatsapp);
+        }
+        MessageTemplateService.DocumentType docType = resolveDocType(docOption);
+
+        if (!isWhatsapp && txtMessageTemplateSubject != null) {
+            String subj = templateSubjectDrafts.computeIfAbsent(docOption, k -> MessageTemplateService.getEmailSubject(docType));
+            txtMessageTemplateSubject.setText(subj);
+        }
+        if (txtMessageTemplateBody != null) {
+            String body = templateBodyDrafts.computeIfAbsent(docOption, k -> isWhatsapp ? MessageTemplateService.getWhatsappBody(docType) : MessageTemplateService.getEmailBody(docType));
+            txtMessageTemplateBody.setText(body);
+        }
+        updateTemplatePreview();
+    }
+
+    private void saveActiveMessageTemplate() {
+        if (currentSelectedTemplateDoc == null) return;
+        saveTemplateFromUiToDraft(currentSelectedTemplateDoc);
+    }
+
+    private void saveAllDraftMessageTemplates() {
+        for (String docOption : List.of(
+            "Sales Invoice (Email)",
+            "Quotation (Email)",
+            "Purchase Bill (Email)",
+            "Payment Receipt (Email)",
+            "Sales Return (Email)",
+            "Sales Invoice (WhatsApp)",
+            "Quotation (WhatsApp)"
+        )) {
+            boolean isWhatsapp = docOption.contains("WhatsApp");
+            MessageTemplateService.DocumentType docType = resolveDocType(docOption);
+            if (!isWhatsapp) {
+                String subj = templateSubjectDrafts.get(docOption);
+                String body = templateBodyDrafts.get(docOption);
+                if (subj != null) putSetting("email.template." + docType.key() + ".subject", subj.trim());
+                if (body != null) putSetting("email.template." + docType.key() + ".body", body.trim());
+            } else {
+                String body = templateBodyDrafts.get(docOption);
+                if (body != null) putSetting("whatsapp.template." + docType.key() + ".body", body.trim());
+            }
+        }
+    }
+
+    private static MessageTemplateService.DocumentType resolveDocType(String option) {
+        if (option == null) return MessageTemplateService.DocumentType.SALES_INVOICE;
+        if (option.contains("Sales Invoice")) return MessageTemplateService.DocumentType.SALES_INVOICE;
+        if (option.contains("Quotation")) return MessageTemplateService.DocumentType.QUOTATION;
+        if (option.contains("Purchase")) return MessageTemplateService.DocumentType.PURCHASE_BILL;
+        if (option.contains("Payment")) return MessageTemplateService.DocumentType.PAYMENT_RECEIPT;
+        if (option.contains("Return")) return MessageTemplateService.DocumentType.SALES_RETURN;
+        return MessageTemplateService.DocumentType.SALES_INVOICE;
+    }
+
+    private void updateTemplatePreview() {
+        String selected = cmbMessageTemplateDoc == null ? "Sales Invoice (Email)" : cmbMessageTemplateDoc.getValue();
+        boolean isWhatsapp = selected != null && selected.contains("WhatsApp");
+        Map<String, String> tokens = MessageTemplateService.sampleTokens();
+        if (txtEmailSignature != null && !txtEmailSignature.getText().isBlank()) {
+            tokens.put("Signature", txtEmailSignature.getText().trim());
+        }
+        StringBuilder sb = new StringBuilder();
+        if (!isWhatsapp && txtMessageTemplateSubject != null) {
+            sb.append("Subject: ").append(MessageTemplateService.format(txtMessageTemplateSubject.getText(), tokens)).append("\n\n");
+        }
+        if (txtMessageTemplateBody != null) {
+            sb.append(MessageTemplateService.format(txtMessageTemplateBody.getText(), tokens));
+        }
+        currentPreviewText = sb.toString();
+        if (lblTemplatePreview != null) {
+            lblTemplatePreview.setText(currentPreviewText);
+        }
+        if (livePreviewTooltip != null) {
+            livePreviewTooltip.setText(currentPreviewText);
+        } else if (btnLivePreview != null) {
+            livePreviewTooltip = new Tooltip(currentPreviewText);
+            livePreviewTooltip.setWrapText(true);
+            btnLivePreview.setTooltip(livePreviewTooltip);
+        }
+    }
+
+    @FXML
+    private void browseSignatureImage() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Choose Signature / Stamp Image");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                "Image files (*.png, *.jpg, *.jpeg)", "*.png", "*.jpg", "*.jpeg"));
+        Window owner = resolveAssetChooserOwner(imgSignaturePreview);
+        File selected = chooser.showOpenDialog(owner);
+        if (selected != null) {
+            selectedSignatureImagePath = selected.getAbsolutePath();
+            updateSignatureImagePreview(selectedSignatureImagePath);
+        }
+    }
+
+    @FXML
+    private void clearSignatureImage() {
+        selectedSignatureImagePath = "";
+        updateSignatureImagePreview("");
+    }
+
+    private void updateSignatureImagePreview(String path) {
+        if (path != null && !path.isBlank()) {
+            File f = new File(path);
+            if (f.exists()) {
+                try {
+                    if (imgSignaturePreview != null) {
+                        imgSignaturePreview.setImage(new Image(f.toURI().toString()));
+                    }
+                    if (lblSignatureImageStatus != null) {
+                        lblSignatureImageStatus.setText(f.getName());
+                    }
+                    return;
+                } catch (Exception ignored) {}
+            }
+        }
+        if (imgSignaturePreview != null) {
+            imgSignaturePreview.setImage(null);
+        }
+        if (lblSignatureImageStatus != null) {
+            lblSignatureImageStatus.setText("No signature image attached");
+        }
+    }
+
+    @FXML
+    private void showEmailSecurityInfo() {
+        Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Email Security & Connection Guidance");
+        alert.setHeaderText("Secure SMTP Setup & Provider Guidelines");
+        String message = """
+                1. Email Security:
+                • Never enter your primary mailbox password.
+                • The application securely stores the app password in your workspace configuration.
+                
+                2. App Passwords (Two-Step Verification):
+                • Yahoo, Gmail, Microsoft, and Zoho require 2-step verification enabled on your account before generating an "App Password".
+                • Generate a 16-character App Password from your provider's security settings and paste it here.
+                
+                3. SMTP Host & Port:
+                • Gmail: smtp.gmail.com (Port: 587 or 465)
+                • Yahoo: smtp.mail.yahoo.com (Port: 587 or 465)
+                • Outlook / Office 365: smtp.office365.com (Port: 587)
+                
+                4. Testing Configuration:
+                • Use the "Test Email" button in the Settings page header to verify delivery before saving.
+                """;
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    @FXML
+    private void showLivePreviewDialog() {
+        updateTemplatePreview();
+        Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Live Template Preview");
+        String selected = cmbMessageTemplateDoc == null ? "Document Template" : cmbMessageTemplateDoc.getValue();
+        alert.setHeaderText("Preview: " + selected);
+
+        TextArea previewArea = new TextArea(currentPreviewText);
+        previewArea.setEditable(false);
+        previewArea.setWrapText(true);
+        previewArea.setPrefRowCount(14);
+        previewArea.setPrefColumnCount(45);
+        previewArea.getStyleClass().add("approved-input");
+
+        VBox content = new VBox(8, previewArea);
+        alert.getDialogPane().setContent(content);
+        alert.showAndWait();
+    }
+
+    private void insertToken(String token) {
+        if (txtMessageTemplateBody == null) return;
+        int caret = txtMessageTemplateBody.getCaretPosition();
+        String current = txtMessageTemplateBody.getText() == null ? "" : txtMessageTemplateBody.getText();
+        if (caret < 0 || caret > current.length()) caret = current.length();
+        String updated = current.substring(0, caret) + token + current.substring(caret);
+        txtMessageTemplateBody.setText(updated);
+        txtMessageTemplateBody.positionCaret(caret + token.length());
+        txtMessageTemplateBody.requestFocus();
+    }
+
+    @FXML private void insertTokenCustomer() { insertToken("{CustomerName}"); }
+    @FXML private void insertTokenDocNo() { insertToken("{DocumentNo}"); }
+    @FXML private void insertTokenDate() { insertToken("{DocumentDate}"); }
+    @FXML private void insertTokenTotal() { insertToken("{TotalAmount}"); }
+    @FXML private void insertTokenBalance() { insertToken("{BalanceAmount}"); }
+    @FXML private void insertTokenSignature() { insertToken("{Signature}"); }
+
+    @FXML private void resetCurrentTemplate() {
+        if (cmbMessageTemplateDoc == null) return;
+        String selected = cmbMessageTemplateDoc.getValue();
+        if (selected == null) return;
+        MessageTemplateService.DocumentType docType = resolveDocType(selected);
+        boolean isWhatsapp = selected.contains("WhatsApp");
+        if (isWhatsapp) {
+            String defaultBody = MessageTemplateService.defaultWhatsappBody(docType);
+            if (txtMessageTemplateBody != null) txtMessageTemplateBody.setText(defaultBody);
+        } else {
+            String defaultSubj = MessageTemplateService.defaultEmailSubject(docType);
+            String defaultBody = MessageTemplateService.defaultEmailBody(docType);
+            if (txtMessageTemplateSubject != null) txtMessageTemplateSubject.setText(defaultSubj);
+            if (txtMessageTemplateBody != null) txtMessageTemplateBody.setText(defaultBody);
+        }
+        updateTemplatePreview();
     }
 
     private void saveNotificationSettings() {
@@ -2397,40 +2728,38 @@ private record AssetPreviewRequest(
             return;
         }
 
-        String recipient =
-            txtSmtpEmail
-                .getText()
-                .trim();
-
+        String recipient = txtSmtpEmail.getText() == null ? "" : txtSmtpEmail.getText().trim();
         if (recipient.isBlank()) {
-
-            warn(
-                "Enter the sending email address first."
-            );
-
+            warn("Enter the sending email address first.");
             showEmail();
             return;
         }
 
-        try {
-
-            if (ConfigManager.isSharedClient()) {
-                new org.example.api.authority.BusinessEmailClient().test(recipient);
-            } else {
-                EmailService.send(
-                    recipient,
-                    org.example.service.BrandingService.applicationName() + " email test",
-                    "Your " + org.example.service.BrandingService.applicationName() + " email configuration is working correctly."
-                );
+        LiveOperationDialog.run(panelWorkspace, "Testing Email Delivery", "email",
+            "Connecting to SMTP server and validating configuration...",
+            reporter -> {
+                reporter.stage(1, 3, "Validating SMTP credentials...");
+                if (ConfigManager.isSharedClient()) {
+                    new org.example.api.authority.BusinessEmailClient().test(recipient);
+                } else {
+                    reporter.stage(2, 3, "Connecting to SMTP server and transmitting message...");
+                    EmailService.send(
+                        recipient,
+                        org.example.service.BrandingService.applicationName() + " email test",
+                        "Your " + org.example.service.BrandingService.applicationName() + " email configuration is working correctly."
+                    );
+                }
+                reporter.stage(3, 3, "Delivery confirmed.");
+                reporter.log("Test email successfully delivered to " + recipient);
+            },
+            () -> {
+                org.example.util.ToastManager.success(panelWorkspace, "Test email sent",
+                    "Test email sent successfully to " + recipient + ".");
+            },
+            failure -> {
+                showError(EmailFailureMessages.forAdministrator((Exception) failure));
             }
-
-            org.example.util.ToastManager.success(panelWorkspace, "Test email sent",
-                "Test email sent successfully to " + recipient + ".");
-
-        } catch (RuntimeException exception) {
-
-            showError(EmailFailureMessages.forAdministrator(exception));
-        }
+        );
     }
 
     /* =========================================================
@@ -2559,5 +2888,43 @@ private record AssetPreviewRequest(
     }
 
     private String formatUpdateTimestamp(String raw) { return SettingsFieldSupport.formatUpdateTimestamp(raw); }
+
+    private void loadModulesSettings() {
+        if (chkGlEnabled != null) chkGlEnabled.setSelected(ConfigManager.getBoolean("module.gl.enabled", true));
+        if (chkGlAutoPost != null) chkGlAutoPost.setSelected(ConfigManager.getBoolean("module.gl.autoPost", true));
+        if (chkGlTrialBalance != null) chkGlTrialBalance.setSelected(ConfigManager.getBoolean("module.gl.trialBalance", true));
+        if (chkGstEnabled != null) chkGstEnabled.setSelected(ConfigManager.getBoolean("module.gst.enabled", true));
+        if (chkGstAuto2bMatch != null) chkGstAuto2bMatch.setSelected(ConfigManager.getBoolean("module.gst.auto2bMatch", true));
+        if (chkGstPosGating != null) chkGstPosGating.setSelected(ConfigManager.getBoolean("module.gst.posGating", true));
+        if (chkTdsEnabled != null) chkTdsEnabled.setSelected(ConfigManager.getBoolean("module.tds.enabled", true));
+        if (chkThreeWayMatch != null) chkThreeWayMatch.setSelected(ConfigManager.getBoolean("module.automation.threeWayMatch", true));
+        if (chkAutoDraftDebitNote != null) chkAutoDraftDebitNote.setSelected(ConfigManager.getBoolean("module.automation.autoDraftDebitNote", true));
+        if (chkStockAutoReorder != null) chkStockAutoReorder.setSelected(ConfigManager.getBoolean("module.automation.stockAutoReorder", true));
+        if (chkCreditHardStop != null) chkCreditHardStop.setSelected(ConfigManager.getBoolean("module.automation.creditHardStop", true));
+        if (chkDailyBriefing != null) chkDailyBriefing.setSelected(ConfigManager.getBoolean("module.briefing.daily", true));
+        if (chkBriefingWa != null) chkBriefingWa.setSelected(ConfigManager.getBoolean("module.briefing.whatsapp", true));
+        if (chkBriefingEmail != null) chkBriefingEmail.setSelected(ConfigManager.getBoolean("module.briefing.email", true));
+        if (txtBriefingPhone != null) txtBriefingPhone.setText(ConfigManager.get("module.briefing.phone", ""));
+        if (chkBatchSerialTracking != null) chkBatchSerialTracking.setSelected(ConfigManager.getBoolean("module.inventory.batchSerialTracking", true));
+    }
+
+    private void saveModulesSettings() {
+        if (chkGlEnabled != null) putSetting("module.gl.enabled", String.valueOf(chkGlEnabled.isSelected()));
+        if (chkGlAutoPost != null) putSetting("module.gl.autoPost", String.valueOf(chkGlAutoPost.isSelected()));
+        if (chkGlTrialBalance != null) putSetting("module.gl.trialBalance", String.valueOf(chkGlTrialBalance.isSelected()));
+        if (chkGstEnabled != null) putSetting("module.gst.enabled", String.valueOf(chkGstEnabled.isSelected()));
+        if (chkGstAuto2bMatch != null) putSetting("module.gst.auto2bMatch", String.valueOf(chkGstAuto2bMatch.isSelected()));
+        if (chkGstPosGating != null) putSetting("module.gst.posGating", String.valueOf(chkGstPosGating.isSelected()));
+        if (chkTdsEnabled != null) putSetting("module.tds.enabled", String.valueOf(chkTdsEnabled.isSelected()));
+        if (chkThreeWayMatch != null) putSetting("module.automation.threeWayMatch", String.valueOf(chkThreeWayMatch.isSelected()));
+        if (chkAutoDraftDebitNote != null) putSetting("module.automation.autoDraftDebitNote", String.valueOf(chkAutoDraftDebitNote.isSelected()));
+        if (chkStockAutoReorder != null) putSetting("module.automation.stockAutoReorder", String.valueOf(chkStockAutoReorder.isSelected()));
+        if (chkCreditHardStop != null) putSetting("module.automation.creditHardStop", String.valueOf(chkCreditHardStop.isSelected()));
+        if (chkDailyBriefing != null) putSetting("module.briefing.daily", String.valueOf(chkDailyBriefing.isSelected()));
+        if (chkBriefingWa != null) putSetting("module.briefing.whatsapp", String.valueOf(chkBriefingWa.isSelected()));
+        if (chkBriefingEmail != null) putSetting("module.briefing.email", String.valueOf(chkBriefingEmail.isSelected()));
+        if (txtBriefingPhone != null) putSetting("module.briefing.phone", text(txtBriefingPhone));
+        if (chkBatchSerialTracking != null) putSetting("module.inventory.batchSerialTracking", String.valueOf(chkBatchSerialTracking.isSelected()));
+    }
 
 }

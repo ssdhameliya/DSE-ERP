@@ -16880,6 +16880,12 @@
 .erp-ui-standard .settings-invoice-compact .text-area.settings-invoice-terms {
     -fx-min-height: 120px;
 }
+.erp-ui-standard .settings-email-compact .text-area.approved-input {
+    -fx-min-height: 95px;
+}
+.erp-ui-standard .settings-email-compact .text-area.settings-template-body {
+    -fx-min-height: 140px;
+}
 
 /* 10.0.16 — centralized active-screen identity (company-facing shell/dialog title) */
 .erp-page-title.screen-title-create, .entity-dialog-title.screen-title-create { -fx-text-fill: #4ade80; }

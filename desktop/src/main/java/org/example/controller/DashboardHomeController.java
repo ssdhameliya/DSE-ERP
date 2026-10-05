@@ -2,6 +2,7 @@ package org.example.controller;
 
 import org.example.util.ScreenRefreshPolicy;
 import org.example.util.BusinessClock;
+import org.example.util.UiActionIcons;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.event.ActionEvent;
@@ -187,7 +188,10 @@ public class DashboardHomeController implements ScreenLifecycle {
         String[] periods = {"This Month", "This Quarter", "This Year", "All Time"};
         int index = java.util.Arrays.asList(periods).indexOf(fallbackPeriod);
         fallbackPeriod = periods[(index + 1) % periods.length];
-        if (event.getSource() instanceof Button button) button.setText(fallbackPeriod);
+        if (event.getSource() instanceof Button button) {
+            button.setText(fallbackPeriod);
+            UiActionIcons.apply(button, "calendar", fallbackPeriod);
+        }
         if (cmbPeriod != null) cmbPeriod.setValue(fallbackPeriod); else reload();
     }
 
@@ -196,7 +200,10 @@ public class DashboardHomeController implements ScreenLifecycle {
     @FXML private void viewItems() { openFromNode(lblProducts, "/fxml/pages/ItemMaster.fxml"); }
     @FXML private void viewSalesInvoices() { openFromNode(lblOrders, "/fxml/pages/SalesList.fxml"); }
     @FXML private void viewPurchaseInvoices() { openFromNode(lblPurchases, "/fxml/pages/PurchaseList.fxml"); }
-    @FXML private void viewReceivables() { openFromNode(agingList, "/fxml/pages/SalesList.fxml"); }
+    @FXML private void viewReceivables() {
+        SalesListController.requestReceivablesFilter();
+        openFromNode(agingList, "/fxml/pages/SalesList.fxml");
+    }
     @FXML private void viewReminders() { openFromNode(activityList, "/fxml/pages/ReminderCenter.fxml"); }
 
     private void reload() {
@@ -380,9 +387,16 @@ public class DashboardHomeController implements ScreenLifecycle {
 
     @FXML private void openSalesFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/SalesList.fxml"); }
     @FXML private void openPurchaseFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/PurchaseList.fxml"); }
-    @FXML private void openReceivablesFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/SalesList.fxml"); }
+    @FXML private void openReceivablesFromDashboard() {
+        SalesListController.requestReceivablesFilter();
+        NavigationManager.navigateOrReport("/fxml/pages/SalesList.fxml");
+    }
     @FXML private void openPayablesFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/PurchaseList.fxml"); }
     @FXML private void openInventoryFromDashboard() { NavigationManager.navigateOrReport("/fxml/pages/Inventory.fxml"); }
+    @FXML private void openCashFromDashboard() {
+        BankExpenseController.requestMode(BankExpenseController.Mode.BANK);
+        NavigationManager.navigateOrReport("/fxml/pages/BankExpense.fxml");
+    }
 
     private void open(ActionEvent event, String fxml) {
         NavigationManager.navigateOrReport(fxml);
