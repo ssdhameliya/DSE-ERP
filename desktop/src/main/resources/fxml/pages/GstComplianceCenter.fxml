@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.GstComplianceController" styleClass="approved-screen,erp-screen-root,recon-page">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="GST Compliance &amp; 2B Reconciliation Center" styleClass="screen-title"/>
+          <Label text="Automated GSTR-2B fuzzy ITC matching, GSTR-1 government schema export, and tax set-off" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <HBox spacing="8" alignment="CENTER_LEFT">
+          <Label text="Return Period:" styleClass="field-caption"/>
+          <ComboBox fx:id="cmbReturnPeriod" prefWidth="120" promptText="Select Period"/>
+        </HBox>
+        <Button fx:id="btnImportGstr2b" text="Import GSTR-2B JSON" onAction="#import2bJson" styleClass="primary-action,approved-button,approved-primary-button"/>
+        <Button fx:id="btnExportGstr1" text="Export GSTR-1 JSON" onAction="#exportGstr1Json" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiEligibleIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Eligible ITC" styleClass="metric-label"/>
+            <Label fx:id="kpiEligibleItc" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Input Tax Credit" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-red" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiItcAtRiskIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="ITC at Risk" styleClass="metric-label"/>
+            <Label fx:id="kpiItcAtRisk" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="GSTIN Unverified" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiValueDiffIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Discrepancies" styleClass="metric-label"/>
+            <Label fx:id="kpiValueDiffCount" text="0" styleClass="metric-value"/>
+            <Label text="Roundoff / Rate Diff" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-purple" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiMissingBooksIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Pending Bills" styleClass="metric-label"/>
+            <Label fx:id="kpiMissingBooksCount" text="0" styleClass="metric-value"/>
+            <Label text="Missing in Books" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-teal" GridPane.columnIndex="4">
+          <StackPane fx:id="kpiNetCashDueIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Net Cash Tax" styleClass="metric-label"/>
+            <Label fx:id="kpiNetCashDue" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Challan PMT-06" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <TabPane fx:id="gstTabPane" styleClass="approved-tab-pane,erp-tab-pane">
+      <tabs>
+        <Tab text="GSTR-2B ITC Reconciliation" closable="false">
+          <VBox spacing="8" styleClass="approved-card">
+            <HBox spacing="8" alignment="CENTER_LEFT">
+              <TextField fx:id="txtSearch" promptText="Search GSTIN, supplier, invoice number..." HBox.hgrow="ALWAYS"/>
+              <ComboBox fx:id="cmbMatchFilter" promptText="Filter by Status" prefWidth="170"/>
+              <Button fx:id="btnApply2bFilter" text="Filter" onAction="#filter2bRecords" styleClass="approved-button,approved-secondary-button"/>
+              <Button fx:id="btnRefresh2b" text="Refresh" onAction="#refresh2b" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+            <SplitPane fx:id="mainSplit" VBox.vgrow="ALWAYS" dividerPositions="1.0" styleClass="register-split-pane">
+              <TableView fx:id="tblReconciliation" styleClass="approved-table,erp-table-profile-responsive,erp-purple-selection-table">
+                <columns>
+                  <TableColumn fx:id="colSupplierGstin" text="Supplier GSTIN"/>
+                  <TableColumn fx:id="colSupplierTrade" text="Supplier Name"/>
+                  <TableColumn fx:id="colInvoiceNo" text="Invoice No."/>
+                  <TableColumn fx:id="colInvoiceDate" text="Date"/>
+                  <TableColumn fx:id="colTaxableValue" text="Taxable (₹)"/>
+                  <TableColumn fx:id="colIgst" text="IGST (₹)"/>
+                  <TableColumn fx:id="colCgst" text="CGST (₹)"/>
+                  <TableColumn fx:id="colSgst" text="SGST (₹)"/>
+                  <TableColumn fx:id="colMatchStatus" text="Recon Status"/>
+                  <TableColumn fx:id="colActionTaken" text="Actions" sortable="false"/>
+                </columns>
+                <placeholder>
+                  <VBox alignment="CENTER" spacing="8">
+                    <Label text="No GSTR-2B reconciliation records found" styleClass="empty-title"/>
+                    <Label text="Purchases with GST input tax will appear here automatically." styleClass="empty-note"/>
+                  </VBox>
+                </placeholder>
+              </TableView>
+              <VBox fx:id="detailDrawer" visible="false" managed="false" spacing="9" prefWidth="390" minWidth="350" maxWidth="440" styleClass="approved-card,detail-drawer">
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                  <VBox HBox.hgrow="ALWAYS">
+                    <Label fx:id="lblDrawerTitle" text="Reconciliation Details" styleClass="section-title"/>
+                    <Label fx:id="lblDrawerSubtitle" text="Invoice &amp; ITC Verification" styleClass="page-subtitle"/>
+                  </VBox>
+                  <Button fx:id="btnDrawerAudit" text="Audit Trail" onAction="#auditSelected" styleClass="approved-button,approved-secondary-button"/>
+                  <Button fx:id="btnCloseDrawer" text="Close" onAction="#closeDetails" styleClass="secondary-button,drawer-close-button,approved-button,approved-secondary-button"/>
+                </HBox>
+                <Separator/>
+                <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="import-inner-scroll">
+                  <VBox spacing="10">
+                    <Label text="Document Reference" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="Invoice No:" styleClass="field-caption"/><Label fx:id="lblDetailInvoice" text="-" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Date:" styleClass="field-caption"/><Label fx:id="lblDetailDate" text="-" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Supplier:" styleClass="field-caption"/><Label fx:id="lblDetailSupplier" text="-" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Supplier GSTIN:" styleClass="field-caption"/><Label fx:id="lblDetailGstin" text="-" styleClass="bold-label"/></HBox>
+                    <Separator/>
+                    <Label text="Tax Breakdown" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="Taxable Value:" styleClass="field-caption"/><Label fx:id="lblDetailTaxable" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="CGST:" styleClass="field-caption"/><Label fx:id="lblDetailCgst" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="SGST:" styleClass="field-caption"/><Label fx:id="lblDetailSgst" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="IGST:" styleClass="field-caption"/><Label fx:id="lblDetailIgst" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Total ITC:" styleClass="field-caption"/><Label fx:id="lblDetailTotalTax" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <Separator/>
+                    <Label text="Compliance Status" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="Recon Status:" styleClass="field-caption"/><Label fx:id="lblDetailStatus" text="MATCHED" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="ITC Eligibility:" styleClass="field-caption"/><Label fx:id="lblDetailEligibility" text="Eligible" styleClass="bold-label"/></HBox>
+                  </VBox>
+                </ScrollPane>
+                <HBox spacing="8" alignment="CENTER_RIGHT">
+                  <Button fx:id="btnOpenLinkedBill" text="Open Purchase Bill" onAction="#openLinkedBill" styleClass="primary-action,approved-button,approved-primary-button"/>
+                  <Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-secondary-button"/>
+                </HBox>
+              </VBox>
+            </SplitPane>
+          </VBox>
+        </Tab>
+
+        <Tab text="GSTR-3B Tax Set-Off Summary" closable="false">
+          <VBox spacing="14" styleClass="approved-card">
+            <Label text="Section 49 / 49A / 49B Statutory Credit Consumption &amp; Cash Liability" styleClass="section-title"/>
+            <TableView fx:id="tblGstr3b" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive">
+              <columns>
+                <TableColumn fx:id="colTaxHead" text="Tax Head"/>
+                <TableColumn fx:id="colOutwardTax" text="Outward Tax Liability (₹)"/>
+                <TableColumn fx:id="colItcAvailable" text="Eligible ITC Available (₹)"/>
+                <TableColumn fx:id="colItcSetOff" text="ITC Consumed (₹)"/>
+                <TableColumn fx:id="colNetCashPayable" text="Net Cash Payable (₹)"/>
+              </columns>
+              <placeholder>
+                <VBox alignment="CENTER" spacing="8"><Label text="Select a return period to view 3B calculation" styleClass="empty-title"/></VBox>
+              </placeholder>
+            </TableView>
+          </VBox>
+        </Tab>
+      </tabs>
+    </TabPane>
+  </center>
+</BorderPane>

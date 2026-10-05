@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.AutomationCenterController" styleClass="approved-screen,erp-screen-root,recon-page">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="Smart Operations &amp; Automation Center" styleClass="screen-title"/>
+          <Label text="Automated 3-way matching, dynamic stock reorder, and operational rule engine" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnRunScan" text="Scan Inventory Reorder" onAction="#scanReorders" styleClass="primary-action,approved-button,approved-primary-button"/>
+        <Button fx:id="btnRefreshRules" text="Refresh Engine" onAction="#refreshAll" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiActiveRulesIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Active Rules" styleClass="metric-label"/>
+            <Label fx:id="kpiActiveRules" text="0" styleClass="metric-value"/>
+            <Label text="Automations Enabled" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiMatchRateIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="3-Way Match Rate" styleClass="metric-label"/>
+            <Label fx:id="kpiMatchRate" text="100%" styleClass="metric-value"/>
+            <Label text="PO vs GRN vs Bill" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-red" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiDiscrepantBillsIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Discrepant Bills" styleClass="metric-label"/>
+            <Label fx:id="kpiDiscrepantBills" text="0" styleClass="metric-value"/>
+            <Label text="Pending Approval" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiReorderCountIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Reorder Alerts" styleClass="metric-label"/>
+            <Label fx:id="kpiReorderCount" text="0" styleClass="metric-value"/>
+            <Label text="Below Minimum Stock" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-teal" GridPane.columnIndex="4">
+          <StackPane fx:id="kpiReplenishmentValueIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3">
+            <Label text="Replenishment" styleClass="metric-label"/>
+            <Label fx:id="kpiReplenishmentValue" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Suggested Reorder Value" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <TabPane fx:id="autoTabPane" styleClass="approved-tab-pane,erp-tab-pane">
+      <tabs>
+        <Tab text="Smart 3-Way Match Verification" closable="false">
+          <VBox spacing="8" styleClass="approved-card">
+            <HBox spacing="8" alignment="CENTER_LEFT">
+              <TextField fx:id="txtMatchSearch" promptText="Search vendor bill, supplier, PO..." HBox.hgrow="ALWAYS"/>
+              <ComboBox fx:id="cmbMatchFilter" promptText="Filter by Status" prefWidth="160"/>
+              <Button fx:id="btnRefreshMatches" text="Refresh" onAction="#refreshAll" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+            <SplitPane fx:id="matchSplit" VBox.vgrow="ALWAYS" dividerPositions="1.0" styleClass="register-split-pane">
+              <TableView fx:id="tblMatchLogs" styleClass="approved-table,erp-table-profile-responsive,erp-purple-selection-table">
+                <columns>
+                  <TableColumn fx:id="colBillNumber" text="Vendor Bill No."/>
+                  <TableColumn fx:id="colPoNumber" text="PO Number"/>
+                  <TableColumn fx:id="colSupplierName" text="Supplier Name"/>
+                  <TableColumn fx:id="colPoAmt" text="PO Value (₹)"/>
+                  <TableColumn fx:id="colGrnAmt" text="GRN Received (₹)"/>
+                  <TableColumn fx:id="colBillAmt" text="Billed Value (₹)"/>
+                  <TableColumn fx:id="colVariance" text="Variance (₹)"/>
+                  <TableColumn fx:id="colMatchStatus" text="Match Status"/>
+                  <TableColumn fx:id="colMatchedAt" text="Matched Date"/>
+                  <TableColumn fx:id="colMatchActions" text="Actions" sortable="false"/>
+                </columns>
+                <placeholder>
+                  <VBox alignment="CENTER" spacing="8">
+                    <Label text="No purchase matching records found" styleClass="empty-title"/>
+                    <Label text="Purchase bills will appear here automatically for 3-way validation." styleClass="empty-note"/>
+                  </VBox>
+                </placeholder>
+              </TableView>
+              <VBox fx:id="matchDetailDrawer" visible="false" managed="false" spacing="9" prefWidth="390" minWidth="350" maxWidth="440" styleClass="approved-card,detail-drawer">
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                  <VBox HBox.hgrow="ALWAYS">
+                    <Label text="3-Way Match Verification" styleClass="section-title"/>
+                    <Label text="PO ↔ GRN ↔ Bill Audit" styleClass="page-subtitle"/>
+                  </VBox>
+                  <Button fx:id="btnMatchAudit" text="Audit Trail" onAction="#auditSelectedMatch" styleClass="approved-button,approved-secondary-button"/>
+                  <Button fx:id="btnCloseMatchDrawer" text="Close" onAction="#closeMatchDetails" styleClass="secondary-button,drawer-close-button,approved-button,approved-secondary-button"/>
+                </HBox>
+                <Separator/>
+                <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="import-inner-scroll">
+                  <VBox spacing="10">
+                    <Label text="Document Details" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="Bill Number:" styleClass="field-caption"/><Label fx:id="lblDetailBillNo" text="-" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Supplier:" styleClass="field-caption"/><Label fx:id="lblDetailSupplier" text="-" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="PO Reference:" styleClass="field-caption"/><Label fx:id="lblDetailPoNo" text="-" styleClass="bold-label"/></HBox>
+                    <Separator/>
+                    <Label text="Financial Reconciliation" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="PO Value:" styleClass="field-caption"/><Label fx:id="lblDetailPoAmt" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="GRN Value:" styleClass="field-caption"/><Label fx:id="lblDetailGrnAmt" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Billed Value:" styleClass="field-caption"/><Label fx:id="lblDetailBillAmt" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Variance:" styleClass="field-caption"/><Label fx:id="lblDetailVariance" text="₹ 0.00" styleClass="bold-label"/></HBox>
+                    <Separator/>
+                    <Label text="Verification Decision" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="Match Status:" styleClass="field-caption"/><Label fx:id="lblDetailMatchStatus" text="MATCHED" styleClass="bold-label"/></HBox>
+                  </VBox>
+                </ScrollPane>
+                <HBox spacing="8" alignment="CENTER_RIGHT">
+                  <Button fx:id="btnOpenMatchedBill" text="Open Purchase Bill" onAction="#openMatchedBill" styleClass="primary-action,approved-button,approved-primary-button"/>
+                  <Button text="Close" onAction="#closeMatchDetails" styleClass="approved-button,approved-secondary-button"/>
+                </HBox>
+              </VBox>
+            </SplitPane>
+          </VBox>
+        </Tab>
+
+        <Tab text="Dynamic Stock Reorder Alerts" closable="false">
+          <VBox spacing="8" styleClass="approved-card">
+            <HBox spacing="8" alignment="CENTER_LEFT">
+              <TextField fx:id="txtReorderSearch" promptText="Search item code, description, supplier..." HBox.hgrow="ALWAYS"/>
+              <ComboBox fx:id="cmbReorderFilter" promptText="Filter by Stock Status" prefWidth="170"/>
+              <Button fx:id="btnRescanItems" text="Rescan Inventory" onAction="#scanReorders" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+            <SplitPane fx:id="reorderSplit" VBox.vgrow="ALWAYS" dividerPositions="1.0" styleClass="register-split-pane">
+              <TableView fx:id="tblReorderSuggestions" styleClass="approved-table,erp-table-profile-responsive,erp-purple-selection-table">
+                <columns>
+                  <TableColumn fx:id="colItemCode" text="Item Code"/>
+                  <TableColumn fx:id="colItemName" text="Item Description"/>
+                  <TableColumn fx:id="colCurrentStock" text="Current Stock"/>
+                  <TableColumn fx:id="colReorderLevel" text="Min Stock"/>
+                  <TableColumn fx:id="colSuggestedQty" text="Qty"/>
+                  <TableColumn fx:id="colPrimarySupplier" text="Unit"/>
+                  <TableColumn fx:id="colEstCost" text="Estimated Cost (₹)"/>
+                  <TableColumn fx:id="colReorderStatus" text="Stock Status"/>
+                  <TableColumn fx:id="colReorderActions" text="Actions" sortable="false"/>
+                </columns>
+                <placeholder>
+                  <VBox alignment="CENTER" spacing="8">
+                    <Label text="All stock levels are currently healthy" styleClass="empty-title"/>
+                    <Label text="Items at or below minimum safety stock will be flagged here for replenishment." styleClass="empty-note"/>
+                  </VBox>
+                </placeholder>
+              </TableView>
+              <VBox fx:id="reorderDetailDrawer" visible="false" managed="false" spacing="9" prefWidth="390" minWidth="350" maxWidth="440" styleClass="approved-card,detail-drawer">
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                  <VBox HBox.hgrow="ALWAYS">
+                    <Label text="Item Stock &amp; Reorder" styleClass="section-title"/>
+                    <Label text="Inventory Safety Assessment" styleClass="page-subtitle"/>
+                  </VBox>
+                  <Button fx:id="btnReorderAudit" text="Audit Trail" onAction="#auditSelectedReorder" styleClass="approved-button,approved-secondary-button"/>
+                  <Button fx:id="btnCloseReorderDrawer" text="Close" onAction="#closeReorderDetails" styleClass="secondary-button,drawer-close-button,approved-button,approved-secondary-button"/>
+                </HBox>
+                <Separator/>
+                <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="import-inner-scroll">
+                  <VBox spacing="10">
+                    <Label text="Item Information" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="Item Code:" styleClass="field-caption"/><Label fx:id="lblReorderItemCode" text="-" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Description:" styleClass="field-caption"/><Label fx:id="lblReorderItemName" text="-" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Unit:" styleClass="field-caption"/><Label fx:id="lblReorderUnit" text="-" styleClass="bold-label"/></HBox>
+                    <Separator/>
+                    <Label text="Stock Assessment" styleClass="settings-subsection-title"/>
+                    <HBox spacing="6"><Label text="Current Stock:" styleClass="field-caption"/><Label fx:id="lblReorderCurrentStock" text="0" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Minimum Stock:" styleClass="field-caption"/><Label fx:id="lblReorderMinStock" text="0" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Suggested Reorder:" styleClass="field-caption"/><Label fx:id="lblReorderSuggested" text="0" styleClass="bold-label"/></HBox>
+                    <HBox spacing="6"><Label text="Estimated Cost:" styleClass="field-caption"/><Label fx:id="lblReorderEstCost" text="₹ 0.00" styleClass="bold-label,kpi-orange"/></HBox>
+                  </VBox>
+                </ScrollPane>
+                <HBox spacing="8" alignment="CENTER_RIGHT">
+                  <Button fx:id="btnCreatePurchaseOrder" text="Create Purchase Order" onAction="#createPurchaseOrder" styleClass="primary-action,approved-button,approved-primary-button"/>
+                  <Button text="Close" onAction="#closeReorderDetails" styleClass="approved-button,approved-secondary-button"/>
+                </HBox>
+              </VBox>
+            </SplitPane>
+          </VBox>
+        </Tab>
+
+        <Tab text="Configured Automation Rules" closable="false">
+          <VBox spacing="8" styleClass="approved-card">
+            <TableView fx:id="tblRules" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive">
+              <columns>
+                <TableColumn fx:id="colRuleCode" text="Rule Identifier"/>
+                <TableColumn fx:id="colRuleName" text="Automation Feature"/>
+                <TableColumn fx:id="colCategory" text="Category"/>
+                <TableColumn fx:id="colEnabled" text="Current State"/>
+                <TableColumn fx:id="colExecCount" text="Control Mode"/>
+                <TableColumn fx:id="colLastExec" text="Settings Path"/>
+              </columns>
+              <placeholder>
+                <VBox alignment="CENTER" spacing="8"><Label text="No automation rules registered" styleClass="empty-title"/></VBox>
+              </placeholder>
+            </TableView>
+          </VBox>
+        </Tab>
+      </tabs>
+    </TabPane>
+  </center>
+</BorderPane>

@@ -51,6 +51,9 @@
                     <Button fx:id="btnReconSupplier" text="Recon Supplier" onAction="#openReconSupplier" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>
+            <Button fx:id="btnGeneralLedger" text="General Ledger" onAction="#openGeneralLedger" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnGstCompliance" text="GST Compliance" onAction="#openGstCompliance" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnAutomationCenter" text="Automation Center" onAction="#openAutomationCenter" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnImport" text="Data Import" onAction="#openImport" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnInventory" text="Inventory" onAction="#openInventory" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnCustomer" text="CRM / Customers" onAction="#openCustomers" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -89,6 +92,7 @@
                     <Button fx:id="btnSettingsWorkspace" text="Workspace &amp; Storage" onAction="#openSettingsWorkspace" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsShortcuts" text="Keyboard Shortcuts" onAction="#openSettingsShortcuts" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsUpdates" text="Application Updates" onAction="#openSettingsUpdates" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsModules" text="Module Activation" onAction="#openSettingsModules" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>
             <Button fx:id="btnSafeRollback" text="Safe Rollback" onAction="#openSafeRollback" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,safe-rollback-nav-button"/>

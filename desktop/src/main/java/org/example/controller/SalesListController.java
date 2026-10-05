@@ -50,6 +50,7 @@ import org.example.util.UiActionIcons;
 import org.example.util.InvoicePaymentDetailsDialog;
 import org.example.util.RegisterPageState;
 import org.example.util.RegisterUiSupport;
+import org.example.util.LiveOperationDialog;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -101,6 +102,8 @@ public class SalesListController implements ScreenLifecycle {
     private boolean applyingSavedView;
     private boolean suppressFilterEvents;
     private String pendingSavedViewName;
+    private static volatile boolean requestedReceivablesFilter = false;
+    public static void requestReceivablesFilter() { requestedReceivablesFilter = true; }
 
     @FXML public void initialize(){
         if (dueChart != null) dueChart.setAnimated(false);
@@ -354,7 +357,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     }
 
     private void configureFilters(){
-        cmbPaymentStatus.getItems().setAll("All","PENDING","PARTIAL","PAID","OVERDUE");cmbPaymentStatus.setValue("All");
+        cmbPaymentStatus.getItems().setAll("All","RECEIVABLES","PENDING","PARTIAL","PAID","OVERDUE");cmbPaymentStatus.setValue("All");
         cmbMailStatus.getItems().setAll("All","Sent","Not Sent");cmbMailStatus.setValue("All");
         cmbWhatsappStatus.getItems().setAll("All","Sent","Not Sent");cmbWhatsappStatus.setValue("All");
         cmbInvoiceType.getItems().setAll("All","TAX INVOICE","PROFORMA","CASH MEMO");cmbInvoiceType.setValue("All");
@@ -530,6 +533,28 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     @Override public void onScreenShown(boolean reusedFromCache){
         refreshShortcutLabels();
         org.example.util.OperationalUiSupport.focusWorkArea(tableSales);
+        if (requestedReceivablesFilter) {
+            requestedReceivablesFilter = false;
+            batchFilterUpdate(() -> {
+                txtSearch.clear();
+                txtInvoice.clear();
+                txtAmountFrom.clear();
+                txtAmountTo.clear();
+                cmbCustomer.setValue("All customers");
+                cmbPaymentStatus.setValue("RECEIVABLES");
+                cmbMailStatus.setValue("All");
+                cmbWhatsappStatus.setValue("All");
+                cmbInvoiceType.setValue("All");
+                cmbDocumentStatus.setValue("All");
+                cmbReturnStatus.setValue("All");
+                dpFrom.setValue(BusinessClock.today().minusYears(5));
+                dpTo.setValue(BusinessClock.today());
+            });
+            pageState.reset();
+            renderChips();
+            reloadPage(true);
+            return;
+        }
         if (ImportViewContext.consume("Sales")) {
             batchFilterUpdate(() -> {
                 dpFrom.setValue(BusinessClock.today().minusYears(20));
@@ -677,8 +702,56 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         },this::error);
     }
     private void openExcel(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");Path excel=ExcelOutputService.sales(full);if(java.awt.Desktop.isDesktopSupported())java.awt.Desktop.getDesktop().open(excel.toFile());else info("Excel file created: "+excel);log("SALE",sale.getId(),"EXCEL_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
-    private void sendEmail(Sales sale){String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=ManagedInvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.service.BrandingService.companyName(),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}
-    private void sendWhatsapp(Sales sale){if(isApprovalLocked(sale)){warning("Admin approval is required before sharing this Sale document.");return;}try{Sales full=service.getByInvoice(sale.getInvoiceNo());String phone=digits(full.getCustomer().getPhone());if(phone.length()==10)phone="91"+phone;if(phone.isBlank()){warning("Customer mobile number is not available. Update it in Customer Master.");return;}String missing=PaymentMessageService.missingPaymentConfiguration();if(missing!=null)warning(missing+" The invoice can still be shared without a payment link.");Path pdf=ManagedInvoicePdfService.sales(full);WhatsappService.openWhatsappWithMessage(phone,PaymentMessageService.salesMessage(full),pdf,PaymentMessageService.configuredQrPath());info("WhatsApp is ready. The invoice and configured UPI QR are on the clipboard for attachment.");support.markWhatsapp("SALE",full.getId(),full.getRowVersion());communication("SALE",full.getId(),"WHATSAPP",phone,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();}catch(Exception e){error(e);}}
+    private void sendEmail(Sales sale){
+        String recipient = sale.getCustomer() == null ? "" : safe(sale.getCustomer().getEmail()).trim();
+        LiveOperationDialog.run(tableSales, "Sending Sales Invoice Email", "email", "Loading sales invoice...", reporter -> {
+            reporter.stage(1, 4, "Loading sales invoice #" + sale.getInvoiceNo() + "...");
+            Sales full = service.getByInvoice(sale.getInvoiceNo());
+            if (full == null) throw new IllegalStateException("Sales invoice " + sale.getInvoiceNo() + " was not found. Refresh the register and try again.");
+            if (full.getCustomer() == null) throw new IllegalStateException("No customer is linked to " + full.getInvoiceNo() + ".");
+            String target = safe(full.getCustomer().getEmail()).trim();
+            if (target.isBlank()) throw new IllegalStateException("Customer email is missing for " + full.getCustomer().getName() + ". Update Customer Master and try again.");
+            reporter.stage(2, 4, "Generating invoice PDF...");
+            Path pdf = ManagedInvoicePdfService.sales(full);
+            reporter.stage(3, 4, "Connecting to SMTP and sending email to " + target + "...");
+            MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatSalesEmail(full);
+            EmailService.send(target, msg.subject(), msg.body(), pdf);
+            reporter.stage(4, 4, "Recording communication history...");
+            service.markEmailSent(full.getId());
+            communication("SALE", full.getId(), "EMAIL", target, msg.subject(), "SENT", null);
+            reporter.log("Email delivered to " + target);
+        }, () -> {
+            refresh();
+            info("Invoice emailed successfully to " + (recipient.isBlank() ? "customer" : recipient) + ".");
+        }, failure -> {
+            String target = sale.getCustomer() == null ? "" : safe(sale.getCustomer().getEmail());
+            communication("SALE", sale.getId(), "EMAIL", target, "Sales Invoice " + sale.getInvoiceNo(), "FAILED", "sending the email: " + rootMessage(failure));
+            error(new IllegalStateException("Email delivery failed:\n\n" + rootMessage(failure), failure));
+        });
+    }
+    private void sendWhatsapp(Sales sale){
+        if(isApprovalLocked(sale)){warning("Admin approval is required before sharing this Sale document.");return;}
+        LiveOperationDialog.run(tableSales, "Preparing WhatsApp Notification", "whatsapp", "Loading sales invoice...", reporter -> {
+            reporter.stage(1, 3, "Loading invoice details...");
+            Sales full = service.getByInvoice(sale.getInvoiceNo());
+            String phone = digits(full.getCustomer().getPhone());
+            if (phone.length() == 10) phone = "91" + phone;
+            if (phone.isBlank()) throw new IllegalStateException("Customer mobile number is not available. Update it in Customer Master.");
+            String missing = PaymentMessageService.missingPaymentConfiguration();
+            if (missing != null) reporter.log("Note: " + missing);
+            reporter.stage(2, 3, "Generating invoice PDF for attachment...");
+            Path pdf = ManagedInvoicePdfService.sales(full);
+            reporter.stage(3, 3, "Opening WhatsApp application...");
+            String message = MessageTemplateService.formatSalesWhatsapp(full);
+            String finalPhone = phone;
+            WhatsappService.openWhatsappWithMessage(finalPhone, message, pdf, PaymentMessageService.configuredQrPath());
+            support.markWhatsapp("SALE", full.getId(), full.getRowVersion());
+            communication("SALE", full.getId(), "WHATSAPP", phone, "Sales Invoice " + full.getInvoiceNo(), "SENT", null);
+        }, () -> {
+            refresh();
+            info("WhatsApp is ready. The invoice and configured UPI QR are on the clipboard for attachment.");
+        }, this::error);
+    }
     private void recordPayment(Sales sale){
         if(sale.getBalanceAmount()<=0){info("This invoice is already fully paid.");return;}
         List<String> paymentModes;

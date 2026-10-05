@@ -3,21 +3,104 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.SVGPath?>
-<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelEmail" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,settings-email-compact">
-                            <VBox spacing="3"><Label text="Email &amp; App Preferences" styleClass="settings-section-title"/><Label text="SMTP delivery configuration for invoices, receipts and system messages" wrapText="true" styleClass="settings-section-description"/></VBox>
-                            <VBox spacing="12" styleClass="settings-subcard">
-                                <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Email Account" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Configuration is stored securely in your workspace" styleClass="page-subtitle"/></HBox>
-                                <GridPane hgap="18" vgap="14"><columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                                    <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0"><Label text="Sending Email Address" styleClass="settings-form-label"/><TextField fx:id="txtSmtpEmail" promptText="name@example.com" styleClass="approved-input"/></VBox>
-                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0"><Label text="Email App Password" styleClass="settings-form-label"/><PasswordField fx:id="txtSmtpPassword" promptText="Provider app password" maxWidth="Infinity" styleClass="approved-input"/></VBox>
-                                    <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1"><Label text="SMTP Host" styleClass="settings-form-label"/><TextField fx:id="txtSmtpHost" promptText="Automatic, smtp.mail.yahoo.com, smtp.gmail.com..." styleClass="approved-input"/></VBox>
-                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1"><Label text="SMTP Port" styleClass="settings-form-label"/><TextField fx:id="txtSmtpPort" promptText="587" styleClass="approved-input"/></VBox>
-                                </GridPane>
-                            </VBox>
-                            <GridPane hgap="14" vgap="14"><columnConstraints><ColumnConstraints percentWidth="55"/><ColumnConstraints percentWidth="45"/></columnConstraints>
-                                <VBox GridPane.columnIndex="0" spacing="8" styleClass="settings-subcard"><Label text="Connection guidance" styleClass="section-title"/><Label text="Use an app password supplied by your email provider. Yahoo, Gmail and Microsoft accounts may require two-step verification before an app password can be created." wrapText="true" styleClass="settings-section-description"/><Label text="Use Test Email in the page header to verify the current configuration before saving." wrapText="true" styleClass="page-subtitle"/></VBox>
-                                <VBox GridPane.columnIndex="1" spacing="8" styleClass="settings-security-note"><Label text="Email security" styleClass="settings-navigation-title"/><Label text="Never enter your normal mailbox password. the application stores the configured app password in the selected workspace." wrapText="true" styleClass="settings-security-text"/></VBox>
-                            </GridPane>
-                        </VBox>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelEmail" visible="false" managed="false" maxWidth="Infinity" spacing="14" styleClass="settings-card,settings-email-compact">
+    <VBox spacing="3">
+        <Label text="Email &amp; Communication Preferences" styleClass="settings-section-title"/>
+        <Label text="SMTP delivery configuration, corporate email signature, and document message templates" wrapText="true" styleClass="settings-section-description"/>
+    </VBox>
 
+    <VBox spacing="12" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="8">
+            <Label text="Email Account (SMTP)" styleClass="section-title"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnEmailSecurityInfo" text="Information &amp; Guidance" onAction="#showEmailSecurityInfo" styleClass="secondary-button"/>
+            <Label text="Configuration is stored securely in your workspace" styleClass="page-subtitle"/>
+        </HBox>
+        <GridPane hgap="18" vgap="14">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+            </columnConstraints>
+            <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                <Label text="Sending Email Address" styleClass="settings-form-label"/>
+                <TextField fx:id="txtSmtpEmail" promptText="name@example.com" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <Label text="Email App Password" styleClass="settings-form-label"/>
+                <PasswordField fx:id="txtSmtpPassword" promptText="Provider app password" maxWidth="Infinity" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                <Label text="SMTP Host" styleClass="settings-form-label"/>
+                <TextField fx:id="txtSmtpHost" promptText="Automatic, smtp.mail.yahoo.com, smtp.gmail.com..." styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                <Label text="SMTP Port" styleClass="settings-form-label"/>
+                <TextField fx:id="txtSmtpPort" promptText="587" styleClass="approved-input"/>
+            </VBox>
+        </GridPane>
+    </VBox>
 
+    <VBox spacing="10" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="8">
+            <Label text="Company Email Signature" styleClass="section-title"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Appended automatically whenever {Signature} token is present in message templates" styleClass="page-subtitle"/>
+        </HBox>
+        <VBox spacing="6">
+            <Label text="Signature Block" styleClass="settings-form-label"/>
+            <TextArea fx:id="txtEmailSignature" prefRowCount="5" minHeight="95" promptText="Regards,&#10;Company Name&#10;Phone: +91 ... | Email: info@..." wrapText="true" styleClass="approved-input"/>
+        </VBox>
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                <Label text="Signature / Stamp Image (Optional)" styleClass="settings-form-label"/>
+                <Label fx:id="lblSignatureImageStatus" text="No signature image attached" styleClass="page-subtitle"/>
+            </VBox>
+            <StackPane minWidth="64" minHeight="36" prefWidth="90" prefHeight="40" maxHeight="45" styleClass="settings-image-preview">
+                <ImageView fx:id="imgSignaturePreview" preserveRatio="true" smooth="true" fitHeight="36" fitWidth="80"/>
+            </StackPane>
+            <Button fx:id="btnBrowseSignatureImage" text="Browse Image" onAction="#browseSignatureImage" styleClass="secondary-button"/>
+            <Button fx:id="btnClearSignatureImage" text="Clear Image" onAction="#clearSignatureImage" styleClass="secondary-button"/>
+        </HBox>
+    </VBox>
+
+    <VBox spacing="12" styleClass="settings-subcard">
+        <HBox alignment="CENTER_LEFT" spacing="8">
+            <Label text="Document Message &amp; Email Templates" styleClass="section-title"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Customise subject line and body text for each business document" styleClass="page-subtitle"/>
+        </HBox>
+        <GridPane hgap="18" vgap="12">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+            </columnConstraints>
+            <VBox spacing="6" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                <Label text="Document / Communication Type" styleClass="settings-form-label"/>
+                <ComboBox fx:id="cmbMessageTemplateDoc" maxWidth="Infinity" styleClass="approved-combo"/>
+            </VBox>
+            <VBox fx:id="boxEmailSubject" spacing="6" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <Label text="Email Subject Template" styleClass="settings-form-label"/>
+                <TextField fx:id="txtMessageTemplateSubject" promptText="Sales Invoice {DocumentNo} from {CompanyName}" styleClass="approved-input"/>
+            </VBox>
+        </GridPane>
+        <VBox spacing="6">
+            <HBox alignment="CENTER_LEFT" spacing="6">
+                <Label text="Message Body Template" styleClass="settings-form-label"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="Insert Token:" styleClass="page-subtitle"/>
+                <Button fx:id="btnTokenCustomer" text="{CustomerName}" onAction="#insertTokenCustomer" styleClass="secondary-button"/>
+                <Button fx:id="btnTokenDocNo" text="{DocumentNo}" onAction="#insertTokenDocNo" styleClass="secondary-button"/>
+                <Button fx:id="btnTokenDate" text="{DocumentDate}" onAction="#insertTokenDate" styleClass="secondary-button"/>
+                <Button fx:id="btnTokenTotal" text="{TotalAmount}" onAction="#insertTokenTotal" styleClass="secondary-button"/>
+                <Button fx:id="btnTokenBalance" text="{BalanceAmount}" onAction="#insertTokenBalance" styleClass="secondary-button"/>
+                <Button fx:id="btnTokenSignature" text="{Signature}" onAction="#insertTokenSignature" styleClass="secondary-button"/>
+            </HBox>
+            <TextArea fx:id="txtMessageTemplateBody" prefRowCount="8" minHeight="140" promptText="Enter message template body..." wrapText="true" styleClass="approved-input,settings-template-body"/>
+        </VBox>
+        <HBox alignment="CENTER_LEFT" spacing="10">
+            <Button fx:id="btnResetTemplate" text="Reset Template to Default" onAction="#resetCurrentTemplate" styleClass="secondary-button"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnLivePreview" text="Preview Live Output" onAction="#showLivePreviewDialog" styleClass="secondary-button"/>
+        </HBox>
+    </VBox>
+</VBox>

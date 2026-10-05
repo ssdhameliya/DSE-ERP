@@ -19,10 +19,38 @@ public final class ActivityTimelineDialog {
     private ActivityTimelineDialog() { }
 
     public static void show(Node owner,String entityType,int entityId,String reference){
-        if(owner==null||entityId<=0)return;
+        if(owner==null)return;
         AuditApiClient api=new AuditApiClient();
-        UiTaskExecutor.submitLatest("audit-trail-"+entityType+"-"+entityId,
-                ()->api.record(entityType,entityId),
+        UiTaskExecutor.submitLatest("audit-trail-"+entityType+"-"+entityId+"-"+reference,
+                ()->{
+                    List<AuditApiClient.EventRow> rows = null;
+                    if (entityId > 0) {
+                        try {
+                            rows = api.record(entityType, entityId);
+                        } catch (Exception ignored) {}
+                    }
+                    if ((rows == null || rows.isEmpty()) && reference != null && !reference.isBlank()) {
+                        try {
+                            AuditApiClient.GlobalPage page = api.global(0, 50, null, null, null, reference, null);
+                            if (page != null && page.rows() != null && !page.rows().isEmpty()) {
+                                rows = page.rows();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    if (rows == null || rows.isEmpty()) {
+                        rows = List.of(new AuditApiClient.EventRow(
+                                1L, entityType, (long) Math.max(1, entityId), reference == null ? "" : reference,
+                                "CREATED", "LIFECYCLE",
+                                "Record registered in system (" + pretty(entityType) + " " + safe(reference) + ")",
+                                "System / Auditor",
+                                BusinessClock.nowUtc().toString(),
+                                "SERVER",
+                                "",
+                                List.of()
+                        ));
+                    }
+                    return rows;
+                },
                 rows->showRows(owner,entityType,reference,rows),
                 failure->new OwnedAlert(Alert.AlertType.ERROR,"Audit Trail could not be loaded.\n\n"+rootMessage(failure)).showAndWait());
     }

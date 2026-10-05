@@ -138,6 +138,7 @@ public class AuditService {
             case "PARTY","CUSTOMER","SUPPLIER"->jdbc.queryForObject("SELECT party_code FROM party_master WHERE id=?",String.class,id);
             case "ITEM"->jdbc.queryForObject("SELECT item_code FROM item_master WHERE id=?",String.class,id);
             case "FINANCE"->jdbc.queryForObject("SELECT voucher_no FROM finance_register WHERE id=?",String.class,id);
+            case "JOURNAL"->jdbc.queryForObject("SELECT entry_number FROM journal_entry WHERE id=?",String.class,id);
             case "PURCHASE_RECON"->jdbc.queryForObject("SELECT recon_ref FROM purchase_recon WHERE id=?",String.class,id);
             case "RECON_SUPPLIER"->jdbc.queryForObject("SELECT recon_supplier_ref FROM recon_supplier WHERE id=?",String.class,id);
             case "MASTER_LOOKUP"->jdbc.queryForObject("SELECT CONCAT(lookup_type,':',lookup_code) FROM lookup_master WHERE id=?",String.class,id);

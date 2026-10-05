@@ -15,6 +15,7 @@ import org.example.navigation.NavigationManager;
 import org.example.util.ClockService;
 import org.example.util.IconFactory;
 import org.example.util.SceneManager;
+import org.example.util.LiveOperationDialog;
 import org.example.update.BuildInfo;
 
 import java.util.regex.Pattern;
@@ -71,10 +72,17 @@ public class EmailSettingsController {
     @FXML private void testEmail(){
         if(ConfigManager.isSharedClient()){message("Sign in as Admin to test company-server email settings.",true);return;}
         if(!validateAndPersist())return;
-        try{
-            EmailService.send(txtSmtpEmail.getText().trim(), BrandingService.applicationName() + " email test", "Your " + BrandingService.applicationName() + " email configuration is working correctly.");
-            message("Test email sent successfully.",false);
-        }catch(RuntimeException failure){message(failure.getMessage()==null?"Test email failed. Check the SMTP settings and try again.":failure.getMessage(),true);}
+        String recipient = txtSmtpEmail.getText().trim();
+        LiveOperationDialog.run(btnTestEmail, "Testing Email Delivery", "email",
+            "Connecting to SMTP server and validating configuration...",
+            reporter -> {
+                reporter.stage(1, 2, "Connecting to SMTP host and transmitting...");
+                EmailService.send(recipient, BrandingService.applicationName() + " email test", "Your " + BrandingService.applicationName() + " email configuration is working correctly.");
+                reporter.stage(2, 2, "Test email delivered successfully.");
+            },
+            () -> message("Test email sent successfully to " + recipient + ".", false),
+            failure -> message(failure.getMessage() == null ? "Test email failed. Check the SMTP settings and try again." : failure.getMessage(), true)
+        );
     }
 
     private String passwordValue(){return txtSmtpPassword.getText();}

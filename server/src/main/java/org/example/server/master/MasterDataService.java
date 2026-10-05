@@ -65,6 +65,7 @@ public class MasterDataService {
         ensureReferenceFormat("REF_CUSTOMER","CUSXXX","Customer reference",70);
         ensureReferenceFormat("REF_SUPPLIER","SUPXXX","Supplier reference",80);
         ensureReferenceFormat("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX","Finance voucher reference",90);
+        ensureReferenceFormat("REF_JOURNAL","JV-YYYYMMDD-XXXX","Journal voucher reference",95);
         ensureReferenceFormat("REF_RECON_SUPPLIER","RSP-YYYY-XXXXX","Recon Supplier reference",100);
         ensureReferenceFormat("REF_PURCHASE_RECON","PRC-YYYY-XXXXX","Purchase Recon reference",110);
         ensureReferenceFormat("REF_LOOKUP_CATEGORY","CATXXX","Category Master code reference",210);
@@ -97,7 +98,8 @@ public class MasterDataService {
         MasterCategoryEntity category=categories.findByCategoryCode("REFERENCE_FORMAT").orElse(null);
         if(category==null) return;
         boolean exists=lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(category.getCategoryName()).stream()
-            .anyMatch(row->row.getLookupCode()!=null&&row.getLookupCode().equalsIgnoreCase(lookupCode));
+            .anyMatch(row->row.getLookupCode()!=null&&(row.getLookupCode().equalsIgnoreCase(lookupCode)
+                || ("REF_JOURNAL".equalsIgnoreCase(lookupCode) && ("JOURNAL_VOUCHER".equalsIgnoreCase(row.getLookupCode()) || "JOURNAL".equalsIgnoreCase(row.getLookupCode())))));
         if(exists) return;
         LookupEntity row=new LookupEntity();row.setLookupType(category.getCategoryName());row.setLookupCode(lookupCode);row.setLookupValue(value);
         row.setDescription(description);row.setDisplayOrder(order);row.setActive(1);lookups.save(row);
