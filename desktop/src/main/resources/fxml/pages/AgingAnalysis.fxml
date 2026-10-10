@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.AgingAnalysisController" styleClass="approved-screen,erp-screen-root">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="AR / AP Aging Analysis" styleClass="screen-title"/>
+          <Label text="Accounts receivable &amp; payable maturity schedule, overdue tracking, and automated reminders" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <HBox spacing="8" alignment="CENTER_RIGHT">
+          <ToggleButton fx:id="btnDebtors" text="Receivables (Debtors)" onAction="#selectDebtors" styleClass="approved-button,approved-primary-button"/>
+          <ToggleButton fx:id="btnCreditors" text="Payables (Creditors)" onAction="#selectCreditors" styleClass="approved-button,approved-secondary-button"/>
+          <Separator orientation="VERTICAL"/>
+          <Label text="As of Date:" styleClass="field-caption"/>
+          <DatePicker fx:id="dpAsOfDate" prefWidth="130"/>
+          <Button fx:id="btnRefresh" text="Recalculate" onAction="#refreshData" styleClass="primary-action,approved-button,approved-primary-button"/>
+        </HBox>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiTotalIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Total Outstanding" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Total" styleClass="metric-trend-pill,trend-neutral"/>
+            </HBox>
+            <Label fx:id="kpiTotalOutstanding" text="₹ 0.00" styleClass="metric-value"/>
+            <Label fx:id="lblPartyCount" text="0 Active Accounts" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiCurrentIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Current (0–30 Days)" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Healthy" styleClass="metric-trend-pill,trend-positive"/>
+            </HBox>
+            <Label fx:id="kpiCurrentBucket" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Within credit term" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiDueIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Overdue (31–60 Days)" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Due" styleClass="metric-trend-pill,trend-warning"/>
+            </HBox>
+            <Label fx:id="kpiDueBucket" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Follow-up required" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-red" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiCriticalIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Critical (&gt;60 Days)" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Alert" styleClass="metric-trend-pill,trend-negative"/>
+            </HBox>
+            <Label fx:id="kpiCriticalBucket" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="High default risk" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <VBox spacing="8" styleClass="approved-card">
+      <HBox spacing="8" alignment="CENTER_LEFT">
+        <TextField fx:id="txtSearch" promptText="Search account name, city, phone..." HBox.hgrow="ALWAYS"/>
+        <ComboBox fx:id="cmbRiskFilter" promptText="Filter by Risk" prefWidth="180"/>
+        <Button fx:id="btnSendBulkReminder" text="Send Reminders (Overdue)" onAction="#sendBulkReminders" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+
+      <SplitPane fx:id="mainSplit" VBox.vgrow="ALWAYS" dividerPositions="1.0" styleClass="register-split-pane">
+        <TableView fx:id="tblAging" styleClass="approved-table,erp-table-profile-responsive,erp-blue-selection-table">
+          <columns>
+            <TableColumn fx:id="colPartyName" text="Party / Account Name"/>
+            <TableColumn fx:id="colTotalDue" text="Total Balance (₹)"/>
+            <TableColumn fx:id="colCurrent" text="0–30 Days (₹)"/>
+            <TableColumn fx:id="col31To60" text="31–60 Days (₹)"/>
+            <TableColumn fx:id="col61To90" text="61–90 Days (₹)"/>
+            <TableColumn fx:id="colOver90" text="90+ Days (₹)"/>
+            <TableColumn fx:id="colRisk" text="Risk Status"/>
+            <TableColumn fx:id="colActions" text="Actions" sortable="false"/>
+          </columns>
+          <placeholder>
+            <VBox alignment="CENTER" spacing="8">
+              <Label text="No Aging Balances Found" styleClass="empty-title"/>
+              <Label text="All accounts are fully settled or no transactions exist." styleClass="empty-note"/>
+            </VBox>
+          </placeholder>
+        </TableView>
+
+        <VBox fx:id="detailDrawer" visible="false" managed="false" spacing="9" prefWidth="390" minWidth="350" maxWidth="440" styleClass="approved-card,detail-drawer">
+          <HBox alignment="CENTER_LEFT" spacing="8">
+            <VBox HBox.hgrow="ALWAYS">
+              <Label fx:id="lblDrawerTitle" text="Aging Ledger Detail" styleClass="section-title"/>
+              <Label fx:id="lblDrawerSubtitle" text="Maturity &amp; collection schedule" styleClass="page-subtitle"/>
+            </VBox>
+            <Button fx:id="btnCloseDrawer" text="Close" onAction="#closeDetails" styleClass="secondary-button,drawer-close-button,approved-button,approved-secondary-button"/>
+          </HBox>
+          <Separator/>
+          <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="import-inner-scroll">
+            <VBox spacing="10">
+              <Label text="Account Information" styleClass="settings-subsection-title"/>
+              <HBox spacing="6"><Label text="Party Name:" styleClass="field-caption"/><Label fx:id="lblDetailPartyName" text="-" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Account Group:" styleClass="field-caption"/><Label fx:id="lblDetailGroup" text="-" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Phone / Contact:" styleClass="field-caption"/><Label fx:id="lblDetailPhone" text="-" styleClass="bold-label"/></HBox>
+              <Separator/>
+              <Label text="Bucket Breakdown" styleClass="settings-subsection-title"/>
+              <HBox spacing="6"><Label text="0 to 30 Days (Current):" styleClass="field-caption"/><Label fx:id="lblDetailCurrent" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="31 to 60 Days:" styleClass="field-caption"/><Label fx:id="lblDetail31To60" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="61 to 90 Days:" styleClass="field-caption"/><Label fx:id="lblDetail61To90" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Over 90 Days:" styleClass="field-caption"/><Label fx:id="lblDetailOver90" text="₹ 0.00" styleClass="bold-label,status-pill-red"/></HBox>
+              <HBox spacing="6"><Label text="Total Outstanding:" styleClass="field-caption"/><Label fx:id="lblDetailTotal" text="₹ 0.00" styleClass="bold-label,metric-value"/></HBox>
+              <Separator/>
+              <Button fx:id="btnSendIndividualReminder" text="Send WhatsApp / SMS Reminder" onAction="#sendIndividualReminder" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+              <Button fx:id="btnViewLedger" text="View Complete Ledger" onAction="#viewLedger" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            </VBox>
+          </ScrollPane>
+        </VBox>
+      </SplitPane>
+    </VBox>
+  </center>
+</BorderPane>

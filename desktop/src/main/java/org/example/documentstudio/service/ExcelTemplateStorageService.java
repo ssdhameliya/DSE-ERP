@@ -68,7 +68,7 @@ public final class ExcelTemplateStorageService {
         for (int i = 1; i < defaults.size(); i++) {
             ExcelTemplate duplicate = defaults.get(i);
             duplicate.setDefaultTemplate(false);
-            try { saveMetadata(duplicate); } catch (Exception ignored) { }
+            try { saveMetadata(duplicate); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return Optional.of(keeper);
     }
@@ -176,13 +176,13 @@ public final class ExcelTemplateStorageService {
             } catch (Exception rollbackError) {
                 error.addSuppressed(rollbackError);
             }
-            try { if (history != null) Files.deleteIfExists(history); } catch (Exception ignored) { }
-            try { Files.deleteIfExists(temp); } catch (Exception ignored) { }
+            try { if (history != null) Files.deleteIfExists(history); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            try { Files.deleteIfExists(temp); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if (error instanceof IOException io) throw io;
             throw new IOException("Excel workbook could not be saved: " + rootMessage(error), error);
         } finally {
-            try { Files.deleteIfExists(temp); } catch (Exception ignored) { }
-            try { Files.deleteIfExists(folder.resolve("source.rollback.xlsx")); } catch (Exception ignored) { }
+            try { Files.deleteIfExists(temp); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            try { Files.deleteIfExists(folder.resolve("source.rollback.xlsx")); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
     }
 
@@ -230,11 +230,11 @@ public final class ExcelTemplateStorageService {
                 if (metadataBefore == null) Files.deleteIfExists(metadata);
                 else Files.write(metadata, metadataBefore, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             } catch (Exception rollbackError) { error.addSuppressed(rollbackError); }
-            try { Files.deleteIfExists(temp); } catch (Exception ignored) { }
+            try { Files.deleteIfExists(temp); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if (error instanceof IOException io) throw io;
             throw new IOException("Excel template metadata could not be saved: " + rootMessage(error), error);
         } finally {
-            try { Files.deleteIfExists(temp); } catch (Exception ignored) { }
+            try { Files.deleteIfExists(temp); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
     }
 
@@ -254,7 +254,7 @@ public final class ExcelTemplateStorageService {
         } catch (Exception error) {
             validationFailure = error;
         } finally {
-            try { Files.deleteIfExists(test); } catch (Exception ignored) { }
+            try { Files.deleteIfExists(test); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             try {
                 byte[] sourceAfterValidation = Files.readAllBytes(source);
                 if (!Arrays.equals(sourceBeforeValidation, sourceAfterValidation)) {

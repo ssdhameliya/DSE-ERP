@@ -1229,7 +1229,7 @@ public final class PdfStudioRenderer {
     private static LocalDate parseDate(String value) {
         if (value == null || value.isBlank()) return LocalDate.now();
         for (DateTimeFormatter f : List.of(DateTimeFormatter.ofPattern("dd/MM/yyyy"), DateTimeFormatter.ofPattern("dd-MM-yyyy"), DateTimeFormatter.ISO_LOCAL_DATE)) {
-            try { return LocalDate.parse(value.trim(), f); } catch (Exception ignored) { }
+            try { return LocalDate.parse(value.trim(), f); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return LocalDate.now();
     }

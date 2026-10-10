@@ -1267,7 +1267,7 @@ public final class IconFactory {
         if (value.contains("purchase")) return "purchase";
         if (value.contains("sale")) return "sale";
         if (value.contains("master")) return "master";
-        if (value.contains("inventory")) return "inventory";
+        if (value.contains("inventory") || value.contains("barcode")) return "inventory";
         if (value.contains("item") || value.contains("product")) return "item";
         if (value.contains("excel") || value.contains("spreadsheet")) return "excel";
         if (value.contains("pdf")) return "pdf";
@@ -1282,7 +1282,7 @@ public final class IconFactory {
         if (value.contains("clear selection") || value.contains("clear search") || value.contains("clear")) return "cancel";
         if (value.contains("back")) return "previous";
         if (value.contains("cancel") || value.contains("close")) return "cancel";
-        if (value.contains("refresh") || value.contains("reset")) return "refresh";
+        if (value.contains("refresh") || value.contains("reset") || value.contains("recalculate") || value.contains("calculate")) return "refresh";
         if (value.contains("filter")) return "filter";
         if (value.contains("print")) return "print";
         if (value.contains("attach")) return "attachment";

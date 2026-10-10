@@ -137,7 +137,7 @@ public final class ExcelTemplateRenderer {
         workbook.setForceFormulaRecalculation(true);
         try {
             workbook.getCreationHelper().createFormulaEvaluator().evaluateAll();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     /** Excel-only derived values kept out of the shared PDF field catalog. */
@@ -212,7 +212,7 @@ public final class ExcelTemplateRenderer {
         anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
         Picture picture = drawing.createPicture(anchor, pictureIndex);
         if (merged == null) {
-            try { picture.resize(1.0); } catch (Exception ignored) { }
+            try { picture.resize(1.0); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
     }
 
@@ -340,7 +340,7 @@ public final class ExcelTemplateRenderer {
         try {
             if (rule.getConditionType() == ConditionType.FILTER
                     && rule.getConditionFilterType() == ConditionFilterType.DUPLICATE_VALUES) return true;
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         String formula = rule.getFormula1();
         if (formula == null) return false;
         String normalized = formula.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
@@ -549,7 +549,7 @@ public final class ExcelTemplateRenderer {
             if(whole.matches()&&"item.descriptionWithRemarks".equals(whole.group(1)))ensureWrap(cell);
             // If the whole cell is a numeric repeating token, store a real number for formulas/sorting.
             if(text.trim().matches("\\{\\{\\s*(item|charge)\\.[A-Za-z0-9_.-]+\\s*}}") && replaced.matches("-?\\d+(\\.\\d+)?")){
-                try{cell.setCellValue(Double.parseDouble(replaced));continue;}catch(Exception ignored){}
+                try{cell.setCellValue(Double.parseDouble(replaced));continue;}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
             cell.setCellValue(replaced);
         }
@@ -743,7 +743,7 @@ public final class ExcelTemplateRenderer {
             return;
         }
         if(whole.matches() && isNumericExcelField(whole.group(1)) && numeric.matches("-?\\d+(\\.\\d+)?")){
-            try{double value=Double.parseDouble(numeric);cell.setCellValue(value);if(requiresTwoDecimalMoneyFormat(whole.group(1)))ensureTwoDecimalMoneyFormat(cell);return;}catch(Exception ignored){}
+            try{double value=Double.parseDouble(numeric);cell.setCellValue(value);if(requiresTwoDecimalMoneyFormat(whole.group(1)))ensureTwoDecimalMoneyFormat(cell);return;}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         cell.setCellValue(replaced==null?"":replaced);
     }

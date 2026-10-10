@@ -17,7 +17,7 @@ public final class ShellIndicatorBus {
 
     public static void publish() {
         for (Runnable listener : LISTENERS) {
-            try { listener.run(); } catch (RuntimeException ignored) { }
+            try { listener.run(); } catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
     }
 }

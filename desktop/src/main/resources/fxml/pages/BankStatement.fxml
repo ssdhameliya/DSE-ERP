@@ -9,7 +9,7 @@
         <StackPane fx:id="pageIcon" prefWidth="42" prefHeight="42" styleClass="approved-page-icon,bank-recon-page-icon"/>
         <VBox spacing="2">
           <Label text="Bank Statement" styleClass="approved-page-title"/>
-          <Label text="Review and reconcile imported bank transactions" styleClass="approved-page-subtitle,bank-recon-subtitle"/>
+          <Label text="Review and reconcile imported bank transactions" wrapText="true" styleClass="approved-page-subtitle,bank-recon-subtitle"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
         <VBox spacing="3" minWidth="300">
@@ -77,7 +77,7 @@
               <TableColumn fx:id="colMatch" text="Match / Link"/>
               <TableColumn fx:id="colAction" text="Actions" sortable="false" resizable="false"/>
             </columns>
-            <placeholder><VBox alignment="CENTER" spacing="8"><Label text="No bank statement transactions to display" styleClass="bank-recon-empty-title"/><Label text="Import a CSV statement or select an existing statement batch." styleClass="bank-recon-empty-note"/></VBox></placeholder>
+            <placeholder><VBox alignment="CENTER" spacing="8"><Label text="No bank statement transactions to display" styleClass="bank-recon-empty-title"/><Label text="Import a CSV statement or select an existing statement batch." wrapText="true" styleClass="bank-recon-empty-note"/></VBox></placeholder>
           </TableView>
           <HBox alignment="CENTER_LEFT" spacing="10" styleClass="bank-recon-footer">
             <Label fx:id="lblShowing" text="Showing 0 records" styleClass="finance-showing-label"/>

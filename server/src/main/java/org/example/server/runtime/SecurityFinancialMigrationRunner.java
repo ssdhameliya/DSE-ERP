@@ -165,7 +165,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V10_0_29_4__warehouse_batch_serial",
                     "db/migration/V10_0_29_4__warehouse_batch_serial.sql"),
             new Migration("V10_0_29_5__security_permissions_alignment",
-                    "db/migration/V10_0_29_5__security_permissions_alignment.sql")
+                    "db/migration/V10_0_29_5__security_permissions_alignment.sql"),
+            new Migration("V10_0_30_1__credit_debit_eway_financials",
+                    "db/migration/V10_0_30_1__credit_debit_eway_financials.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -321,6 +323,8 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireTable("backup_scheduler_state");
         requireTable("audit_event");
         requireTable("audit_change");
+        requireTable("credit_note_header");
+        requireTable("debit_note_header");
         requireFunction("dse_safe_date");
     }
 

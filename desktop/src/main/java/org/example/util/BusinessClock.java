@@ -24,7 +24,7 @@ public final class BusinessClock {
         String configured = ConfigManager.runtimeBusinessZone();
         if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.timeZone", "");
         if (configured != null && !configured.isBlank()) {
-            try { return ZoneId.of(configured.trim()); } catch (Exception ignored) { }
+            try { return ZoneId.of(configured.trim()); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return ZoneId.systemDefault();
     }
@@ -77,7 +77,7 @@ public final class BusinessClock {
                 DateTimeFormatter.ofPattern("dd/MM/uuuu"))) {
             try {
                 return formatDate(LocalDate.parse(text, parser));
-            } catch (DateTimeParseException ignored) { }
+            } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return text;
     }
@@ -122,20 +122,45 @@ public final class BusinessClock {
     public static Instant parseTimestamp(String value) {
         if (value == null || value.isBlank()) return null;
         String text = value.trim();
-        try { return Instant.parse(text); } catch (DateTimeParseException ignored) { }
-        try { return OffsetDateTime.parse(text).toInstant(); } catch (DateTimeParseException ignored) { }
+        try { return Instant.parse(text); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+        try { return OffsetDateTime.parse(text).toInstant(); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         String offsetCompatible = text.replace(' ', 'T');
         if (offsetCompatible.matches(".*[+-]\\d{2}$")) offsetCompatible += ":00";
-        try { return OffsetDateTime.parse(offsetCompatible).toInstant(); } catch (DateTimeParseException ignored) { }
-        try { return LocalDateTime.parse(offsetCompatible, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(zone()).toInstant(); } catch (DateTimeParseException ignored) { }
+        try { return OffsetDateTime.parse(offsetCompatible).toInstant(); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+        try { return LocalDateTime.parse(offsetCompatible, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(zone()).toInstant(); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         for (DateTimeFormatter formatter : List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME,
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))) {
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"),
+                DateTimeFormatter.ofPattern("dd-MMM-yyyy hh:mm a z", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("dd-MMM-yyyy hh:mm a", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.ENGLISH))) {
+            try { return ZonedDateTime.parse(text, formatter).toInstant(); }
+            catch (Exception ignored) { }
             try { return LocalDateTime.parse(text, formatter).atZone(zone()).toInstant(); }
-            catch (DateTimeParseException ignored) { }
+            catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         throw new IllegalArgumentException("Unsupported timestamp format: " + value);
+    }
+
+    /** Formats a raw time string (e.g. HH:mm or hh:mm a) using the configured company timePattern. */
+    public static String formatTime(String value) {
+        if (value == null || value.isBlank()) return "";
+        String text = value.trim();
+        for (DateTimeFormatter parser : List.of(
+                DateTimeFormatter.ofPattern("HH:mm"),
+                DateTimeFormatter.ofPattern("H:m"),
+                DateTimeFormatter.ofPattern("HH:mm:ss"),
+                DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH))) {
+            try {
+                LocalTime time = LocalTime.parse(text, parser);
+                return DateTimeFormatter.ofPattern(timePattern(), Locale.getDefault()).format(time);
+            } catch (DateTimeParseException ignored) { }
+        }
+        return text;
     }
 
     /** Parses text dates using the saved date format first, then safe compatibility formats. */
@@ -162,7 +187,7 @@ public final class BusinessClock {
                 return LocalDate.parse(text, DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH));
             } catch (DateTimeParseException | IllegalArgumentException ignored) { }
         }
-        try { return LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE); } catch (Exception ignored) { }
+        try { return LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         throw new IllegalArgumentException("Invalid date: " + value + " (expected " + datePattern() + " or a supported Excel date format)");
     }
 }

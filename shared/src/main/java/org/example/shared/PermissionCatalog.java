@@ -31,15 +31,21 @@ public final class PermissionCatalog {
             entry("CUSTOMERS", "Customers", "Sales", "customer", 22),
             entry("COMMUNICATION", "Communication", "Sales", "email", 23),
             entry("REMINDERS", "Reminders", "Sales", "reminder", 24),
+            entry("CREDIT_NOTE", "Credit Notes", "Sales", "credit_note", 25),
             entry("PURCHASE", "Purchase Register", "Purchase", "purchase", 30),
             entry("SUPPLIERS", "Suppliers", "Purchase", "supplier", 31),
+            entry("DEBIT_NOTE", "Debit Notes", "Purchase", "debit_note", 32),
             entry("INVENTORY", "Inventory / Item Master", "Inventory", "inventory", 40),
             entry("IMPORT", "Data Import", "Inventory", "import", 41),
+            entry("BARCODE", "Barcode Studio", "Inventory", "barcode", 42),
             entry("BANK_EXPENSE", "Finance & Banking", "Finance & Banking", "bank", 50),
             entry("GST_COMPLIANCE", "GST Compliance", "Finance & Compliance", "tax", 52),
+            entry("EWAY_BILL", "E-Way Bill & E-Invoice", "Finance & Compliance", "eway", 53),
             entry("PURCHASE_RECON", "Purchase Recon (2B)", "Finance & Compliance", "reconcile", 54),
             entry("RECON_SUPPLIER", "Recon Suppliers", "Finance & Compliance", "supplier", 55),
             entry("GENERAL_LEDGER", "General Ledger & Accounts", "Finance & Compliance", "ledger", 56),
+            entry("FINANCIAL_STATEMENTS", "Financial Statements (P&L / BS)", "Finance & Compliance", "statement", 57),
+            entry("AGING_ANALYSIS", "AR / AP Aging Analysis", "Finance & Compliance", "aging", 58),
             entry("MASTERS", "Masters", "Masters", "master", 60),
             entry("REPORTS", "Reports", "Reports", "report", 70),
             entry("DOCUMENT_STUDIO", "Document Studio", "Document Studio", "document", 80),
@@ -53,7 +59,7 @@ public final class PermissionCatalog {
     );
 
     private static final Set<String> SALES_MODULES = Set.of(
-            "DASHBOARD", "SALES", "QUOTATION", "CUSTOMERS", "COMMUNICATION", "REMINDERS", "REPORTS", "INVENTORY");
+            "DASHBOARD", "SALES", "QUOTATION", "CUSTOMERS", "COMMUNICATION", "REMINDERS", "REPORTS", "INVENTORY", "CREDIT_NOTE");
     private static final Set<String> ADMINISTRATION_MODULES = Set.of(
             "USERS", "SETTINGS", "BACKUP", "APPLICATION_UPDATES", "SAFE_ROLLBACK", "AUTOMATION", "AUDIT");
 
@@ -83,6 +89,9 @@ public final class PermissionCatalog {
             case "MATCH" -> "Match";
             case "EXECUTE" -> "Execute";
             case "POST" -> "Post";
+            case "GENERATE" -> "Generate";
+            case "UPDATE_VEHICLE" -> "Update Vehicle";
+            case "REMIND" -> "Send Reminder";
             default -> title(normalized.replace('_', ' '));
         };
     }

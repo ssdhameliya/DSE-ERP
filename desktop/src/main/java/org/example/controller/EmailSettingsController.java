@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -20,7 +21,7 @@ import org.example.update.BuildInfo;
 
 import java.util.regex.Pattern;
 
-public class EmailSettingsController {
+public class EmailSettingsController implements ScreenLifecycle {
     private static final Pattern EMAIL=Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     @FXML private ImageView imgBrandLogo, imgBrandMark;
     @FXML private StackPane brandLogoBox, brandMarkBox;
@@ -101,4 +102,9 @@ public class EmailSettingsController {
     private void error(Control f,Label l,String t){l.setText(t);l.setManaged(true);l.setVisible(true);if(!f.getStyleClass().contains("invalid-field"))f.getStyleClass().add("invalid-field");}
     private void clear(Control f,Label l){l.setManaged(false);l.setVisible(false);f.getStyleClass().remove("invalid-field");}
     private void message(String t,boolean error){lblMessage.setText(t);lblMessage.getStyleClass().removeAll("message-error","message-success");lblMessage.getStyleClass().add(error?"message-error":"message-success");}
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

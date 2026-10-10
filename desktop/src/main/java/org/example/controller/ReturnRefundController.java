@@ -68,9 +68,9 @@ public class ReturnRefundController implements ScreenLifecycle {
 
     private void refreshMasterLookups(){
         UiTaskExecutor.submitLatest("return-refund-lookups",()->{
-            List<String> modes=new ArrayList<>();try{modes.addAll(lookups.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
+            List<String> modes=new ArrayList<>();try{modes.addAll(lookups.getValuesByCategoryCode("PAYMENT_MODE"));}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
-            List<String> accounts=new ArrayList<>();try{for(var l:lookups.getByCategoryCode("BANK_ACCOUNT"))if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String d=l.getDescription()==null?"":l.getDescription().trim();accounts.add(d.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+d);}}catch(Exception ignored){}
+            List<String> accounts=new ArrayList<>();try{for(var l:lookups.getByCategoryCode("BANK_ACCOUNT"))if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String d=l.getDescription()==null?"":l.getDescription().trim();accounts.add(d.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+d);}}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if(accounts.isEmpty()){String bank=ConfigManager.get("payment.bankName","").trim(),acct=ConfigManager.get("payment.accountNumber","").trim();if(!acct.isBlank())accounts.add(bank.isBlank()?acct:acct+" - "+bank);}
             return new RefundLookups(List.copyOf(modes),List.copyOf(accounts));
         },loaded->{

@@ -64,6 +64,17 @@ public final class WindowUtilsFx {
         stage.setMinWidth(0);
         stage.setMinHeight(0);
         if (stage.getScene() != null && stage.getScene().getRoot() != null) {
+            if (stage.getScene().getRoot() instanceof javafx.scene.control.DialogPane dialogPane) {
+                javafx.scene.Node content = dialogPane.getContent();
+                if (content != null && !(content instanceof javafx.scene.control.ScrollPane)) {
+                    javafx.scene.control.ScrollPane sp = new javafx.scene.control.ScrollPane(content);
+                    sp.setFitToWidth(true);
+                    sp.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+                    sp.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
+                    sp.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+                    dialogPane.setContent(sp);
+                }
+            }
             stage.getScene().getRoot().applyCss();
             stage.sizeToScene();
         }

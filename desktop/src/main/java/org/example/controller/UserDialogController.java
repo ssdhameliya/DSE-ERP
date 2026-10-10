@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -18,7 +19,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Shared Add/Edit User form backed by the server-owned Role Master and security policy. */
-public class UserDialogController {
+public class UserDialogController implements ScreenLifecycle {
     private static final Pattern EMAIL = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     @FXML private Label lblTitle, lblSubtitle, lblMessage, lblMfaPolicy, lblMfaStatus;
@@ -358,4 +359,9 @@ public class UserDialogController {
     private static boolean blank(String v) { return v == null || v.isBlank(); }
     private static String nvl(String v) { return v == null ? "" : v; }
     private static String blank(String v, String fallback) { return blank(v) ? fallback : v; }
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

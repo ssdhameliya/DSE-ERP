@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import org.example.util.OwnedAlert;
 
 
@@ -33,7 +34,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.List;
 
-public abstract class PartyMasterController {
+public abstract class PartyMasterController implements ScreenLifecycle {
     @FXML
     protected TextField txtSearch;
     @FXML
@@ -241,10 +242,12 @@ public abstract class PartyMasterController {
         Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION, "Delete '" + party.getName() + "'? This cannot be undone.", ButtonType.YES, ButtonType.NO);
         confirmation.setHeaderText("Confirm deletion");
         if (confirmation.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
+            if (tableParties != null) tableParties.setDisable(true);
             UiTaskExecutor.submitAction(
                 "party-delete-" + party.getId(),
                 () -> { service.delete(party); return null; },
                 ignored -> {
+                    if (tableParties != null) tableParties.setDisable(false);
                     NotificationService.createNotification(
                         displayName() + " deleted",
                         party.getPartyCode() + " - " + party.getName(),
@@ -255,7 +258,10 @@ public abstract class PartyMasterController {
                         party.getPartyCode() + " - " + party.getName() + " was deleted successfully.");
                     load();
                 },
-                failure -> warning(message(failure))
+                failure -> {
+                    if (tableParties != null) tableParties.setDisable(false);
+                    warning(message(failure));
+                }
             );
         }
     }
@@ -400,6 +406,13 @@ public abstract class PartyMasterController {
                 displayName() + " master exported to:\n" + path);
         } catch (Exception ex) {
             error("Could not export the workbook: " + ex.getMessage());
+        }
+    }
+
+    @Override
+    public void onScreenHidden() {
+        if (tableParties != null) {
+            tableParties.getSelectionModel().clearSelection();
         }
     }
 }

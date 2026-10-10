@@ -76,16 +76,16 @@ public final class SettingsAssetService {
                 configCommitted = true;
             } catch (Exception configError) {
                 ConfigManager.setWithoutSaving(configKey, previousConfiguredPath);
-                try { Files.deleteIfExists(destination); } catch (Exception ignored) { }
+                try { Files.deleteIfExists(destination); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 throw configError;
             }
 
             removeOlderManagedAssetVersions(assetsFolder, baseName, destination);
             return new Stored(destination, previewImage, selection.inspection());
         } finally {
-            try { Files.deleteIfExists(temporary); } catch (Exception ignored) { }
+            try { Files.deleteIfExists(temporary); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if (!configCommitted) {
-                try { Files.deleteIfExists(destination); } catch (Exception ignored) { }
+                try { Files.deleteIfExists(destination); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
         }
     }
@@ -114,7 +114,7 @@ public final class SettingsAssetService {
 
     public static void deleteConfiguredFile(String configuredPath) {
         if (configuredPath == null || configuredPath.isBlank()) return;
-        try { Files.deleteIfExists(Path.of(configuredPath)); } catch (Exception ignored) { }
+        try { Files.deleteIfExists(Path.of(configuredPath)); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private static String safeExtension(String fileName) {
@@ -130,7 +130,7 @@ public final class SettingsAssetService {
                     .filter(path -> isManagedAssetVersion(path.getFileName().toString(), baseName))
                     .filter(path -> keep == null || !path.toAbsolutePath().normalize().equals(keep.toAbsolutePath().normalize()))
                     .forEach(path -> {
-                        try { Files.deleteIfExists(path); } catch (Exception ignored) { }
+                        try { Files.deleteIfExists(path); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     });
         } catch (Exception ignored) {
             // Cleanup is best-effort only after the new path is safely persisted.

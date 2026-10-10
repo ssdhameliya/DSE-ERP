@@ -71,7 +71,27 @@ public final class RegisterUiSupport {
 
     /** Announces a shell/workspace geometry change to the single central layout coordinator. */
     public static void reflowAfterShellResize(Node root) {
+        if (root instanceof javafx.scene.Parent parent) {
+            enforceCollapsedSplitDrawers(parent);
+        }
         UiViewportLayoutCoordinator.request(root);
+    }
+
+    private static void enforceCollapsedSplitDrawers(javafx.scene.Parent parent) {
+        try {
+            for (Node node : parent.lookupAll(".split-pane")) {
+                if (node instanceof SplitPane split) {
+                    for (Node item : new java.util.ArrayList<>(split.getItems())) {
+                        if (!split.getItems().isEmpty() && item != split.getItems().getFirst() && (!item.isVisible() || !item.isManaged())) {
+                            split.getItems().remove(item);
+                            split.setDividerPositions(1.0);
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
+        }
     }
 
     public static void showDrawer(Region drawer, SplitPane splitPane, double dividerPosition) {
@@ -80,6 +100,12 @@ public final class RegisterUiSupport {
             drawer.setVisible(true);
         }
         if (splitPane != null) {
+            if (drawer != null) {
+                SplitPane.setResizableWithParent(drawer, false);
+                if (!splitPane.getItems().contains(drawer)) {
+                    splitPane.getItems().add(drawer);
+                }
+            }
             splitPane.setDividerPositions(dividerPosition);
             splitPane.requestLayout();
             UiViewportLayoutCoordinator.request(splitPane);
@@ -92,6 +118,9 @@ public final class RegisterUiSupport {
             drawer.setVisible(false);
         }
         if (splitPane != null) {
+            if (drawer != null && splitPane.getItems().contains(drawer)) {
+                splitPane.getItems().remove(drawer);
+            }
             splitPane.setDividerPositions(1.0);
             splitPane.requestLayout();
             UiViewportLayoutCoordinator.request(splitPane);

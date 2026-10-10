@@ -269,7 +269,7 @@ public class BankStatementController implements ScreenLifecycle {
                 if(lookup==null||!lookup.isActive()||safe(lookup.getLookupValue()).isBlank())continue;
                 options.add(new BankAccountOption(lookup.getLookupValue().trim(),safe(lookup.getDescription()).trim()));
             }
-        }catch(Exception ignored){}
+        }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return List.copyOf(options);
     }
     private void applyBankAccountMaster(List<BankAccountOption> options){

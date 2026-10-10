@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -83,7 +84,7 @@ public class GstComplianceService {
     public List<GstDtos.Gstr2bRecordDto> process2bImport(String returnPeriod,
                                                          List<Gstr2bReconciliationEntity> incomingList,
                                                          String username) {
-        List<PurchaseHeaderEntity> erpPurchases = purchaseRepository.findAllByOrderByInvoiceDateDescIdDesc();
+        List<PurchaseHeaderEntity> erpPurchases = purchaseRepository.findTop2500ByOrderByInvoiceDateDescIdDesc();
         Map<String, PurchaseHeaderEntity> erpNormMap = new HashMap<>();
         for (PurchaseHeaderEntity p : erpPurchases) {
             if (p.getInvoiceNo() != null) {
@@ -103,10 +104,11 @@ public class GstComplianceService {
                 item.setErpPurchaseId(Long.valueOf(matchedErp.getId()));
                 BigDecimal erpTotal = matchedErp.getTotalAmount() != null ?
                         BigDecimal.valueOf(matchedErp.getTotalAmount()) : BigDecimal.ZERO;
-                BigDecimal portalTotal = item.getTaxableValue()
-                        .add(item.getIgstAmount())
-                        .add(item.getCgstAmount())
-                        .add(item.getSgstAmount());
+                BigDecimal taxableVal = item.getTaxableValue() != null ? item.getTaxableValue() : BigDecimal.ZERO;
+                BigDecimal igstVal = item.getIgstAmount() != null ? item.getIgstAmount() : BigDecimal.ZERO;
+                BigDecimal cgstVal = item.getCgstAmount() != null ? item.getCgstAmount() : BigDecimal.ZERO;
+                BigDecimal sgstVal = item.getSgstAmount() != null ? item.getSgstAmount() : BigDecimal.ZERO;
+                BigDecimal portalTotal = taxableVal.add(igstVal).add(cgstVal).add(sgstVal);
 
                 BigDecimal diff = erpTotal.subtract(portalTotal).abs();
                 item.setVarianceAmount(diff);
@@ -133,6 +135,37 @@ public class GstComplianceService {
 
     @Transactional(readOnly = true)
     public GstDtos.Gstr3bSummaryDto calculateGstr3b(String returnPeriod) {
+        Integer filterMonth = null;
+        Integer filterYear = null;
+
+        if (returnPeriod != null && !returnPeriod.isBlank() && !"All Periods".equalsIgnoreCase(returnPeriod)) {
+            String clean = returnPeriod.replaceAll("[^0-9]", "");
+            if (clean.length() == 6) {
+                try {
+                    int m = Integer.parseInt(clean.substring(0, 2));
+                    int y = Integer.parseInt(clean.substring(2, 6));
+                    if (m >= 1 && m <= 12) {
+                        filterMonth = m;
+                        filterYear = y;
+                    } else {
+                        filterYear = Integer.parseInt(clean.substring(0, 4));
+                        filterMonth = Integer.parseInt(clean.substring(4, 6));
+                    }
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            } else if (returnPeriod.contains("-")) {
+                String[] parts = returnPeriod.split("-");
+                try {
+                    if (parts[0].trim().length() == 4) {
+                        filterYear = Integer.parseInt(parts[0].trim());
+                        filterMonth = Integer.parseInt(parts[1].trim());
+                    } else {
+                        filterMonth = Integer.parseInt(parts[0].trim());
+                        filterYear = Integer.parseInt(parts[1].trim());
+                    }
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            }
+        }
+
         List<SalesHeaderEntity> sales = salesRepository.findAllByOrderByInvoiceDateDescIdDesc();
         BigDecimal outwardTaxable = BigDecimal.ZERO;
         BigDecimal outwardIgst = BigDecimal.ZERO;
@@ -140,6 +173,21 @@ public class GstComplianceService {
         BigDecimal outwardSgst = BigDecimal.ZERO;
 
         for (SalesHeaderEntity s : sales) {
+            if (s.getDocumentStatus() != null) {
+                String st = s.getDocumentStatus().toUpperCase();
+                if (st.contains("CANCEL") || st.contains("DELETE")) continue;
+            }
+
+            if (filterMonth != null && filterYear != null && s.getInvoiceDate() != null) {
+                try {
+                    String ds = s.getInvoiceDate().length() >= 10 ? s.getInvoiceDate().substring(0, 10) : s.getInvoiceDate();
+                    LocalDate d = LocalDate.parse(ds);
+                    if (d.getMonthValue() != filterMonth || d.getYear() != filterYear) {
+                        continue;
+                    }
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            }
+
             if (s.getTotalAmount() != null) {
                 BigDecimal gross = BigDecimal.valueOf(s.getTotalAmount());
                 BigDecimal tax = s.getGstAmount() != null ? BigDecimal.valueOf(s.getGstAmount()) : BigDecimal.ZERO;
@@ -156,7 +204,15 @@ public class GstComplianceService {
         }
 
         // Available ITC from matched 2B records
-        List<Gstr2bReconciliationEntity> matched2b = gstr2bRepository.findByReturnPeriodAndMatchStatus(returnPeriod, "MATCHED");
+        List<Gstr2bReconciliationEntity> matched2b;
+        if (returnPeriod != null && !returnPeriod.isBlank() && !"All Periods".equalsIgnoreCase(returnPeriod)) {
+            matched2b = gstr2bRepository.findByReturnPeriodAndMatchStatus(returnPeriod, "MATCHED");
+        } else {
+            matched2b = gstr2bRepository.findAll().stream()
+                    .filter(r -> "MATCHED".equalsIgnoreCase(r.getMatchStatus()))
+                    .toList();
+        }
+
         BigDecimal itcIgst = BigDecimal.ZERO;
         BigDecimal itcCgst = BigDecimal.ZERO;
         BigDecimal itcSgst = BigDecimal.ZERO;
@@ -167,10 +223,48 @@ public class GstComplianceService {
             itcSgst = itcSgst.add(m.getSgstAmount() != null ? m.getSgstAmount() : BigDecimal.ZERO);
         }
 
-        // Section 49 / 49A / 49B Set-off logic
-        BigDecimal netIgst = outwardIgst.subtract(itcIgst).max(BigDecimal.ZERO);
-        BigDecimal netCgst = outwardCgst.subtract(itcCgst).max(BigDecimal.ZERO);
-        BigDecimal netSgst = outwardSgst.subtract(itcSgst).max(BigDecimal.ZERO);
+        // Section 49 / Rule 88A GST Set-off logic
+        // 1. IGST ITC offsets IGST liability first
+        BigDecimal remOutwardIgst = outwardIgst;
+        BigDecimal remItcIgst = itcIgst;
+        if (remItcIgst.compareTo(remOutwardIgst) >= 0) {
+            remItcIgst = remItcIgst.subtract(remOutwardIgst);
+            remOutwardIgst = BigDecimal.ZERO;
+        } else {
+            remOutwardIgst = remOutwardIgst.subtract(remItcIgst);
+            remItcIgst = BigDecimal.ZERO;
+        }
+
+        // 2. Excess IGST ITC offsets CGST, then SGST liability
+        BigDecimal remOutwardCgst = outwardCgst;
+        if (remItcIgst.compareTo(BigDecimal.ZERO) > 0) {
+            if (remItcIgst.compareTo(remOutwardCgst) >= 0) {
+                remItcIgst = remItcIgst.subtract(remOutwardCgst);
+                remOutwardCgst = BigDecimal.ZERO;
+            } else {
+                remOutwardCgst = remOutwardCgst.subtract(remItcIgst);
+                remItcIgst = BigDecimal.ZERO;
+            }
+        }
+
+        BigDecimal remOutwardSgst = outwardSgst;
+        if (remItcIgst.compareTo(BigDecimal.ZERO) > 0) {
+            if (remItcIgst.compareTo(remOutwardSgst) >= 0) {
+                remItcIgst = remItcIgst.subtract(remOutwardSgst);
+                remOutwardSgst = BigDecimal.ZERO;
+            } else {
+                remOutwardSgst = remOutwardSgst.subtract(remItcIgst);
+                remItcIgst = BigDecimal.ZERO;
+            }
+        }
+
+        // 3. CGST ITC offsets remaining CGST liability
+        BigDecimal netCgst = remOutwardCgst.subtract(itcCgst).max(BigDecimal.ZERO);
+
+        // 4. SGST ITC offsets remaining SGST liability
+        BigDecimal netSgst = remOutwardSgst.subtract(itcSgst).max(BigDecimal.ZERO);
+
+        BigDecimal netIgst = remOutwardIgst;
         BigDecimal totalCash = netIgst.add(netCgst).add(netSgst);
 
         return new GstDtos.Gstr3bSummaryDto(

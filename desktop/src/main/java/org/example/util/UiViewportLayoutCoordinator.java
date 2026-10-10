@@ -25,7 +25,7 @@ public final class UiViewportLayoutCoordinator {
             try {
                 if (root instanceof Parent parent) parent.requestLayout();
                 else if (root.getParent() != null) root.getParent().requestLayout();
-            } catch (RuntimeException ignored) { }
+            } catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
 
             DynamicTableLayoutManager.requestLayoutIn(root);
             ResponsiveKpiLayoutManager.requestLayoutIn(root);

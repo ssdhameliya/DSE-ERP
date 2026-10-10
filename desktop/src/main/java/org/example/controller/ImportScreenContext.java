@@ -10,4 +10,8 @@ public final class ImportScreenContext {
         requestedModule = null;
         return value;
     }
+
+    public static synchronized void clear() {
+        requestedModule = null;
+    }
 }

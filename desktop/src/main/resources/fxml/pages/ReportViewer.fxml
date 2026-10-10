@@ -17,13 +17,13 @@
     </HBox>
 
     <HBox spacing="8" alignment="CENTER_LEFT" styleClass="report-view-nav,reports-view-nav">
-        <Button text="Dashboard" onAction="#goDashboard" styleClass="approved-button,approved-secondary-button,report-nav-button"/>
-        <Button text="Report Center" onAction="#goReportCenter" styleClass="approved-button,approved-secondary-button,report-nav-button,report-nav-selected"/>
-        <Button text="Saved Reports" onAction="#goSavedReports" styleClass="approved-button,approved-secondary-button,report-nav-button"/>
-        <Button text="Scheduled" onAction="#goScheduled" styleClass="approved-button,approved-secondary-button,report-nav-button"/>
+        <Button fx:id="btnNavDashboard" text="Dashboard" onAction="#goDashboard" styleClass="approved-button,approved-secondary-button,report-nav-button"/>
+        <Button fx:id="btnNavReportCenter" text="Report Center" onAction="#goReportCenter" styleClass="approved-button,approved-secondary-button,report-nav-button"/>
+        <Button fx:id="btnNavSavedReports" text="Saved Reports" onAction="#goSavedReports" styleClass="approved-button,approved-secondary-button,report-nav-button"/>
+        <Button fx:id="btnNavScheduled" text="Scheduled" onAction="#goScheduled" styleClass="approved-button,approved-secondary-button,report-nav-button"/>
     </HBox>
 
-    <VBox fx:id="filterPanel" spacing="7" styleClass="report-filter-card,report-viewer-filter-panel">
+    <VBox fx:id="filterPanel" spacing="7" minHeight="-Infinity" VBox.vgrow="NEVER" styleClass="report-filter-card,report-viewer-filter-panel">
         <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Filters" styleClass="approved-card-title,section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCollapseFilters" text="Collapse ▲" onAction="#toggleFilters" styleClass="approved-button,approved-link-button,link-button"/></HBox>
         <GridPane fx:id="filterGrid" hgap="10" vgap="7">
             <columnConstraints><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/></columnConstraints>
@@ -42,10 +42,10 @@
             <VBox fx:id="boxMinAmount" GridPane.rowIndex="3" spacing="3"><Label text="Min Amount" styleClass="field-label"/><TextField fx:id="txtMinAmount" promptText="Any" styleClass="approved-input"/></VBox>
             <VBox fx:id="boxMaxAmount" GridPane.rowIndex="3" GridPane.columnIndex="1" spacing="3"><Label text="Max Amount" styleClass="field-label"/><TextField fx:id="txtMaxAmount" promptText="Any" styleClass="approved-input"/></VBox>
         </GridPane>
-        <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-filter-actions"><Label fx:id="lblActiveFilters" text="Active filters: Period" styleClass="approved-page-subtitle,page-subtitle"/><Region HBox.hgrow="ALWAYS"/><Button text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnApply" text="Apply Filters" onAction="#applyFilters" styleClass="approved-button,approved-primary-button"/></HBox>
+        <HBox alignment="CENTER_LEFT" spacing="8" minHeight="36" styleClass="report-filter-actions"><Label fx:id="lblActiveFilters" text="Active filters: Period" styleClass="approved-page-subtitle,page-subtitle"/><Region HBox.hgrow="ALWAYS"/><Button text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnApply" text="Apply Filters" onAction="#applyFilters" styleClass="approved-button,approved-primary-button"/></HBox>
     </VBox>
 
-    <HBox alignment="BOTTOM_LEFT" spacing="8" styleClass="approved-toolbar,report-results-toolbar">
+    <HBox alignment="BOTTOM_LEFT" spacing="8" minHeight="54" VBox.vgrow="NEVER" styleClass="approved-toolbar,report-results-toolbar">
         <StackPane minWidth="270" prefWidth="360" maxWidth="520" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
             <TextField fx:id="txtSearch" promptText="Search invoice / party / item / reference..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
             <StackPane fx:id="reportSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>

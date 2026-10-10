@@ -5,5 +5,5 @@ public final class QuotationEditorContext {
     private static Integer quotationId;
     private QuotationEditorContext() {}
     public static synchronized void open(Integer id){quotationId=id;}
-    public static synchronized Integer consume(){Integer id=quotationId;quotationId=null;return id;}
+    public static synchronized Integer consume(){Integer id=quotationId;quotationId=null;return id;} public static synchronized void clear(){quotationId=null;}
 }

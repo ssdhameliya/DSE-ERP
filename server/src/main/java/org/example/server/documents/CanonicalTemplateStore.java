@@ -144,7 +144,7 @@ public class CanonicalTemplateStore {
         if (root == null || !Files.exists(root)) return;
         try (var walk = Files.walk(root)) {
             for (Path path : walk.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
     private static String safe(String value) { return value == null ? "" : value; }
 

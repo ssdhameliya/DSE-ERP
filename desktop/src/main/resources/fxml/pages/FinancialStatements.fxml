@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.FinancialStatementsController" styleClass="approved-screen,erp-screen-root">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="Financial Statements" styleClass="screen-title"/>
+          <Label text="Real-time Profit &amp; Loss Statement, Balance Sheet, and ledger drill-down" wrapText="true" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <HBox spacing="8" alignment="CENTER_RIGHT">
+          <Label text="Period:" styleClass="field-caption"/>
+          <DatePicker fx:id="dpFromDate" prefWidth="130"/>
+          <Label text="to" styleClass="field-caption"/>
+          <DatePicker fx:id="dpToDate" prefWidth="130"/>
+          <Button fx:id="btnApplyDate" text="Apply" onAction="#refreshStatements" styleClass="primary-action,approved-button,approved-primary-button"/>
+          <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportPdf" styleClass="approved-button,approved-secondary-button"/>
+          <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportExcel" styleClass="approved-button,approved-secondary-button"/>
+        </HBox>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiRevenueIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Total Revenue" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Revenue" styleClass="metric-trend-pill,trend-positive"/>
+            </HBox>
+            <Label fx:id="kpiRevenue" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Operating sales &amp; income" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiCogsIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Cost of Sales / COGS" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="COGS" styleClass="metric-trend-pill,trend-warning"/>
+            </HBox>
+            <Label fx:id="kpiCogs" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Direct inventory costs" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiGrossProfitIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Gross Profit" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Gross" styleClass="metric-trend-pill,trend-info"/>
+            </HBox>
+            <Label fx:id="kpiGrossProfit" text="₹ 0.00" styleClass="metric-value"/>
+            <Label fx:id="lblGrossMargin" text="Margin: 0.0%" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-purple" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiNetProfitIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Net Profit / (Loss)" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Net" styleClass="metric-trend-pill,trend-neutral"/>
+            </HBox>
+            <Label fx:id="kpiNetProfit" text="₹ 0.00" styleClass="metric-value"/>
+            <Label fx:id="lblNetMargin" text="Net Margin: 0.0%" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <TabPane fx:id="tabStatements" tabClosingPolicy="UNAVAILABLE" styleClass="approved-card,financial-tab-pane">
+      <Tab text="Profit &amp; Loss Statement" fx:id="tabPnl">
+        <VBox spacing="8">
+          <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+          <HBox spacing="8" alignment="CENTER_LEFT">
+            <TextField fx:id="txtSearchPnl" promptText="Search P&amp;L accounts or groups..." HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnExpandAllPnl" text="Expand All" onAction="#expandAllPnl" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnCollapseAllPnl" text="Collapse All" onAction="#collapseAllPnl" styleClass="approved-button,approved-secondary-button"/>
+          </HBox>
+          <TreeTableView fx:id="treeTblPnl" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-tree-table">
+            <columns>
+              <TreeTableColumn fx:id="colPnlAccount" text="Account Name / Classification"/>
+              <TreeTableColumn fx:id="colPnlCode" text="Account Code"/>
+              <TreeTableColumn fx:id="colPnlType" text="Group"/>
+              <TreeTableColumn fx:id="colPnlAmount" text="Amount (₹)"/>
+              <TreeTableColumn fx:id="colPnlPercentage" text="Revenue %"/>
+            </columns>
+          </TreeTableView>
+        </VBox>
+      </Tab>
+
+      <Tab text="Balance Sheet" fx:id="tabBalanceSheet">
+        <VBox spacing="8">
+          <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+          <HBox spacing="12" alignment="CENTER_LEFT">
+            <TextField fx:id="txtSearchBs" promptText="Search Balance Sheet items..." HBox.hgrow="ALWAYS"/>
+            <Label text="Total Assets:" styleClass="field-caption"/>
+            <Label fx:id="lblTotalAssets" text="₹ 0.00" styleClass="bold-label"/>
+            <Separator orientation="VERTICAL"/>
+            <Label text="Total Liabilities &amp; Equity:" styleClass="field-caption"/>
+            <Label fx:id="lblTotalLiabEquity" text="₹ 0.00" styleClass="bold-label"/>
+            <Label fx:id="lblBsEquilibrium" text="BALANCED" styleClass="status-pill,status-pill-green"/>
+          </HBox>
+          <TreeTableView fx:id="treeTblBs" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-tree-table">
+            <columns>
+              <TreeTableColumn fx:id="colBsClassification" text="Assets / Liabilities &amp; Equity"/>
+              <TreeTableColumn fx:id="colBsCode" text="Account Code"/>
+              <TreeTableColumn fx:id="colBsGroup" text="Category"/>
+              <TreeTableColumn fx:id="colBsAmount" text="Closing Balance (₹)"/>
+            </columns>
+          </TreeTableView>
+        </VBox>
+      </Tab>
+    </TabPane>
+  </center>
+</BorderPane>

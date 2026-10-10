@@ -24,7 +24,7 @@ public final class CanonicalDocumentClient {
             HttpRequest.Builder b=HttpRequest.newBuilder(URI.create(base+path)).timeout(Duration.ofSeconds(120)).header("Accept","application/octet-stream").GET();
             ApiSession.authorize(b);
             var r=http.send(b.build(),HttpResponse.BodyHandlers.ofByteArray());
-            if(r.statusCode()<200||r.statusCode()>=300)throw new IllegalStateException("Canonical document API error ("+r.statusCode()+"): "+new String(r.body(),StandardCharsets.UTF_8));
+            if(r.statusCode()<200||r.statusCode()>=300)throw new IllegalStateException(org.example.api.ApiRuntime.errorMessage("Canonical document API",r.statusCode(),new String(r.body(),StandardCharsets.UTF_8)));
             return r.body();
         }catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException("Canonical document download was interrupted",e);}
         catch(Exception e){throw new IllegalStateException("Canonical document could not be downloaded from the company server",e);}

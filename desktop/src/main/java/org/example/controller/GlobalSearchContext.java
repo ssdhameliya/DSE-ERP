@@ -7,5 +7,5 @@ public final class GlobalSearchContext {
     private static final AtomicReference<String> QUERY=new AtomicReference<>("");
     private GlobalSearchContext(){}
     public static void open(String query){QUERY.set(query==null?"":query.trim());}
-    public static String consume(){String q=QUERY.getAndSet("");return q==null?"":q;}
+    public static String consume(){String q=QUERY.getAndSet("");return q==null?"":q;} public static void clear(){QUERY.set("");}
 }

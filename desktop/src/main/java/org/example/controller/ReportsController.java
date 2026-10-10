@@ -37,7 +37,7 @@ public class ReportsController implements ScreenLifecycle {
 
     @FXML private Label lblPageTitle,lblPageSubtitle,lblPurchase,lblSales,lblStock,lblLowStock,lblProfit,lblReceivables,lblCustomers,lblMargin,lblReportCenterCategory;
     @FXML private Label lblActiveSchedules,lblNextRun,lblReportsMonth,lblScheduleFailures;
-    @FXML private StackPane reportPageIcon,reportSalesIcon,reportPurchaseIcon,reportProfitIcon,reportReceivableIcon,reportStockIcon,reportCustomerIcon,reportCenterSearchIcon,savedReportSearchIcon,scheduleSearchIcon;
+    @FXML private StackPane reportPageIcon,reportSalesIcon,reportPurchaseIcon,reportProfitIcon,reportReceivableIcon,reportStockIcon,reportCustomerIcon,reportCenterSearchIcon,savedReportSearchIcon,scheduleSearchIcon,scheduleActiveIcon,scheduleNextRunIcon,scheduleReportsMonthIcon,scheduleFailuresIcon;
     @FXML private DatePicker dpFrom,dpTo;
     @FXML private ComboBox<String> cmbDashboardPeriod,cmbReportType,cmbParty,cmbItem,cmbSalesPerson,cmbScheduleStatus,cmbScheduleFormat;
     @FXML private ProgressBar profitProgress;
@@ -237,7 +237,15 @@ public class ReportsController implements ScreenLifecycle {
     private static String selected(ComboBox<String> box,String all){ String value=box==null?null:box.getValue(); if(value==null||value.isBlank()||value.equalsIgnoreCase(all)||value.toUpperCase(Locale.ROOT).startsWith("ALL "))return ""; return value.trim(); }
     private void setMetric(Label label,double value){ String full=money(value); label.setTooltip(new Tooltip(full)); label.setText(compactMoney(value)); }
     private String compactMoney(double value){ double abs=Math.abs(value); String sign=value<0?"-":""; if(abs>=10_000_000)return sign+"₹ "+String.format("%.2f Cr",abs/10_000_000d); if(abs>=100_000)return sign+"₹ "+String.format("%.2f L",abs/100_000d); return money(value); }
-    private void setBusy(boolean busy){ btnRefresh.setDisable(busy); btnApply.setDisable(busy); btnReset.setDisable(busy); tblSales.setDisable(busy); tblPurchases.setDisable(busy); }
+    private void setBusy(boolean busy){
+        btnRefresh.setDisable(busy);
+        btnApply.setDisable(busy);
+        btnReset.setDisable(busy);
+        tblSales.setDisable(busy);
+        tblPurchases.setDisable(busy);
+        if (btnExport != null) btnExport.setDisable(busy);
+        if (btnContextAction != null) btnContextAction.setDisable(busy);
+    }
 
     private void configureReportCategories(){
         if(reportCategories==null)return;
@@ -381,10 +389,10 @@ public class ReportsController implements ScreenLifecycle {
         colScheduleName.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().name())));
         colScheduleReport.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().savedReport())));
         colScheduleFrequency.setCellValueFactory(v->new SimpleStringProperty(scheduleFrequencyLabel(v.getValue())));
-        colScheduleTime.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().time())));
+        colScheduleTime.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatTime(v.getValue().time())));
         colScheduleFormat.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().format())));
         colScheduleDelivery.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().delivery())));
-        colScheduleNextRun.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().nextRun())));
+        colScheduleNextRun.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatTimestamp(v.getValue().nextRun())));
         colScheduleStatus.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().status())));
         colScheduleStatus.setCellFactory(c->new TableCell<>(){
             @Override protected void updateItem(String value,boolean empty){
@@ -435,7 +443,7 @@ public class ReportsController implements ScreenLifecycle {
         allSchedules.clear();if(page!=null&&page.schedules()!=null)allSchedules.addAll(page.schedules());filterSchedules();
         ReportScheduleApiClient.ScheduleSummary m=page==null?null:page.summary();
         lblActiveSchedules.setText(String.valueOf(m==null?0:m.activeSchedules()));
-        String next=m==null?safe(""):safe(m.nextRun());lblNextRun.setText(next.isBlank()?"Not scheduled":next);
+        String next=m==null?safe(""):safe(m.nextRun());lblNextRun.setText(next.isBlank()?"Not scheduled":BusinessClock.formatTimestamp(next));
         if(m!=null&&!safe(m.nextSchedule()).isBlank())lblNextRun.setTooltip(new Tooltip(m.nextSchedule()));else lblNextRun.setTooltip(null);
         lblReportsMonth.setText(String.valueOf(m==null?0:m.reportsThisMonth()));
         lblScheduleFailures.setText(String.valueOf(m==null?0:m.failuresLast30Days()));
@@ -541,7 +549,7 @@ public class ReportsController implements ScreenLifecycle {
     @FXML private void exportCsv(){exportDashboard("CSV Report","business-report.csv","csv");}
     private void exportDashboard(String title,String name,String format){
         org.example.service.PermissionService.require("REPORTS.EXPORT", "Export Reports");
-        FileChooser f=new FileChooser();f.setTitle(title);String suffix="."+format.toLowerCase(Locale.ROOT);String stamp=java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));String base=name.substring(0,name.length()-suffix.length());f.setInitialFileName(base+"-"+stamp+suffix);try{Path folder=org.example.config.WorkspaceStorageManager.reportFolder("Financial",dpFrom.getValue());if(java.nio.file.Files.isDirectory(folder))f.setInitialDirectory(folder.toFile());}catch(Exception ignored){}f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*"+suffix));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitAction("reports-export-"+format,()->{switch(format){case "pdf"->reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());case "xlsx"->reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());case "csv"->reportService.exportCsv(target,dpFrom.getValue(),dpTo.getValue());default->throw new IllegalArgumentException("Unsupported export format: "+format);}return target;},done->ToastManager.success(dpFrom,"Report created","Report created successfully:\n"+done),e->error("Could not create report: "+root(e)));
+        FileChooser f=new FileChooser();f.setTitle(title);String suffix="."+format.toLowerCase(Locale.ROOT);String stamp=java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));String base=name.substring(0,name.length()-suffix.length());f.setInitialFileName(base+"-"+stamp+suffix);try{Path folder=org.example.config.WorkspaceStorageManager.reportFolder("Financial",dpFrom.getValue());if(java.nio.file.Files.isDirectory(folder))f.setInitialDirectory(folder.toFile());}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*"+suffix));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitAction("reports-export-"+format,()->{switch(format){case "pdf"->reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());case "xlsx"->reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());case "csv"->reportService.exportCsv(target,dpFrom.getValue(),dpTo.getValue());default->throw new IllegalArgumentException("Unsupported export format: "+format);}return target;},done->ToastManager.success(dpFrom,"Report created","Report created successfully:\n"+done),e->error("Could not create report: "+root(e)));
     }
 
     private void navigate(String page){NavigationManager.navigateOrReport(page);}
@@ -567,6 +575,10 @@ public class ReportsController implements ScreenLifecycle {
         if(reportTabs!=null&&reportTabs.getTabs().size()>=4){reportTabs.getTabs().get(0).setGraphic(IconFactory.compactIcon("dashboard",14));reportTabs.getTabs().get(1).setGraphic(IconFactory.compactIcon("report",14));reportTabs.getTabs().get(2).setGraphic(IconFactory.compactIcon("save",14));reportTabs.getTabs().get(3).setGraphic(IconFactory.compactIcon("calendar",14));}
         btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));miCsv.setGraphic(IconFactory.icon("document",15));
         reportSalesIcon.getChildren().setAll(IconFactory.icon("sales",22));reportPurchaseIcon.getChildren().setAll(IconFactory.icon("purchase",22));reportProfitIcon.getChildren().setAll(IconFactory.icon("chart",22));reportReceivableIcon.getChildren().setAll(IconFactory.icon("payment",22));reportStockIcon.getChildren().setAll(IconFactory.icon("inventory",22));reportCustomerIcon.getChildren().setAll(IconFactory.icon("customer",22));
+        if(scheduleActiveIcon!=null)scheduleActiveIcon.getChildren().setAll(IconFactory.icon("calendar",22));
+        if(scheduleNextRunIcon!=null)scheduleNextRunIcon.getChildren().setAll(IconFactory.icon("time",22));
+        if(scheduleReportsMonthIcon!=null)scheduleReportsMonthIcon.getChildren().setAll(IconFactory.icon("report",22));
+        if(scheduleFailuresIcon!=null)scheduleFailuresIcon.getChildren().setAll(IconFactory.icon("alert",22));
     }
     private void configureStatusCells(){
         colSaleStatus.setCellFactory(c -> org.example.util.SemanticTableCells.status("document"));

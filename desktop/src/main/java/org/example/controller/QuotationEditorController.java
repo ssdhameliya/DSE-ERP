@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
+import javafx.application.Platform;
 import javafx.animation.PauseTransition;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -8,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
+import org.example.util.WorkflowFocusManager;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
@@ -36,7 +39,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 /** Sale-style Quotation create/edit workspace backed by the shared Master Data lookup service. */
-public final class QuotationEditorController {
+public final class QuotationEditorController implements ScreenLifecycle {
     @FXML private Label lblPageTitle,lblPageSubtitle,lblSubtotal,lblDiscount,lblTaxable,lblGst,lblGrandTotal,lblLineCount,lblAttachmentName;
     @FXML private ComboBox<CustomerChoice> cmbCustomer;
     @FXML private ComboBox<String> cmbSource;
@@ -96,6 +99,37 @@ public final class QuotationEditorController {
         loadEditorBootstrapAsync();
         tableLines.getItems().addListener((javafx.collections.ListChangeListener<LineRow>)change->{dirty=true;updateTotals();});
         txtRemarks.textProperty().addListener((o,a,b)->dirty=true);
+        installBusinessFocusOrder();
+    }
+
+    private void installBusinessFocusOrder(){
+        WorkflowFocusManager.install(java.util.List.of(
+            cmbCustomer, dpDate, dpValid, dpFollowUp,
+            txtItemSearch, txtQuantity, txtRate, txtDiscount, txtGst, btnAdd, btnSave));
+        WorkflowFocusManager.selectAllOnFocus(txtQuantity);
+        WorkflowFocusManager.selectAllOnFocus(txtRate);
+        WorkflowFocusManager.selectAllOnFocus(txtDiscount);
+        WorkflowFocusManager.selectAllOnFocus(txtGst);
+        txtGst.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                btnAdd.fire();
+                event.consume();
+            }
+        });
+        Platform.runLater(() -> {
+            if (txtItemSearch != null && txtItemSearch.getScene() != null) {
+                txtItemSearch.getScene().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+                    if ((event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.S)
+                            || event.getCode() == javafx.scene.input.KeyCode.F10) {
+                        btnSave.fire();
+                        event.consume();
+                    } else if (event.getCode() == javafx.scene.input.KeyCode.F2) {
+                        WorkflowFocusManager.initial(txtItemSearch);
+                        event.consume();
+                    }
+                });
+            }
+        });
     }
 
 
@@ -235,7 +269,7 @@ public final class QuotationEditorController {
     private void showItemSuggestions(List<ItemChoice> matches){itemSuggestions.getItems().clear();for(ItemChoice item:matches){MenuItem option=new MenuItem(item.toString(),IconFactory.compactIcon("item",15));option.setOnAction(event->selectItem(item,true));itemSuggestions.getItems().add(option);}if(matches.isEmpty())itemSuggestions.hide();else{itemSuggestions.hide();itemSuggestions.show(txtItemSearch,javafx.geometry.Side.BOTTOM,0,2);}}
     private ItemChoice resolveTypedItem(String text){if(selectedItem!=null)return selectedItem;String value=safe(text).trim();if(value.isBlank())return null;return itemCache.stream().filter(item->item.toString().equalsIgnoreCase(value)||item.code.equalsIgnoreCase(value)||item.description.equalsIgnoreCase(value)).findFirst().orElse(null);}
     private void selectItem(ItemChoice item,boolean applyMasterDefaults){selectedItem=item;updatingItemSearch=true;try{txtItemSearch.setText(item==null?"":item.toString());}finally{updatingItemSearch=false;}itemSuggestions.hide();if(item!=null&&applyMasterDefaults){txtRate.setText(format(item.rate));txtGst.setText(format(item.gst));txtDiscount.setText(format(item.discount));}}
-    private void clearLineEditor(){selectedItem=null;updatingItemSearch=true;try{txtItemSearch.clear();}finally{updatingItemSearch=false;}txtQuantity.setText("1.00");txtRate.setText("0.00");txtDiscount.setText("0.00");txtGst.setText("0.00");editingLine=null;editingIndex=-1;btnAdd.setText("Add Item");btnDeleteLine.setDisable(true);tableLines.getSelectionModel().clearSelection();itemSuggestions.hide();}
+    private void clearLineEditor(){selectedItem=null;updatingItemSearch=true;try{txtItemSearch.clear();}finally{updatingItemSearch=false;}txtQuantity.setText("1.00");txtRate.setText("0.00");txtDiscount.setText("0.00");txtGst.setText("0.00");editingLine=null;editingIndex=-1;btnAdd.setText("Add Item");btnDeleteLine.setDisable(true);tableLines.getSelectionModel().clearSelection();itemSuggestions.hide();WorkflowFocusManager.initial(txtItemSearch);}
 
     private void configureCustomerSearch(){
         cmbCustomer.setEditable(true);
@@ -352,5 +386,10 @@ public final class QuotationEditorController {
 
     private static final class CustomerChoice{final int id;final String code,name;CustomerChoice(Party p){id=p.getId();code=safe(p.getPartyCode());name=safe(p.getName());}CustomerChoice(QuotationApiClient.CustomerChoiceDto p){id=p.id();code=safe(p.code());name=safe(p.name());}String display(){return code.isBlank()?name:code+" - "+name;}@Override public String toString(){return display();}}
     private static final class ItemChoice{final String code,description,remarks,category,hsn,unit;final double rate,gst,discount;ItemChoice(QuotationApiClient.ItemChoiceDto i){this(i.code(),i.description(),i.remarks(),i.category(),i.hsn(),i.unit(),i.rate(),i.gst(),i.discount());}ItemChoice(String code,String description,String remarks,String category,String hsn,String unit,double rate,double gst,double discount){this.code=safe(code);this.description=safe(description);this.remarks=safe(remarks);this.category=safe(category);this.hsn=safe(hsn);this.unit=safe(unit);this.rate=rate;this.gst=gst;this.discount=discount;}@Override public String toString(){String title=code+(description.isBlank()?"":" - "+description);String meta=String.join(" | ",List.of(category.isBlank()?"Category: -":"Category: "+category,hsn.isBlank()?"HSN: -":"HSN: "+hsn,unit.isBlank()?"Unit: -":"Unit: "+unit,"GST: "+format(gst)+"%"));return title+" | "+meta;}}
-    public static final class LineRow{final StringProperty code=new SimpleStringProperty(),description=new SimpleStringProperty(),category=new SimpleStringProperty(),hsn=new SimpleStringProperty(),unit=new SimpleStringProperty();final DoubleProperty quantity=new SimpleDoubleProperty(),rate=new SimpleDoubleProperty(),gst=new SimpleDoubleProperty(),discount=new SimpleDoubleProperty(),discountAmount=new SimpleDoubleProperty(),gstAmount=new SimpleDoubleProperty(),total=new SimpleDoubleProperty();LineRow(QuotationApiClient.LineDto l){this(l.code(),l.description(),l.category(),l.hsn(),l.unit(),l.quantity(),l.rate(),l.gst(),l.discount());}LineRow(String c,String d,String cat,String h,String u,double q,double r,double g,double disc){code.set(c);description.set(d);category.set(cat);hsn.set(h);unit.set(u);quantity.set(q);rate.set(r);gst.set(g);discount.set(disc);double gross=q*r,discountValue=gross*disc/100,taxable=gross-discountValue;discountAmount.set(discountValue);gstAmount.set(taxable*g/100);total.set(taxable+gstAmount.get());}}
+    public static final class LineRow{final StringProperty code=new SimpleStringProperty(),description=new SimpleStringProperty(),category=new SimpleStringProperty(),hsn=new SimpleStringProperty(),unit=new SimpleStringProperty();final DoubleProperty quantity=new SimpleDoubleProperty(),rate=new SimpleDoubleProperty(),gst=new SimpleDoubleProperty(),discount=new SimpleDoubleProperty(),discountAmount=new SimpleDoubleProperty(),gstAmount=new SimpleDoubleProperty(),total=new SimpleDoubleProperty();LineRow(QuotationApiClient.LineDto l){this(l.code(),l.description(),l.category(),l.hsn(),l.unit(),l.quantity(),l.rate(),l.gst(),l.discount());}LineRow(String c,String d,String cat,String h,String u,double q,double r,double g,double disc){code.set(c);description.set(d);category.set(cat);hsn.set(h);unit.set(u);quantity.set(q);rate.set(r);gst.set(g);discount.set(disc);var res=org.example.shared.DocumentCalculationEngine.line(q,r,disc,g);discountAmount.set(res.discountAmount());gstAmount.set(res.taxAmount());total.set(res.totalAmount());}}
+
+    @Override
+    public void onScreenHidden() {
+        QuotationEditorContext.clear();
+    }
 }

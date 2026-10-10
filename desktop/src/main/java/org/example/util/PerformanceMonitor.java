@@ -79,7 +79,7 @@ public final class PerformanceMonitor {
             }
             Files.writeString(log, line,
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private static final class Stats {

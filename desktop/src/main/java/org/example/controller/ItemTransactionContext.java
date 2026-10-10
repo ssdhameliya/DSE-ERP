@@ -8,6 +8,6 @@ public final class ItemTransactionContext {
     public static synchronized void sale(String code){saleItemCode=clean(code);}
     public static synchronized void purchase(String code){purchaseItemCode=clean(code);}
     public static synchronized String consumeSale(){String v=saleItemCode;saleItemCode=null;return v;}
-    public static synchronized String consumePurchase(){String v=purchaseItemCode;purchaseItemCode=null;return v;}
+    public static synchronized String consumePurchase(){String v=purchaseItemCode;purchaseItemCode=null;return v;} public static synchronized void clear(){saleItemCode=null;purchaseItemCode=null;}
     private static String clean(String v){return v==null?null:v.trim();}
 }

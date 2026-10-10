@@ -54,7 +54,7 @@ public class SalesService {
             ReturnApiClient.Settlement s=byInvoice.get(row.getInvoiceNo());
             if(s==null){row.clearReturnSettlement();continue;}
             LocalDate due=null;
-            try{if(s.dueDate()!=null&&!s.dueDate().isBlank())due=LocalDate.parse(s.dueDate());}catch(Exception ignored){}
+            try{if(s.dueDate()!=null&&!s.dueDate().isBlank())due=LocalDate.parse(s.dueDate());}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             row.applyReturnSettlement(s.status(),s.pendingAmount(),due,s.approvedReturnAmount(),s.settledAmount(),s.returnStatus(),s.refundStatus(),s.returnedQuantity(),s.originalQuantity());
         }
     }

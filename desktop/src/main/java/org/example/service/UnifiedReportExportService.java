@@ -53,19 +53,18 @@ public final class UnifiedReportExportService {
     public static void pdf(Path target, ReportResult result, Set<String> visibleKeys,
                            boolean includeSummary, boolean includeFilters) throws IOException {
         Objects.requireNonNull(result,"result");
+        if(target.getParent()!=null) Files.createDirectories(target.getParent());
         List<Integer> positions=positions(result,visibleKeys);
         PageSize page=positions.size()<=6?PageSize.A4:PageSize.A4.rotate();
-        Path tmp=Files.createTempFile(target.getParent()==null?Path.of("."):target.getParent(),"dse-report-",".pdf");
-        try{
-            try(PdfDocument pdf=new PdfDocument(new PdfWriter(tmp.toFile())); Document doc=new Document(pdf,page)){
-                doc.setMargins(30,28,34,28);
-                addHeader(doc,result);
-                if(includeFilters)addFilters(doc,result);
-                if(includeSummary)addSummary(doc,result);
-                addTable(doc,result,positions);
-            }
-            stampFooter(tmp,target,result);
-        }finally{Files.deleteIfExists(tmp);}
+        ByteArrayOutputStream baos=new ByteArrayOutputStream();
+        try(PdfDocument pdf=new PdfDocument(new PdfWriter(baos)); Document doc=new Document(pdf,page)){
+            doc.setMargins(30,28,34,28);
+            addHeader(doc,result);
+            if(includeFilters)addFilters(doc,result);
+            if(includeSummary)addSummary(doc,result);
+            addTable(doc,result,positions);
+        }
+        stampFooter(baos.toByteArray(),target,result);
     }
 
     public static void excel(Path target, ReportResult result, Set<String> visibleKeys) throws IOException {
@@ -117,7 +116,7 @@ public final class UnifiedReportExportService {
     private static void addFilters(Document doc,ReportResult r){if(r.appliedFilters()==null||r.appliedFilters().isEmpty())return;StringBuilder b=new StringBuilder("Filters: ");boolean first=true;for(var e:r.appliedFilters().entrySet()){if(!first)b.append("  |  ");first=false;b.append(e.getKey()).append(": ").append(e.getValue());}doc.add(new Paragraph(b.toString()).setFontSize(7.5f).setBackgroundColor(PALE).setPadding(5).setMarginBottom(7));}
     private static void addSummary(Document doc,ReportResult r){if(r.metrics()==null||r.metrics().isEmpty())return;int count=Math.min(6,r.metrics().size());Table t=new Table(UnitValue.createPercentArray(count)).useAllAvailableWidth().setMarginBottom(8);for(int i=0;i<count;i++){ReportMetric m=r.metrics().get(i);Cell c=new Cell().setPadding(5).setBackgroundColor(PALE).setBorder(new SolidBorder(new DeviceRgb(205,218,234), 0.75f));c.add(new Paragraph(m.label()).setFontSize(6.5f).setFontColor(new DeviceRgb(85,100,118)));c.add(new Paragraph(formatMetric(m)).setBold().setFontSize(9).setFontColor(NAVY));t.addCell(c);}doc.add(t);}
     private static void addTable(Document doc,ReportResult r,List<Integer> positions){if(positions.isEmpty()){doc.add(new Paragraph("No visible columns selected."));return;}float[] widths=new float[positions.size()];for(int i=0;i<positions.size();i++)widths[i]=(float)Math.max(60,r.columns().get(positions.get(i)).preferredWidth());Table table=new Table(UnitValue.createPercentArray(widths)).useAllAvailableWidth().setFontSize(6.8f);for(int p:positions){ReportColumn col=r.columns().get(p);Cell h=new Cell().add(new Paragraph(col.label()).setBold()).setBackgroundColor(NAVY).setFontColor(ColorConstants.WHITE).setPadding(4).setTextAlignment(col.numeric()?TextAlignment.RIGHT:TextAlignment.LEFT);table.addHeaderCell(h);}String group=null;for(ReportRow rr:r.rows()){if(rr.groupKey()!=null&&!rr.groupKey().isBlank()&&!Objects.equals(group,rr.groupKey())){group=rr.groupKey();table.addCell(new Cell(1,positions.size()).add(new Paragraph(group).setBold()).setBackgroundColor(PALE).setFontColor(NAVY).setPadding(4));}for(int p:positions){ReportColumn col=r.columns().get(p);String raw=rr.values().size()>p?rr.values().get(p):"";Cell c=new Cell().add(new Paragraph(formatValue(col,raw))).setPadding(3.5f).setTextAlignment(col.numeric()?TextAlignment.RIGHT:TextAlignment.LEFT);table.addCell(c);}}if(r.rows().isEmpty())table.addCell(new Cell(1,positions.size()).add(new Paragraph("No transactions found for the selected criteria.")).setTextAlignment(TextAlignment.CENTER).setPadding(15));doc.add(table);}
-    private static void stampFooter(Path source,Path target,ReportResult r)throws IOException{try(PdfDocument pdf=new PdfDocument(new PdfReader(source.toFile()),new PdfWriter(target.toFile()))){int pages=pdf.getNumberOfPages();for(int i=1;i<=pages;i++){var page=pdf.getPage(i);PdfCanvas pc=new PdfCanvas(page.newContentStreamAfter(),page.getResources(),pdf);try(Canvas canvas=new Canvas(pc,page.getPageSize())){String left=org.example.service.BrandingService.companyName()+" | "+r.title()+" | Generated "+r.generatedAt();canvas.showTextAligned(new Paragraph(left).setFontSize(6.5f).setFontColor(new DeviceRgb(90,100,112)),page.getPageSize().getLeft()+28,page.getPageSize().getBottom()+15,TextAlignment.LEFT);canvas.showTextAligned(new Paragraph("Page "+i+" of "+pages).setFontSize(6.5f).setFontColor(new DeviceRgb(90,100,112)),page.getPageSize().getRight()-28,page.getPageSize().getBottom()+15,TextAlignment.RIGHT);}}}}
+    private static void stampFooter(byte[] sourceBytes,Path target,ReportResult r)throws IOException{try(ByteArrayInputStream in=new ByteArrayInputStream(sourceBytes);OutputStream out=Files.newOutputStream(target);PdfDocument pdf=new PdfDocument(new PdfReader(in),new PdfWriter(out))){int pages=pdf.getNumberOfPages();for(int i=1;i<=pages;i++){var page=pdf.getPage(i);PdfCanvas pc=new PdfCanvas(page.newContentStreamAfter(),page.getResources(),pdf);try(Canvas canvas=new Canvas(pc,page.getPageSize())){String left=org.example.service.BrandingService.companyName()+" | "+r.title()+" | Generated "+r.generatedAt();canvas.showTextAligned(new Paragraph(left).setFontSize(6.5f).setFontColor(new DeviceRgb(90,100,112)),page.getPageSize().getLeft()+28,page.getPageSize().getBottom()+15,TextAlignment.LEFT);canvas.showTextAligned(new Paragraph("Page "+i+" of "+pages).setFontSize(6.5f).setFontColor(new DeviceRgb(90,100,112)),page.getPageSize().getRight()-28,page.getPageSize().getBottom()+15,TextAlignment.RIGHT);}}}}
     private static List<Integer> positions(ReportResult r,Set<String> visible){List<Integer> p=new ArrayList<>();Set<String> keys=visible==null?Set.of():visible;for(int i=0;i<r.columns().size();i++){ReportColumn c=r.columns().get(i);if(keys.isEmpty()?c.defaultVisible():keys.contains(c.key()))p.add(i);}return p;}
     private static String formatMetric(ReportMetric m){return switch(m.format()==null?"":m.format()){case "MONEY"->INR.format(m.value());case "PERCENT"->String.format("%,.2f%%",m.value());case "COUNT"->String.format("%,.0f",m.value());default->String.format("%,.4f",m.value()).replaceAll("\\.?0+$","");};}
     private static String formatValue(ReportColumn c,String raw){if(raw==null)return "";if(!c.numeric())return raw;try{double v=Double.parseDouble(raw);if("MONEY".equals(c.type()))return INR.format(v);if("PERCENT".equals(c.type()))return String.format("%,.2f%%",v);return String.format("%,.4f",v).replaceAll("\\.?0+$","");}catch(Exception e){return raw;}}

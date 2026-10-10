@@ -60,7 +60,7 @@ public class PurchaseService {
         Set<String> codes=new HashSet<>();
         for(Purchase summary:purchases){
             Purchase full=summary;
-            if(full.getLines()==null||full.getLines().isEmpty()){try{Purchase loaded=dao.getByInvoice(summary.getInvoiceNo());if(loaded!=null)full=loaded;}catch(Exception ignored){}}
+            if(full.getLines()==null||full.getLines().isEmpty()){try{Purchase loaded=dao.getByInvoice(summary.getInvoiceNo());if(loaded!=null)full=loaded;}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}
             if(full.getLines()!=null)full.getLines().stream().filter(Objects::nonNull).map(org.example.model.PurchaseLine::getItemCode).filter(Objects::nonNull).map(String::trim).filter(v->!v.isBlank()).map(v->v.toUpperCase(Locale.ROOT)).forEach(codes::add);
         }
         return codes.size();
@@ -78,7 +78,7 @@ public class PurchaseService {
             ReturnApiClient.Settlement s=byInvoice.get(row.getInvoiceNo());
             if(s==null){row.clearReturnSettlement();continue;}
             LocalDate due=null;
-            try{if(s.dueDate()!=null&&!s.dueDate().isBlank())due=LocalDate.parse(s.dueDate());}catch(Exception ignored){}
+            try{if(s.dueDate()!=null&&!s.dueDate().isBlank())due=LocalDate.parse(s.dueDate());}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             row.applyReturnSettlement(s.status(),s.pendingAmount(),due,s.approvedReturnAmount(),s.settledAmount(),s.returnStatus(),s.refundStatus(),s.returnedQuantity(),s.originalQuantity());
         }
     }

@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.scene.layout.StackPane;
 import org.example.util.OwnedAlert;
 
@@ -61,7 +62,7 @@ import java.util.*;
  * - Dry-run validation
  * - Background import execution
  */
-public class ImportController {
+public class ImportController implements ScreenLifecycle {
 
     /* =========================================================
        FXML CONTROLS
@@ -1839,5 +1840,11 @@ public class ImportController {
         }
 
         return throwable.getMessage();
+    }
+
+    @Override
+    public void onScreenHidden() {
+        ImportScreenContext.clear();
+        ImportViewContext.clear();
     }
 }

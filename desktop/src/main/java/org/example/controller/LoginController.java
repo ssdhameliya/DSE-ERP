@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
@@ -48,7 +49,7 @@ import java.util.prefs.Preferences;
  * the identity, selected role, and an AES-GCM encrypted password value tied to
  * the current DSE ERP user/installation key. The password is never persisted in plaintext.</p>
  */
-public class LoginController {
+public class LoginController implements ScreenLifecycle {
     private static final Preferences PREFS = Preferences.userNodeForPackage(LoginController.class);
     private static final String PREF_REMEMBER = "login.remember";
     private static final String PREF_IDENTITY = "login.identity";
@@ -962,5 +963,10 @@ public class LoginController {
         lblMessage.setText(text);
         lblMessage.getStyleClass().removeAll("message-error", "message-success");
         lblMessage.getStyleClass().add(error ? "message-error" : "message-success");
+    }
+
+    @Override
+    public void onScreenHidden() {
+        
     }
 }

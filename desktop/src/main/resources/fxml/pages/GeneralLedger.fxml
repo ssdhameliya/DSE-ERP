@@ -10,7 +10,7 @@
         <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
         <VBox spacing="2">
           <Label text="General Ledger &amp; Financial Accounting" styleClass="screen-title"/>
-          <Label text="Double-entry journals, Chart of Accounts hierarchy, and automated financial statements" styleClass="screen-subtitle"/>
+          <Label text="Double-entry journals, Chart of Accounts hierarchy, and automated financial statements" wrapText="true" styleClass="screen-subtitle"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
         <Button fx:id="btnNewJournal" text="New Journal Voucher" onAction="#openNewJournalDialog" styleClass="primary-action,approved-button,approved-primary-button"/>
@@ -18,43 +18,43 @@
         <Button fx:id="btnRefreshLedger" text="Refresh" onAction="#refreshJournals" styleClass="approved-button,approved-secondary-button"/>
       </HBox>
 
-      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+      <GridPane hgap="10" vgap="0" styleClass="standard-kpi-row,erp-kpi-section,erp-kpi-single-row">
         <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue" GridPane.columnIndex="0">
           <StackPane fx:id="kpiAssetsIcon" styleClass="standard-kpi-icon"/>
-          <VBox spacing="3">
-            <Label text="Total Assets" styleClass="metric-label"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT"><Label text="Total Assets" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Assets" styleClass="metric-trend-pill,trend-positive"/></HBox>
             <Label fx:id="kpiTotalAssets" text="₹ 0.00" styleClass="metric-value"/>
             <Label text="Bank + Debtors + Stock" styleClass="metric-note"/>
           </VBox>
         </HBox>
         <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="1">
           <StackPane fx:id="kpiLiabilitiesIcon" styleClass="standard-kpi-icon"/>
-          <VBox spacing="3">
-            <Label text="Total Liabilities" styleClass="metric-label"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT"><Label text="Total Liabilities" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Due" styleClass="metric-trend-pill,trend-warning"/></HBox>
             <Label fx:id="kpiTotalLiabilities" text="₹ 0.00" styleClass="metric-value"/>
             <Label text="Payables + GST Due" styleClass="metric-note"/>
           </VBox>
         </HBox>
         <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="2">
           <StackPane fx:id="kpiRevenueIcon" styleClass="standard-kpi-icon"/>
-          <VBox spacing="3">
-            <Label text="Operating Revenue" styleClass="metric-label"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT"><Label text="Operating Revenue" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Sales" styleClass="metric-trend-pill,trend-positive"/></HBox>
             <Label fx:id="kpiTotalRevenue" text="₹ 0.00" styleClass="metric-value"/>
             <Label text="Net Sales Turnover" styleClass="metric-note"/>
           </VBox>
         </HBox>
         <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-red" GridPane.columnIndex="3">
           <StackPane fx:id="kpiExpenseIcon" styleClass="standard-kpi-icon"/>
-          <VBox spacing="3">
-            <Label text="Total Expenses" styleClass="metric-label"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT"><Label text="Total Expenses" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Cost" styleClass="metric-trend-pill,trend-negative"/></HBox>
             <Label fx:id="kpiTotalExpense" text="₹ 0.00" styleClass="metric-value"/>
             <Label text="Purchases + Overhead" styleClass="metric-note"/>
           </VBox>
         </HBox>
         <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-teal" GridPane.columnIndex="4">
           <StackPane fx:id="kpiProfitIcon" styleClass="standard-kpi-icon"/>
-          <VBox spacing="3">
-            <Label text="Net Profit / Loss" styleClass="metric-label"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT"><Label text="Net Profit / Loss" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Net" styleClass="metric-trend-pill,trend-info"/></HBox>
             <Label fx:id="kpiNetProfit" text="₹ 0.00" styleClass="metric-value"/>
             <Label text="Net Operating Margin" styleClass="metric-note"/>
           </VBox>

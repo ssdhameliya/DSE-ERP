@@ -38,6 +38,7 @@ CHECKS = [
     "audit-session-focus-stock-contract.py",
     "audit-stability-contract.py",
     "audit-ui-design-system.py",
+    "audit-modern-ui-symmetry.py",
     "audit-phase3-ui-contract.py",
     "audit-update-semantic-logical-contract.py",
     "audit-private-update-distribution-contract.py",
@@ -118,6 +119,7 @@ for path, tokens in {
 allowed_current_literals = {
     str((ROOT / ".mvn/maven.config").resolve()),
     str((ROOT / f"CHANGELOG-{VERSION}.md").resolve()),
+    str((ROOT / "desktop/src/main/resources/release-notes.md").resolve()),
 }
 # Prune generated/build/runtime trees before traversal rather than discovering every file and
 # filtering afterwards. This keeps the aggregate release gate fast after Maven/JavaFX evidence runs.

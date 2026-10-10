@@ -111,14 +111,14 @@ public final class DatePickerFormatter {
             }
         } catch (IllegalStateException noToolkit) {
             task.run();
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     public static void updatePromptText(DatePicker picker) {
         if (picker == null) return;
         try {
             picker.setPromptText(BusinessClock.datePattern().toLowerCase(Locale.ROOT));
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private static void commitEditorText(DatePicker picker) {

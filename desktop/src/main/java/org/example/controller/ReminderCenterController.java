@@ -70,6 +70,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         configureListeners();
         configureVisualIcons();
         configureDetailActionMenu();
+        RegisterUiSupport.hideDrawer(reminderDetailPanel, reminderWorkspace, table);
         org.example.util.OperationalUiSupport.installEscapeClose(reminderWorkspace,()->reminderDetailPanel!=null&&reminderDetailPanel.isVisible(),this::closeDetails);
         org.example.util.OperationalUiSupport.focusWorkArea(table);
         refresh();

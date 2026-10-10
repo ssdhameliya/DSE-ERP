@@ -37,6 +37,10 @@ public final class UpdateDialogs {
         String version = BuildInfo.version();
         String pending = ConfigManager.get("update.releaseNotesPending", "").trim();
         String seen = ConfigManager.get("update.releaseNotesSeen", "").trim();
+        if (seen.isEmpty() && pending.isEmpty()) {
+            ConfigManager.set("update.releaseNotesSeen", version);
+            return;
+        }
         if (!version.equals(pending) && version.equals(seen)) return;
         showWhatsNew(owner, true);
     }
@@ -48,7 +52,7 @@ public final class UpdateDialogs {
                 try {
                     UpdateRelease release = new UpdateService().byVersion(version);
                     return ReleaseHighlights.resolve(version, release.notes());
-                } catch (Exception ignored) { }
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 return ReleaseHighlights.forVersion(version);
             }
         };

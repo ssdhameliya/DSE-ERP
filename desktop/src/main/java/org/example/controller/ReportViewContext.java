@@ -21,5 +21,9 @@ public final class ReportViewContext {
         return value;
     }
 
+    public static synchronized void clear() {
+        pending = null;
+    }
+
     public record Selection(String reportId,String groupBy,String from,String to,ReportRequest request,String datePreset) {}
 }

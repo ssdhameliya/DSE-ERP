@@ -34,6 +34,7 @@ import static org.example.server.reporting.ReportingDtos.*;
  */
 @Service
 public class ReportScheduleService {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ReportScheduleService.class);
     private static final Set<String> FREQUENCIES = Set.of("DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY");
     private static final Set<String> FORMATS = Set.of("PDF", "XLSX", "PDF_XLSX", "CSV");
     private static final Set<String> DELIVERIES = Set.of("EMAIL", "ARCHIVE", "EMAIL_ARCHIVE");
@@ -255,14 +256,19 @@ public class ReportScheduleService {
 
             if (schedule.delivery().contains("EMAIL")) {
                 List<String> recipients = recipients(schedule.recipients());
-                if (recipients.isEmpty()) throw new IllegalStateException("Scheduled Report email recipient is missing");
-                List<SmtpMailService.PathAttachment> attachments = new ArrayList<>();
-                for (Path file : files) attachments.add(new SmtpMailService.PathAttachment(file.getFileName().toString(), contentType(file), file));
-                String subject = mail.companyName() + " Scheduled Report - " + result.title();
-                String body = "Scheduled Report: " + schedule.name() + "\nReport: " + result.title()
-                        + "\nPeriod: " + result.periodFrom() + " to " + result.periodTo()
-                        + "\nGenerated: " + result.generatedAt() + "\nRows: " + result.totalRows();
-                for (String recipient : recipients) mail.sendBusinessFiles(recipient, subject, body, attachments);
+                if (!recipients.isEmpty()) {
+                    if (mail.isConfigured()) {
+                        List<SmtpMailService.PathAttachment> attachments = new ArrayList<>();
+                        for (Path file : files) attachments.add(new SmtpMailService.PathAttachment(file.getFileName().toString(), contentType(file), file));
+                        String subject = mail.companyName() + " Scheduled Report - " + result.title();
+                        String body = "Scheduled Report: " + schedule.name() + "\nReport: " + result.title()
+                                + "\nPeriod: " + result.periodFrom() + " to " + result.periodTo()
+                                + "\nGenerated: " + result.generatedAt() + "\nRows: " + result.totalRows();
+                        for (String recipient : recipients) mail.sendBusinessFiles(recipient, subject, body, attachments);
+                    } else {
+                        LOG.warn("Scheduled Report '{}' generated successfully, but email delivery was skipped because SMTP is not configured.", schedule.name());
+                    }
+                }
             }
 
             String artifacts = String.join("; ", files.stream().map(Path::toString).toList());
@@ -411,7 +417,6 @@ public class ReportScheduleService {
         if (delivery.contains("EMAIL")) {
             List<String> addresses = recipients(recipients); if (addresses.isEmpty()) throw new IllegalArgumentException("Enter at least one email recipient");
             for (String address : addresses) try { new InternetAddress(address, true); } catch (Exception e) { throw new IllegalArgumentException("Invalid email recipient: " + address); }
-            mail.requireConfigured();
         }
         if (delivery.contains("ARCHIVE") && workspace == null) throw new IllegalStateException("Server workspace is not configured for archive delivery");
         return new Validated(name, savedReport, frequency, dow, dom, moy, time, format, delivery, recipients);
@@ -470,13 +475,17 @@ public class ReportScheduleService {
 
     private void assertOwnerCanRun(int userId) {
         List<Map<String,Object>> rows=db.queryForList("""
-                SELECT username,COALESCE(role,''),COALESCE(active,0),COALESCE(locked,0),COALESCE(approval_status,'APPROVED')
+                SELECT username,
+                       COALESCE(role,'') AS role,
+                       COALESCE(active,1) AS active,
+                       COALESCE(locked,0) AS locked,
+                       COALESCE(approval_status,'APPROVED') AS approval_status
                 FROM users WHERE id=?
                 """,userId);
         if(rows.isEmpty()) throw new SecurityException("Scheduled Report owner no longer exists");
         Map<String,Object> row=rows.getFirst();
-        boolean active=number(row.get("active"))==1;
-        boolean locked=number(row.get("locked"))==1;
+        boolean active=toBoolean(row.get("active"), true);
+        boolean locked=toBoolean(row.get("locked"), false);
         String approval=safe(Objects.toString(row.get("approval_status"),"APPROVED")).trim().toUpperCase(Locale.ROOT);
         String role=safe(Objects.toString(row.get("role"),"")).trim().toUpperCase(Locale.ROOT);
         if(!active||locked||!"APPROVED".equals(approval))
@@ -487,7 +496,15 @@ public class ReportScheduleService {
             throw new SecurityException("Scheduled Report owner no longer has REPORTS.VIEW and REPORTS.EXPORT permissions");
     }
 
-    private static int number(Object value){return value instanceof Number n?n.intValue():0;}
+    private static boolean toBoolean(Object value, boolean defaultValue) {
+        if (value == null) return defaultValue;
+        if (value instanceof Boolean b) return b;
+        if (value instanceof Number n) return n.intValue() != 0;
+        String s = value.toString().trim().toLowerCase(Locale.ROOT);
+        if ("true".equals(s) || "1".equals(s) || "t".equals(s) || "yes".equals(s) || "y".equals(s)) return true;
+        if ("false".equals(s) || "0".equals(s) || "f".equals(s) || "no".equals(s) || "n".equals(s)) return false;
+        return defaultValue;
+    }
 
     private ReportRequest withRange(ReportRequest q, LocalDate from, LocalDate to, int page, int size) {
         return new ReportRequest(q.reportId(), from.toString(), to.toString(), q.party(), q.item(), q.salesperson(), q.documentStatus(), q.paymentStatus(),
@@ -533,8 +550,11 @@ public class ReportScheduleService {
     }
 
     private String username(int userId) {
-        try { return db.queryForObject("SELECT username FROM users WHERE id=? AND active=1", String.class, userId); }
-        catch (Exception e) { throw new IllegalStateException("Schedule owner is no longer an active user"); }
+        List<Map<String, Object>> rows = db.queryForList("SELECT username, COALESCE(active,1) AS active FROM users WHERE id=?", userId);
+        if (rows.isEmpty() || !toBoolean(rows.getFirst().get("active"), true)) {
+            throw new IllegalStateException("Schedule owner is no longer an active user");
+        }
+        return Objects.toString(rows.getFirst().get("username"), "User");
     }
 
     private String uniqueCopyName(int userId, String source) {
@@ -573,12 +593,12 @@ public class ReportScheduleService {
     }
 
     private static void deleteTreeQuietly(Path root) {
-        try { if (root == null || !Files.exists(root)) return; try (var walk = Files.walk(root)) { walk.sorted(Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) { } }); } }
-        catch (Exception ignored) { }
+        try { if (root == null || !Files.exists(root)) return; try (var walk = Files.walk(root)) { walk.sorted(Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); } }); } }
+        catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private static String displayInstant(String value) {
-        Instant instant = parseInstant(value); return instant == null ? "" : RUN_LABEL.format(instant.atZone(BusinessClock.zone()));
+        Instant instant = parseInstant(value); return instant == null ? "" : BusinessClock.formatTimestamp(instant);
     }
     private static Instant parseInstant(String value) { try { return value == null || value.isBlank() ? null : BusinessClock.parseTimestamp(value); } catch (Exception e) { return null; } }
     private static String instantText(ZonedDateTime value) { return DateTimeFormatter.ISO_INSTANT.format(value.toInstant()); }

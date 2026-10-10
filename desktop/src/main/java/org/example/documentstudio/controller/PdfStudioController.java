@@ -664,7 +664,7 @@ public class PdfStudioController implements ScreenLifecycle {
                         table.setRowHeight(detection.get().table().getRowHeight());
                         autosave();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
         }
         PdfMappingReviewSession session = PdfMappingReviewSession.from(template, detectedBlocks, detectFinancialReviewRoles());
@@ -1548,7 +1548,7 @@ public class PdfStudioController implements ScreenLifecycle {
                     catch (Exception ignored) { return List.of(); }
                 });
                 out.addAll(regions);
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return out;
     }
@@ -1631,7 +1631,7 @@ public class PdfStudioController implements ScreenLifecycle {
             var size = PdfPreviewSupport.pageSize(pdf, pageIndex);
             pageWidth = size.width(); pageHeight = size.height();
             lblPageSize.setText(String.format(Locale.ENGLISH, "%.0f × %.0f pt • Page %d/%d", pageWidth, pageHeight, pageIndex+1, size.pageCount()));
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         double canvasW = pageWidth * scale, canvasH = pageHeight * scale;
         canvasPane.setPrefSize(canvasW, canvasH);
         canvasPane.setMinSize(canvasW, canvasH);
@@ -1855,7 +1855,7 @@ public class PdfStudioController implements ScreenLifecycle {
                     table.setRowHeight(detection.get().table().getRowHeight());
                     autosave();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         showMappingReview(PdfMappingReviewSession.Section.ITEMS, reviewRollback);
     }
@@ -1929,7 +1929,7 @@ public class PdfStudioController implements ScreenLifecycle {
                     ? (dataPreviewMode && currentPreviewData != null ? currentPreviewData.image(e.getFieldKey()) : null)
                     : TemplateStorageService.resolveAsset(template, e.getImagePath());
             if (p != null && Files.isRegularFile(p)) return new Image(p.toUri().toString());
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return null;
     }
 
@@ -2165,7 +2165,7 @@ public class PdfStudioController implements ScreenLifecycle {
                     return "Selected PDF value: “" + abbreviate(raw, 48) + "”. Suggested ERP field: "
                             + friendlyFieldName(key) + " (" + key + "). Next: select that ERP field below, then click Map. PDF Studio will preserve the source position/style.";
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
 
         if (n.matches(".*(gstin|gst-in|gst no|gst number).*"))
@@ -3407,7 +3407,7 @@ public class PdfStudioController implements ScreenLifecycle {
                     Desktop.getDesktop().open(guide.toFile());
                     opened = true;
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             AppDialogService.success(root, "Mapping guide downloaded", "The PDF Studio mapping guide was saved to:\n" + guide
                     + (opened ? "\n\nIt has also been opened in your PDF viewer so you can keep it beside PDF Studio while mapping."
                               : "\n\nOpen this PDF from the saved location and keep it beside PDF Studio while mapping."));

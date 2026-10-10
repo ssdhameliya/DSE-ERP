@@ -147,7 +147,7 @@ public final class DynamicTableLayoutManager {
                 for (Node node : root.lookupAll(".table-view")) {
                     if (node instanceof TableView<?> table) requestLayout(table);
                 }
-            } catch (RuntimeException ignored) { }
+            } catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         };
         if (Platform.isFxApplicationThread()) pass.run();
         else Platform.runLater(pass);
@@ -338,7 +338,7 @@ public final class DynamicTableLayoutManager {
                     }
                 }
             }
-        } catch (RuntimeException ignored) { }
+        } catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return Math.max(1, available);
     }
 

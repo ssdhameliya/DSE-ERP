@@ -14,7 +14,7 @@ public final class UpdateStartupChecker {
         if (!org.example.service.PermissionService.allowed("APPLICATION_UPDATES.CHECK")) return;
         if (!Boolean.parseBoolean(ConfigManager.get("update.checkAtStartup", "true"))) return;
         String raw = ConfigManager.get("update.lastChecked", "");
-        try { if (!raw.isBlank() && Duration.between(Instant.parse(raw), Instant.now()).toHours() < 12) return; } catch (Exception ignored) {}
+        try { if (!raw.isBlank() && Duration.between(Instant.parse(raw), Instant.now()).toHours() < 12) return; } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         Platform.runLater(() -> UpdateDialogs.checkForUpdates(owner, true));
     }
 }

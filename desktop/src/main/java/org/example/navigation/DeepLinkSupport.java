@@ -90,7 +90,7 @@ public final class DeepLinkSupport {
                     ObservableValue<Object> ov=c.getCellObservableValue(item);
                     Object value=ov==null?null:ov.getValue();
                     if (value != null && String.valueOf(value).trim().toLowerCase(Locale.ROOT).contains(ref)) return item;
-                } catch (Exception ignored) { }
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
             String reflected = referenceText(item).toLowerCase(Locale.ROOT);
             if (!reflected.isBlank() && reflected.contains(ref)) return item;
@@ -103,7 +103,7 @@ public final class DeepLinkSupport {
             try {
                 Method m=item.getClass().getMethod(name); Object v=m.invoke(item);
                 if (v instanceof Number n) return n.longValue();
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return Long.MIN_VALUE;
     }
@@ -114,7 +114,7 @@ public final class DeepLinkSupport {
             try {
                 Method m=item.getClass().getMethod(name); Object v=m.invoke(item);
                 if (v != null) b.append(' ').append(v);
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return b.toString();
     }

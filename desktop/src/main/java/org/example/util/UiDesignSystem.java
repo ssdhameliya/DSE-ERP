@@ -94,6 +94,11 @@ public final class UiDesignSystem {
             role(button, "row-action"); return;
         }
 
+        // Navigation, tabs and pagers must remain neutral
+        if (containsAny(styles, "report-nav-button", "workspace-tab", "tab-button", "nav-button", "nav-parent", "pager-button")) {
+            role(button, "secondary"); return;
+        }
+
         // Table action menus and obvious universal icon buttons remain compact.
         if (button instanceof MenuButton && (text.isBlank() || text.equals("actions") || text.equals("...") || text.equals("⋮"))) {
             role(button, "row-action"); return;
@@ -106,7 +111,8 @@ public final class UiDesignSystem {
             role(button, "danger");
         } else if (containsAny(text, "approve", "reconcile", "complete", "confirm match", "apply adjustment")) {
             role(button, "success");
-        } else if (containsAny(text, "save", "create", "add ", "new ", "import", "generate", "submit", "sign in", "login")) {
+        } else if (!text.contains("saved") && (text.equals("save") || text.startsWith("save ") || text.startsWith("save-")
+                || containsAny(text, "create", "add ", "new ", "import", "generate", "submit", "sign in", "login"))) {
             role(button, "primary");
         } else {
             role(button, "secondary");

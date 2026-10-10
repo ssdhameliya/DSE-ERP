@@ -442,7 +442,7 @@ public final class RollbackService {
         if (!Files.isRegularFile(manifest)) return result;
         try (InputStream input = Files.newInputStream(manifest)) {
             result.load(input);
-        } catch (IOException ignored) { }
+        } catch (IOException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return result;
     }
 
@@ -522,7 +522,7 @@ public final class RollbackService {
             String line = Instant.now() + "\t" + action + "\t" + targetVersion + "\t" + result + "\t" + clean + System.lineSeparator();
             Files.writeString(auditFile(), line, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private static long safeSize(Path path) {
@@ -593,7 +593,7 @@ public final class RollbackService {
         if (root == null || !Files.exists(root)) return;
         try (Stream<Path> stream = Files.walk(root)) {
             for (Path path : stream.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     public record PublishedVersion(String version, int databaseSchema, Compatibility compatibility) {

@@ -61,7 +61,7 @@ public final class SecretValueCodec {
         else {
             KeyGenerator generator = KeyGenerator.getInstance("AES"); generator.init(256); raw = generator.generateKey().getEncoded();
             Files.writeString(file, Base64.getEncoder().encodeToString(raw), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-            try { Files.setPosixFilePermissions(file, java.util.Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)); } catch (Exception ignored) {}
+            try { Files.setPosixFilePermissions(file, java.util.Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         if (raw.length != 32) throw new IllegalStateException("DSE ERP secret key is invalid");
         return new SecretKeySpec(raw, "AES");

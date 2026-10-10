@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -16,7 +17,7 @@ import org.example.util.UiTaskExecutor;
 import org.example.util.UiActionIcons;
 import java.util.*;
 
-public final class GlobalAuditController {
+public final class GlobalAuditController implements ScreenLifecycle {
     @FXML private TableView<Row> table;
     @FXML private TableColumn<Row,String> colDate,colModule,colRecordType,colReference,colAction,colCategory,colField,colOld,colNew,colUser,colSource;
     @FXML private TableColumn<Row,Void> colView;
@@ -53,4 +54,9 @@ public final class GlobalAuditController {
     private static String prettyType(String t){return switch(t==null?"":t){case "SALE"->"Sales Invoice";case "PURCHASE"->"Purchase Invoice";case "QUOTATION"->"Quotation";case "SALES_RETURN"->"Sales Return";case "PURCHASE_RETURN"->"Purchase Return";case "PARTY"->"Customer / Supplier";case "ITEM"->"Item";default->(t==null?"":t.replace('_',' '));};}
     public record Row(long eventId,String entityType,long entityId,String date,String module,String recordType,String reference,String action,String category,String field,String oldValue,String newValue,String user,String source){static Row of(AuditApiClient.EventRow e,AuditApiClient.ChangeRow c){return new Row(e.id(),e.entityType(),e.entityId(),formatTimestamp(e.createdAt()),e.entityType(),prettyType(e.entityType()),e.referenceNo(),e.action(),e.category(),c==null?"":c.fieldName(),c==null?"":c.oldValue(),c==null?"":c.newValue(),e.createdBy(),e.legacySource()==null||e.legacySource().isBlank()?e.source():"LEGACY / "+e.legacySource());}}
     private static String formatTimestamp(String value){String raw=value==null?"":value.trim();if(raw.isBlank())return "—";try{return BusinessClock.formatTimestamp(raw);}catch(Exception ignored){return raw;}}
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

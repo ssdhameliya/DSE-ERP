@@ -154,7 +154,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                 "purchase-payment-lookups",
                 () -> {
                     List<String> modes = new ArrayList<>();
-                    try { modes.addAll(lookupService.getValuesByCategoryCode("PAYMENT_MODE")); } catch (Exception ignored) { }
+                    try { modes.addAll(lookupService.getValuesByCategoryCode("PAYMENT_MODE")); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     if (modes.isEmpty()) modes.addAll(List.of("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"));
                     List<String> accounts = new ArrayList<>();
                     try {
@@ -164,7 +164,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                             accounts.add(description.isBlank() ? lookup.getLookupValue().trim()
                                     : lookup.getLookupValue().trim() + " - " + description);
                         }
-                    } catch (Exception ignored) { }
+                    } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     if (accounts.isEmpty()) accounts.addAll(configuredBankAccounts());
                     return new PaymentLookups(List.copyOf(modes), List.copyOf(accounts));
                 },
@@ -623,7 +623,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             String user = SessionService.current() == null ? "System" : SessionService.current().getFullName();
             supportApi.communication(new SupportApiClient.CommunicationRequest(
                     "PURCHASE", purchase.getId(), "EMAIL", safe(recipient), safe(subject), status, error, user));
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     @FXML private void cancel() { if(purchase!=null)LinkedRecordContext.open("PURCHASE",purchase.getId(),purchase.getInvoiceNo(),"VIEW","Purchase Payment"); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }

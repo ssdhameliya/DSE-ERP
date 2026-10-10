@@ -9,4 +9,8 @@ final class ImportViewContext {
         if (module != null && module.equalsIgnoreCase(value)) { module = null; return true; }
         return false;
     }
+
+    static synchronized void clear() {
+        module = null;
+    }
 }

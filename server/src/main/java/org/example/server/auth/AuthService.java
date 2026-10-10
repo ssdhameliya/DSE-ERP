@@ -584,7 +584,7 @@ public class AuthService {
         return count!=null&&count>0;
     }
     private void auditRegistration(Long id,String action,String detail,String actor){
-        try{db.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('REGISTRATION',?,?,?,?,?)",id,action,detail,actor==null||actor.isBlank()?"SYSTEM":actor,BusinessClock.nowUtcText());}catch(RuntimeException ignored){}
+        try{db.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('REGISTRATION',?,?,?,?,?)",id,action,detail,actor==null||actor.isBlank()?"SYSTEM":actor,BusinessClock.nowUtcText());}catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private void cleanupExpiredRegistrations() {

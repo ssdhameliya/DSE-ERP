@@ -23,7 +23,7 @@ class WorkspaceRecoveryContractTest {
             assertTrue(result.postgresClusterPresent());
             assertEquals("false", java.util.Properties.class.cast(load(root.resolve("Config/config.properties"))).getProperty("setup.completed"));
         } finally {
-            try (var walk = Files.walk(root)) { walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) {} }); }
+            try (var walk = Files.walk(root)) { walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); } }); }
         }
     }
 

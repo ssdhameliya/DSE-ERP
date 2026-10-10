@@ -27,11 +27,14 @@
     <HBox spacing="10" styleClass="reminder-metrics-row,erp-kpi-section">
         <VBox spacing="8" styleClass="standard-kpi-card,kpi-blue,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
-                <VBox spacing="3">
-                    <Label text="OPEN REMINDERS" styleClass="metric-title,reminder-metric-title"/>
+                <VBox spacing="3" HBox.hgrow="ALWAYS">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="OPEN REMINDERS" styleClass="metric-title,reminder-metric-title"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="Active" styleClass="metric-trend-pill,trend-neutral"/>
+                    </HBox>
                     <Label fx:id="lblOpen" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
-                <Region HBox.hgrow="ALWAYS"/>
                 <StackPane fx:id="openMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Active items requiring attention" styleClass="reminder-metric-note"/>
@@ -39,11 +42,14 @@
 
         <VBox spacing="8" styleClass="standard-kpi-card,kpi-red,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
-                <VBox spacing="3">
-                    <Label text="OVERDUE" styleClass="metric-title,reminder-metric-title"/>
+                <VBox spacing="3" HBox.hgrow="ALWAYS">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="OVERDUE" styleClass="metric-title,reminder-metric-title"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="Alert" styleClass="metric-trend-pill,trend-negative"/>
+                    </HBox>
                     <Label fx:id="lblOverdue" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
-                <Region HBox.hgrow="ALWAYS"/>
                 <StackPane fx:id="overdueMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Past due and still incomplete" styleClass="reminder-metric-note"/>
@@ -51,11 +57,14 @@
 
         <VBox spacing="8" styleClass="standard-kpi-card,kpi-green,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
-                <VBox spacing="3">
-                    <Label text="DUE TODAY" styleClass="metric-title,reminder-metric-title"/>
+                <VBox spacing="3" HBox.hgrow="ALWAYS">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="DUE TODAY" styleClass="metric-title,reminder-metric-title"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="Today" styleClass="metric-trend-pill,trend-positive"/>
+                    </HBox>
                     <Label fx:id="lblDueToday" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
-                <Region HBox.hgrow="ALWAYS"/>
                 <StackPane fx:id="todayMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Scheduled for the current day" styleClass="reminder-metric-note"/>
@@ -63,11 +72,14 @@
 
         <VBox spacing="8" styleClass="standard-kpi-card,kpi-orange,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
-                <VBox spacing="3">
-                    <Label text="NEXT 7 DAYS" styleClass="metric-title,reminder-metric-title"/>
+                <VBox spacing="3" HBox.hgrow="ALWAYS">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="NEXT 7 DAYS" styleClass="metric-title,reminder-metric-title"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="7 Days" styleClass="metric-trend-pill,trend-warning"/>
+                    </HBox>
                     <Label fx:id="lblUpcoming" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
-                <Region HBox.hgrow="ALWAYS"/>
                 <StackPane fx:id="upcomingMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Upcoming workload at a glance" styleClass="reminder-metric-note"/>

@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -17,7 +18,7 @@ import org.example.util.*;
 
 import java.util.regex.Pattern;
 
-public class RegistrationController {
+public class RegistrationController implements ScreenLifecycle {
     private static final Pattern EMAIL=Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     @FXML private ImageView imgBrandLogo,imgBrandMark;
@@ -160,4 +161,9 @@ public class RegistrationController {
     private void clear(Label l,Control c){l.setManaged(false);l.setVisible(false);c.getStyleClass().remove("invalid-field");}
     private void message(String t,boolean e){lblMessage.setText(t==null?"":t);lblMessage.getStyleClass().removeAll("message-error","message-success");lblMessage.getStyleClass().add(e?"message-error":"message-success");}
     @FXML private void back(){SceneManager.showLogin();}
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

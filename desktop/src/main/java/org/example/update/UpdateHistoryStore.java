@@ -10,7 +10,7 @@ public final class UpdateHistoryStore {
     private static final Path FILE=ConfigManager.getConfigFolder().resolve("update-history.tsv");
     private UpdateHistoryStore() {}
     public static synchronized void append(String version,String channel,String result,String detail){
-        try{ Files.createDirectories(FILE.getParent()); String safe=Objects.requireNonNullElse(detail,"").replace('\t',' ').replace('\n',' '); Files.writeString(FILE,Instant.now()+"\t"+version+"\t"+channel+"\t"+result+"\t"+safe+System.lineSeparator(),StandardCharsets.UTF_8,StandardOpenOption.CREATE,StandardOpenOption.APPEND); }catch(Exception ignored){}
+        try{ Files.createDirectories(FILE.getParent()); String safe=Objects.requireNonNullElse(detail,"").replace('\t',' ').replace('\n',' '); Files.writeString(FILE,Instant.now()+"\t"+version+"\t"+channel+"\t"+result+"\t"+safe+System.lineSeparator(),StandardCharsets.UTF_8,StandardOpenOption.CREATE,StandardOpenOption.APPEND); }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
     public static synchronized List<Entry> read(){
         if(!Files.exists(FILE))return List.of();

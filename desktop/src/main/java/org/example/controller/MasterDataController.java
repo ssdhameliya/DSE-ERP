@@ -1071,10 +1071,14 @@ public class MasterDataController implements ScreenLifecycle {
         confirmation.setTitle(verb + " Master Record"); confirmation.setHeaderText("Confirm " + verb.toLowerCase(Locale.ROOT));
         if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
         String selectedType = lstTypes.getSelectionModel().getSelectedItem();
+        if (tblLookup != null) tblLookup.setDisable(true);
+        if (btnDeleteLookup != null) btnDeleteLookup.setDisable(true);
         UiTaskExecutor.submitAction(
                 "master-lookup-status-" + selectedLookup.getId(),
                 () -> { if (activate) service.setActive(selectedLookup, true); else service.delete(selectedLookup); return null; },
                 ignored -> {
+                    if (tblLookup != null) tblLookup.setDisable(false);
+                    if (btnDeleteLookup != null) btnDeleteLookup.setDisable(false);
                     loadCategories();
                     if (selectedType != null) lstTypes.getSelectionModel().select(selectedType);
                     loadTable();
@@ -1083,6 +1087,8 @@ public class MasterDataController implements ScreenLifecycle {
                             "Master record '" + selectedLookup.getLookupValue() + "' is now " + (activate ? "active" : "inactive") + " for future use.");
                 },
                 failure -> {
+                    if (tblLookup != null) tblLookup.setDisable(false);
+                    if (btnDeleteLookup != null) btnDeleteLookup.setDisable(false);
                     showError("Lookup could not be " + (activate ? "reactivated" : "deactivated") + ":\n" + rootMessage(failure));
                     setStatus("Lookup status could not be changed.");
                 }

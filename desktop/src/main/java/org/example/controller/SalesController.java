@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import org.example.document.DocumentLookupPolicy;
 import org.example.document.DocumentChargeDialog;
 
@@ -71,7 +72,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-public class SalesController {
+public class SalesController implements ScreenLifecycle {
     @FXML private Button btnAddCustomer;
 
     @FXML
@@ -632,7 +633,7 @@ public class SalesController {
     }
 
     private void showSaleBootstrapWarning(List<String> errors) {
-        if (errors == null || errors.isEmpty()) return;
+        if (errors == null || errors.isEmpty() || Boolean.getBoolean("dse.headless.snapshot")) return;
         System.err.println("Create Sale initialization: " + String.join(" | ", errors));
         new OwnedAlert(Alert.AlertType.WARNING,
             "Create Sale opened, but some API-backed master data could not be loaded.\n\n" +
@@ -815,7 +816,7 @@ public class SalesController {
         stockPositionBar.setVisible(show); stockPositionBar.setManaged(show);
         if (!show) return;
         double onHand=Math.max(0,item.getOpeningStock()), reserved=0, available=onHand, requested=0;
-        try { requested=Double.parseDouble(txtQuantity==null?"0":txtQuantity.getText().trim()); } catch(Exception ignored) { }
+        try { requested=Double.parseDouble(txtQuantity==null?"0":txtQuantity.getText().trim()); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         double after=available-Math.max(0,requested);
         lblStockOnHand.setText(qtyText(onHand)); lblStockReserved.setText(qtyText(reserved)); lblStockAvailable.setText(qtyText(available)); lblStockAfterSale.setText(qtyText(after));
         lblStockAfterSale.getStyleClass().removeAll("stock-positive","stock-warning","stock-shortage"); lblStockState.getStyleClass().removeAll("stock-positive","stock-warning","stock-shortage");
@@ -1107,50 +1108,59 @@ public class SalesController {
         if (sale == null)
             return;
 
-        try {
+        setSalesSaveBusy(true);
+        UiTaskExecutor.submitAction(
+            "sales-save",
+            () -> {
+                if (editingSale != null) {
+                    sale.setId(editingSale.getId());
+                    salesService.update(sale);
+                    notifySalesStatus(sale.getInvoiceNo());
+                } else {
+                    if (salesService.existsInvoice(sale.getInvoiceNo())) {
+                        sale.setInvoiceNo(salesService.nextInvoiceNo());
+                    }
+                    salesService.save(sale);
+                    notifySalesStatus(sale.getInvoiceNo());
+                }
 
-            if (editingSale != null) {
+                String attachmentWarning = null;
+                try { persistAttachmentAfterSave(sale); }
+                catch (Exception attachmentError) { attachmentWarning = rootMessage(attachmentError); }
+                return attachmentWarning;
+            },
+            attachmentWarning -> {
+                setSalesSaveBusy(false);
+                this.editingSale = sale;
+                if (attachmentWarning == null) {
+                    org.example.util.AppDialogService.success(tableLines, "Sale saved", "Sales invoice saved successfully.");
+                } else {
+                    org.example.util.AppDialogService.warning(tableLines, "Sale saved with attachment warning",
+                        "The invoice was saved", "The attachment could not be updated. " + attachmentWarning);
+                }
 
-                sale.setId(editingSale.getId());
-
-                salesService.update(sale);
-
-                notifySalesStatus(sale.getInvoiceNo());
-
-            } else {
-
-                salesService.save(sale);
-
-                notifySalesStatus(sale.getInvoiceNo());
-
+                org.example.navigation.UnsavedChangesManager.clear(tableLines);
+                ScreenRefreshPolicy.invalidate("sales-register");
+                org.example.navigation.WorkspaceTabManager.getInstance().closeTabByFxml("/fxml/pages/Sale.fxml");
+                NavigationManager.getInstance()
+                    .loadPage("/fxml/pages/SalesList.fxml");
+            },
+            failure -> {
+                setSalesSaveBusy(false);
+                new OwnedAlert(
+                    Alert.AlertType.ERROR,
+                    rootMessage(failure)
+                ).showAndWait();
             }
+        );
 
-            String attachmentWarning = null;
-            try { persistAttachmentAfterSave(sale); }
-            catch (Exception attachmentError) { attachmentWarning = rootMessage(attachmentError); }
+    }
 
-            if (attachmentWarning == null) {
-                org.example.util.AppDialogService.success(tableLines, "Sale saved", "Sales invoice saved successfully.");
-            } else {
-                org.example.util.AppDialogService.warning(tableLines, "Sale saved with attachment warning",
-                    "The invoice was saved", "The attachment could not be updated. " + attachmentWarning);
-            }
-
-            org.example.navigation.UnsavedChangesManager.clear(tableLines);
-            ScreenRefreshPolicy.invalidate("sales-register");
-            NavigationManager.getInstance()
-                .loadPage("/fxml/pages/SalesList.fxml");
-
-        }
-        catch (Exception e) {
-
-            new OwnedAlert(
-                Alert.AlertType.ERROR,
-                e.getMessage()
-            ).showAndWait();
-
-        }
-
+    private void setSalesSaveBusy(boolean busy) {
+        if (btnSaveSale != null) btnSaveSale.setDisable(busy || viewMode);
+        if (tableLines != null) tableLines.setDisable(busy || viewMode);
+        if (btnAddLine != null) btnAddLine.setDisable(busy || viewMode);
+        if (btnRemoveLine != null) btnRemoveLine.setDisable(busy || viewMode);
     }
 
 
@@ -1570,9 +1580,9 @@ public class SalesController {
 
     @FXML
     private void cancel() {
+        org.example.navigation.WorkspaceTabManager.getInstance().closeTabByFxml("/fxml/pages/Sale.fxml");
         NavigationManager.getInstance()
             .loadPage("/fxml/pages/SalesList.fxml");
-
     }
 
 
@@ -2021,5 +2031,10 @@ public class SalesController {
         while (current.getCause() != null && current.getCause() != current) current = current.getCause();
         String message = current.getMessage();
         return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
+    }
+
+    @Override
+    public void onScreenHidden() {
+        SalesScreenContext.clear();
     }
 }

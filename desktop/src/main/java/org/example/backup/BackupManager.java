@@ -273,7 +273,7 @@ public final class BackupManager {
             for (Path path : stream.filter(BackupManager::isManagedBackup).toList()) {
                 try {
                     if (validateBackup(path).valid()) count++;
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
         }
         return count;
@@ -340,7 +340,7 @@ public final class BackupManager {
     }
 
     private static void clearPendingRestore() {
-        try { Files.deleteIfExists(ConfigManager.getPendingRestoreFile()); } catch (IOException ignored) {}
+        try { Files.deleteIfExists(ConfigManager.getPendingRestoreFile()); } catch (IOException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         ConfigManager.remove(PENDING_RESTORE_KEY);
         ConfigManager.remove("backup.restore.source");
         ConfigManager.remove("backup.restore.staged_at");

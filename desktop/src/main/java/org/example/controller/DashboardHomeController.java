@@ -219,8 +219,10 @@ public class DashboardHomeController implements ScreenLifecycle {
         });
         task.setOnFailed(event -> {
             dashboardLoadRunning.set(false); hideLoading();
-            org.example.util.AppDialogService.error(dashboardRoot, "Dashboard could not refresh",
-                "The ERP remains available", task.getException() == null ? "Unknown dashboard error" : task.getException().getMessage());
+            if (!Boolean.getBoolean("dse.headless.snapshot")) {
+                org.example.util.AppDialogService.error(dashboardRoot, "Dashboard could not refresh",
+                    "The ERP remains available", task.getException() == null ? "Unknown dashboard error" : task.getException().getMessage());
+            }
         });
         Thread thread = new Thread(task, "dse-dashboard-loader");
         thread.setDaemon(true);

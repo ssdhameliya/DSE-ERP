@@ -292,8 +292,8 @@ public final class PdfStudioTemplateRepository {
             template.setActivatedAt(activeMeta.getActivatedAt());
             writeWorkingAndMirror(template);
         } catch (Exception failure) {
-            try { deleteTree(folder(template).resolve(ACTIVE)); } catch (Exception ignored) { }
-            try { writeMetadata(folder(template), originalWorking); } catch (Exception ignored) { }
+            try { deleteTree(folder(template).resolve(ACTIVE)); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            try { writeMetadata(folder(template), originalWorking); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if (failure instanceof IOException io) throw io;
             throw new IOException("Default activation failed before the previous default was changed.", failure);
         }
@@ -513,7 +513,7 @@ public final class PdfStudioTemplateRepository {
         } catch (Exception error) {
             throw new IOException("PDF Studio validation failed. Existing document generation remains unchanged. " + rootMessage(error), error);
         } finally {
-            try { Files.deleteIfExists(test); } catch (Exception ignored) { }
+            try { Files.deleteIfExists(test); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
     }
 
@@ -587,7 +587,7 @@ public final class PdfStudioTemplateRepository {
                     break;
                 } catch (IOException ex) {
                     lastEx = ex;
-                    try { Thread.sleep(30L * (i + 1)); } catch (InterruptedException ignored) { }
+                    try { Thread.sleep(30L * (i + 1)); } catch (InterruptedException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 }
             }
             if (!moved && lastEx != null) throw lastEx;

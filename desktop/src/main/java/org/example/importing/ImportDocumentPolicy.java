@@ -46,7 +46,7 @@ public final class ImportDocumentPolicy {
                 && partyGstin.substring(0, 2).matches("\\d{2}")) {
                 return companyGstin.substring(0, 2).equals(partyGstin.substring(0, 2)) ? "GST" : "IGST";
             }
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return "GST";
     }
 

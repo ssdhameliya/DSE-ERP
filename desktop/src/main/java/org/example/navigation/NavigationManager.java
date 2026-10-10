@@ -225,7 +225,11 @@ public class NavigationManager {
                 notifyHidden(currentCachedPage.controller());
             }
             long attachStarted = System.nanoTime();
-            contentPane.getChildren().setAll(cached.node());
+            if (WorkspaceTabManager.isAttached()) {
+                WorkspaceTabManager.getInstance().onPageLoaded(fxml, cached.node(), cached.controller());
+            } else {
+                contentPane.getChildren().setAll(cached.node());
+            }
             logPhase(fxml, "scene-attach", attachStarted);
             Node auditedPage = cached.node();
             // Reconcile interactive presentation again after the node is attached to the
@@ -332,6 +336,9 @@ public class NavigationManager {
             if (currentCachedPage != null) notifyHidden(currentCachedPage.controller());
             CachedPage prepared = new CachedPage(page, controller);
             contentPane.getChildren().setAll(page);
+            if (WorkspaceTabManager.isAttached()) {
+                WorkspaceTabManager.getInstance().onPageLoaded(fxml, page, controller);
+            }
             Platform.runLater(() -> ProfessionalUiEnhancer.enhance(page));
             notifyShown(controller, false);
             currentCachedPage = prepared;

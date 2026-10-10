@@ -39,7 +39,7 @@ public final class RuntimeApiClient {
                     .GET().build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("Server returned HTTP " + response.statusCode());
+                throw new IllegalStateException(org.example.api.ApiRuntime.errorMessage("Runtime health", response.statusCode(), response.body()));
             }
             return json.readValue(response.body(), RuntimeStatus.class);
         } catch (Exception exception) {

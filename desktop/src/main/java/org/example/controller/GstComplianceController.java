@@ -295,7 +295,7 @@ public class GstComplianceController implements ScreenLifecycle {
                             String[] pParts = period.split("-");
                             selMonth = Integer.parseInt(pParts[0].trim());
                             selYear = Integer.parseInt(pParts[1].trim());
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     }
 
                     double totalEligibleItc = 0.0;
@@ -315,12 +315,24 @@ public class GstComplianceController implements ScreenLifecycle {
                             }
                         }
                         double total = s.getTotalAmount();
-                        double tax = total * 0.18 / 1.18;
-                        if (s.getCustomer() != null && s.getCustomer().getGstin() != null && s.getCustomer().getGstin().startsWith("24")) {
+                        double tax = s.getGstAmount();
+                        if (tax <= 0 && s.getSubtotal() > 0 && total > s.getSubtotal()) {
+                            tax = total - s.getSubtotal();
+                        }
+                        String gstType = s.getGstType();
+                        if ("IGST".equalsIgnoreCase(gstType) || "INTER_STATE".equalsIgnoreCase(gstType)) {
+                            outwardIgst += tax;
+                        } else if ("INTRA".equalsIgnoreCase(gstType) || "CGST_SGST".equalsIgnoreCase(gstType)) {
                             outwardCgst += tax / 2.0;
                             outwardSgst += tax / 2.0;
-                        } else {
+                        } else if (s.getCustomer() != null && s.getCustomer().getGstin() != null && s.getCustomer().getGstin().startsWith("24")) {
+                            outwardCgst += tax / 2.0;
+                            outwardSgst += tax / 2.0;
+                        } else if (s.getCustomer() != null && s.getCustomer().getGstin() != null && !s.getCustomer().getGstin().isBlank()) {
                             outwardIgst += tax;
+                        } else {
+                            outwardCgst += tax / 2.0;
+                            outwardSgst += tax / 2.0;
                         }
                     }
 
@@ -341,11 +353,20 @@ public class GstComplianceController implements ScreenLifecycle {
                         String tradeName = party != null && party.getName() != null ? party.getName() : "Unknown Supplier";
 
                         double total = p.getTotalAmount();
-                        double taxable = total / 1.18;
-                        double tax = total - taxable;
+                        double tax = p.getGstAmount();
+                        if (tax <= 0 && p.getSubtotal() > 0 && total > p.getSubtotal()) {
+                            tax = total - p.getSubtotal();
+                        }
+                        double taxable = p.getSubtotal() > 0 ? p.getSubtotal() : (total - tax);
                         double cgst = 0.0, sgst = 0.0, igst = 0.0;
 
-                        if (gstin.startsWith("24") || gstin.isBlank()) {
+                        String pGstType = p.getGstType();
+                        if ("IGST".equalsIgnoreCase(pGstType) || "INTER_STATE".equalsIgnoreCase(pGstType)) {
+                            igst = tax;
+                        } else if ("INTRA".equalsIgnoreCase(pGstType) || "CGST_SGST".equalsIgnoreCase(pGstType)) {
+                            cgst = tax / 2.0;
+                            sgst = tax / 2.0;
+                        } else if (gstin.startsWith("24") || gstin.isBlank()) {
                             cgst = tax / 2.0;
                             sgst = tax / 2.0;
                         } else {
@@ -370,13 +391,37 @@ public class GstComplianceController implements ScreenLifecycle {
                                 fmt(taxable), fmt(igst), fmt(cgst), fmt(sgst), status, "VERIFIED", tax));
                     }
 
-                    double netCashPayable = Math.max(0, (outwardCgst + outwardSgst + outwardIgst) - totalEligibleItc);
+                    // Rule 88A setoff for GSTR-3B display
+                    double remOutIgst = outwardIgst;
+                    double remInpIgst = inputIgst;
+                    double igstSetoff = Math.min(remOutIgst, remInpIgst);
+                    remOutIgst -= igstSetoff;
+                    remInpIgst -= igstSetoff;
+
+                    double remOutCgst = outwardCgst;
+                    double igstToCgst = Math.min(remOutCgst, remInpIgst);
+                    remOutCgst -= igstToCgst;
+                    remInpIgst -= igstToCgst;
+
+                    double remOutSgst = outwardSgst;
+                    double igstToSgst = Math.min(remOutSgst, remInpIgst);
+                    remOutSgst -= igstToSgst;
+                    remInpIgst -= igstToSgst;
+
+                    double cgstSetoff = Math.min(remOutCgst, inputCgst);
+                    remOutCgst -= cgstSetoff;
+
+                    double sgstSetoff = Math.min(remOutSgst, inputSgst);
+                    remOutSgst -= sgstSetoff;
+
+                    double netCashPayable = remOutIgst + remOutCgst + remOutSgst;
+                    double totalSetoff = igstSetoff + igstToCgst + igstToSgst + cgstSetoff + sgstSetoff;
 
                     List<Gstr3bRow> bRows = List.of(
-                            new Gstr3bRow("Integrated Tax (IGST)", fmt(outwardIgst), fmt(inputIgst), fmt(Math.min(outwardIgst, inputIgst)), fmt(Math.max(0, outwardIgst - inputIgst))),
-                            new Gstr3bRow("Central Tax (CGST)", fmt(outwardCgst), fmt(inputCgst), fmt(Math.min(outwardCgst, inputCgst)), fmt(Math.max(0, outwardCgst - inputCgst))),
-                            new Gstr3bRow("State Tax (SGST)", fmt(outwardSgst), fmt(inputSgst), fmt(Math.min(outwardSgst, inputSgst)), fmt(Math.max(0, outwardSgst - inputSgst))),
-                            new Gstr3bRow("TOTAL CASH LIABILITY", fmt(outwardIgst + outwardCgst + outwardSgst), fmt(totalEligibleItc), fmt(Math.min(outwardIgst + outwardCgst + outwardSgst, totalEligibleItc)), fmt(netCashPayable))
+                            new Gstr3bRow("Integrated Tax (IGST)", fmt(outwardIgst), fmt(inputIgst), fmt(igstSetoff), fmt(remOutIgst)),
+                            new Gstr3bRow("Central Tax (CGST)", fmt(outwardCgst), fmt(inputCgst + igstToCgst), fmt(cgstSetoff + igstToCgst), fmt(remOutCgst)),
+                            new Gstr3bRow("State Tax (SGST)", fmt(outwardSgst), fmt(inputSgst + igstToSgst), fmt(sgstSetoff + igstToSgst), fmt(remOutSgst)),
+                            new Gstr3bRow("TOTAL CASH LIABILITY", fmt(outwardIgst + outwardCgst + outwardSgst), fmt(totalEligibleItc), fmt(totalSetoff), fmt(netCashPayable))
                     );
 
                     return new GstCalculationResult(
@@ -559,7 +604,7 @@ public class GstComplianceController implements ScreenLifecycle {
                     String[] pParts = curPeriod.split("-");
                     selMonth = Integer.parseInt(pParts[0].trim());
                     selYear = Integer.parseInt(pParts[1].trim());
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
 
             for (Sales s : sales) {
@@ -598,11 +643,20 @@ public class GstComplianceController implements ScreenLifecycle {
                     ObjectNode itm = itms.addObject();
                     itm.put("num", 1);
                     ObjectNode itmDet = itm.putObject("itm_det");
-                    double taxable = s.getTotalAmount() / 1.18;
-                    double tax = s.getTotalAmount() - taxable;
+                    double tax = s.getGstAmount();
+                    if (tax <= 0 && s.getSubtotal() > 0 && s.getTotalAmount() > s.getSubtotal()) {
+                        tax = s.getTotalAmount() - s.getSubtotal();
+                    }
+                    double taxable = s.getSubtotal() > 0 ? s.getSubtotal() : (s.getTotalAmount() - tax);
+                    double rate = taxable > 0 ? Math.round((tax / taxable) * 100.0) : 18.0;
+
                     itmDet.put("txval", Math.round(taxable * 100.0) / 100.0);
-                    itmDet.put("rt", 18.0);
-                    if (entry.getKey().startsWith("24")) {
+                    itmDet.put("rt", rate);
+                    String gstType = s.getGstType();
+                    boolean isInterState = "IGST".equalsIgnoreCase(gstType) || "INTER_STATE".equalsIgnoreCase(gstType)
+                            || (!entry.getKey().startsWith("24") && !entry.getKey().isBlank());
+
+                    if (!isInterState) {
                         itmDet.put("camt", Math.round((tax / 2.0) * 100.0) / 100.0);
                         itmDet.put("samt", Math.round((tax / 2.0) * 100.0) / 100.0);
                         itmDet.put("iamt", 0.0);
@@ -618,15 +672,20 @@ public class GstComplianceController implements ScreenLifecycle {
             double b2csTaxable = 0.0;
             double b2csTax = 0.0;
             for (Sales s : b2csList) {
-                double tx = s.getTotalAmount() / 1.18;
+                double t = s.getGstAmount();
+                if (t <= 0 && s.getSubtotal() > 0 && s.getTotalAmount() > s.getSubtotal()) {
+                    t = s.getTotalAmount() - s.getSubtotal();
+                }
+                double tx = s.getSubtotal() > 0 ? s.getSubtotal() : (s.getTotalAmount() - t);
                 b2csTaxable += tx;
-                b2csTax += (s.getTotalAmount() - tx);
+                b2csTax += t;
             }
             if (b2csTaxable > 0.01) {
+                double b2csRate = b2csTaxable > 0 ? Math.round((b2csTax / b2csTaxable) * 100.0) : 18.0;
                 ObjectNode b2csItem = b2csArray.addObject();
                 b2csItem.put("sply_ty", "INTRA");
                 b2csItem.put("txval", Math.round(b2csTaxable * 100.0) / 100.0);
-                b2csItem.put("rt", 18.0);
+                b2csItem.put("rt", b2csRate);
                 b2csItem.put("camt", Math.round((b2csTax / 2.0) * 100.0) / 100.0);
                 b2csItem.put("samt", Math.round((b2csTax / 2.0) * 100.0) / 100.0);
                 b2csItem.put("iamt", 0.0);
