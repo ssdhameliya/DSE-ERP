@@ -11,25 +11,27 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return BrandingService.applicationName() + " " + version + " — UI Semantics & Glyph Rendering, Date Consistency, Table Scrolling & Calculation Hardening\n\n" + """
+            return BrandingService.applicationName() + " " + version + " — GST Compliance Suite, GSTR-1 Government Schema Export, GSTR-2B 4-Point Matching & 3-Tier Financial Statements\n\n" + """
+                    • Complete GSTR-1 Return Generator with Government GST Offline Tool JSON Schema compliance, covering Table 4 (B2B registered), Table 7 (B2C Small), Table 9B (CDNR Credit/Debit Notes registered), Table 12 (HSN/SAC 4/6/8-digit summary with UQC and rates), and Table 13 (Documents Issued invoice/credit/debit serial ranges).
+                    • GSTR-2B Automated 4-Point Reconciliation Engine matching Supplier GSTIN, normalized invoice number, invoice date (within tolerance), and total tax (within ±₹1.00 tolerance).
+                    • Integrated Supplier Follow-Up Notice generator with one-click WhatsApp and Email communication templates for unfiled ITC invoices to ensure compliance under Rule 36(4).
+                    • Statutory GSTR-3B monthly return computation with Table 3.1 outward supplies & RCM liabilities, Table 4 eligible ITC and Rule 42/43 reversals, and Section 49 / Rule 88A multi-head set-off hierarchy.
+                    • Dual-Engine Financial Statements: Live Operational Engine aggregating sales, purchases, credit/debit notes, closing stock valuation, and bank expenses in real time, plus Canonical GL Mode.
+                    • Indian 3-Tier Accounting Structure: Trading Account (Sales vs COGS → Gross Profit), Profit & Loss Account (Operating Overheads & Other Income → Net Profit), and Balance Sheet (Assets vs Liabilities & Equity in equilibrium).
+                    • Interactive Drill-Down API and Dialog: double-click any revenue, COGS, expense, or balance sheet row to inspect the underlying vouchers and invoices.
+                    • Executive Financial Ratio Health Cards: Gross Margin %, Net Margin %, Current Ratio, Quick Ratio, Days Sales Outstanding (DSO), and Days Payables Outstanding (DPO).
                     • Restored sharp semantic icon rendering across table column headers, filter controls, date presets, and drawer fields; eliminated font-family inheritance loss so FontIcon glyphs render crisp and distinct rather than falling back to box characters.
                     • Top Profile menu icons strictly apply distinct semantic glyph colors (Settings: purple, User Management: blue, Security: indigo, Backup: teal, Lock: orange, Sign Out: pink) guarded against parent ContextMenu CSS cascade.
-                    • Table scrolling and row actions are optimized with one lazy shared action menu while preserving semantic action colours and selecting the action row correctly. Action clicks now keep that selected row in its current visible position instead of forcing it to the top of the table.
-                    • Cold-start screen latency eliminated: reference data caches and primary register view hierarchies are pre-warmed asynchronously in the background post-login, making the first open of Sales and Purchases fast and responsive.
-                    • Dashboard KPI cards are now directly clickable, enabling one-click navigation from Active Sales, Active Purchases, Receivables, Payables, and Low Stock cards directly into their respective registers and inventory screens.
-                    • Sales Register and Purchase Register include quick date filter presets for "This FY" (April 1 – March 31) and "This Quarter" (Q1–Q4) alongside existing Today, Yesterday, and Month filters.
-                    • Global Search (`Ctrl+K`) shortcut is accessible anywhere in the application, even while focused within input text fields.
-                    • Payment History proof viewing supports managed relative paths and compatible legacy Windows references, with clean unavailable-file handling instead of a generic server failure.
-                    • Safe Rollback discovery and package verification run away from the JavaFX UI thread so the screen opens responsively while rollback verification remains protected.
-                    • Settings save independently page by page; Company, Payment and Invoice image changes are staged until that page is saved, and long Address / Ship Address / Terms fields remain fully usable. Test Email is now shown only on the Email section.
-                    • Full Recovery includes portable application settings and branding assets while excluding machine-specific server endpoints and database credentials.
                     • Customer-facing branding follows Company Name centrally across the application shell, reports, PDFs and email surfaces while technical DSE package/API/database identifiers remain unchanged.
-                    • The persistent shell shows the active screen with a centralized semantic colour and the native window title follows Company Name + environment + current screen.
-                    • Excel Studio server saves now execute inside the API transaction boundary, preventing generic HTTP 500 failures when creating, updating or deleting server-owned Excel templates.
-                    • Excel Studio removes duplicate-value highlighting from mapped repeating item columns during rendering, so repeated item descriptions keep the normal template formatting instead of turning red.
-                    • PROD release promotion explicitly marks a verified release as Latest, waits for GitHub/latest convergence and retries the private update gateway without demoting an already-deployed server.
-                    • Financial and tax calculation engine hardened: multi-line tax 1-paisa rounding reconciliation, interstate GST classification, and credit note FIFO automatic allocation.
                     • What's New for this running build is application-owned and packaged with the application, so LOCAL, UAT and PROD show this current release summary instead of stale GitHub PR/changelog text.
+                    """;
+        }
+        if ("10.0.30".equals(version)) {
+            return BrandingService.applicationName() + " 10.0.30 — UI Semantics & Glyph Rendering, Date Consistency, Table Scrolling & Calculation Hardening\n\n" + """
+                    • Restored sharp semantic icon rendering across table column headers, filter controls, date presets, and drawer fields; eliminated font-family inheritance loss so FontIcon glyphs render crisp and distinct rather than falling back to box characters.
+                    • Top Profile menu icons strictly apply distinct semantic glyph colors (Settings: purple, User Management: blue, Security: indigo, Backup: teal, Lock: orange, Sign Out: pink) guarded against parent ContextMenu CSS cascade.
+                    • Table scrolling and row actions are optimized with one lazy shared action menu while preserving semantic action colours and selecting the action row correctly.
+                    • Customer-facing branding follows Company Name centrally across the application shell, reports, PDFs and email surfaces while technical DSE package/API/database identifiers remain unchanged.
                     """;
         }
         if ("10.0.25".equals(version)) {

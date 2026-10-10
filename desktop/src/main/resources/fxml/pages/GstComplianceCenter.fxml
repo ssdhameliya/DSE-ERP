@@ -129,6 +129,7 @@
                   </VBox>
                 </ScrollPane>
                 <HBox spacing="8" alignment="CENTER_RIGHT">
+                  <Button fx:id="btnNotifySupplier" text="Notify Supplier" onAction="#notifySupplierAction" styleClass="approved-button,approved-warning-button"/>
                   <Button fx:id="btnOpenLinkedBill" text="Open Purchase Bill" onAction="#openLinkedBill" styleClass="primary-action,approved-button,approved-primary-button"/>
                   <Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-secondary-button"/>
                 </HBox>
@@ -152,6 +153,94 @@
                 <VBox alignment="CENTER" spacing="8"><Label text="Select a return period to view 3B calculation" styleClass="empty-title"/></VBox>
               </placeholder>
             </TableView>
+          </VBox>
+        </Tab>
+
+        <Tab text="GSTR-1 Statutory Return Center" closable="false">
+          <VBox spacing="10" styleClass="approved-card">
+            <HBox spacing="10" alignment="CENTER_LEFT">
+              <Label text="Government GST Offline Tool Compatible Outward Supplies (Tables 4, 7, 9B, 12, 13)" styleClass="section-title"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Button fx:id="btnTabExportGstr1Json" text="Export GSTR-1 JSON" onAction="#exportGstr1Json" styleClass="primary-action,approved-button,approved-primary-button"/>
+              <Button fx:id="btnTabExportGstr1Excel" text="Export GSTR-1 Excel" onAction="#exportGstr1Excel" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+            <TabPane fx:id="gstr1SubTabPane" VBox.vgrow="ALWAYS" styleClass="approved-tab-pane,erp-tab-pane">
+              <tabs>
+                <Tab text="Table 4: B2B Invoices" closable="false">
+                  <TableView fx:id="tblGstr1B2b" styleClass="approved-table,erp-table-profile-responsive">
+                    <columns>
+                      <TableColumn fx:id="colGstr1B2bCgstin" text="Customer GSTIN"/>
+                      <TableColumn fx:id="colGstr1B2bName" text="Party Name"/>
+                      <TableColumn fx:id="colGstr1B2bInum" text="Invoice No."/>
+                      <TableColumn fx:id="colGstr1B2bIdt" text="Date"/>
+                      <TableColumn fx:id="colGstr1B2bVal" text="Invoice Value (₹)"/>
+                      <TableColumn fx:id="colGstr1B2bPos" text="POS"/>
+                      <TableColumn fx:id="colGstr1B2bRate" text="Rate (%)"/>
+                      <TableColumn fx:id="colGstr1B2bTxval" text="Taxable (₹)"/>
+                      <TableColumn fx:id="colGstr1B2bIgst" text="IGST (₹)"/>
+                      <TableColumn fx:id="colGstr1B2bCgst" text="CGST (₹)"/>
+                      <TableColumn fx:id="colGstr1B2bSgst" text="SGST (₹)"/>
+                    </columns>
+                  </TableView>
+                </Tab>
+                <Tab text="Table 7: B2C Small" closable="false">
+                  <TableView fx:id="tblGstr1B2cs" styleClass="approved-table,erp-table-profile-responsive">
+                    <columns>
+                      <TableColumn fx:id="colGstr1B2csType" text="Supply Type"/>
+                      <TableColumn fx:id="colGstr1B2csPos" text="Place of Supply (POS)"/>
+                      <TableColumn fx:id="colGstr1B2csRate" text="Rate (%)"/>
+                      <TableColumn fx:id="colGstr1B2csTxval" text="Taxable Value (₹)"/>
+                      <TableColumn fx:id="colGstr1B2csIgst" text="IGST (₹)"/>
+                      <TableColumn fx:id="colGstr1B2csCgst" text="CGST (₹)"/>
+                      <TableColumn fx:id="colGstr1B2csSgst" text="SGST (₹)"/>
+                    </columns>
+                  </TableView>
+                </Tab>
+                <Tab text="Table 9B: CDNR (Credit/Debit Notes)" closable="false">
+                  <TableView fx:id="tblGstr1Cdnr" styleClass="approved-table,erp-table-profile-responsive">
+                    <columns>
+                      <TableColumn fx:id="colGstr1CdnrGstin" text="Party GSTIN"/>
+                      <TableColumn fx:id="colGstr1CdnrName" text="Party Name"/>
+                      <TableColumn fx:id="colGstr1CdnrNoteNo" text="Note No."/>
+                      <TableColumn fx:id="colGstr1CdnrNoteDate" text="Date"/>
+                      <TableColumn fx:id="colGstr1CdnrType" text="Note Type"/>
+                      <TableColumn fx:id="colGstr1CdnrOrigInv" text="Original Invoice"/>
+                      <TableColumn fx:id="colGstr1CdnrVal" text="Note Value (₹)"/>
+                      <TableColumn fx:id="colGstr1CdnrTxval" text="Taxable (₹)"/>
+                      <TableColumn fx:id="colGstr1CdnrTax" text="Total Tax (₹)"/>
+                    </columns>
+                  </TableView>
+                </Tab>
+                <Tab text="Table 12: HSN Summary" closable="false">
+                  <TableView fx:id="tblGstr1Hsn" styleClass="approved-table,erp-table-profile-responsive">
+                    <columns>
+                      <TableColumn fx:id="colGstr1HsnCode" text="HSN/SAC Code"/>
+                      <TableColumn fx:id="colGstr1HsnDesc" text="Description"/>
+                      <TableColumn fx:id="colGstr1HsnUqc" text="UQC Unit"/>
+                      <TableColumn fx:id="colGstr1HsnQty" text="Total Qty"/>
+                      <TableColumn fx:id="colGstr1HsnVal" text="Total Value (₹)"/>
+                      <TableColumn fx:id="colGstr1HsnTxval" text="Taxable (₹)"/>
+                      <TableColumn fx:id="colGstr1HsnRate" text="Rate (%)"/>
+                      <TableColumn fx:id="colGstr1HsnIgst" text="IGST (₹)"/>
+                      <TableColumn fx:id="colGstr1HsnCgst" text="CGST (₹)"/>
+                      <TableColumn fx:id="colGstr1HsnSgst" text="SGST (₹)"/>
+                    </columns>
+                  </TableView>
+                </Tab>
+                <Tab text="Table 13: Documents Issued" closable="false">
+                  <TableView fx:id="tblGstr1Docs" styleClass="approved-table,erp-table-profile-responsive">
+                    <columns>
+                      <TableColumn fx:id="colGstr1DocNature" text="Nature of Document"/>
+                      <TableColumn fx:id="colGstr1DocFrom" text="Serial From"/>
+                      <TableColumn fx:id="colGstr1DocTo" text="Serial To"/>
+                      <TableColumn fx:id="colGstr1DocTotal" text="Total Number"/>
+                      <TableColumn fx:id="colGstr1DocCancelled" text="Cancelled"/>
+                      <TableColumn fx:id="colGstr1DocNet" text="Net Issued"/>
+                    </columns>
+                  </TableView>
+                </Tab>
+              </tabs>
+            </TabPane>
           </VBox>
         </Tab>
       </tabs>

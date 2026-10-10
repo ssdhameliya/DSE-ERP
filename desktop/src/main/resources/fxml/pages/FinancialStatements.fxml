@@ -14,10 +14,12 @@
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
         <HBox spacing="8" alignment="CENTER_RIGHT">
+          <Label text="Mode:" styleClass="field-caption"/>
+          <ComboBox fx:id="cmbEngineMode" prefWidth="150"/>
           <Label text="Period:" styleClass="field-caption"/>
-          <DatePicker fx:id="dpFromDate" prefWidth="130"/>
+          <DatePicker fx:id="dpFromDate" prefWidth="120"/>
           <Label text="to" styleClass="field-caption"/>
-          <DatePicker fx:id="dpToDate" prefWidth="130"/>
+          <DatePicker fx:id="dpToDate" prefWidth="120"/>
           <Button fx:id="btnApplyDate" text="Apply" onAction="#refreshStatements" styleClass="primary-action,approved-button,approved-primary-button"/>
           <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportPdf" styleClass="approved-button,approved-secondary-button"/>
           <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportExcel" styleClass="approved-button,approved-secondary-button"/>
@@ -74,6 +76,24 @@
           </VBox>
         </HBox>
       </GridPane>
+
+      <HBox spacing="16" alignment="CENTER_LEFT" styleClass="approved-card">
+        <padding><Insets top="6" right="12" bottom="6" left="12"/></padding>
+        <Label text="Current Ratio:" styleClass="field-caption"/>
+        <Label fx:id="lblCurrentRatio" text="1.00" styleClass="bold-label"/>
+        <Separator orientation="VERTICAL"/>
+        <Label text="Quick Ratio:" styleClass="field-caption"/>
+        <Label fx:id="lblQuickRatio" text="1.00" styleClass="bold-label"/>
+        <Separator orientation="VERTICAL"/>
+        <Label text="DSO (Days Sales):" styleClass="field-caption"/>
+        <Label fx:id="lblDso" text="0.0 days" styleClass="bold-label"/>
+        <Separator orientation="VERTICAL"/>
+        <Label text="DPO (Days Payables):" styleClass="field-caption"/>
+        <Label fx:id="lblDpo" text="0.0 days" styleClass="bold-label"/>
+        <Separator orientation="VERTICAL"/>
+        <Label text="Working Capital:" styleClass="field-caption"/>
+        <Label fx:id="lblWorkingCapital" text="₹ 0.00" styleClass="bold-label"/>
+      </HBox>
     </VBox>
   </top>
 
@@ -84,6 +104,7 @@
           <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
           <HBox spacing="8" alignment="CENTER_LEFT">
             <TextField fx:id="txtSearchPnl" promptText="Search P&amp;L accounts or groups..." HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnDrillDownPnl" text="Inspect / Drill-Down" onAction="#drillDownSelectedPnl" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnExpandAllPnl" text="Expand All" onAction="#expandAllPnl" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnCollapseAllPnl" text="Collapse All" onAction="#collapseAllPnl" styleClass="approved-button,approved-secondary-button"/>
           </HBox>
@@ -104,6 +125,7 @@
           <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
           <HBox spacing="12" alignment="CENTER_LEFT">
             <TextField fx:id="txtSearchBs" promptText="Search Balance Sheet items..." HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnDrillDownBs" text="Inspect / Drill-Down" onAction="#drillDownSelectedBs" styleClass="approved-button,approved-secondary-button"/>
             <Label text="Total Assets:" styleClass="field-caption"/>
             <Label fx:id="lblTotalAssets" text="₹ 0.00" styleClass="bold-label"/>
             <Separator orientation="VERTICAL"/>
@@ -119,6 +141,22 @@
               <TreeTableColumn fx:id="colBsAmount" text="Closing Balance (₹)"/>
             </columns>
           </TreeTableView>
+        </VBox>
+      </Tab>
+
+      <Tab text="Executive Ratio Health" fx:id="tabRatios">
+        <VBox spacing="10">
+          <padding><Insets top="12" right="12" bottom="12" left="12"/></padding>
+          <Label text="Comprehensive Solvency, Profitability &amp; Activity Ratios" styleClass="section-title"/>
+          <TableView fx:id="tblRatios" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive">
+            <columns>
+              <TableColumn fx:id="colRatioCategory" text="Classification"/>
+              <TableColumn fx:id="colRatioMetric" text="Financial Metric / Ratio"/>
+              <TableColumn fx:id="colRatioValue" text="Calculated Value"/>
+              <TableColumn fx:id="colRatioBenchmark" text="Industry Benchmark"/>
+              <TableColumn fx:id="colRatioStatus" text="Health Assessment"/>
+            </columns>
+          </TableView>
         </VBox>
       </Tab>
     </TabPane>
