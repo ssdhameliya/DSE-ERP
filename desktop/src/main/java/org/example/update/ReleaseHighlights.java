@@ -20,6 +20,7 @@ public final class ReleaseHighlights {
                     • Indian 3-Tier Accounting Structure: Trading Account (Sales vs COGS → Gross Profit), Profit & Loss Account (Operating Overheads & Other Income → Net Profit), and Balance Sheet (Assets vs Liabilities & Equity in equilibrium).
                     • Interactive Drill-Down API and Dialog: double-click any revenue, COGS, expense, or balance sheet row to inspect the underlying vouchers and invoices.
                     • Executive Financial Ratio Health Cards: Gross Margin %, Net Margin %, Current Ratio, Quick Ratio, Days Sales Outstanding (DSO), and Days Payables Outstanding (DPO).
+                    • Sales Register and Financial Statements seamlessly integrate with the new 3-Tier Accounting and Statutory GST Return Generator.
                     • Restored sharp semantic icon rendering across table column headers, filter controls, date presets, and drawer fields; eliminated font-family inheritance loss so FontIcon glyphs render crisp and distinct rather than falling back to box characters.
                     • Top Profile menu icons strictly apply distinct semantic glyph colors (Settings: purple, User Management: blue, Security: indigo, Backup: teal, Lock: orange, Sign Out: pink) guarded against parent ContextMenu CSS cascade.
                     • Customer-facing branding follows Company Name centrally across the application shell, reports, PDFs and email surfaces while technical DSE package/API/database identifiers remain unchanged.

@@ -693,7 +693,14 @@ public final class ProfessionalUiEnhancer {
             case "action", "actions" -> "actions";
             case "address", "branch", "department", "location" -> "location";
             case "balance", "opening balance" -> "balance";
-            case "brand", "category", "type" -> "category";
+            case "brand", "category", "type", "classification", "supply type" -> "category";
+            case "financial metric / ratio", "metric / ratio", "ratio", "metric" -> "rate";
+            case "industry benchmark", "benchmark" -> "report";
+            case "health assessment", "assessment" -> "status";
+            case "pos", "place of supply", "place of supply (pos)" -> "location";
+            case "serial from", "serial to" -> "number";
+            case "cancelled" -> "status";
+            case "net issued" -> "quantity";
             case "code", "customer code", "supplier code", "item code" -> "identity";
             case "contact person" -> "user";
             case "converted to", "document", "invoice", "invoice no.", "original invoice",
@@ -821,7 +828,13 @@ public final class ProfessionalUiEnhancer {
         if (key.contains("resend")) return "refresh";
         if (key.equals("result") || key.contains("result ")) return "status";
         if (key.contains("role")) return "role";
-        if (key.contains("target")) return "reference";
+        if (key.contains("classification") || key.contains("supply type")) return "category";
+        if (key.contains("ratio") || key.contains("metric")) return "rate";
+        if (key.contains("benchmark")) return "report";
+        if (key.contains("health") || key.contains("assessment") || key.contains("cancelled")) return "status";
+        if (key.contains("pos") || key.contains("place of supply")) return "location";
+        if (key.contains("serial")) return "number";
+        if (key.contains("issued")) return "quantity";
         if (key.contains("name") || key.contains("title")) return "master";
         return null;
     }

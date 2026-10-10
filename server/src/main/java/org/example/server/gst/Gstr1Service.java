@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.example.server.persistence.JpaNativeRepository;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,9 +22,17 @@ public class Gstr1Service {
     private final JpaNativeRepository jdbc;
     private final ObjectMapper objectMapper;
 
+    @Autowired
+    public Gstr1Service(JpaNativeRepository jdbc, ObjectProvider<ObjectMapper> mapperProvider) {
+        this.jdbc = jdbc;
+        this.objectMapper = mapperProvider != null && mapperProvider.getIfAvailable() != null
+                ? mapperProvider.getIfAvailable()
+                : new ObjectMapper();
+    }
+
     public Gstr1Service(JpaNativeRepository jdbc, ObjectMapper objectMapper) {
         this.jdbc = jdbc;
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
     }
 
     public static record PeriodWindow(int month, int year, LocalDate startDate, LocalDate endDate, String fp) {}

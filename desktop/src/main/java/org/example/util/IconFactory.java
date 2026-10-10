@@ -1056,6 +1056,7 @@ public final class IconFactory {
         if (value.contains("mark all read")) return "mark-all-read";
         if (value.equals("mark read") || value.contains("mark as read")) return "mark-read";
         if (value.contains("open record")) return "open-record";
+        if (value.contains("inspect") || value.contains("drill-down") || value.contains("drill down")) return "view";
         if (value.equals("dismiss")) return "dismiss";
         if (value.equals("reject") || value.contains("reject return") || value.contains("reject sale") || value.contains("reject purchase")) return "reject";
         if (value.equals("ignore") || value.contains("bulk ignore")) return "ignore";
