@@ -96,6 +96,9 @@ public final class DatePickerFormatter {
     }
 
     public static void refreshAll() {
+        if (ACTIVE_PICKERS.isEmpty()) {
+            return;
+        }
         Runnable task = () -> {
             synchronized (ACTIVE_PICKERS) {
                 for (DatePicker picker : ACTIVE_PICKERS) {
@@ -111,7 +114,9 @@ public final class DatePickerFormatter {
             }
         } catch (IllegalStateException noToolkit) {
             task.run();
-        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+        } catch (Throwable ignored) {
+            java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
+        }
     }
 
     public static void updatePromptText(DatePicker picker) {

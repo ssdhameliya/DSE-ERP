@@ -10,12 +10,6 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
-        try (var in = ReleaseHighlights.class.getResourceAsStream("/release-notes.md")) {
-            if (in != null) {
-                String notes = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
-                if (!notes.isBlank()) return notes;
-            }
-        } catch (Exception ignored) {}
         if (BuildInfo.version().equals(version)) {
             return BrandingService.applicationName() + " " + version + " — UI Semantics & Glyph Rendering, Date Consistency, Table Scrolling & Calculation Hardening\n\n" + """
                     • Restored sharp semantic icon rendering across table column headers, filter controls, date presets, and drawer fields; eliminated font-family inheritance loss so FontIcon glyphs render crisp and distinct rather than falling back to box characters.

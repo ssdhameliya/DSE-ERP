@@ -24,6 +24,7 @@ import org.example.navigation.WorkspaceTabManager;
 import org.example.service.SessionService;
 import org.example.theme.ThemeManager;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -44,10 +45,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Renders actual FXML views with live CSS themes and saves authentic screenshots
  * directly to the artifacts directory (NO AI-generated images).
  */
+@EnabledIfSystemProperty(named = "dse.screen.capture.enabled", matches = "true")
 public class RealApplicationScreenCaptureTest {
 
     private static final Path ARTIFACTS_DIR = Path.of(
-            "C:\\Users\\JATIN DHAMELIYA\\.gemini\\antigravity-ide\\brain\\312b8670-35a7-493b-bc51-67e5fbd15526"
+            System.getProperty("dse.screen.capture.dir", "target/screenshots")
     );
 
     @Test
