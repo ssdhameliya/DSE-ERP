@@ -29,30 +29,54 @@
         <SplitPane fx:id="mainSplit" dividerPositions="1" styleClass="quotation-register-split"><BorderPane.margin><Insets top="14" right="14" bottom="14" left="14"/></BorderPane.margin>
             <items>
                 <VBox spacing="12" styleClass="quotation-register-workspace">
-                    <HBox spacing="12" styleClass="quotation-metric-row,erp-kpi-section">
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-total" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="totalMetricIcon" styleClass="quotation-metric-icon,total-quotation-icon"/>
-                    <VBox spacing="4"><Label text="Total Quotations" styleClass="metric-label"/><Label fx:id="lblTotalValue" styleClass="metric-value"/><Label fx:id="lblTotalCount" styleClass="metric-note"/></VBox>
+                    <HBox spacing="12" styleClass="standard-kpi-row,quotation-metric-row,erp-kpi-section">
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,quotation-metric-card,quotation-metric-total,kpi-blue" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="totalMetricIcon" styleClass="standard-kpi-icon,quotation-metric-icon,total-quotation-icon"/>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT"><Label text="Total Quotations" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Total" styleClass="metric-trend-pill,trend-neutral"/></HBox>
+                        <Label fx:id="lblTotalValue" styleClass="metric-value"/>
+                        <Label fx:id="lblTotalCount" styleClass="metric-note"/>
+                    </VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-pending" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="pendingMetricIcon" styleClass="quotation-metric-icon,pending-quotation-icon"/>
-                    <VBox spacing="4"><Label text="Pending Quotations" styleClass="metric-label"/><Label fx:id="lblPendingValue" styleClass="metric-value"/><Label fx:id="lblPendingCount" styleClass="metric-note"/></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,quotation-metric-card,quotation-metric-pending,kpi-orange" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="pendingMetricIcon" styleClass="standard-kpi-icon,quotation-metric-icon,pending-quotation-icon"/>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT"><Label text="Pending" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Open" styleClass="metric-trend-pill,trend-warning"/></HBox>
+                        <Label fx:id="lblPendingValue" styleClass="metric-value"/>
+                        <Label fx:id="lblPendingCount" styleClass="metric-note"/>
+                    </VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-accepted" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="acceptedMetricIcon" styleClass="quotation-metric-icon,accepted-quotation-icon"/>
-                    <VBox spacing="4"><Label text="Accepted Quotations" styleClass="metric-label"/><Label fx:id="lblAcceptedValue" styleClass="metric-value"/><Label fx:id="lblAcceptedCount" styleClass="metric-note"/></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,quotation-metric-card,quotation-metric-accepted,kpi-green" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="acceptedMetricIcon" styleClass="standard-kpi-icon,quotation-metric-icon,accepted-quotation-icon"/>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT"><Label text="Accepted" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Won" styleClass="metric-trend-pill,trend-positive"/></HBox>
+                        <Label fx:id="lblAcceptedValue" styleClass="metric-value"/>
+                        <Label fx:id="lblAcceptedCount" styleClass="metric-note"/>
+                    </VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-expired" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="expiredMetricIcon" styleClass="quotation-metric-icon,expired-quotation-icon"/>
-                    <VBox spacing="4"><Label text="Expired Quotations" styleClass="metric-label"/><Label fx:id="lblExpiredValue" styleClass="metric-value"/><Label fx:id="lblExpiredCount" styleClass="metric-note"/></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,quotation-metric-card,quotation-metric-expired,kpi-red" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="expiredMetricIcon" styleClass="standard-kpi-icon,quotation-metric-icon,expired-quotation-icon"/>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT"><Label text="Expired" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Overdue" styleClass="metric-trend-pill,trend-negative"/></HBox>
+                        <Label fx:id="lblExpiredValue" styleClass="metric-value"/>
+                        <Label fx:id="lblExpiredCount" styleClass="metric-note"/>
+                    </VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-conversion" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="conversionMetricIcon" styleClass="quotation-metric-icon,conversion-quotation-icon"/>
-                    <VBox spacing="4"><Label text="Conversion Rate" styleClass="metric-label"/><Label fx:id="lblConversion" styleClass="metric-value"/><Label text="Accepted / total" styleClass="metric-note"/></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,quotation-metric-card,quotation-metric-conversion,kpi-purple" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="conversionMetricIcon" styleClass="standard-kpi-icon,quotation-metric-icon,conversion-quotation-icon"/>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT"><Label text="Conversion Rate" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Rate" styleClass="metric-trend-pill,trend-positive"/></HBox>
+                        <Label fx:id="lblConversion" styleClass="metric-value"/>
+                        <Label text="Accepted / total" styleClass="metric-note"/>
+                    </VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-average" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="averageMetricIcon" styleClass="quotation-metric-icon,average-quotation-icon"/>
-                    <VBox spacing="4"><Label text="Average Value" styleClass="metric-label"/><Label fx:id="lblAverage" styleClass="metric-value"/><Label text="All quotations" styleClass="metric-note"/></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,quotation-metric-card,quotation-metric-average,kpi-teal" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="averageMetricIcon" styleClass="standard-kpi-icon,quotation-metric-icon,average-quotation-icon"/>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT"><Label text="Average Value" styleClass="metric-label"/><Region HBox.hgrow="ALWAYS"/><Label text="Avg" styleClass="metric-trend-pill,trend-info"/></HBox>
+                        <Label fx:id="lblAverage" styleClass="metric-value"/>
+                        <Label text="All quotations" styleClass="metric-note"/>
+                    </VBox>
                 </HBox>
             </HBox>
                     <VBox spacing="10" styleClass="quotation-filter-card,approved-filter-bar,erp-filter-section">

@@ -72,7 +72,7 @@ public final class ResponsiveKpiLayoutManager {
                 for (Node node : root.lookupAll("." + KPI_SECTION_STYLE)) {
                     if (node instanceof Pane pane) requestRebalance(pane);
                 }
-            } catch (RuntimeException ignored) { }
+            } catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         };
         if (Platform.isFxApplicationThread()) pass.run();
         else Platform.runLater(pass);

@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
@@ -27,6 +28,7 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -45,8 +47,11 @@ import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.animation.RotateTransition;
+import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.KeyCode;
 import org.example.navigation.NavigationManager;
 import org.example.theme.ThemeManager;
 import org.example.util.ClockService;
@@ -79,7 +84,7 @@ import org.example.shortcut.ApplicationCommandDispatcher;
 import org.example.shortcut.ShortcutRegistry.Action;
 import org.example.update.UpdateDialogs;
 
-public class DashboardController {
+public class DashboardController implements ScreenLifecycle {
     private static volatile DashboardController CURRENT;
     private final InsightsApiClient insightsApi = new InsightsApiClient();
 
@@ -110,11 +115,12 @@ public class DashboardController {
     @FXML private Button btnSalesRegister;
     @FXML private Button btnCreateSale;
     @FXML private Button btnSalesReturn;
-    @FXML
-    private Button btnQuotation;
+    @FXML private Button btnCreditNote;
+    @FXML private Button btnQuotation;
     @FXML private Button btnPurchaseRegister;
     @FXML private Button btnCreatePurchase;
     @FXML private Button btnPurchaseReturn;
+    @FXML private Button btnDebitNote;
     @FXML private Button btnBankEntry;
     @FXML private Button btnExpenseEntry;
     @FXML private Button btnBankStatement;
@@ -123,14 +129,24 @@ public class DashboardController {
     @FXML private VBox salesSubmenu;
     @FXML private VBox purchaseSubmenu;
     @FXML private VBox bankExpenseSubmenu;
+    @FXML private VBox financeSubmenu;
+    @FXML private VBox gstSubmenu;
     @FXML private VBox documentStudioSubmenu;
     @FXML private VBox settingsSubmenu;
     @FXML private Label lblSalesChevron;
     @FXML private Label lblPurchaseChevron;
     @FXML private Label lblBankExpenseChevron;
+    @FXML private Label lblFinanceChevron;
+    @FXML private Label lblGstChevron;
     @FXML private Label lblDocumentStudioChevron;
     @FXML private Label lblSettingsChevron;
     @FXML private Button btnBankExpense;
+    @FXML private Button btnFinance;
+    @FXML private Button btnGst;
+    @FXML private Button btnFinancialStatements;
+    @FXML private Button btnAgingAnalysis;
+    @FXML private Button btnEWayBill;
+    @FXML private Button btnBarcodeStudio;
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
     @FXML private Button btnAuditTrail;
@@ -181,8 +197,14 @@ public class DashboardController {
     /** Shared footer populated from values maintained in Settings. */
     @FXML
     private Label lblCompanyFooter;
+    @FXML private BorderPane shellRoot;
     @FXML private VBox sidebarRoot;
     @FXML private HBox topBar;
+
+    private final PauseTransition hoverHideDelay = new PauseTransition(Duration.millis(250));
+    private boolean hoverPeekActive = false;
+    private boolean hoverDrawerInstalled = false;
+    private static final double HOVER_EDGE_TRIGGER_X = 14.0;
 
     @FXML
     private TextField txtSearch;
@@ -220,6 +242,7 @@ public class DashboardController {
 
 
         navigationManager = new NavigationManager(contentPane);
+        org.example.navigation.WorkspaceTabManager.bind(workspaceTabContainer, contentPane);
         initializeSidebarAccordion();
         applySidebarVisibility(loadSidebarVisiblePreference(), false);
 
@@ -242,9 +265,17 @@ public class DashboardController {
         org.example.util.RealtimeSearchSupport.installRemote(txtSearch, this::search);
         Platform.runLater(() -> {
             bindShellControls();
-            if (contentPane != null && contentPane.getScene() != null)
+            if (contentPane != null && contentPane.getScene() != null) {
+                org.example.navigation.WorkspaceTabManager.installAccelerators(contentPane.getScene());
                 UpdateDialogs.showWhatsNewOnce(contentPane.getScene().getWindow());
+                installHoverPeekDrawer(contentPane.getScene());
+            }
         });
+        if (contentPane != null) {
+            contentPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                if (newScene != null) installHoverPeekDrawer(newScene);
+            });
+        }
         applyRolePermissions();
         Timeline idlePrewarm = new Timeline(
             new KeyFrame(Duration.millis(1200), evt -> {
@@ -254,7 +285,7 @@ public class DashboardController {
                     try {
                         new org.example.api.master.MasterApiClient().parties("CUSTOMER");
                         new org.example.api.master.MasterApiClient().parties("SUPPLIER");
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 });
             }),
             new KeyFrame(Duration.millis(2500), evt -> {
@@ -265,7 +296,7 @@ public class DashboardController {
                 java.util.concurrent.CompletableFuture.runAsync(() -> {
                     try {
                         new org.example.api.master.MasterApiClient().items();
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 });
             }),
             new KeyFrame(Duration.millis(4000), evt -> {
@@ -440,27 +471,43 @@ public class DashboardController {
     /** Disables protected navigation modules when the signed-in role lacks VIEW access. */
     private void applyRolePermissions() {
         protect(btnSales, "SALES.VIEW"); protect(btnPurchase, "PURCHASE.VIEW");
-        protect(btnQuotation, "QUOTATION.VIEW"); protect(btnItem, "INVENTORY.VIEW");
-        protect(btnInventory, "INVENTORY.VIEW"); protect(btnCustomer, "CUSTOMERS.VIEW");
-        protect(btnSupplier, "SUPPLIERS.VIEW"); protect(btnMasters, "MASTERS.VIEW");
-        protect(btnReports, "REPORTS.VIEW"); protect(btnReminders, "REMINDERS.VIEW");
-        protect(btnUserAccess, "USERS.VIEW"); protect(btnAuditTrail, "AUDIT.GLOBAL"); protect(btnBackup, "BACKUP.VIEW");
-        protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "SAFE_ROLLBACK.VIEW"); protect(btnDocumentStudio, "DOCUMENT_STUDIO.VIEW"); protect(btnImport, "IMPORT.VIEW");
+        protect(btnQuotation, "QUOTATION.VIEW"); protect(btnCreditNote, "CREDIT_NOTE.VIEW");
+        protect(btnDebitNote, "DEBIT_NOTE.VIEW"); protect(btnItem, "INVENTORY.VIEW");
+        protect(btnInventory, "INVENTORY.VIEW"); protect(btnBarcodeStudio, "BARCODE.VIEW");
+        protect(btnCustomer, "CUSTOMERS.VIEW"); protect(btnSupplier, "SUPPLIERS.VIEW");
+        protect(btnMasters, "MASTERS.VIEW"); protect(btnReports, "REPORTS.VIEW");
+        protect(btnReminders, "REMINDERS.VIEW"); protect(btnUserAccess, "USERS.VIEW");
+        protect(btnAuditTrail, "AUDIT.GLOBAL"); protect(btnBackup, "BACKUP.VIEW");
+        protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "SAFE_ROLLBACK.VIEW");
+        protect(btnDocumentStudio, "DOCUMENT_STUDIO.VIEW"); protect(btnImport, "IMPORT.VIEW");
+        protect(btnFinance, "GENERAL_LEDGER.VIEW");
         protect(btnGeneralLedger, "GENERAL_LEDGER.VIEW");
+        protect(btnFinancialStatements, "FINANCIAL_STATEMENTS.VIEW");
+        protect(btnAgingAnalysis, "AGING_ANALYSIS.VIEW");
+        protect(btnGst, "GST_COMPLIANCE.VIEW");
         protect(btnGstCompliance, "GST_COMPLIANCE.VIEW");
+        protect(btnEWayBill, "EWAY_BILL.VIEW");
         protect(btnAutomationCenter, "AUTOMATION.VIEW");
 
-        // Quotations have their own permission but live inside the Sales accordion.
-        // Keep the parent expandable when either Sales or Quotations is available.
+        // Sales accordion
         boolean salesAllowed = PermissionService.allowed("SALES.VIEW");
         boolean quotationAllowed = PermissionService.allowed("QUOTATION.VIEW");
-        if (btnSales != null) btnSales.setDisable(!(salesAllowed || quotationAllowed));
+        boolean creditAllowed = PermissionService.allowed("CREDIT_NOTE.VIEW");
+        if (btnSales != null) btnSales.setDisable(!(salesAllowed || quotationAllowed || creditAllowed));
         for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn}) {
             if (child != null) child.setDisable(!salesAllowed);
         }
         if (btnQuotation != null) btnQuotation.setDisable(!quotationAllowed);
+        if (btnCreditNote != null) btnCreditNote.setDisable(!creditAllowed);
 
-        inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
+        // Purchase accordion
+        boolean purchaseAllowed = PermissionService.allowed("PURCHASE.VIEW");
+        boolean debitAllowed = PermissionService.allowed("DEBIT_NOTE.VIEW");
+        if (btnPurchase != null) btnPurchase.setDisable(!(purchaseAllowed || debitAllowed));
+        for (Button child : new Button[]{btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn}) {
+            if (child != null) child.setDisable(!purchaseAllowed);
+        }
+        if (btnDebitNote != null) btnDebitNote.setDisable(!debitAllowed);
 
         // Purchase Recon is a server-backed reconciliation domain with its own permissions.
         // Keep the Bank & Expense parent available when the user can access any child domain.
@@ -473,6 +520,23 @@ public class DashboardController {
         }
         if (btnPurchaseRecon != null) btnPurchaseRecon.setDisable(!purchaseReconAllowed);
         if (btnReconSupplier != null) btnReconSupplier.setDisable(!reconSupplierAllowed);
+
+        // Finance & Accounts accordion
+        boolean glAllowed = PermissionService.allowed("GENERAL_LEDGER.VIEW");
+        boolean finAllowed = PermissionService.allowed("FINANCIAL_STATEMENTS.VIEW");
+        boolean agingAllowed = PermissionService.allowed("AGING_ANALYSIS.VIEW");
+        if (btnFinance != null) btnFinance.setDisable(!(glAllowed || finAllowed || agingAllowed));
+        if (btnGeneralLedger != null) btnGeneralLedger.setDisable(!glAllowed);
+        if (btnFinancialStatements != null) btnFinancialStatements.setDisable(!finAllowed);
+        if (btnAgingAnalysis != null) btnAgingAnalysis.setDisable(!agingAllowed);
+
+        // GST & Compliance accordion
+        boolean gstAllowed = PermissionService.allowed("GST_COMPLIANCE.VIEW");
+        boolean ewayAllowed = PermissionService.allowed("EWAY_BILL.VIEW");
+        if (btnGst != null) btnGst.setDisable(!(gstAllowed || ewayAllowed));
+        if (btnGstCompliance != null) btnGstCompliance.setDisable(!gstAllowed);
+        if (btnEWayBill != null) btnEWayBill.setDisable(!ewayAllowed);
+
         inheritGroupPermission(btnDocumentStudio, btnPdfStudio, btnExcelStudio);
         inheritGroupPermission(btnSettings, btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice,
                 btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates);
@@ -622,7 +686,7 @@ public class DashboardController {
 
     private void runShortcutAction(Action action) {
         switch (action) {
-            case GLOBAL_SEARCH -> { txtSearch.requestFocus(); txtSearch.selectAll(); }
+            case GLOBAL_SEARCH -> search();
             case TOGGLE_SIDEBAR -> toggleSidebar();
             case SAVE_CURRENT, EDIT_CURRENT, REFRESH_CURRENT, NEW_CURRENT, OPEN_SELECTED, DELETE_SELECTED, PRINT_CURRENT, EXPORT_CURRENT, CLOSE_BACK,
                  MASTER_DELETE, MASTER_EDIT, MASTER_REFRESH, MASTER_NEW -> ApplicationCommandDispatcher.execute(action);
@@ -687,14 +751,22 @@ public class DashboardController {
         String icon = text.contains("dashboard") ? "dashboard"
             : text.contains("quotation") ? "quotation"
             : text.contains("import") ? "import"
+            : text.contains("credit note") ? "credit_note"
+            : text.contains("debit note") ? "debit_note"
             : text.contains("sale") ? "sale"
             : text.contains("purchase") ? "purchase"
+            : text.contains("barcode") ? "barcode"
             : text.contains("inventory") ? "inventory"
             : text.contains("item") ? "item"
             : text.contains("master") ? "master"
             : text.contains("customer") || text.contains("crm") ? "customer"
             : text.contains("supplier") || text.contains("hrm") ? "supplier"
             : text.contains("bank") || text.contains("expense") ? "bank"
+            : text.contains("aging") ? "wallet"
+            : text.contains("financial statement") ? "report"
+            : text.contains("finance") ? "wallet"
+            : text.contains("eway") || text.contains("e-way") ? "delivery"
+            : text.contains("gst") ? "tax"
             : text.contains("pdf studio") ? "pdf"
             : text.contains("excel studio") ? "excel"
             : text.contains("report") ? "report"
@@ -717,6 +789,12 @@ public class DashboardController {
 
     @FXML
     private StackPane contentPane;
+
+    @FXML
+    private HBox workspaceTabBar;
+
+    @FXML
+    private HBox workspaceTabContainer;
 
     private NavigationManager navigationManager;
 
@@ -745,14 +823,145 @@ public class DashboardController {
 
     private void applySidebarVisibility(boolean visible, boolean persist) {
         if (sidebarRoot == null) return;
+        hoverHideDelay.stop();
+        hoverPeekActive = false;
+        sidebarRoot.getStyleClass().remove("sidebar-floating-peek");
         sidebarRoot.setManaged(visible);
         sidebarRoot.setVisible(visible);
         if (persist) ConfigManager.set(sidebarPreferenceKey(), Boolean.toString(visible));
         refreshSidebarTogglePresentation();
         if (contentPane != null) {
             contentPane.requestLayout();
-            if (contentPane.getParent() != null) contentPane.getParent().requestLayout();
+            if (contentPane.getParent() != null) {
+                contentPane.getParent().requestLayout();
+                if (contentPane.getParent().getParent() != null) {
+                    contentPane.getParent().getParent().requestLayout();
+                }
+            }
+            if (btnSidebarToggle != null && btnSidebarToggle.getScene() != null && btnSidebarToggle.getScene().getRoot() != null) {
+                btnSidebarToggle.getScene().getRoot().requestLayout();
+            }
             org.example.util.RegisterUiSupport.reflowAfterShellResize(contentPane);
+        }
+    }
+
+    private void showHoverPeekSidebar() {
+        if (sidebarRoot == null || sidebarRoot.isManaged()) return;
+        hoverHideDelay.stop();
+        if (hoverPeekActive && sidebarRoot.isVisible()) return;
+
+        BorderPane root = shellRoot != null ? shellRoot : (sidebarRoot.getParent() instanceof BorderPane bp ? bp : null);
+        if (root == null) return;
+
+        double topOffset = topBar != null ? topBar.getBoundsInParent().getMaxY() : 0.0;
+        double bottomOffset = 0.0;
+        if (root.getBottom() != null && root.getBottom().isVisible()) {
+            bottomOffset = root.getBottom().getBoundsInParent().getHeight();
+        }
+        double availableHeight = root.getHeight() - topOffset - bottomOffset;
+        if (availableHeight <= 0) availableHeight = 600.0;
+        double prefW = sidebarRoot.prefWidth(-1);
+        if (prefW <= 0) prefW = 215.0;
+
+        sidebarRoot.toFront();
+        sidebarRoot.relocate(0, topOffset);
+        sidebarRoot.resize(prefW, availableHeight);
+        if (!sidebarRoot.getStyleClass().contains("sidebar-floating-peek")) {
+            sidebarRoot.getStyleClass().add("sidebar-floating-peek");
+        }
+        sidebarRoot.setVisible(true);
+        hoverPeekActive = true;
+    }
+
+    private void updateHoverPeekDimensions() {
+        if (sidebarRoot == null || sidebarRoot.isManaged() || !hoverPeekActive) return;
+        BorderPane root = shellRoot != null ? shellRoot : (sidebarRoot.getParent() instanceof BorderPane bp ? bp : null);
+        if (root == null) return;
+        double topOffset = topBar != null ? topBar.getBoundsInParent().getMaxY() : 0.0;
+        double bottomOffset = 0.0;
+        if (root.getBottom() != null && root.getBottom().isVisible()) {
+            bottomOffset = root.getBottom().getBoundsInParent().getHeight();
+        }
+        double availableHeight = root.getHeight() - topOffset - bottomOffset;
+        if (availableHeight <= 0) availableHeight = 600.0;
+        double prefW = sidebarRoot.prefWidth(-1);
+        if (prefW <= 0) prefW = 215.0;
+        sidebarRoot.relocate(0, topOffset);
+        sidebarRoot.resize(prefW, availableHeight);
+    }
+
+    private void hideHoverPeekSidebar() {
+        hoverHideDelay.stop();
+        if (sidebarRoot == null || sidebarRoot.isManaged()) return;
+        sidebarRoot.setVisible(false);
+        sidebarRoot.getStyleClass().remove("sidebar-floating-peek");
+        hoverPeekActive = false;
+    }
+
+    private void scheduleHoverHide() {
+        if (sidebarRoot == null || sidebarRoot.isManaged() || !hoverPeekActive) return;
+        hoverHideDelay.setOnFinished(e -> hideHoverPeekSidebar());
+        hoverHideDelay.playFromStart();
+    }
+
+    private void installHoverPeekDrawer(Scene scene) {
+        if (scene == null || hoverDrawerInstalled) return;
+        hoverDrawerInstalled = true;
+
+        scene.addEventFilter(MouseEvent.MOUSE_MOVED, event -> {
+            if (sidebarRoot == null || sidebarRoot.isManaged()) return;
+
+            double mouseX = event.getSceneX();
+            double mouseY = event.getSceneY();
+
+            if (!hoverPeekActive) {
+                if (mouseX <= HOVER_EDGE_TRIGGER_X) {
+                    showHoverPeekSidebar();
+                }
+            } else {
+                double sidebarWidth = sidebarRoot.getWidth() > 0 ? sidebarRoot.getWidth() : 215.0;
+                boolean insideSidebar = mouseX <= sidebarWidth && mouseY >= (topBar != null ? topBar.getHeight() : 0);
+                boolean overToggleButton = btnSidebarToggle != null && btnSidebarToggle.localToScene(btnSidebarToggle.getBoundsInLocal()).contains(mouseX, mouseY);
+
+                if (insideSidebar || overToggleButton) {
+                    hoverHideDelay.stop();
+                } else {
+                    scheduleHoverHide();
+                }
+            }
+        });
+
+        if (btnSidebarToggle != null) {
+            btnSidebarToggle.setOnMouseEntered(e -> {
+                if (sidebarRoot != null && !sidebarRoot.isManaged()) {
+                    showHoverPeekSidebar();
+                }
+            });
+        }
+
+        scene.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (hoverPeekActive && sidebarRoot != null && !sidebarRoot.isManaged()) {
+                double sidebarWidth = sidebarRoot.getWidth() > 0 ? sidebarRoot.getWidth() : 215.0;
+                if (event.getSceneX() > sidebarWidth) {
+                    hideHoverPeekSidebar();
+                }
+            }
+        });
+
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (hoverPeekActive && event.getCode() == KeyCode.ESCAPE) {
+                hideHoverPeekSidebar();
+                event.consume();
+            }
+        });
+
+        BorderPane root = shellRoot != null ? shellRoot : (sidebarRoot != null && sidebarRoot.getParent() instanceof BorderPane bp ? bp : null);
+        if (root != null) {
+            root.heightProperty().addListener((obs, oldH, newH) -> {
+                if (hoverPeekActive && sidebarRoot != null && !sidebarRoot.isManaged()) {
+                    updateHoverPeekDimensions();
+                }
+            });
         }
     }
 
@@ -769,13 +978,14 @@ public class DashboardController {
 
     private void refreshSidebarTogglePresentation() {
         if (btnSidebarToggle == null) return;
-        boolean visible = sidebarRoot == null || sidebarRoot.isManaged();
-        UiActionIcons.apply(btnSidebarToggle, "menu", visible ? "Hide navigation" : "Show navigation");
-        btnSidebarToggle.setAccessibleText(visible ? "Hide navigation" : "Show navigation");
+        boolean pinned = sidebarRoot != null && sidebarRoot.isManaged();
+        String tooltipText = pinned ? "Auto-hide navigation" : "Pin navigation";
+        UiActionIcons.apply(btnSidebarToggle, "menu", tooltipText);
+        btnSidebarToggle.setAccessibleText(tooltipText);
         if (btnSidebarToggle.getTooltip() != null) {
             String shortcut = ShortcutRegistry.display(Action.TOGGLE_SIDEBAR);
             String suffix = "Disabled".equals(shortcut) ? "" : " (" + shortcut + ")";
-            btnSidebarToggle.getTooltip().setText((visible ? "Hide navigation" : "Show navigation") + suffix);
+            btnSidebarToggle.getTooltip().setText(tooltipText + suffix);
         }
     }
 
@@ -784,18 +994,22 @@ public class DashboardController {
         if (button != null && !button.getStyleClass().contains("menu-selected")) button.getStyleClass().add("menu-selected");
     }
 
-    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE, DOCUMENT_STUDIO, SETTINGS }
+    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE, FINANCE, GST, DOCUMENT_STUDIO, SETTINGS }
 
     /** Initializes the sidebar in a compact state so a new login shows only top-level modules. */
     private void initializeSidebarAccordion() {
         configureChevron(lblSalesChevron);
         configureChevron(lblPurchaseChevron);
         configureChevron(lblBankExpenseChevron);
+        configureChevron(lblFinanceChevron);
+        configureChevron(lblGstChevron);
         configureChevron(lblDocumentStudioChevron);
         configureChevron(lblSettingsChevron);
         setGroupExpanded(NavGroup.SALES, false, false);
         setGroupExpanded(NavGroup.PURCHASE, false, false);
         setGroupExpanded(NavGroup.BANK_EXPENSE, false, false);
+        setGroupExpanded(NavGroup.FINANCE, false, false);
+        setGroupExpanded(NavGroup.GST, false, false);
         setGroupExpanded(NavGroup.DOCUMENT_STUDIO, false, false);
         setGroupExpanded(NavGroup.SETTINGS, false, false);
     }
@@ -810,6 +1024,8 @@ public class DashboardController {
     @FXML private void toggleSalesMenu() { toggleGroup(NavGroup.SALES); }
     @FXML private void togglePurchaseMenu() { toggleGroup(NavGroup.PURCHASE); }
     @FXML private void toggleBankExpenseMenu() { toggleGroup(NavGroup.BANK_EXPENSE); }
+    @FXML private void toggleFinanceMenu() { toggleGroup(NavGroup.FINANCE); }
+    @FXML private void toggleGstMenu() { toggleGroup(NavGroup.GST); }
     @FXML private void toggleDocumentStudioMenu() { toggleGroup(NavGroup.DOCUMENT_STUDIO); }
     @FXML private void toggleSettingsMenu() { toggleGroup(NavGroup.SETTINGS); }
 
@@ -831,7 +1047,7 @@ public class DashboardController {
     }
 
     private void collapseAllSubmenus(NavGroup except) {
-        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.DOCUMENT_STUDIO, NavGroup.SETTINGS}) {
+        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.FINANCE, NavGroup.GST, NavGroup.DOCUMENT_STUDIO, NavGroup.SETTINGS}) {
             if (group != except) setGroupExpanded(group, false, true);
         }
     }
@@ -865,6 +1081,8 @@ public class DashboardController {
             case SALES -> salesSubmenu;
             case PURCHASE -> purchaseSubmenu;
             case BANK_EXPENSE -> bankExpenseSubmenu;
+            case FINANCE -> financeSubmenu;
+            case GST -> gstSubmenu;
             case DOCUMENT_STUDIO -> documentStudioSubmenu;
             case SETTINGS -> settingsSubmenu;
             default -> null;
@@ -876,6 +1094,8 @@ public class DashboardController {
             case SALES -> lblSalesChevron;
             case PURCHASE -> lblPurchaseChevron;
             case BANK_EXPENSE -> lblBankExpenseChevron;
+            case FINANCE -> lblFinanceChevron;
+            case GST -> lblGstChevron;
             case DOCUMENT_STUDIO -> lblDocumentStudioChevron;
             case SETTINGS -> lblSettingsChevron;
             default -> null;
@@ -887,6 +1107,8 @@ public class DashboardController {
             case SALES -> btnSales;
             case PURCHASE -> btnPurchase;
             case BANK_EXPENSE -> btnBankExpense;
+            case FINANCE -> btnFinance;
+            case GST -> btnGst;
             case DOCUMENT_STUDIO -> btnDocumentStudio;
             case SETTINGS -> btnSettings;
             default -> null;
@@ -894,12 +1116,16 @@ public class DashboardController {
     }
 
     private NavGroup groupFor(Button button, String fxmlPath) {
-        if (button == btnSales || button == btnSalesRegister || button == btnCreateSale || button == btnSalesReturn || button == btnQuotation)
+        if (button == btnSales || button == btnSalesRegister || button == btnCreateSale || button == btnSalesReturn || button == btnCreditNote || button == btnQuotation)
             return NavGroup.SALES;
-        if (button == btnPurchase || button == btnPurchaseRegister || button == btnCreatePurchase || button == btnPurchaseReturn)
+        if (button == btnPurchase || button == btnPurchaseRegister || button == btnCreatePurchase || button == btnPurchaseReturn || button == btnDebitNote)
             return NavGroup.PURCHASE;
         if (button == btnBankExpense || button == btnBankEntry || button == btnExpenseEntry || button == btnBankStatement || button == btnPurchaseRecon || button == btnReconSupplier)
             return NavGroup.BANK_EXPENSE;
+        if (button == btnFinance || button == btnGeneralLedger || button == btnFinancialStatements || button == btnAgingAnalysis)
+            return NavGroup.FINANCE;
+        if (button == btnGst || button == btnGstCompliance || button == btnEWayBill)
+            return NavGroup.GST;
         if (button == btnDocumentStudio || button == btnPdfStudio || button == btnExcelStudio)
             return NavGroup.DOCUMENT_STUDIO;
         if (button == btnSettings || button == btnSettingsCompany || button == btnSettingsPayment
@@ -907,9 +1133,11 @@ public class DashboardController {
                 || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates || button == btnSettingsModules)
             return NavGroup.SETTINGS;
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
-        if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
-        if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
+        if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.contains("creditnoteregister") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
+        if (path.contains("purchaselist") || path.contains("purchasereturns") || path.contains("debitnoteregister") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
         if (path.contains("bankexpense") || path.contains("bankstatement") || path.contains("purchaserecon") || path.contains("reconsupplier")) return NavGroup.BANK_EXPENSE;
+        if (path.contains("generalledger") || path.contains("financialstatements") || path.contains("aginganalysis")) return NavGroup.FINANCE;
+        if (path.contains("gstcompliance") || path.contains("ewaybill")) return NavGroup.GST;
         if (path.contains("documentstudio") || path.contains("pdfdesigner") || path.contains("exceldesigner")) return NavGroup.DOCUMENT_STUDIO;
         if (path.contains("settings")) return NavGroup.SETTINGS;
         return NavGroup.NONE;
@@ -920,13 +1148,21 @@ public class DashboardController {
         if (path.contains("saleslist")) return btnSalesRegister;
         if (path.endsWith("/sale.fxml")) return btnCreateSale;
         if (path.contains("salesreturns")) return btnSalesReturn;
+        if (path.contains("creditnoteregister")) return btnCreditNote;
         if (path.contains("quotation")) return btnQuotation;
         if (path.contains("purchaselist")) return btnPurchaseRegister;
         if (path.endsWith("/purchase.fxml")) return btnCreatePurchase;
         if (path.contains("purchasereturns")) return btnPurchaseReturn;
+        if (path.contains("debitnoteregister")) return btnDebitNote;
         if (path.contains("bankstatement")) return btnBankStatement;
         if (path.contains("purchaserecon")) return btnPurchaseRecon;
         if (path.contains("reconsupplier")) return btnReconSupplier;
+        if (path.contains("generalledger")) return btnGeneralLedger;
+        if (path.contains("financialstatements")) return btnFinancialStatements;
+        if (path.contains("aginganalysis")) return btnAgingAnalysis;
+        if (path.contains("gstcompliance")) return btnGstCompliance;
+        if (path.contains("ewaybill")) return btnEWayBill;
+        if (path.contains("barcodestudio")) return btnBarcodeStudio;
         if (path.contains("exceldesigner")) return btnExcelStudio;
         if (path.contains("pdfdesigner")) return btnPdfStudio;
         return button;
@@ -949,14 +1185,16 @@ public class DashboardController {
     private List<Button> navigationButtons() {
         return java.util.stream.Stream.of(
                 btnDashboard,
-                btnSales, btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
-                btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn,
+                btnSales, btnSalesRegister, btnCreateSale, btnSalesReturn, btnCreditNote, btnQuotation,
+                btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnDebitNote,
                 btnItem, btnMasters, btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
-                btnImport, btnInventory, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnAuditTrail, btnCommunication,
+                btnFinance, btnGeneralLedger, btnFinancialStatements, btnAgingAnalysis,
+                btnGst, btnGstCompliance, btnEWayBill,
+                btnImport, btnInventory, btnBarcodeStudio, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnAuditTrail, btnCommunication,
                 btnDocumentStudio, btnPdfStudio, btnExcelStudio, btnSettings, btnSettingsCompany, btnSettingsPayment,
                 btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace,
                 btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules,
-                btnGeneralLedger, btnGstCompliance, btnAutomationCenter,
+                btnAutomationCenter,
                 btnSafeRollback, btnBackup)
             .filter(java.util.Objects::nonNull)
             .toList();
@@ -964,7 +1202,7 @@ public class DashboardController {
 
     private void clearSelection() {
         for (Button button : navigationButtons()) button.getStyleClass().remove("menu-selected");
-        for (Button parent : new Button[]{btnSales, btnPurchase, btnBankExpense, btnDocumentStudio, btnSettings}) {
+        for (Button parent : new Button[]{btnSales, btnPurchase, btnBankExpense, btnFinance, btnGst, btnDocumentStudio, btnSettings}) {
             if (parent != null) parent.getStyleClass().remove("menu-group-active");
         }
     }
@@ -1010,6 +1248,9 @@ public class DashboardController {
     private void openPage(Button button,
                           String pageTitle,
                           String fxmlPath) {
+        if (hoverPeekActive) {
+            hideHoverPeekSidebar();
+        }
 
         String requiredPermission = permissionForPage(fxmlPath);
         if (requiredPermission != null && !PermissionService.allowed(requiredPermission)) {
@@ -1257,7 +1498,7 @@ public class DashboardController {
 
     private void markCommunicationRead(String channel) {
         try { insightsApi.markCommunicationRead(channel); }
-        catch (Exception ignored) { }
+        catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     @FXML
@@ -1325,8 +1566,32 @@ public class DashboardController {
         openPage(btnGeneralLedger, "General Ledger & Accounting", "/fxml/pages/GeneralLedger.fxml");
     }
 
+    @FXML private void openFinancialStatements() {
+        openPage(btnFinancialStatements, "Financial Statements", "/fxml/pages/FinancialStatements.fxml");
+    }
+
+    @FXML private void openAgingAnalysis() {
+        openPage(btnAgingAnalysis, "AR / AP Aging Analysis", "/fxml/pages/AgingAnalysis.fxml");
+    }
+
+    @FXML private void openCreditNotes() {
+        openPage(btnCreditNote, "Sales Credit Notes", "/fxml/pages/CreditNoteRegister.fxml");
+    }
+
+    @FXML private void openDebitNotes() {
+        openPage(btnDebitNote, "Purchase Debit Notes", "/fxml/pages/DebitNoteRegister.fxml");
+    }
+
     @FXML private void openGstCompliance() {
         openPage(btnGstCompliance, "GST Compliance Center", "/fxml/pages/GstComplianceCenter.fxml");
+    }
+
+    @FXML private void openEWayBill() {
+        openPage(btnEWayBill, "E-Way Bill & E-Invoice", "/fxml/pages/EWayBillCenter.fxml");
+    }
+
+    @FXML private void openBarcodeStudio() {
+        openPage(btnBarcodeStudio, "Barcode Studio", "/fxml/pages/BarcodeStudio.fxml");
     }
 
     @FXML private void openAutomationCenter() {
@@ -1362,7 +1627,7 @@ public class DashboardController {
     @FXML
     private void search() {
         String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim();
-        if (query.isEmpty()) { txtSearch.requestFocus(); return; }
+        txtSearch.clear();
         GlobalSearchContext.open(query);
         openPage(null, "Global Search", "/fxml/pages/GlobalSearch.fxml");
     }
@@ -1384,7 +1649,7 @@ public class DashboardController {
     /** Refreshes the unread email-delivery activity badge in the application header. */
     private void refreshEmailBadge() {
         if (lblEmailBadge == null) return;
-        int count = 0; try { count = insightsApi.shellCounts().email(); } catch (Exception ignored) { }
+        int count = 0; try { count = insightsApi.shellCounts().email(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         lblEmailBadge.setText(count > 99 ? "99+" : Integer.toString(count));
         lblEmailBadge.setVisible(count > 0); lblEmailBadge.setManaged(count > 0);
     }
@@ -1392,7 +1657,7 @@ public class DashboardController {
     /** Displays unread WhatsApp communication records in the shared application header. */
     private void refreshWhatsappBadge() {
         if (lblWhatsappBadge == null) return;
-        int count = 0; try { count = insightsApi.shellCounts().whatsapp(); } catch (Exception ignored) { }
+        int count = 0; try { count = insightsApi.shellCounts().whatsapp(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         lblWhatsappBadge.setText(count > 99 ? "99+" : Integer.toString(count));
         lblWhatsappBadge.setVisible(count > 0); lblWhatsappBadge.setManaged(count > 0);
     }
@@ -1400,7 +1665,7 @@ public class DashboardController {
     /** Shows the number of currently open or overdue reminders in the header. */
     private void refreshReminderBadge() {
         if (lblReminderBadge == null) return;
-        int count = 0; try { count = insightsApi.shellCounts().reminders(); } catch (Exception ignored) { }
+        int count = 0; try { count = insightsApi.shellCounts().reminders(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         lblReminderBadge.setText(count > 99 ? "99+" : Integer.toString(count));
         lblReminderBadge.setVisible(count > 0); lblReminderBadge.setManaged(count > 0);
     }
@@ -1486,4 +1751,9 @@ public class DashboardController {
         org.example.util.SceneManager.showLogin();
     }
 
+
+    @Override
+    public void onScreenHidden() {
+        GlobalSearchContext.clear();
+    }
 }

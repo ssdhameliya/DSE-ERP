@@ -153,7 +153,7 @@ final class ProfessionalDocumentDataLoader {
             data.originalDate = sales
                 ? date(operations.sale(details.invoice()).getInvoiceDate())
                 : date(operations.purchase(details.invoice()).getInvoiceDate());
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         Party party = master.parties(sales ? "CUSTOMER" : "SUPPLIER").stream()
             .filter(value -> value.getName() != null && value.getName().equalsIgnoreCase(details.party()))
             .findFirst().orElse(null);

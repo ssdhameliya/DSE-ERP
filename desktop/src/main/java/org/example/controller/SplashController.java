@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
@@ -15,7 +16,7 @@ import org.example.update.BuildInfo;
 import org.example.service.BrandingService;
 import org.example.service.BrandImagePresenter;
 
-public class SplashController {
+public class SplashController implements ScreenLifecycle {
     @FXML private ProgressBar progressBar;
     @FXML private Label lblStatus, progressPercent, elapsedTime, stageValue, systemValue, databaseValue, versionLabel;
     @FXML private Label workspaceStatus, postgresStatus, springStatus, schemaStatus, applicationStatus;
@@ -179,5 +180,10 @@ public class SplashController {
         } catch (Exception ignored) {
             return System.getProperty("os.arch", "System");
         }
+    }
+
+    @Override
+    public void onScreenHidden() {
+        
     }
 }

@@ -17,7 +17,7 @@ public final class BusinessClock {
         String configured = readConfigured("company.timeZone");
         if (configured == null || configured.isBlank()) configured = System.getenv("DSE_BUSINESS_TIME_ZONE");
         if (configured != null && !configured.isBlank()) {
-            try { return ZoneId.of(configured.trim()); } catch (Exception ignored) { }
+            try { return ZoneId.of(configured.trim()); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return ZoneId.systemDefault();
     }
@@ -55,24 +55,42 @@ public final class BusinessClock {
         catch (IllegalArgumentException ignored) { return "dd/MM/yyyy"; }
     }
 
+    public static String timePattern() {
+        String configured = readConfigured("company.timeFormat");
+        if (configured == null || configured.isBlank()) configured = System.getenv("DSE_BUSINESS_TIME_FORMAT");
+        String candidate = configured == null || configured.isBlank() ? "hh:mm a" : configured.trim();
+        try { DateTimeFormatter.ofPattern(candidate); return candidate; }
+        catch (IllegalArgumentException ignored) { return "hh:mm a"; }
+    }
+
+    public static String formatTimestamp(Instant value) {
+        if (value == null) return "";
+        String pattern = datePattern() + " " + timePattern();
+        try {
+            return DateTimeFormatter.ofPattern(pattern, java.util.Locale.getDefault()).withZone(zone()).format(value);
+        } catch (Exception e) {
+            return DateTimeFormatter.ISO_INSTANT.format(value);
+        }
+    }
+
     /**
      * Compatibility parser for historical TEXT timestamps. New event timestamps are always ISO UTC instants.
      */
     public static Instant parseTimestamp(String value) {
         if (value == null || value.isBlank()) return null;
         String text = value.trim();
-        try { return Instant.parse(text); } catch (DateTimeParseException ignored) { }
-        try { return OffsetDateTime.parse(text).toInstant(); } catch (DateTimeParseException ignored) { }
+        try { return Instant.parse(text); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+        try { return OffsetDateTime.parse(text).toInstant(); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         String offsetCompatible = text.replace(' ', 'T');
         if (offsetCompatible.matches(".*[+-]\\d{2}$")) offsetCompatible += ":00";
-        try { return OffsetDateTime.parse(offsetCompatible).toInstant(); } catch (DateTimeParseException ignored) { }
-        try { return LocalDateTime.parse(offsetCompatible, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(zone()).toInstant(); } catch (DateTimeParseException ignored) { }
+        try { return OffsetDateTime.parse(offsetCompatible).toInstant(); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+        try { return LocalDateTime.parse(offsetCompatible, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(zone()).toInstant(); } catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         for (DateTimeFormatter formatter : List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME,
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))) {
             try { return LocalDateTime.parse(text, formatter).atZone(zone()).toInstant(); }
-            catch (DateTimeParseException ignored) { }
+            catch (DateTimeParseException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         throw new IllegalArgumentException("Unsupported timestamp format: " + value);
     }

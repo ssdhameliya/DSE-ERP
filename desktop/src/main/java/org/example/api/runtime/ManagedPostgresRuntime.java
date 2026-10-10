@@ -190,7 +190,7 @@ public final class ManagedPostgresRuntime {
                         .toAbsolutePath().normalize();
                 Path folder = Files.isDirectory(code) ? code : code.getParent();
                 if (folder != null) candidates.add(folder.resolve("runtime/postgresql"));
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             String supportOverride = System.getProperty("dse.erp.postgres.home", "").trim();
             if (!supportOverride.isBlank()) candidates.add(Path.of(supportOverride));
         } else {
@@ -213,7 +213,7 @@ public final class ManagedPostgresRuntime {
                         .toAbsolutePath().normalize();
                 Path folder = Files.isDirectory(code) ? code : code.getParent();
                 if (folder != null) candidates.add(folder.resolve("runtime/postgresql"));
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
 
             Path cwd = Path.of("").toAbsolutePath().normalize();
             candidates.add(cwd.resolve("runtime/postgresql"));
@@ -290,7 +290,7 @@ public final class ManagedPostgresRuntime {
                 Path folder=Path.of(entry).toAbsolutePath().normalize();
                 if(Files.isRegularFile(folder.resolve("initdb.exe")))
                     candidates.add("bin".equalsIgnoreCase(String.valueOf(folder.getFileName()))?folder.getParent():folder);
-            }catch(Exception ignored){}
+            }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
     }
 
@@ -568,7 +568,7 @@ public final class ManagedPostgresRuntime {
                 if (Path.of(command).toAbsolutePath().normalize().equals(executable) && handle.isAlive()) {
                     pids.add(handle.pid());
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }));
         return pids;
     }

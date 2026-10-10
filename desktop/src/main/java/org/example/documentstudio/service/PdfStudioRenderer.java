@@ -819,8 +819,8 @@ public final class PdfStudioRenderer {
         if("TIMES".equals(family))return font(bold&&italic?Standard14Fonts.FontName.TIMES_BOLD_ITALIC:bold?Standard14Fonts.FontName.TIMES_BOLD:italic?Standard14Fonts.FontName.TIMES_ITALIC:Standard14Fonts.FontName.TIMES_ROMAN);
         if("COURIER".equals(family))return font(bold&&italic?Standard14Fonts.FontName.COURIER_BOLD_OBLIQUE:bold?Standard14Fonts.FontName.COURIER_BOLD:italic?Standard14Fonts.FontName.COURIER_OBLIQUE:Standard14Fonts.FontName.COURIER);
         if(!"HELVETICA".equals(family)){
-            try{PDFont embedded=embeddedSourceFont(family,bold,italic);if(embedded!=null)return embedded;}catch(Exception ignored){}
-            try{PDFont custom=systemFont(family,bold,italic);if(custom!=null)return custom;}catch(Exception ignored){}
+            try{PDFont embedded=embeddedSourceFont(family,bold,italic);if(embedded!=null)return embedded;}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            try{PDFont custom=systemFont(family,bold,italic);if(custom!=null)return custom;}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return font(bold&&italic?Standard14Fonts.FontName.HELVETICA_BOLD_OBLIQUE:bold?Standard14Fonts.FontName.HELVETICA_BOLD:italic?Standard14Fonts.FontName.HELVETICA_OBLIQUE:Standard14Fonts.FontName.HELVETICA);
     }
@@ -837,7 +837,7 @@ public final class PdfStudioRenderer {
                     if(stream==null)continue;
                     String raw=font.getName();String token=fontToken(raw);if(token.isBlank())continue;
                     out.putIfAbsent(token,stream.toByteArray());
-                }catch(Exception ignored){}
+                }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
         }
     }
@@ -880,7 +880,7 @@ public final class PdfStudioRenderer {
                 boolean ci=lower.contains("italic")||lower.contains("oblique");if(cb==bold)score+=20;if(ci==italic)score+=20;
                 if(score>bestScore){bestScore=score;best=candidate;}
             }
-        }catch(Exception ignored){}}
+        }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}
         return best;
     }
 
@@ -1521,7 +1521,7 @@ public final class PdfStudioRenderer {
     private static LocalDate parseDate(String value) {
         if (value == null || value.isBlank()) return LocalDate.now();
         for (DateTimeFormatter f : List.of(DateTimeFormatter.ofPattern("dd/MM/yyyy"), DateTimeFormatter.ofPattern("dd-MM-yyyy"), DateTimeFormatter.ISO_LOCAL_DATE)) {
-            try { return LocalDate.parse(value.trim(), f); } catch (Exception ignored) { }
+            try { return LocalDate.parse(value.trim(), f); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return LocalDate.now();
     }

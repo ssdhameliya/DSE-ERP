@@ -869,7 +869,7 @@ public class ExcelDesignerController {
         // ERP token looks correct in the designer but the old formula returns when
         // the saved template is reopened (for example IGST and Grand Total cells).
         if(cell.getCellType()==CellType.FORMULA)cell.setCellFormula(null);
-        if(value.matches("-?\\d+(\\.\\d+)?")){try{cell.setCellValue(Double.parseDouble(value));return;}catch(Exception ignored){}}
+        if(value.matches("-?\\d+(\\.\\d+)?")){try{cell.setCellValue(Double.parseDouble(value));return;}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}
         if("true".equalsIgnoreCase(value)||"false".equalsIgnoreCase(value)){cell.setCellValue(Boolean.parseBoolean(value));return;}
         cell.setCellValue(value);
     }
@@ -948,19 +948,19 @@ public class ExcelDesignerController {
             focusedRow=Math.max(0,row);focusedCol=Math.max(0,col);
             renderSheet();
             candidate=null; // workbook now owns the successfully rendered candidate
-            if(previous!=null&&previous!=workbook)try{previous.close();}catch(Exception ignored){}
+            if(previous!=null&&previous!=workbook)try{previous.close();}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }catch(Exception error){
             Workbook failed=workbook;
             workbook=previous;
-            if(failed!=null&&failed!=previous)try{failed.close();}catch(Exception ignored){}
-            if(candidate!=null&&candidate!=previous)try{candidate.close();}catch(Exception ignored){}
+            if(failed!=null&&failed!=previous)try{failed.close();}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            if(candidate!=null&&candidate!=previous)try{candidate.close();}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             renderedSheetName=null;
             editors.clear();
             if(previous!=null){
                 cmbSheet.getItems().setAll(sheetNames());
                 if(sheetName!=null&&previous.getSheet(sheetName)!=null)cmbSheet.setValue(sheetName);
                 else if(!cmbSheet.getItems().isEmpty())cmbSheet.getSelectionModel().selectFirst();
-                try{renderSheet();}catch(Exception ignored){}
+                try{renderSheet();}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
             throw error;
         }finally{restoringHistory=false;}
@@ -1300,7 +1300,7 @@ public class ExcelDesignerController {
                     Desktop.getDesktop().open(guide.toFile());
                     opened = true;
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             AppDialogService.success(root, "Excel mapping guide downloaded", "The Excel Studio mapping guide was saved to:\n" + guide
                     + (opened ? "\n\nIt has also been opened in your PDF viewer so you can keep it beside Excel Studio while mapping."
                               : "\n\nOpen this PDF from the saved location and keep it beside Excel Studio while mapping."));
@@ -1640,7 +1640,7 @@ public class ExcelDesignerController {
                 if("Merged".equals(mergeState))btnMerge.getStyleClass().add("excel-format-active");
                 else if(mergeState.startsWith("Mixed")||mergeState.startsWith("Inside"))btnMerge.getStyleClass().add("excel-format-mixed");
             }
-        }catch(Exception ignored){}
+        }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         finally{updatingFormatControls=false;}
     }
 
@@ -1804,7 +1804,7 @@ public class ExcelDesignerController {
         String argb=color.getARGBHex();
         if(argb!=null&&argb.length()>=6){
             String rgb=argb.substring(argb.length()-6);
-            try{return Color.web("#"+rgb);}catch(Exception ignored){}
+            try{return Color.web("#"+rgb);}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         byte[] rgb=color.getRGB();
         if(rgb!=null&&rgb.length>=3)return Color.rgb(Byte.toUnsignedInt(rgb[0]),Byte.toUnsignedInt(rgb[1]),Byte.toUnsignedInt(rgb[2]));
@@ -1815,7 +1815,7 @@ public class ExcelDesignerController {
         try{
             byte[] rgb=new DefaultIndexedColorMap().getRGB(index);
             if(rgb!=null&&rgb.length>=3)return Color.rgb(Byte.toUnsignedInt(rgb[0]),Byte.toUnsignedInt(rgb[1]),Byte.toUnsignedInt(rgb[2]));
-        }catch(Exception ignored){}
+        }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return null;
     }
 
@@ -1917,7 +1917,7 @@ public class ExcelDesignerController {
             editor.setAlignment(switch(style.getAlignment()){case CENTER->Pos.CENTER;case RIGHT->Pos.CENTER_RIGHT;default->Pos.CENTER_LEFT;});
             String text=cellText(cell);
             if(text!=null)TemplateFieldCatalog.excelFieldsFor(template.getDocumentType()).stream().filter(TemplateFieldDefinition::image).filter(f->text.contains("{{"+f.key()+"}}" )).findFirst().ifPresent(f->editor.getStyleClass().add("excel-cell-image-placeholder"));
-        }catch(Exception ignored){}
+        }catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private Color accessibleWorkbookText(PaintState fontPaint,PaintState fillPaint){
@@ -1960,7 +1960,7 @@ public class ExcelDesignerController {
     private CellRangeAddress copyRange(CellRangeAddress range){return new CellRangeAddress(range.getFirstRow(),range.getLastRow(),range.getFirstColumn(),range.getLastColumn());}
     private boolean intersects(CellRangeAddress a,CellRangeAddress b){return a.getFirstRow()<=b.getLastRow()&&a.getLastRow()>=b.getFirstRow()&&a.getFirstColumn()<=b.getLastColumn()&&a.getLastColumn()>=b.getFirstColumn();}
     private String ask(String title,String prompt,String initial){org.example.util.OwnedTextInputDialog d=new org.example.util.OwnedTextInputDialog(initial==null?"":initial);d.setTitle(title);d.setHeaderText(null);d.setContentText(prompt);return d.showAndWait().map(String::trim).orElse(null);}
-    private void closeWorkbook(){UnsavedChangesManager.clear(root);Workbook current=workbook;workbook=null;try{if(current!=null)current.close();}catch(Exception ignored){}}
+    private void closeWorkbook(){UnsavedChangesManager.clear(root);Workbook current=workbook;workbook=null;try{if(current!=null)current.close();}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}
     private static String columnName(int c){return CellReference.convertNumToColString(c);}
     private static String number(double d){return Math.rint(d)==d?String.format(Locale.ROOT,"%.0f",d):String.format(Locale.ROOT,"%.4f",d).replaceAll("0+$","").replaceAll("\\.$","");}
     private static String descriptionWithRemarks(String description,String remarks){String d=description==null?"":description.trim(),r=remarks==null?"":remarks.trim();return d.isBlank()?r:r.isBlank()?d:d+"\n"+r;}

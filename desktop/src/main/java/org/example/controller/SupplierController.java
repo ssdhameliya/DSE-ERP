@@ -1,6 +1,7 @@
 package org.example.controller;
 
-public class SupplierController extends PartyMasterController {
+import org.example.navigation.ScreenLifecycle;
+public class SupplierController extends PartyMasterController implements ScreenLifecycle {
     @javafx.fxml.FXML protected void openSupplier360(){
         org.example.model.Party p=tableParties.getSelectionModel().getSelectedItem();
         if(p==null){
@@ -12,4 +13,10 @@ public class SupplierController extends PartyMasterController {
     }
     @Override protected String partyType(){return "SUPPLIER";}
     @Override protected String displayName(){return "Supplier";}
+
+    @Override
+    public void onScreenHidden() {
+        super.onScreenHidden();
+        SupplierPurchaseContext.clear();
+    }
 }

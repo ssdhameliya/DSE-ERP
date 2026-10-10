@@ -27,7 +27,7 @@ public final class ActivityTimelineDialog {
                     if (entityId > 0) {
                         try {
                             rows = api.record(entityType, entityId);
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     }
                     if ((rows == null || rows.isEmpty()) && reference != null && !reference.isBlank()) {
                         try {
@@ -35,7 +35,7 @@ public final class ActivityTimelineDialog {
                             if (page != null && page.rows() != null && !page.rows().isEmpty()) {
                                 rows = page.rows();
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     }
                     if (rows == null || rows.isEmpty()) {
                         rows = List.of(new AuditApiClient.EventRow(

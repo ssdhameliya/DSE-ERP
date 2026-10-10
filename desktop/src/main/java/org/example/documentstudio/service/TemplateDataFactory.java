@@ -719,7 +719,7 @@ public final class TemplateDataFactory {
             try {
                 Path fallback = ConfigManager.getConfigFolder().resolve(fallbackFileName);
                 if (Files.isRegularFile(fallback)) return fallback;
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return null;
     }

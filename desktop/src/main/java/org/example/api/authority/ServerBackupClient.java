@@ -114,7 +114,7 @@ public final class ServerBackupClient {
         try {
             var node = json.readTree(body);
             if (node.hasNonNull("message") && !node.get("message").asText().isBlank()) return node.get("message").asText();
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return fallback;
     }
 

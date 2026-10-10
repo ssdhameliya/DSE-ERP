@@ -40,7 +40,7 @@ public class ReportViewerController implements ScreenLifecycle {
     @FXML private ComboBox<String> cmbDatePreset,cmbParty,cmbItem,cmbSalesperson,cmbDocumentStatus,cmbPaymentStatus,cmbReturnStatus,cmbGstRate,cmbWarehouse,cmbBankStatus,cmbGroup,cmbSort,cmbDirection;
     @FXML private ComboBox<Integer> cmbRows;
     @FXML private TextField txtMinAmount,txtMaxAmount,txtSearch;
-    @FXML private Button btnApply,btnCollapseFilters,btnFirst,btnPrev,btnNext,btnLast;
+    @FXML private Button btnApply,btnCollapseFilters,btnFirst,btnPrev,btnNext,btnLast,btnNavDashboard,btnNavReportCenter,btnNavSavedReports,btnNavScheduled;
     @FXML private VBox filterPanel;
     @FXML private VBox boxPeriod,boxFrom,boxTo,boxParty,boxItem,boxSalesperson,boxDocumentStatus,boxPaymentStatus,boxReturnStatus,boxGstRate,boxWarehouse,boxBankStatus,boxMinAmount,boxMaxAmount;
     @FXML private GridPane filterGrid;
@@ -57,6 +57,7 @@ public class ReportViewerController implements ScreenLifecycle {
     private final Map<String,String> sortLabelToKey=new LinkedHashMap<>();
     private int page;
     private boolean filtersCollapsed;
+    private boolean isSavedReportOrigin;
     private boolean rendering;
     private boolean initializing=true;
     private ReportDefinition definition;
@@ -84,6 +85,7 @@ public class ReportViewerController implements ScreenLifecycle {
         updateReportIdentityIcon();
         loadFilterOptions();
         consumeContext();
+        updateSubNavSelection();
         loadDefinition();
         initializing=false;
         requestLoad();
@@ -112,10 +114,12 @@ public class ReportViewerController implements ScreenLifecycle {
             reportId=nextReport; current=null; visibleKeys.clear(); sortLabelToKey.clear(); page=0;
         }else reportId=nextReport;
         pendingSavedRequest=s.request();pendingDatePreset=s.datePreset();
+        isSavedReportOrigin = (pendingSavedRequest != null);
+        updateSubNavSelection();
         if(pendingSavedRequest!=null)applySavedRequestToControls(pendingSavedRequest,pendingDatePreset);
         else{
-            if(s.from()!=null&&!s.from().isBlank())try{dpFrom.setValue(LocalDate.parse(s.from()));}catch(Exception ignored){}
-            if(s.to()!=null&&!s.to().isBlank())try{dpTo.setValue(LocalDate.parse(s.to()));}catch(Exception ignored){}
+            if(s.from()!=null&&!s.from().isBlank())try{dpFrom.setValue(LocalDate.parse(s.from()));}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+            if(s.to()!=null&&!s.to().isBlank())try{dpTo.setValue(LocalDate.parse(s.to()));}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if(s.groupBy()!=null&&!s.groupBy().isBlank())cmbGroup.setValue(titleCase(s.groupBy()));
         }
         return true;
@@ -159,6 +163,7 @@ public class ReportViewerController implements ScreenLifecycle {
         filterGrid.getColumnConstraints().clear();
         for(int i=0;i<columns;i++){ColumnConstraints c=new ColumnConstraints();c.setPercentWidth(100.0/columns);c.setHgrow(Priority.ALWAYS);c.setFillWidth(true);filterGrid.getColumnConstraints().add(c);}
         for(int i=0;i<visible.size();i++){VBox box=visible.get(i);GridPane.setColumnIndex(box,i%columns);GridPane.setRowIndex(box,i/columns);GridPane.setHgrow(box,Priority.ALWAYS);}
+        if(filterPanel!=null)filterPanel.requestLayout();
     }
 
     private void loadFilterOptions(){
@@ -277,7 +282,7 @@ public class ReportViewerController implements ScreenLifecycle {
 
     private void export(String title,String ext){
         org.example.service.PermissionService.require("REPORTS.EXPORT", "Export Reports");
-        if(current==null)return;FileChooser chooser=new FileChooser();chooser.setTitle(title);chooser.setInitialFileName(fileBase()+"."+ext);try{Path folder=org.example.config.WorkspaceStorageManager.reportFolder(reportStorageCategory(),BusinessClock.today());if(Files.isDirectory(folder))chooser.setInitialDirectory(folder.toFile());}catch(Exception ignored){}chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*."+ext));File file=chooser.showSaveDialog(tblReport.getScene().getWindow());if(file==null)return;Path target=file.toPath();if(!target.toString().toLowerCase(Locale.ROOT).endsWith("."+ext))target=Path.of(target+"."+ext);Path finalTarget=target;setBusy(true);
+        if(current==null)return;FileChooser chooser=new FileChooser();chooser.setTitle(title);chooser.setInitialFileName(fileBase()+"."+ext);try{Path folder=org.example.config.WorkspaceStorageManager.reportFolder(reportStorageCategory(),BusinessClock.today());if(Files.isDirectory(folder))chooser.setInitialDirectory(folder.toFile());}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*."+ext));File file=chooser.showSaveDialog(tblReport.getScene().getWindow());if(file==null)return;Path target=file.toPath();if(!target.toString().toLowerCase(Locale.ROOT).endsWith("."+ext))target=Path.of(target+"."+ext);Path finalTarget=target;setBusy(true);
         UiTaskExecutor.submitAction("export-unified-report-"+ext,()->{ReportResult all=loadAllForExport();switch(ext){case "pdf"->UnifiedReportExportService.pdf(finalTarget,all,visibleKeys,true,true);case "xlsx"->UnifiedReportExportService.excel(finalTarget,all,visibleKeys);case "csv"->UnifiedReportExportService.csv(finalTarget,all,visibleKeys);default->throw new IllegalArgumentException("Unsupported export format");}return finalTarget;},p->{setBusy(false);ToastManager.success(tblReport,"Export complete","Created: "+p);},e->{setBusy(false);error("Could not export report: "+root(e));});
     }
     private String reportStorageCategory(){String id=reportId==null?"":reportId.toUpperCase(Locale.ROOT);if(id.contains("SALE")||id.contains("RECEIV"))return "Sales";if(id.contains("PURCHASE")||id.contains("PAYABLE"))return "Purchase";if(id.contains("INVENT")||id.contains("STOCK"))return "Inventory";if(id.contains("BANK"))return "Bank";if(id.contains("GST")||id.contains("TAX"))return "GST-Tax";return "Financial";}
@@ -288,7 +293,7 @@ public class ReportViewerController implements ScreenLifecycle {
         setIfPresent(cmbParty,q.party());setIfPresent(cmbItem,q.item());setIfPresent(cmbSalesperson,q.salesperson());setIfPresent(cmbDocumentStatus,q.documentStatus());setIfPresent(cmbPaymentStatus,q.paymentStatus());setIfPresent(cmbReturnStatus,q.returnStatus());setIfPresent(cmbGstRate,q.gstRate());setIfPresent(cmbWarehouse,q.warehouse());setIfPresent(cmbBankStatus,q.bankStatus());txtSearch.setText(safe(q.search()));txtMinAmount.setText(q.minAmount()==null?"":String.valueOf(q.minAmount()));txtMaxAmount.setText(q.maxAmount()==null?"":String.valueOf(q.maxAmount()));if(q.visibleColumns()!=null&&!q.visibleColumns().isEmpty()){visibleKeys.clear();visibleKeys.addAll(q.visibleColumns());}if(q.groupBy()!=null&&!q.groupBy().isBlank())cmbGroup.setValue(titleCase(q.groupBy()));if(q.sortDirection()!=null)cmbDirection.setValue("ASC".equalsIgnoreCase(q.sortDirection())?"Ascending":"Descending");if(q.size()!=null&&cmbRows.getItems().contains(q.size()))cmbRows.setValue(q.size());page=0;initializing=false;
     }
     private void setIfPresent(ComboBox<String> box,String value){if(box==null||value==null||value.isBlank())return;String match=box.getItems().stream().filter(x->x!=null&&x.equalsIgnoreCase(value)).findFirst().orElse(null);if(match==null){box.getItems().add(value);match=value;}box.setValue(match);}
-    private void setDate(DatePicker picker,String value){try{if(value!=null&&!value.isBlank())picker.setValue(LocalDate.parse(value));}catch(Exception ignored){}}
+    private void setDate(DatePicker picker,String value){try{if(value!=null&&!value.isBlank())picker.setValue(LocalDate.parse(value));}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}
 
     private void applyDatePreset(String preset){
         LocalDate today=BusinessClock.today(),from=today,to=today;switch(preset){
@@ -328,9 +333,20 @@ public class ReportViewerController implements ScreenLifecycle {
     private String fileBase(){return (current==null?reportId:current.title()).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+","-").replaceAll("^-|-$","")+"-"+dpFrom.getValue()+"-to-"+dpTo.getValue();}
     private void error(String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message);a.setHeaderText("Reporting error");a.showAndWait();}
 
+    private void updateSubNavSelection(){
+        for(Button b:List.of(btnNavDashboard,btnNavReportCenter,btnNavSavedReports,btnNavScheduled)){
+            if(b!=null)b.getStyleClass().remove("report-nav-selected");
+        }
+        Button target=isSavedReportOrigin?btnNavSavedReports:btnNavReportCenter;
+        if(target!=null&&!target.getStyleClass().contains("report-nav-selected")){
+            target.getStyleClass().add("report-nav-selected");
+        }
+    }
+
     @Override public void onScreenShown(boolean reusedFromCache){
         if(!reusedFromCache)return;
         boolean contextChanged=consumeContext();
+        updateSubNavSelection();
         if(contextChanged){definitionLoaded=false;filterOptionsLoaded=false;loadDefinition();loadFilterOptions();requestLoad();return;}
         if(!definitionLoaded)loadDefinition();
         if(!filterOptionsLoaded)loadFilterOptions();

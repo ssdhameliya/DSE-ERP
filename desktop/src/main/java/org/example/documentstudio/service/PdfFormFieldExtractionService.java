@@ -55,14 +55,14 @@ public final class PdfFormFieldExtractionService {
             for (PDAnnotation annotation : target.getAnnotations()) {
                 if (annotation == widget || sameCos(annotation.getCOSObject(), widget.getCOSObject())) return true;
             }
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         // Defensive fallback for PDFs whose widgets omit /P and whose annotation wrappers differ.
         for (int p = 0; p < document.getNumberOfPages(); p++) {
             try {
                 for (PDAnnotation annotation : document.getPage(p).getAnnotations()) {
                     if (sameCos(annotation.getCOSObject(), widget.getCOSObject())) return p == targetIndex;
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return false;
     }

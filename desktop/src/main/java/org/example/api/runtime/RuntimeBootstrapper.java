@@ -176,7 +176,7 @@ public final class RuntimeBootstrapper {
                 candidates.add(folder.resolve("dse-erp-server.jar"));
                 candidates.add(folder.resolve("server").resolve("dse-erp-server.jar"));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
 
         if (!isPackagedRuntime()) {
             /*
@@ -466,9 +466,9 @@ public final class RuntimeBootstrapper {
                     .filter(path -> path.getFileName().toString().endsWith(".jar"))
                     .forEach(path -> {
                         try { Files.deleteIfExists(path); }
-                        catch (IOException ignored) { }
+                        catch (IOException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     });
-        } catch (IOException ignored) { }
+        } catch (IOException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     private static Path findProjectRoot() {
@@ -478,7 +478,7 @@ public final class RuntimeBootstrapper {
             Path code = Path.of(RuntimeBootstrapper.class.getProtectionDomain().getCodeSource().getLocation().toURI())
                     .toAbsolutePath().normalize();
             starts.add(Files.isDirectory(code) ? code : code.getParent());
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         for (Path start : starts) {
             for (Path current = start; current != null; current = current.getParent()) {
                 if (Files.isRegularFile(current.resolve("pom.xml"))
@@ -571,7 +571,7 @@ public final class RuntimeBootstrapper {
             }
         } catch (IllegalStateException incompatible) {
             // A listening but incompatible local endpoint must never be reused.
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         int port = findAvailableServerPort(DEFAULT_MANAGED_SERVER_PORT);
         ConfigManager.applyRuntimeApiBaseUrl("http://127.0.0.1:" + port);
     }

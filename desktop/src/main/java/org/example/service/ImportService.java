@@ -1019,7 +1019,7 @@ public class ImportService {
                 var method = value.getClass().getDeclaredMethod("sourceRow");
                 method.setAccessible(true);
                 rows.add((Integer) method.invoke(value));
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         if (rows.isEmpty()) return "";
         Collections.sort(rows);

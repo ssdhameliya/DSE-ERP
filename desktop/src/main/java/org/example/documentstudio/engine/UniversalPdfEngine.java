@@ -94,7 +94,7 @@ public final class UniversalPdfEngine {
         if (sourcePdf != null && Files.isRegularFile(sourcePdf)) {
             try {
                 sourceDoc = Loader.loadPDF(sourcePdf.toFile());
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
 
         try (PDDocument doc = new PDDocument()) {
@@ -141,7 +141,7 @@ public final class UniversalPdfEngine {
             doc.save(output.toFile());
         } finally {
             if (sourceDoc != null) {
-                try { sourceDoc.close(); } catch (Exception ignored) {}
+                try { sourceDoc.close(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
         }
 
@@ -152,11 +152,11 @@ public final class UniversalPdfEngine {
         try {
             Path src = TemplateStorageService.sourcePdf(template);
             if (src != null && Files.isRegularFile(src)) return src;
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         try {
             Path orig = TemplateStorageService.originalPdf(template);
             if (orig != null && Files.isRegularFile(orig)) return orig;
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return null;
     }
 
@@ -197,7 +197,7 @@ public final class UniversalPdfEngine {
                         float drawX = x + (w - drawW) / 2.0f;
                         float drawY = y + (h - drawH) / 2.0f;
                         stream.drawImage(img, drawX, drawY, drawW, drawH);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 }
                 continue;
             }
@@ -382,7 +382,7 @@ public final class UniversalPdfEngine {
                         float w = (float) el.getWidth();
                         float h = (float) el.getHeight();
                         stream.drawImage(img, x, y, w, h);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 }
                 continue;
             }
@@ -661,7 +661,15 @@ public final class UniversalPdfEngine {
 
     private static String cleanText(String text) {
         if (text == null) return "";
-        return text.replace("\t", " ").replaceAll("[^\\x20-\\x7E]", " ");
+        String s = text.replace("\t", " ")
+                       .replace("₹", "Rs. ")
+                       .replace("’", "'")
+                       .replace("‘", "'")
+                       .replace("“", "\"")
+                       .replace("”", "\"")
+                       .replace("—", "-")
+                       .replace("–", "-");
+        return s.replaceAll("[^\\x20-\\x7E]", " ");
     }
 
     public static String resolveValue(TemplateData data, String fieldKey) {
@@ -714,7 +722,7 @@ public final class UniversalPdfEngine {
             if (clean.length() == 6) {
                 return new Color(Integer.parseInt(clean, 16));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return fallback;
     }
 
@@ -806,7 +814,7 @@ public final class UniversalPdfEngine {
                 DateTimeFormatter.ofPattern("dd-MM-yyyy"),
                 DateTimeFormatter.ofPattern("yyyy-MM-dd"),
                 DateTimeFormatter.ISO_LOCAL_DATE)) {
-            try { return LocalDate.parse(value.trim(), f); } catch (Exception ignored) { }
+            try { return LocalDate.parse(value.trim(), f); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return null;
     }

@@ -647,7 +647,7 @@ public class ReturnService {
         if (v == null || v.isBlank()) return null;
         String x = v.trim();
         for (DateTimeFormatter f : List.of(DateTimeFormatter.ISO_LOCAL_DATE, DateTimeFormatter.ofPattern("dd/MM/uuuu"), DateTimeFormatter.ofPattern("dd-MM-uuuu"))) {
-            try { return LocalDate.parse(x, f); } catch (Exception ignored) { }
+            try { return LocalDate.parse(x, f); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         return null;
     }

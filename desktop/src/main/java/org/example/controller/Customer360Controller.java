@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -29,7 +30,7 @@ import java.util.Locale;
  * This page is an aggregation/navigation hub for customer-owned quotations,
  * invoices, payments, contacts, notes and documents.
  */
-public class Customer360Controller {
+public class Customer360Controller implements ScreenLifecycle {
     @FXML private Label lblTitle,lblCode,lblGstin,lblContact,lblPhone,lblEmail,lblAddress,lblStatus;
     @FXML private Label lblOutstanding,lblOpenQuotes,lblSales,lblLastPayment;
     @FXML private StackPane pageIcon,outstandingIcon,quotesIcon,salesIcon,paymentIcon;
@@ -158,4 +159,9 @@ public class Customer360Controller {
     private static String paymentStatus(Customer360ApiClient.InvoiceRow r){String p=safe(r.paymentStatus());return p.isBlank()?safe(r.documentStatus()):p;}
     private static <T> List<T> nz(List<T> v){return v==null?List.of():v;}
     private static Party party(Customer360ApiClient.Customer c){Party p=new Party();p.setId(c.id());p.setRowVersion(c.rowVersion());p.setPartyType("CUSTOMER");p.setPartyCode(c.code());p.setName(c.name());p.setContactPerson(c.contactPerson());p.setPhone(c.phone());p.setEmail(c.email());p.setGstin(c.gstin());p.setAddress(c.address());p.setOpeningBalance(c.openingBalance()==null?0:c.openingBalance().doubleValue());p.setActive(c.active());return p;}
+
+    @Override
+    public void onScreenHidden() {
+        Customer360Context.clear();
+    }
 }

@@ -54,9 +54,32 @@
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label fx:id="lblLineCount" text="0 line item(s)" styleClass="muted-label"/>
               </HBox>
+              <HBox alignment="CENTER_LEFT" spacing="10" styleClass="rapid-key-bar">
+                <HBox alignment="CENTER_LEFT" spacing="5">
+                  <Label text="F2" styleClass="rapid-key-badge"/>
+                  <Label text="Item Search" styleClass="rapid-key-desc"/>
+                </HBox>
+                <Label text="|" styleClass="workspace-tab-hint"/>
+                <HBox alignment="CENTER_LEFT" spacing="5">
+                  <Label text="Enter / Tab" styleClass="rapid-key-badge"/>
+                  <Label text="Next Field" styleClass="rapid-key-desc"/>
+                </HBox>
+                <Label text="|" styleClass="workspace-tab-hint"/>
+                <HBox alignment="CENTER_LEFT" spacing="5">
+                  <Label text="Enter" styleClass="rapid-key-badge"/>
+                  <Label text="Add Line" styleClass="rapid-key-desc"/>
+                </HBox>
+                <Label text="|" styleClass="workspace-tab-hint"/>
+                <HBox alignment="CENTER_LEFT" spacing="5">
+                  <Label text="Ctrl+S / F10" styleClass="rapid-key-badge"/>
+                  <Label text="Save Quote" styleClass="rapid-key-desc"/>
+                </HBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="⚡ High-Speed Entry Mode" styleClass="rapid-key-desc"/>
+              </HBox>
               <HBox spacing="8" alignment="CENTER_LEFT" styleClass="sales-entry-line-toolbar,approved-toolbar">
                 <StackPane HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="erp-item-search-shell">
-                  <TextField fx:id="txtItemSearch" promptText="Search Item Master..." maxWidth="Infinity" styleClass="approved-input,erp-item-search"/>
+                  <TextField fx:id="txtItemSearch" promptText="Search Item Master... [F2 / Enter]" maxWidth="Infinity" styleClass="approved-input,erp-item-search"/>
                   <StackPane fx:id="itemSearchIconBox" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box">
                     <StackPane.margin><Insets right="8"/></StackPane.margin>
                   </StackPane>

@@ -30,7 +30,7 @@ public final class SetupApiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8)).build();
         try {
             HttpResponse<String> response=http.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if(response.statusCode()<200 || response.statusCode()>=300) throw new IllegalStateException("Setup API failed ("+response.statusCode()+"): "+response.body());
+            if(response.statusCode()<200 || response.statusCode()>=300) throw new IllegalStateException(org.example.api.ApiRuntime.errorMessage("Setup API",response.statusCode(),response.body()));
         } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException("Setup interrupted",e); }
         catch (Exception e) { if(e instanceof IllegalStateException ise) throw ise; throw new IllegalStateException("Unable to complete setup through Spring API",e); }
     }
@@ -39,7 +39,7 @@ public final class SetupApiClient {
                 .timeout(Duration.ofSeconds(15)).GET().build();
         try {
             HttpResponse<String> response=http.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if(response.statusCode()<200 || response.statusCode()>=300) throw new IllegalStateException("Setup status API failed ("+response.statusCode()+")");
+            if(response.statusCode()<200 || response.statusCode()>=300) throw new IllegalStateException(org.example.api.ApiRuntime.errorMessage("Setup status API",response.statusCode(),response.body()));
             return response.body().replace(" ", "").contains("\"required\":true");
         } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException("Setup status check interrupted",e); }
         catch (Exception e) { if(e instanceof IllegalStateException ise) throw ise; throw new IllegalStateException("Unable to verify workspace setup",e); }

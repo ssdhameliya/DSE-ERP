@@ -683,7 +683,7 @@ public class SettingsController implements ScreenLifecycle {
                 String configuredType = ConfigManager.get("payment.accountType", "").trim();
                 LinkedHashSet<String> accountTypes = new LinkedHashSet<>();
                 try { accountTypes.addAll(new org.example.api.master.MasterApiClient().lookupValuesByCategoryCode("ACCOUNT_TYPE")); }
-                catch (RuntimeException ignored) { }
+                catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 if (!configuredType.isBlank()) accountTypes.add(configuredType);
                 yield new PaymentSettingsSnapshot(
                         ConfigManager.get("payment.upiId", ""), ConfigManager.get("payment.accountHolder", ""),
@@ -1367,7 +1367,7 @@ private record AssetPreviewRequest(
         try {
             File current = WorkspaceManager.getWorkspaceRoot().toFile();
             if (current.isDirectory()) chooser.setInitialDirectory(current);
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         File selected = chooser.showDialog(panelWorkspace.getScene().getWindow());
         if (selected == null) return;
 
@@ -2551,7 +2551,7 @@ private record AssetPreviewRequest(
                         lblSignatureImageStatus.setText(f.getName());
                     }
                     return;
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
         }
         if (imgSignaturePreview != null) {

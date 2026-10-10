@@ -150,7 +150,7 @@
                 <HBox alignment="CENTER_LEFT" spacing="10">
                     <VBox spacing="2">
                         <Label text="Backup History" styleClass="backup-section-title"/>
-                        <Label text="Review, validate and manage available database backups." styleClass="backup-section-description"/>
+                        <Label text="Review, validate and manage available database backups." wrapText="true" styleClass="backup-section-description"/>
                     </VBox>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Label fx:id="lblHistoryCount" text="0 backups" styleClass="backup-history-count"/>

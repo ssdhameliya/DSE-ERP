@@ -44,8 +44,41 @@ public class ProfileController implements ScreenLifecycle {
         lblLastLogin.setText(safe(p.lastLogin()).isBlank()?"Never":BusinessClock.formatTimestamp(p.lastLogin()));lblMfa.setText(p.mfaEnabled()?"Enabled":"Not enabled");lblStatus.setText(!p.active()?"Inactive":p.locked()?"Locked":"Active");lblInitials.setText(initials(p.fullName(),p.username()));
     }
 
-    @FXML private void saveProfile(){String name=txtFullName.getText()==null?"":txtFullName.getText().trim(),email=txtEmail.getText()==null?"":txtEmail.getText().trim();if(name.isBlank()||!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")){show(Alert.AlertType.WARNING,"Check profile details","Full name and a valid email address are required.");return;}try{ProfileApiClient.ProfileDto p=api.update(new ProfileApiClient.ProfileUpdate(name,email,txtDepartment.getText(),txtBranch.getText(),rowVersion));apply(p);AppUser current=SessionService.current();if(current!=null){current.setFullName(p.fullName());current.setEmail(p.email());current.setDepartment(p.department());current.setBranch(p.branch());}NotificationService.createPersonalNotification(NotificationService.Category.SECURITY,"Profile updated","Your profile details were updated successfully.","INFO","/fxml/pages/Profile.fxml",p.username());org.example.navigation.UnsavedChangesManager.markClean(btnSave);show(Alert.AlertType.INFORMATION,"Profile saved","Your profile details have been saved.");}catch(Exception ex){show(Alert.AlertType.ERROR,"Profile update failed",ex.getMessage());}}
-    @FXML private void changePassword(){String current=txtCurrentPassword.getText(),a=txtNewPassword.getText(),b=txtConfirmPassword.getText();if(current==null||current.isBlank()){show(Alert.AlertType.WARNING,"Current password required","Enter your current password before changing it.");return;}if(a==null||a.length()<8||!a.matches(".*[A-Za-z].*")||!a.matches(".*[0-9].*")){show(Alert.AlertType.WARNING,"Password is too weak","Use at least 8 characters with a letter and a number.");return;}if(!a.equals(b)){show(Alert.AlertType.WARNING,"Passwords do not match","Enter the same password in both fields.");return;}try{new UserService().changePassword(SessionService.current().getId(),current,a);txtCurrentPassword.clear();txtNewPassword.clear();txtConfirmPassword.clear();NotificationService.createPersonalNotification(NotificationService.Category.SECURITY,"Password changed","Your account password was changed successfully.","INFO","/fxml/pages/Profile.fxml",SessionService.current().getUsername());show(Alert.AlertType.INFORMATION,"Password updated","Your password has been changed. Sign in again on your next request.");}catch(Exception ex){show(Alert.AlertType.ERROR,"Password update failed",ex.getMessage());}}
+    @FXML private void saveProfile(){
+        String name=txtFullName.getText()==null?"":txtFullName.getText().trim(),email=txtEmail.getText()==null?"":txtEmail.getText().trim();
+        if(name.isBlank()||!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")){show(Alert.AlertType.WARNING,"Check profile details","Full name and a valid email address are required.");return;}
+        if(btnSave!=null) btnSave.setDisable(true);
+        try{
+            ProfileApiClient.ProfileDto p=api.update(new ProfileApiClient.ProfileUpdate(name,email,txtDepartment.getText(),txtBranch.getText(),rowVersion));
+            apply(p);
+            AppUser current=SessionService.current();
+            if(current!=null){current.setFullName(p.fullName());current.setEmail(p.email());current.setDepartment(p.department());current.setBranch(p.branch());}
+            NotificationService.createPersonalNotification(NotificationService.Category.SECURITY,"Profile updated","Your profile details were updated successfully.","INFO","/fxml/pages/Profile.fxml",p.username());
+            org.example.navigation.UnsavedChangesManager.markClean(btnSave);
+            show(Alert.AlertType.INFORMATION,"Profile saved","Your profile details have been saved.");
+        }catch(Exception ex){
+            show(Alert.AlertType.ERROR,"Profile update failed",ex.getMessage());
+        }finally{
+            if(btnSave!=null) btnSave.setDisable(false);
+        }
+    }
+    @FXML private void changePassword(){
+        String current=txtCurrentPassword.getText(),a=txtNewPassword.getText(),b=txtConfirmPassword.getText();
+        if(current==null||current.isBlank()){show(Alert.AlertType.WARNING,"Current password required","Enter your current password before changing it.");return;}
+        if(a==null||a.length()<8||!a.matches(".*[A-Za-z].*")||!a.matches(".*[0-9].*")){show(Alert.AlertType.WARNING,"Password is too weak","Use at least 8 characters with a letter and a number.");return;}
+        if(!a.equals(b)){show(Alert.AlertType.WARNING,"Passwords do not match","Enter the same password in both fields.");return;}
+        if(btnPassword!=null) btnPassword.setDisable(true);
+        try{
+            new UserService().changePassword(SessionService.current().getId(),current,a);
+            txtCurrentPassword.clear();txtNewPassword.clear();txtConfirmPassword.clear();
+            NotificationService.createPersonalNotification(NotificationService.Category.SECURITY,"Password changed","Your account password was changed successfully.","INFO","/fxml/pages/Profile.fxml",SessionService.current().getUsername());
+            show(Alert.AlertType.INFORMATION,"Password updated","Your password has been changed. Sign in again on your next request.");
+        }catch(Exception ex){
+            show(Alert.AlertType.ERROR,"Password update failed",ex.getMessage());
+        }finally{
+            if(btnPassword!=null) btnPassword.setDisable(false);
+        }
+    }
 
     @Override public void onScreenHidden(){UiTaskExecutor.cancel("profile-load");}
     private void show(Alert.AlertType t,String h,String m){String text=m==null?"The request could not be completed.":m;if(t==Alert.AlertType.INFORMATION){org.example.util.ToastManager.success(btnSave,h,text);return;}OwnedAlert a=new OwnedAlert(t,text);a.setHeaderText(h);a.showAndWait();}

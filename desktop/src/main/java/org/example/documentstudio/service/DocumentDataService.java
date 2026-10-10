@@ -119,7 +119,7 @@ public final class DocumentDataService {
             ReturnApiClient.Details details = new ReturnApiClient().details(returnNo);
             Purchase original = null;
             if (details != null && details.invoice() != null && !details.invoice().isBlank()) {
-                try { original = new PurchaseDAO().getByInvoice(details.invoice()); } catch (Exception ignored) { }
+                try { original = new PurchaseDAO().getByInvoice(details.invoice()); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
             return TemplateDataFactory.fromPurchaseReturn(details, original);
         } catch (RuntimeException error) {
@@ -134,7 +134,7 @@ public final class DocumentDataService {
             ReturnApiClient.Details details = new ReturnApiClient().details(returnNo);
             Sales original = null;
             if (details != null && details.invoice() != null && !details.invoice().isBlank()) {
-                try { original = new SalesService().getByInvoice(details.invoice()); } catch (Exception ignored) { }
+                try { original = new SalesService().getByInvoice(details.invoice()); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
             return TemplateDataFactory.fromSalesReturn(details, original);
         } catch (RuntimeException error) {
@@ -154,7 +154,7 @@ public final class DocumentDataService {
         try {
             if (sale.getCustomer() != null && sale.getCustomer().getName() != null && !sale.getCustomer().getName().isBlank())
                 return "  •  " + sale.getCustomer().getName();
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return "";
     }
 
@@ -162,7 +162,7 @@ public final class DocumentDataService {
         try {
             if (purchase.getSupplier() != null && purchase.getSupplier().getName() != null && !purchase.getSupplier().getName().isBlank())
                 return "  •  " + purchase.getSupplier().getName();
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return "";
     }
 

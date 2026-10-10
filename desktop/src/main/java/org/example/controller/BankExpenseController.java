@@ -130,7 +130,7 @@ public class BankExpenseController implements ScreenLifecycle {
         if(mode!=Mode.EXPENSE)applyMode(Mode.EXPENSE);
         reconciliationStatementId=p.statementTransactionId();
         reconciliationAmount=p.amount();
-        try{entryDate.setValue(LocalDate.parse(p.date()));}catch(Exception ignored){}
+        try{entryDate.setValue(LocalDate.parse(p.date()));}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         amount.setText(String.format(Locale.ROOT,"%.2f",p.amount()));
         amount.setEditable(false);
         referenceNo.setText(safe(p.reference(),""));
@@ -147,7 +147,7 @@ public class BankExpenseController implements ScreenLifecycle {
         reconciliationStatementId=p.statementTransactionId();
         double value=p.credit()>0?p.credit():p.debit();
         reconciliationAmount=value;
-        try{entryDate.setValue(LocalDate.parse(p.date()));}catch(Exception ignored){}
+        try{entryDate.setValue(LocalDate.parse(p.date()));}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         amount.setText(String.format(Locale.ROOT,"%.2f",value));
         amount.setEditable(false);
         referenceNo.setText(safe(p.reference(),"")); description.setText(safe(p.description(),""));
@@ -226,7 +226,7 @@ public class BankExpenseController implements ScreenLifecycle {
                             String bankName = l.getDescription() == null ? "" : l.getDescription().trim();
                             accounts.add(bankName.isBlank() ? l.getLookupValue().trim() : l.getLookupValue().trim() + " - " + bankName);
                         }
-                    } catch (Exception ignored) { }
+                    } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     if (accounts.isEmpty()) {
                         String bank = ConfigManager.get("payment.bankName", "").trim();
                         String number = ConfigManager.get("payment.accountNumber", "").trim();
@@ -460,7 +460,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private void success(String header,String text){org.example.util.ToastManager.success(table,header,text);}
     private void error(String text){new OwnedAlert(Alert.AlertType.ERROR,text==null||text.isBlank()?"The operation could not be completed. Please try again.":text).showAndWait();}
     private static String userMessage(Throwable failure){Throwable root=failure;while(root!=null&&root.getCause()!=null&&root.getCause()!=root)root=root.getCause();String message=root==null?null:root.getMessage();if(message==null||message.isBlank()||"empty String".equalsIgnoreCase(message.trim()))return "The ERP could not complete this request. Please review the entered values and try again.";return message;}
-    private static LocalDate parseEntryDate(String value){if(value==null||value.isBlank())return BusinessClock.today();String text=value.trim();for(var pattern:List.of(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"),java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))){try{return LocalDate.parse(text.length()>=10?text.substring(0,10):text,pattern);}catch(Exception ignored){}}return BusinessClock.today();}
+    private static LocalDate parseEntryDate(String value){if(value==null||value.isBlank())return BusinessClock.today();String text=value.trim();for(var pattern:List.of(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"),java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))){try{return LocalDate.parse(text.length()>=10?text.substring(0,10):text,pattern);}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}return BusinessClock.today();}
 
     public static final class EntryRow { final int id; final long rowVersion; final SimpleStringProperty date,type,description,account,paymentMode,reference,match; final SimpleDoubleProperty amount; final String rawType,linkedTargetType,linkedDocumentNo; final Long statementTransactionId; final Integer linkedTargetId; EntryRow(int id,String d,String t,String desc,String acc,String pm,String ref,double amt,String raw,Long statementId,String targetType,Integer targetId,String documentNo,long rowVersion){this.id=id;this.rowVersion=rowVersion;date=new SimpleStringProperty(d);type=new SimpleStringProperty(t);description=new SimpleStringProperty(desc);account=new SimpleStringProperty(acc);paymentMode=new SimpleStringProperty(pm);reference=new SimpleStringProperty(ref);amount=new SimpleDoubleProperty(amt);rawType=raw==null?"":raw.toUpperCase(Locale.ROOT);statementTransactionId=statementId;linkedTargetType=targetType==null?"":targetType;linkedTargetId=targetId;linkedDocumentNo=documentNo==null?"":documentNo;String display="";if(statementId!=null)display="Bank Statement";if(!linkedDocumentNo.isBlank())display=display.isBlank()?linkedDocumentNo:display+" • "+linkedDocumentNo;match=new SimpleStringProperty(display);} }
     private record FinanceMasterLookups(List<String> paymentModes, List<String> expenseCategories) { }

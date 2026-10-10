@@ -57,6 +57,15 @@ public class SmtpMailService {
             throw new IllegalStateException("Email/OTP settings are not configured. Configure SMTP settings first.");
     }
 
+    public boolean isConfigured() {
+        try {
+            Settings settings = settings();
+            return !settings.host().isBlank() && !settings.email().isBlank() && !settings.password().isBlank();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     public Settings currentSettings() { return settings(); }
 
     /** Metadata for the Admin Settings UI; never decrypts or exposes the stored App Password. */
@@ -102,7 +111,7 @@ public class SmtpMailService {
                     String configured = values.getProperty("company.name", "").trim();
                     if (!configured.isBlank()) return configured;
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
         String configured = setting("company.name", "Company").trim();
         return configured.isBlank() ? "Company" : configured;

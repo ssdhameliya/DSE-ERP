@@ -352,11 +352,19 @@ public class ItemMasterController implements ScreenLifecycle {
         if (confirmation.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
             String code = selected.getItemCode();
             String description = selected.getDescription();
+            if (tableItems != null) tableItems.setDisable(true);
             UiTaskExecutor.submitAction(
                     "item-master-delete-" + code,
                     () -> { service.delete(selected); NotificationService.add("Item '" + description + "' was deleted."); return null; },
-                    ignored -> { org.example.util.ToastManager.success(tableItems, "Item Deleted", "Item deleted successfully."); loadItems(); },
-                    failure -> showError("Could not delete item: " + message(failure))
+                    ignored -> {
+                        if (tableItems != null) tableItems.setDisable(false);
+                        org.example.util.ToastManager.success(tableItems, "Item Deleted", "Item deleted successfully.");
+                        loadItems();
+                    },
+                    failure -> {
+                        if (tableItems != null) tableItems.setDisable(false);
+                        showError("Could not delete item: " + message(failure));
+                    }
             );
         }
     }

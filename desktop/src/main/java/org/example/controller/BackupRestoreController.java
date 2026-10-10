@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
@@ -39,7 +40,7 @@ import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
-public class BackupRestoreController {
+public class BackupRestoreController implements ScreenLifecycle {
     private final SupportApiClient supportApi = new SupportApiClient();
     private final ServerBackupClient serverBackups = new ServerBackupClient();
 
@@ -318,7 +319,7 @@ public class BackupRestoreController {
             status = rows.size() + " backup(s) available in " + backupFolder;
         }
         ServerBackupClient.DatabaseMetrics metrics = null;
-        try { metrics = serverBackups.metrics(); } catch (Exception ignored) { }
+        try { metrics = serverBackups.metrics(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return new BackupSnapshot(rows, metrics, status);
     }
 
@@ -474,7 +475,7 @@ public class BackupRestoreController {
                 ServerBackupClient.RecoveryPackage packageInfo = serverBackups.downloadRecoveryPackage(download);
                 return LocalRecoveryManager.stageForLocal(packageInfo.file(), target, ConfigManager.getConfiguredServerUrl());
             } finally {
-                try { Files.deleteIfExists(download); } catch (Exception ignored) { }
+                try { Files.deleteIfExists(download); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
         }, staged -> {
             NotificationService.add("LOCAL disaster recovery prepared from company server " + staged.sourceEnvironment()
@@ -817,8 +818,8 @@ public class BackupRestoreController {
                 () -> {
                     String schedule = "MANUAL";
                     int retention = 2;
-                    try { schedule = supportApi.setting("backup.schedule", "MANUAL"); } catch (Exception ignored) { }
-                    try { retention = Integer.parseInt(supportApi.setting("backup.retention", "2")); } catch (Exception ignored) { }
+                    try { schedule = supportApi.setting("backup.schedule", "MANUAL"); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
+                    try { retention = Integer.parseInt(supportApi.setting("backup.retention", "2")); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                     return new BackupSettings(schedule, retention);
                 },
                 settings -> {
@@ -941,4 +942,9 @@ public class BackupRestoreController {
     private record BackupSnapshot(java.util.List<BackupRow> rows, ServerBackupClient.DatabaseMetrics metrics, String status) { }
     private record BackupSettings(String schedule, int retention) { }
 
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

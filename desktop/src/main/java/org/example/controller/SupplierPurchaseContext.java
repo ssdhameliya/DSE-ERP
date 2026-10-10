@@ -7,5 +7,5 @@ public final class SupplierPurchaseContext {
     private static Party selected;
     private SupplierPurchaseContext() {}
     public static synchronized void select(Party supplier) { selected = supplier; }
-    public static synchronized Party consume() { Party value = selected; selected = null; return value; }
+    public static synchronized Party consume() { Party value = selected; selected = null; return value; } public static synchronized void clear() { selected = null; }
 }

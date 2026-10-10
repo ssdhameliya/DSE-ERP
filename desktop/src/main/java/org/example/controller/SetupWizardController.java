@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -22,7 +23,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /** First-run onboarding and workspace selection for Windows and macOS. */
-public class SetupWizardController {
+public class SetupWizardController implements ScreenLifecycle {
     private static final Pattern EMAIL = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     @FXML private StackPane stepWorkspace, stepCompany, stepEmail, stepAdmin, stepFinish;
@@ -91,7 +92,7 @@ public class SetupWizardController {
         try {
             File current = new File(txtWorkspace.getText() == null ? "" : txtWorkspace.getText().trim());
             if (current.isDirectory()) chooser.setInitialDirectory(current);
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         File selected = chooser.showDialog(btnUseExisting.getScene().getWindow());
         if (selected == null) return;
         Path root = selected.toPath().toAbsolutePath().normalize();
@@ -379,4 +380,9 @@ public class SetupWizardController {
     private boolean fail(String message, Control control) { lblError.setText(message); lblError.getStyleClass().remove("setup-progress"); lblError.getStyleClass().add("setup-error"); control.requestFocus(); return false; }
     private void clearError() { lblError.setText(""); lblError.getStyleClass().removeAll("setup-error","setup-progress"); }
     private String safe(TextInputControl control) { return control.getText() == null ? "" : control.getText().trim(); }
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

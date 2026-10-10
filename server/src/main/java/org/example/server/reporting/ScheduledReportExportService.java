@@ -28,6 +28,8 @@ import org.example.server.persistence.JpaNativeRepository;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -62,23 +64,21 @@ public final class ScheduledReportExportService {
 
     public void pdf(Path target, ReportResult result, Set<String> visibleKeys) throws IOException {
         Objects.requireNonNull(result, "result");
-        Files.createDirectories(target.toAbsolutePath().getParent());
+        if (target.toAbsolutePath().getParent() != null) {
+            Files.createDirectories(target.toAbsolutePath().getParent());
+        }
         List<Integer> positions = positions(result, visibleKeys);
         PageSize pageSize = positions.size() <= 6 ? PageSize.A4 : PageSize.A4.rotate();
-        Path tmp = Files.createTempFile(target.toAbsolutePath().getParent(), "dse-scheduled-report-", ".pdf");
-        try {
-            try (PdfDocument pdf = new PdfDocument(new PdfWriter(tmp.toFile()));
-                 Document doc = new Document(pdf, pageSize)) {
-                doc.setMargins(30, 28, 34, 28);
-                addHeader(doc, result);
-                addFilters(doc, result);
-                addSummary(doc, result);
-                addTable(doc, result, positions);
-            }
-            stampFooter(tmp, target, result);
-        } finally {
-            Files.deleteIfExists(tmp);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (PdfDocument pdf = new PdfDocument(new PdfWriter(baos));
+             Document doc = new Document(pdf, pageSize)) {
+            doc.setMargins(30, 28, 34, 28);
+            addHeader(doc, result);
+            addFilters(doc, result);
+            addSummary(doc, result);
+            addTable(doc, result, positions);
         }
+        stampFooter(baos.toByteArray(), target, result);
     }
 
     public void excel(Path target, ReportResult result, Set<String> visibleKeys) throws IOException {
@@ -211,8 +211,10 @@ public final class ScheduledReportExportService {
         doc.add(table);
     }
 
-    private void stampFooter(Path source, Path target, ReportResult result) throws IOException {
-        try (PdfDocument pdf = new PdfDocument(new PdfReader(source.toFile()), new PdfWriter(target.toFile()))) {
+    private void stampFooter(byte[] sourceBytes, Path target, ReportResult result) throws IOException {
+        try (ByteArrayInputStream in = new ByteArrayInputStream(sourceBytes);
+             OutputStream out = Files.newOutputStream(target);
+             PdfDocument pdf = new PdfDocument(new PdfReader(in), new PdfWriter(out))) {
             int pages = pdf.getNumberOfPages();
             for (int i = 1; i <= pages; i++) {
                 var page = pdf.getPage(i);

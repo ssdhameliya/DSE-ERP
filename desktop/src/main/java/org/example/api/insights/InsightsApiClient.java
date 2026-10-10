@@ -47,12 +47,7 @@ public final class InsightsApiClient {
     private <T>T request(String method,String path,Object body,Class<T> cls,TypeReference<T> type){try{HttpRequest.Builder b=HttpRequest.newBuilder(URI.create(base+path)).timeout(Duration.ofSeconds(30)).header("Accept","application/json");org.example.api.ApiSession.authorize(b);if(body!=null){b.header("Content-Type","application/json");b.method(method,HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));}else b.method(method,HttpRequest.BodyPublishers.noBody());HttpResponse<String> r=http.send(b.build(),HttpResponse.BodyHandlers.ofString());if(r.statusCode()<200||r.statusCode()>=300){org.example.api.ApiRuntime.logHttpFailure("Insights request",r.statusCode(),r.body());throw new IllegalStateException(org.example.api.ApiRuntime.userMessage("the requested dashboard or communication operation",r.statusCode(),r.body()));}return type!=null?json.readValue(r.body(),type):json.readValue(r.body(),cls);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException("Insights API request interrupted",e);}catch(IOException|IllegalArgumentException e){throw new IllegalStateException("Cannot reach insights server at "+base,e);}}
 
     private String apiErrorMessage(int status,String body){
-        try{
-            var node=json.readTree(body==null?"":body);
-            String message=node!=null&&node.hasNonNull("message")?node.get("message").asText():"";
-            if(message!=null&&!message.isBlank()) return message+" (HTTP "+status+")";
-        }catch(Exception ignored){}
-        return "Insights service request failed (HTTP "+status+")";
+        return org.example.api.ApiRuntime.errorMessage("Insights service",status,body);
     }
     private String enc(String v){return URLEncoder.encode(v==null?"":v,StandardCharsets.UTF_8);}
 

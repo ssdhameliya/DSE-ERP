@@ -20,4 +20,8 @@ public final class CommunicationScreenContext {
         initialChannel = null;
         return selected;
     }
+
+    public static synchronized void clear() {
+        initialChannel = null;
+    }
 }

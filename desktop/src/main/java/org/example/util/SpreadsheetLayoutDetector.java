@@ -93,7 +93,7 @@ public final class SpreadsheetLayoutDetector {
                     return DateUtil.getLocalDateTime(evaluated.getNumberValue()).toLocalDate();
                 }
             }
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return null;
     }
 

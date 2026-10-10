@@ -145,10 +145,10 @@ public final class PdfTextExtractionService {
                     fontCount++;
                 }
                 if (fontName.isBlank() && position.getFont() != null) {
-                    try { fontName = position.getFont().getName(); } catch (Exception ignored) { }
+                    try { fontName = position.getFont().getName(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 }
                 if (Math.abs(rotation) < 0.01) {
-                    try { rotation = position.getDir(); } catch (Exception ignored) { }
+                    try { rotation = position.getDir(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 }
                 previous = position;
             }

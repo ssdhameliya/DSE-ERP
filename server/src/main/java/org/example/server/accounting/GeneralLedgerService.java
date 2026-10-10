@@ -247,7 +247,7 @@ public class GeneralLedgerService {
                     String.class
             );
             if (val != null && !val.isBlank()) format = val.trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
 
         try {
             String dated = format

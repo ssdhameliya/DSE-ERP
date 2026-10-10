@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.BarcodeStudioController" styleClass="approved-screen,erp-screen-root">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="Barcode &amp; QR Label Studio" styleClass="screen-title"/>
+          <Label text="Generate Code-128 barcodes, thermal adhesive stickers, and A4 multi-column sheets" wrapText="true" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <HBox spacing="8" alignment="CENTER_RIGHT">
+          <TextField fx:id="txtScannerTest" promptText="Scan USB Barcode Here to Test..." prefWidth="250" styleClass="scanner-input"/>
+          <Button fx:id="btnPrintThermal" text="Print Thermal Labels" onAction="#printThermal" styleClass="primary-action,approved-button,approved-primary-button"/>
+          <Button fx:id="btnPrintA4" text="Print A4 Sheet" onAction="#printA4Sheet" styleClass="approved-button,approved-secondary-button"/>
+        </HBox>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiItemIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Catalog Items" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Catalog" styleClass="metric-trend-pill,trend-neutral"/>
+            </HBox>
+            <Label fx:id="kpiTotalItems" text="0" styleClass="metric-value"/>
+            <Label text="Item master catalog" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiMappedIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Barcode Enabled" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Active" styleClass="metric-trend-pill,trend-positive"/>
+            </HBox>
+            <Label fx:id="kpiMappedItems" text="0" styleClass="metric-value"/>
+            <Label text="Ready for scan billing" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiTemplateIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Label Format" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Format" styleClass="metric-trend-pill,trend-warning"/>
+            </HBox>
+            <Label fx:id="kpiLabelFormat" text="50 × 25 mm" styleClass="metric-value"/>
+            <Label text="Standard 2-inch thermal" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-purple" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiPrintIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Selected Copies" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Queue" styleClass="metric-trend-pill,trend-info"/>
+            </HBox>
+            <Label fx:id="kpiSelectedCopies" text="1" styleClass="metric-value"/>
+            <Label text="Labels in print queue" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <SplitPane fx:id="splitPane" dividerPositions="0.6" styleClass="register-split-pane">
+      <VBox spacing="8" styleClass="approved-card">
+        <HBox spacing="8" alignment="CENTER_LEFT">
+          <TextField fx:id="txtSearch" promptText="Search items by code, name, category, or barcode..." HBox.hgrow="ALWAYS"/>
+          <Button fx:id="btnRefreshItems" text="Refresh" onAction="#refreshItems" styleClass="approved-button,approved-secondary-button"/>
+        </HBox>
+
+        <TableView fx:id="tblItems" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-blue-selection-table">
+          <columns>
+            <TableColumn fx:id="colItemCode" text="Item Code"/>
+            <TableColumn fx:id="colItemName" text="Item Description"/>
+            <TableColumn fx:id="colCategory" text="Category"/>
+            <TableColumn fx:id="colBarcode" text="Barcode / EAN"/>
+            <TableColumn fx:id="colPrice" text="Selling Price (₹)"/>
+            <TableColumn fx:id="colStock" text="Stock"/>
+          </columns>
+          <placeholder>
+            <VBox alignment="CENTER" spacing="8">
+              <Label text="No Items Found" styleClass="empty-title"/>
+              <Label text="Items from Item Master will appear here for label printing." wrapText="true" styleClass="empty-note"/>
+            </VBox>
+          </placeholder>
+        </TableView>
+      </VBox>
+
+      <VBox spacing="12" styleClass="approved-card,barcode-preview-container">
+        <Label text="Label Design &amp; Live Preview" styleClass="section-title"/>
+        <Separator/>
+
+        <GridPane hgap="10" vgap="10">
+          <Label text="Template:" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="field-caption"/>
+          <ComboBox fx:id="cmbTemplate" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+          <Label text="Copies:" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="field-caption"/>
+          <Spinner fx:id="spnCopies" prefWidth="120" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+          <Label text="Show Price (MRP):" GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="field-caption"/>
+          <CheckBox fx:id="chkShowPrice" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+          <Label text="Show Company:" GridPane.columnIndex="0" GridPane.rowIndex="3" styleClass="field-caption"/>
+          <CheckBox fx:id="chkShowCompany" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+        </GridPane>
+
+        <Separator/>
+        <Label text="Thermal Sticker Preview (50x25mm)" styleClass="settings-subsection-title"/>
+
+        <VBox alignment="CENTER" styleClass="barcode-preview-box">
+          <VBox fx:id="stickerCard" alignment="CENTER" spacing="4" maxWidth="320" minHeight="160" styleClass="barcode-sticker-mockup">
+            <Label fx:id="lblPreviewCompany" text="DSE ENTERPRISES" styleClass="bold-label"/>
+            <Label fx:id="lblPreviewItemName" text="Select an item from the table" styleClass="barcode-item-title"/>
+            <HBox fx:id="boxBarcodeGraphic" alignment="CENTER" minHeight="45" styleClass="barcode-svg-container"/>
+            <Label fx:id="lblPreviewBarcode" text="*00000000*" styleClass="barcode-human-code"/>
+            <Label fx:id="lblPreviewPrice" text="MRP: ₹ 0.00 (Incl. of all taxes)" styleClass="barcode-mrp-label"/>
+          </VBox>
+        </VBox>
+
+        <Region VBox.vgrow="ALWAYS"/>
+        <HBox spacing="8" alignment="CENTER_RIGHT">
+          <Button fx:id="btnQuickPrint" text="Print Sticker Now" onAction="#printThermal" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="primary-action,approved-button,approved-primary-button"/>
+        </HBox>
+      </VBox>
+    </SplitPane>
+  </center>
+</BorderPane>

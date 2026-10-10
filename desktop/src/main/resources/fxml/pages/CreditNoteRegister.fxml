@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.CreditNoteRegisterController" styleClass="approved-screen,erp-screen-root">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="Sales Credit Notes Register" styleClass="screen-title"/>
+          <Label text="Manage sales returns, price adjustments, and GST output liability reversals" wrapText="true" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnNewCreditNote" text="New Credit Note" onAction="#createCreditNote" styleClass="primary-action,approved-button,approved-primary-button"/>
+        <Button fx:id="btnRefresh" text="Refresh" onAction="#refreshData" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-purple" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiCountIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Total Notes" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Total" styleClass="metric-trend-pill,trend-neutral"/>
+            </HBox>
+            <Label fx:id="kpiTotalCount" text="0" styleClass="metric-value"/>
+            <Label text="Current fiscal period" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-red" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiAmountIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Credit Note Value" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Issued" styleClass="metric-trend-pill,trend-negative"/>
+            </HBox>
+            <Label fx:id="kpiTotalAmount" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Total customer credits" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiTaxIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="GST Reversed" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Tax" styleClass="metric-trend-pill,trend-warning"/>
+            </HBox>
+            <Label fx:id="kpiTaxReversed" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Output tax reduction" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiStockIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Restocked Items" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Inventory" styleClass="metric-trend-pill,trend-positive"/>
+            </HBox>
+            <Label fx:id="kpiRestockedCount" text="0" styleClass="metric-value"/>
+            <Label text="Physical goods returned" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <VBox spacing="8" styleClass="approved-card">
+      <HBox spacing="8" alignment="CENTER_LEFT">
+        <TextField fx:id="txtSearch" promptText="Search credit notes, party, invoice number..." HBox.hgrow="ALWAYS"/>
+        <ComboBox fx:id="cmbReasonFilter" promptText="Filter by Reason" prefWidth="180"/>
+      </HBox>
+
+      <SplitPane fx:id="mainSplit" VBox.vgrow="ALWAYS" dividerPositions="1.0" styleClass="register-split-pane">
+        <TableView fx:id="tblCreditNotes" styleClass="approved-table,erp-table-profile-responsive,erp-purple-selection-table">
+          <columns>
+            <TableColumn fx:id="colNoteNo" text="Credit Note No."/>
+            <TableColumn fx:id="colDate" text="Date"/>
+            <TableColumn fx:id="colParty" text="Customer Name"/>
+            <TableColumn fx:id="colInvoiceRef" text="Original Invoice"/>
+            <TableColumn fx:id="colReason" text="Reason"/>
+            <TableColumn fx:id="colTaxable" text="Taxable (₹)"/>
+            <TableColumn fx:id="colTax" text="GST Reversal (₹)"/>
+            <TableColumn fx:id="colTotal" text="Total Amount (₹)"/>
+            <TableColumn fx:id="colStatus" text="Status"/>
+            <TableColumn fx:id="colActions" text="Actions" sortable="false"/>
+          </columns>
+          <placeholder>
+            <VBox alignment="CENTER" spacing="8">
+              <Label text="No Credit Notes found" styleClass="empty-title"/>
+              <Label text="Issued credit notes will appear here automatically." wrapText="true" styleClass="empty-note"/>
+            </VBox>
+          </placeholder>
+        </TableView>
+
+        <VBox fx:id="detailDrawer" visible="false" managed="false" spacing="9" prefWidth="390" minWidth="350" maxWidth="440" styleClass="approved-card,detail-drawer">
+          <HBox alignment="CENTER_LEFT" spacing="8">
+            <VBox HBox.hgrow="ALWAYS">
+              <Label fx:id="lblDrawerTitle" text="Credit Note Details" styleClass="section-title"/>
+              <Label fx:id="lblDrawerSubtitle" text="Sales return breakdown" styleClass="page-subtitle"/>
+            </VBox>
+            <Button fx:id="btnDrawerAudit" text="Audit Trail" onAction="#auditSelected" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnCloseDrawer" text="Close" onAction="#closeDetails" styleClass="secondary-button,drawer-close-button,approved-button,approved-secondary-button"/>
+          </HBox>
+          <Separator/>
+          <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="import-inner-scroll">
+            <VBox spacing="10">
+              <Label text="Document Reference" styleClass="settings-subsection-title"/>
+              <HBox spacing="6"><Label text="Credit Note No:" styleClass="field-caption"/><Label fx:id="lblDetailNoteNo" text="-" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Date:" styleClass="field-caption"/><Label fx:id="lblDetailDate" text="-" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Customer:" styleClass="field-caption"/><Label fx:id="lblDetailParty" text="-" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Invoice Ref:" styleClass="field-caption"/><Label fx:id="lblDetailInvoice" text="-" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Reason:" styleClass="field-caption"/><Label fx:id="lblDetailReason" text="-" styleClass="bold-label"/></HBox>
+              <Separator/>
+              <Label text="Financial Breakdown" styleClass="settings-subsection-title"/>
+              <HBox spacing="6"><Label text="Taxable Value:" styleClass="field-caption"/><Label fx:id="lblDetailTaxable" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="CGST Reversal:" styleClass="field-caption"/><Label fx:id="lblDetailCgst" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="SGST Reversal:" styleClass="field-caption"/><Label fx:id="lblDetailSgst" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="IGST Reversal:" styleClass="field-caption"/><Label fx:id="lblDetailIgst" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Total Amount:" styleClass="field-caption"/><Label fx:id="lblDetailTotal" text="₹ 0.00" styleClass="bold-label"/></HBox>
+              <Separator/>
+              <Label text="Inventory &amp; Accounting" styleClass="settings-subsection-title"/>
+              <HBox spacing="6"><Label text="Stock Restocked:" styleClass="field-caption"/><Label fx:id="lblDetailStock" text="Yes" styleClass="bold-label"/></HBox>
+              <HBox spacing="6"><Label text="Status:" styleClass="field-caption"/><Label fx:id="lblDetailStatus" text="POSTED" styleClass="bold-label"/></HBox>
+            </VBox>
+          </ScrollPane>
+        </VBox>
+      </SplitPane>
+    </VBox>
+  </center>
+</BorderPane>

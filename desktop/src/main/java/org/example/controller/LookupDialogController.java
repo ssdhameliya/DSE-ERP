@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
@@ -12,7 +13,7 @@ import org.example.util.UiTaskExecutor;
 
 import java.util.Locale;
 
-public class LookupDialogController {
+public class LookupDialogController implements ScreenLifecycle {
     @FXML private TextField txtCode, txtValue;
     @FXML private TextArea txtDescription;
     @FXML private Spinner<Integer> spnOrder;
@@ -167,4 +168,9 @@ public class LookupDialogController {
 
     @FXML private void cancel() { close(); }
     private void close() { ((Stage) txtCode.getScene().getWindow()).close(); }
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

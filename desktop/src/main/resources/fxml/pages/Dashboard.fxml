@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.scene.control.*?><?import javafx.scene.layout.*?><?import javafx.scene.shape.Circle?><?import javafx.scene.shape.SVGPath?><!-- Shared ERP shell: module navigation, global toolbar and page host. --><?import org.example.ui.SharedApplicationFooter?>
-<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardController" styleClass="erp-shell,approved-ui,approved-screen,approved-screen-dashboard,erp-screen-root">
+<BorderPane fx:id="shellRoot" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardController" styleClass="erp-shell,approved-ui,approved-screen,approved-screen-dashboard,erp-screen-root">
     <left>
         <VBox fx:id="sidebarRoot" styleClass="erp-sidebar">
 
@@ -18,6 +18,7 @@
                     <Button fx:id="btnSalesRegister" text="Sales Register" onAction="#openSales" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnCreateSale" text="Create Sale" onAction="#createSale" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSalesReturn" text="Sales Return" onAction="#openReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnCreditNote" text="Credit Notes" onAction="#openCreditNotes" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnQuotation" text="Quotations" onAction="#openQuotations" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>
@@ -32,6 +33,7 @@
                     <Button fx:id="btnPurchaseRegister" text="Purchase Register" onAction="#openPurchase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnCreatePurchase" text="Create Purchase" onAction="#createPurchase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnPurchaseReturn" text="Purchase Return" onAction="#openPurchaseReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnDebitNote" text="Debit Notes" onAction="#openDebitNotes" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>
             <Button fx:id="btnItem" text="Item Master" onAction="#openItemMaster" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -51,11 +53,35 @@
                     <Button fx:id="btnReconSupplier" text="Recon Supplier" onAction="#openReconSupplier" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>
-            <Button fx:id="btnGeneralLedger" text="General Ledger" onAction="#openGeneralLedger" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <Button fx:id="btnGstCompliance" text="GST Compliance" onAction="#openGstCompliance" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnFinance" text="Finance &amp; Accounts" onAction="#toggleFinanceMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
+                        <tooltip><Tooltip text="Show or hide Finance &amp; Accounts menu"/></tooltip>
+                    </Button>
+                    <Label fx:id="lblFinanceChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="financeSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnGeneralLedger" text="General Ledger" onAction="#openGeneralLedger" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnFinancialStatements" text="Financial Statements" onAction="#openFinancialStatements" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnAgingAnalysis" text="Aging Analysis" onAction="#openAgingAnalysis" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
+            </VBox>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnGst" text="GST &amp; Compliance" onAction="#toggleGstMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
+                        <tooltip><Tooltip text="Show or hide GST &amp; Compliance menu"/></tooltip>
+                    </Button>
+                    <Label fx:id="lblGstChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="gstSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnGstCompliance" text="GST Compliance" onAction="#openGstCompliance" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnEWayBill" text="E-Way Bill &amp; E-Invoice" onAction="#openEWayBill" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
+            </VBox>
             <Button fx:id="btnAutomationCenter" text="Automation Center" onAction="#openAutomationCenter" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnImport" text="Data Import" onAction="#openImport" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnInventory" text="Inventory" onAction="#openInventory" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnBarcodeStudio" text="Barcode Studio" onAction="#openBarcodeStudio" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnCustomer" text="CRM / Customers" onAction="#openCustomers" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnSupplier" text="HRM / Suppliers" onAction="#openSupplier" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnReports" text="Reports" onAction="#openReports" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -162,6 +188,22 @@
             </items></MenuButton>
         </HBox>
     </top>
-    <center><StackPane fx:id="contentPane" id="contentPane" styleClass="erp-content"/></center>
+    <center>
+        <VBox VBox.vgrow="ALWAYS" styleClass="workspace-shell-container">
+            <!-- Dynamic Multi-Document Workspace Tab Bar -->
+            <HBox fx:id="workspaceTabBar" id="workspaceTabBar" styleClass="workspace-tab-bar" alignment="CENTER_LEFT" spacing="3">
+                <HBox fx:id="workspaceTabContainer" id="workspaceTabContainer" alignment="CENTER_LEFT" spacing="3"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <HBox alignment="CENTER_RIGHT" spacing="6" styleClass="workspace-tab-hints-wrap">
+                    <Label text="[Ctrl+Tab] Switch" styleClass="workspace-tab-hint"/>
+                    <Label text="•" styleClass="workspace-tab-hint"/>
+                    <Label text="[Alt+W] Close" styleClass="workspace-tab-hint"/>
+                    <Label text="•" styleClass="workspace-tab-hint"/>
+                    <Label text="[Ctrl+T] Search" styleClass="workspace-tab-hint"/>
+                </HBox>
+            </HBox>
+            <StackPane fx:id="contentPane" id="contentPane" VBox.vgrow="ALWAYS" styleClass="erp-content"/>
+        </VBox>
+    </center>
     <bottom><SharedApplicationFooter/></bottom>
 </BorderPane>

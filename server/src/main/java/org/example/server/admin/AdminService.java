@@ -46,7 +46,25 @@ public class AdminService {
                 ('GENERAL_LEDGER.EXPORT', 'GENERAL_LEDGER', 'EXPORT', 'Export financial statements and ledger reports'),
                 ('AUTOMATION.VIEW', 'AUTOMATION', 'VIEW', 'Open Automation Center and view rule statuses'),
                 ('AUTOMATION.EDIT', 'AUTOMATION', 'EDIT', 'Configure automation rules, tolerances, and thresholds'),
-                ('AUTOMATION.EXECUTE', 'AUTOMATION', 'EXECUTE', 'Manually trigger 3-way match, stock replenishment, and scheduled rules')
+                ('AUTOMATION.EXECUTE', 'AUTOMATION', 'EXECUTE', 'Manually trigger 3-way match, stock replenishment, and scheduled rules'),
+                ('CREDIT_NOTE.VIEW', 'CREDIT_NOTE', 'VIEW', 'Open Credit Note Register and inspect sales adjustments'),
+                ('CREDIT_NOTE.CREATE', 'CREDIT_NOTE', 'CREATE', 'Issue new Sales Credit Notes'),
+                ('CREDIT_NOTE.EDIT', 'CREDIT_NOTE', 'EDIT', 'Edit draft or pending Credit Notes'),
+                ('CREDIT_NOTE.PRINT', 'CREDIT_NOTE', 'PRINT', 'Print Sales Credit Notes'),
+                ('DEBIT_NOTE.VIEW', 'DEBIT_NOTE', 'VIEW', 'Open Debit Note Register and inspect supplier adjustments'),
+                ('DEBIT_NOTE.CREATE', 'DEBIT_NOTE', 'CREATE', 'Issue new Purchase Debit Notes'),
+                ('DEBIT_NOTE.EDIT', 'DEBIT_NOTE', 'EDIT', 'Edit draft or pending Debit Notes'),
+                ('DEBIT_NOTE.PRINT', 'DEBIT_NOTE', 'PRINT', 'Print Purchase Debit Notes'),
+                ('FINANCIAL_STATEMENTS.VIEW', 'FINANCIAL_STATEMENTS', 'VIEW', 'View Profit & Loss and Balance Sheet statements'),
+                ('FINANCIAL_STATEMENTS.EXPORT', 'FINANCIAL_STATEMENTS', 'EXPORT', 'Export Financial Statements to Excel / PDF'),
+                ('AGING_ANALYSIS.VIEW', 'AGING_ANALYSIS', 'VIEW', 'View Accounts Receivable and Accounts Payable Aging'),
+                ('AGING_ANALYSIS.REMIND', 'AGING_ANALYSIS', 'REMIND', 'Send overdue payment reminders to customers'),
+                ('AGING_ANALYSIS.EXPORT', 'AGING_ANALYSIS', 'EXPORT', 'Export AR/AP Aging reports'),
+                ('EWAY_BILL.VIEW', 'EWAY_BILL', 'VIEW', 'View E-Way Bill and transport register'),
+                ('EWAY_BILL.GENERATE', 'EWAY_BILL', 'GENERATE', 'Generate and export NIC E-Way Bill JSON'),
+                ('EWAY_BILL.UPDATE_VEHICLE', 'EWAY_BILL', 'UPDATE_VEHICLE', 'Update transporter, vehicle number, and distance'),
+                ('BARCODE.VIEW', 'BARCODE', 'VIEW', 'Open Barcode Label Studio'),
+                ('BARCODE.PRINT', 'BARCODE', 'PRINT', 'Generate and print thermal barcode / QR labels')
                 ON CONFLICT (permission_key) DO UPDATE SET description = EXCLUDED.description, active = 1
             """);
 
@@ -54,11 +72,12 @@ public class AdminService {
                 INSERT INTO role_permission(role_code, permission_id, allowed)
                 SELECT 'ADMIN', p.id, 1
                 FROM permissions p
-                WHERE p.module_name IN ('GST_COMPLIANCE', 'GENERAL_LEDGER', 'AUTOMATION', 'PURCHASE_RECON', 'RECON_SUPPLIER', 'AUDIT')
+                WHERE p.module_name IN ('GST_COMPLIANCE', 'GENERAL_LEDGER', 'AUTOMATION', 'PURCHASE_RECON', 'RECON_SUPPLIER', 'AUDIT',
+                                        'CREDIT_NOTE', 'DEBIT_NOTE', 'FINANCIAL_STATEMENTS', 'AGING_ANALYSIS', 'EWAY_BILL', 'BARCODE')
                 ON CONFLICT (UPPER(TRIM(role_code)), permission_id) WHERE TRIM(COALESCE(role_code, '')) <> ''
                 DO UPDATE SET allowed = 1
             """);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
     }
 
     @Transactional(readOnly = true)

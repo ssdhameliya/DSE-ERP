@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
@@ -13,7 +14,7 @@ import org.example.util.UiTaskExecutor;
 
 import java.util.regex.Pattern;
 
-public class PartyDialogController {
+public class PartyDialogController implements ScreenLifecycle {
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final Pattern PHONE = Pattern.compile("^[0-9+()\\-\\s]{7,18}$");
     private static final Pattern GSTIN = Pattern.compile("^[0-9A-Za-z]{15}$");
@@ -40,6 +41,20 @@ public class PartyDialogController {
         btnSave.setGraphic(IconFactory.icon("save"));
         btnCancel.setGraphic(IconFactory.icon("cancel"));
         installLiveValidation();
+        org.example.util.WorkflowFocusManager.install(java.util.List.of(
+            txtName, txtContact, txtPhone, txtEmail, txtGstin, txtOpeningBalance, btnSave));
+        org.example.util.WorkflowFocusManager.initial(txtName);
+        javafx.application.Platform.runLater(() -> {
+            if (txtName != null && txtName.getScene() != null) {
+                txtName.getScene().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+                    if ((event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.S)
+                            || event.getCode() == javafx.scene.input.KeyCode.F10) {
+                        btnSave.fire();
+                        event.consume();
+                    }
+                });
+            }
+        });
     }
 
     public void configure(String type, Party party) {
@@ -220,4 +235,9 @@ public class PartyDialogController {
     @FXML private void cancel() { close(); }
     private void close() { ((Stage) txtCode.getScene().getWindow()).close(); }
     private String safe(String value) { return value == null ? "" : value; }
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

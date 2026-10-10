@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -23,7 +24,7 @@ import java.nio.file.Files;
 import java.util.List;
 
 /** Supplier-side counterpart of Customer360Controller using the same UI/lifecycle patterns. */
-public final class Supplier360Controller {
+public final class Supplier360Controller implements ScreenLifecycle {
     @FXML private Label lblTitle,lblCode,lblGstin,lblContact,lblPhone,lblEmail,lblAddress,lblStatus;
     @FXML private Label lblOutstanding,lblPurchaseCount,lblPurchases,lblLastPayment;
     @FXML private StackPane pageIcon,outstandingIcon,purchaseCountIcon,purchasesIcon,paymentIcon;
@@ -124,4 +125,9 @@ public final class Supplier360Controller {
     private void showError(Throwable e){AppDialogService.error(tabs,"Supplier 360°","Operation could not be completed",e==null?"Unexpected error":safe(e.getMessage()));}
     private static SimpleStringProperty s(String v){return new SimpleStringProperty(safe(v));}private static String safe(String v){return v==null?"":v;}private static String money(BigDecimal v){return "₹ "+(v==null?BigDecimal.ZERO:v).setScale(2,RoundingMode.HALF_UP).toPlainString();}private static String paymentStatus(Supplier360ApiClient.PurchaseRow r){String p=safe(r.paymentStatus());return p.isBlank()?safe(r.documentStatus()):p;}private static <T>List<T> nz(List<T> v){return v==null?List.of():v;}
     private static Party party(Supplier360ApiClient.Supplier c){Party p=new Party();p.setId(c.id());p.setRowVersion(c.rowVersion());p.setPartyType("SUPPLIER");p.setPartyCode(c.code());p.setName(c.name());p.setContactPerson(c.contactPerson());p.setPhone(c.phone());p.setEmail(c.email());p.setGstin(c.gstin());p.setAddress(c.address());p.setOpeningBalance(c.openingBalance()==null?0:c.openingBalance().doubleValue());p.setActive(c.active());return p;}
+
+    @Override
+    public void onScreenHidden() {
+        Supplier360Context.clear();
+    }
 }

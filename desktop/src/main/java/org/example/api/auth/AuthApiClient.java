@@ -290,7 +290,7 @@ public final class AuthApiClient {
                 throw ApiSession.rejected("Business session verification", response.body());
             }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("Login succeeded, but the ERP business API verification failed (HTTP " + response.statusCode() + ")");
+                throw new IllegalStateException("Login succeeded, but the ERP business API verification failed: " + org.example.api.ApiRuntime.errorMessage("Business verification", response.statusCode(), response.body()));
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -370,7 +370,7 @@ public final class AuthApiClient {
                     .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
             HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 401) { throw ApiSession.rejected("Authentication request", response.body()); }
-            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("Authentication API error (" + response.statusCode() + ")");
+            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException(apiErrorMessage(response));
             return json.readValue(response.body(), responseType);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -390,7 +390,7 @@ public final class AuthApiClient {
                     .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
             HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 401) { throw ApiSession.rejected("Authentication request", response.body()); }
-            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("Authentication API error (" + response.statusCode() + ")");
+            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException(apiErrorMessage(response));
             return json.readValue(response.body(), responseType);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -447,11 +447,7 @@ public final class AuthApiClient {
     }
 
     private String apiErrorMessage(HttpResponse<String> response) {
-        try {
-            OperationResponse error = json.readValue(response.body(), OperationResponse.class);
-            if (error.message() != null && !error.message().isBlank()) return error.message();
-        } catch (Exception ignored) { }
-        return "Authentication request failed (HTTP " + response.statusCode() + ")";
+        return org.example.api.ApiRuntime.errorMessage("Authentication", response.statusCode(), response.body());
     }
 
     public record LoginRequest(String identity, String password) {}

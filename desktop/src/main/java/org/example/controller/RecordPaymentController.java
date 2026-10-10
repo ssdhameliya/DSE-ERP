@@ -137,10 +137,10 @@ public class RecordPaymentController implements ScreenLifecycle {
             "record-payment-lookups",
             () -> {
                 List<String> modes=new ArrayList<>();
-                try{modes.addAll(lookupService.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
+                try{modes.addAll(lookupService.getValuesByCategoryCode("PAYMENT_MODE"));}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
                 List<String> accounts=new ArrayList<>();
-                try{for(org.example.model.Lookup l:lookupService.getByCategoryCode("BANK_ACCOUNT")){if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String n=l.getDescription()==null?"":l.getDescription().trim();accounts.add(n.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+n);}}}catch(Exception ignored){}
+                try{for(org.example.model.Lookup l:lookupService.getByCategoryCode("BANK_ACCOUNT")){if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String n=l.getDescription()==null?"":l.getDescription().trim();accounts.add(n.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+n);}}}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 if(accounts.isEmpty())accounts.addAll(configuredBankAccounts());
                 return new PaymentLookups(List.copyOf(modes),List.copyOf(accounts));
             },

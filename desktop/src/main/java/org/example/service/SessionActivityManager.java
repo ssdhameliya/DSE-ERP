@@ -185,7 +185,7 @@ public final class SessionActivityManager {
         ticker.stop();
         saveIdleRecoveryDraft();
         Thread worker = new Thread(() -> {
-            try { new UserService().logoutIdle(); } catch (Exception ignored) { }
+            try { new UserService().logoutIdle(); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             finally { SessionService.clear(); }
             Platform.runLater(() -> {
                 detach();

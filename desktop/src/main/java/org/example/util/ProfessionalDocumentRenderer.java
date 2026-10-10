@@ -1005,7 +1005,7 @@ public final class ProfessionalDocumentRenderer {
             // the user's configured asset merely because it is square.
             sign.add(new Image(signatureData).setAutoScale(true).setMaxHeight(28).setMaxWidth(70)
                 .setHorizontalAlignment(HorizontalAlignment.CENTER));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         sign.add(new Paragraph(data.refund ? "Approved / Authorized Signatory" : "Authorized Signatory")
             .setBold().setFontSize(6.4f).setMarginTop(0).setMarginBottom(0));
         payment.addCell(sign); full.add(payment); outer.addCell(full);
@@ -1105,7 +1105,7 @@ public final class ProfessionalDocumentRenderer {
                 .setMaxWidth(38).setMaxHeight(38)
                 .setHorizontalAlignment(HorizontalAlignment.CENTER));
             return;
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         addGeneratedQr(cell, data, pdf);
     }
 
@@ -1244,7 +1244,7 @@ public final class ProfessionalDocumentRenderer {
                 icon.add(new Image(ImageDataFactory.create(stream.readAllBytes()))
                     .setWidth(7).setHeight(7).setHorizontalAlignment(HorizontalAlignment.RIGHT));
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         row.addCell(icon);
         row.addCell(new Cell().add(new Paragraph(value).setFontSize(6.2f).setMargin(0))
             .setFontColor(ColorConstants.WHITE).setBorder(Border.NO_BORDER).setPadding(0)

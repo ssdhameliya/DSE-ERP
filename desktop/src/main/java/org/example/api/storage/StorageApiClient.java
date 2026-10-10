@@ -25,7 +25,7 @@ public final class StorageApiClient {
             ApiSession.authorize(builder);
             HttpResponse<String> response = ApiRuntime.HTTP.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300)
-                throw new IllegalStateException("Storage API error (" + response.statusCode() + "): " + response.body());
+                throw new IllegalStateException(ApiRuntime.errorMessage("Storage API", response.statusCode(), response.body()));
             return json.readValue(response.body(), type);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); throw new IllegalStateException(e);
@@ -40,7 +40,7 @@ public final class StorageApiClient {
             ApiSession.authorize(builder);
             HttpResponse<String> response = ApiRuntime.HTTP.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300)
-                throw new IllegalStateException("Storage API error (" + response.statusCode() + "): " + response.body());
+                throw new IllegalStateException(ApiRuntime.errorMessage("Storage API", response.statusCode(), response.body()));
             return json.readValue(response.body(), type);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); throw new IllegalStateException(e);

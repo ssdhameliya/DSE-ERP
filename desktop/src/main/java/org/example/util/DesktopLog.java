@@ -54,7 +54,7 @@ public final class DesktopLog {
                         + "\",\"user\":\"" + esc(user) + "\",\"detail\":\"" + esc(detail)
                         + "\",\"failure\":\"" + esc(failureText) + "\"}" + System.lineSeparator();
                 Files.writeString(target, line, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         }
     }
 

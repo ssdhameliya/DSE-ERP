@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import org.example.util.OwnedAlert;
 
 import javafx.fxml.FXML;
@@ -15,7 +16,7 @@ import org.example.util.UiTaskExecutor;
 
 import java.util.List;
 
-public class ItemDialogController {
+public class ItemDialogController implements ScreenLifecycle {
     @FXML private TextField txtItemCode, txtDescription, txtHSN, txtPurchasePrice,
             txtSellingPrice, txtOpeningStock, txtMinimumStock, txtLocation;
     @FXML private TextArea txtRemarks;
@@ -47,6 +48,22 @@ public class ItemDialogController {
         headerIconHolder.getChildren().setAll(IconFactory.icon("item", 24));
         installLiveValidation();
         loadBootstrapAsync();
+        org.example.util.WorkflowFocusManager.install(java.util.List.of(
+            txtItemCode, txtDescription, cmbCategory, txtHSN, cmbUnit,
+            txtPurchasePrice, txtSellingPrice, cmbGST, cmbDiscount,
+            txtOpeningStock, txtMinimumStock, txtLocation, btnSave));
+        org.example.util.WorkflowFocusManager.initial(txtItemCode);
+        javafx.application.Platform.runLater(() -> {
+            if (txtItemCode != null && txtItemCode.getScene() != null) {
+                txtItemCode.getScene().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+                    if ((event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.S)
+                            || event.getCode() == javafx.scene.input.KeyCode.F10) {
+                        btnSave.fire();
+                        event.consume();
+                    }
+                });
+            }
+        });
     }
 
     private record ItemBootstrap(List<String> categories, List<String> units, List<String> gst,
@@ -317,4 +334,9 @@ public class ItemDialogController {
     private void closeDialog() { ((Stage) txtItemCode.getScene().getWindow()).close(); }
 
     private String safe(String value) { return value == null ? "" : value; }
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

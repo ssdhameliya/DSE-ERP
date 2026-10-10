@@ -51,7 +51,7 @@ public final class WhatsappService {
                 File f = documentPath.toFile();
                 File parent = f.getParentFile();
                 if (parent != null && parent.exists()) {
-                    try { dt.open(parent); } catch (Exception ignore) {}
+                    try { dt.open(parent); } catch (Exception ignore) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignore.getMessage(), ignore); }
                 }
             }
         } else {

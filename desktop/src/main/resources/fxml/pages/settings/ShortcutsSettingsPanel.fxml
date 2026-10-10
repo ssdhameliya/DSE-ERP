@@ -20,36 +20,36 @@
     <Button text="Reset Defaults" onAction="#resetAllShortcuts" styleClass="approved-button,approved-secondary-button"/>
   </HBox>
 
-  <HBox spacing="10" styleClass="shortcut-kpi-row">
-    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
-      <StackPane fx:id="shortcutKpiTotalIcon" styleClass="approved-kpi-icon"/>
-      <VBox spacing="1">
-        <Label fx:id="lblShortcutTotal" text="0" styleClass="approved-kpi-value"/>
-        <Label text="Available Actions" styleClass="approved-metric-note"/>
+  <HBox spacing="10" styleClass="standard-kpi-row,shortcut-kpi-row,erp-kpi-section">
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue,approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiTotalIcon" styleClass="standard-kpi-icon,approved-kpi-icon"/>
+      <VBox spacing="3" HBox.hgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT"><Label text="Available Actions" styleClass="metric-label,approved-metric-note"/><Region HBox.hgrow="ALWAYS"/><Label text="Total" styleClass="metric-trend-pill,trend-neutral"/></HBox>
+        <Label fx:id="lblShortcutTotal" text="0" styleClass="metric-value,approved-kpi-value"/>
         <Label text="Three user-facing groups" styleClass="metric-note"/>
       </VBox>
     </HBox>
-    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
-      <StackPane fx:id="shortcutKpiCustomIcon" styleClass="approved-kpi-icon"/>
-      <VBox spacing="1">
-        <Label fx:id="lblShortcutCustom" text="0" styleClass="approved-kpi-value"/>
-        <Label text="Custom Assignments" styleClass="approved-metric-note"/>
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green,approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiCustomIcon" styleClass="standard-kpi-icon,approved-kpi-icon"/>
+      <VBox spacing="3" HBox.hgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT"><Label text="Custom Assignments" styleClass="metric-label,approved-metric-note"/><Region HBox.hgrow="ALWAYS"/><Label text="Custom" styleClass="metric-trend-pill,trend-positive"/></HBox>
+        <Label fx:id="lblShortcutCustom" text="0" styleClass="metric-value,approved-kpi-value"/>
         <Label text="Changed from defaults" styleClass="metric-note"/>
       </VBox>
     </HBox>
-    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
-      <StackPane fx:id="shortcutKpiConflictIcon" styleClass="approved-kpi-icon"/>
-      <VBox spacing="1">
-        <Label fx:id="lblShortcutConflicts" text="0" styleClass="approved-kpi-value"/>
-        <Label text="Conflicts" styleClass="approved-metric-note"/>
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-red,approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiConflictIcon" styleClass="standard-kpi-icon,approved-kpi-icon"/>
+      <VBox spacing="3" HBox.hgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT"><Label text="Conflicts" styleClass="metric-label,approved-metric-note"/><Region HBox.hgrow="ALWAYS"/><Label text="Zero Required" styleClass="metric-trend-pill,trend-negative"/></HBox>
+        <Label fx:id="lblShortcutConflicts" text="0" styleClass="metric-value,approved-kpi-value"/>
         <Label text="Must be zero to save" styleClass="metric-note"/>
       </VBox>
     </HBox>
-    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
-      <StackPane fx:id="shortcutKpiCategoryIcon" styleClass="approved-kpi-icon"/>
-      <VBox spacing="1">
-        <Label fx:id="lblShortcutCategories" text="3" styleClass="approved-kpi-value"/>
-        <Label text="Groups" styleClass="approved-metric-note"/>
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-purple,approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiCategoryIcon" styleClass="standard-kpi-icon,approved-kpi-icon"/>
+      <VBox spacing="3" HBox.hgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT"><Label text="Groups" styleClass="metric-label,approved-metric-note"/><Region HBox.hgrow="ALWAYS"/><Label text="Categories" styleClass="metric-trend-pill,trend-info"/></HBox>
+        <Label fx:id="lblShortcutCategories" text="3" styleClass="metric-value,approved-kpi-value"/>
         <Label text="Application • Quick Create • Navigation" styleClass="metric-note"/>
       </VBox>
     </HBox>

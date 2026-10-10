@@ -122,7 +122,7 @@ public final class ServerReleaseClient {
         try {
             Object parsed = MiniJson.parse(Objects.requireNonNullElse(body, ""));
             if (parsed instanceof Map<?,?> map) return str(map, "message");
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         return "";
     }
 

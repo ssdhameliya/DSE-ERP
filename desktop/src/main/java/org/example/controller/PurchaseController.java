@@ -12,7 +12,7 @@ import org.example.util.OwnedChoiceDialog;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.AttachmentPreviewSupport;
-
+import org.example.util.WorkflowFocusManager;
 import javafx.animation.PauseTransition;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -72,6 +72,7 @@ import java.io.File;
 
 
 public class PurchaseController implements ScreenLifecycle {
+    @FXML private VBox purchaseEntryRoot;
     @FXML private Button btnAddSupplier;
     @FXML private Button btnManageCharges;
     @FXML private Button btnSavePurchase, btnRemoveLine;
@@ -337,7 +338,37 @@ public class PurchaseController implements ScreenLifecycle {
         Platform.runLater(() -> {
             if (editingPurchase == null && (txtInvoiceNo.getText() == null || txtInvoiceNo.getText().isBlank())) requestNextPurchaseNoAsync();
         });
+        installBusinessFocusOrder();
+    }
 
+    private void installBusinessFocusOrder() {
+        WorkflowFocusManager.install(java.util.List.of(
+            cmbSupplier, txtOrderNo, dpInvoiceDate, txtPoDate, cmbPaymentTerms,
+            txtItemSearch, txtQuantity, txtRate, txtLineDiscount, txtGST, btnAddLine, btnSavePurchase));
+        WorkflowFocusManager.selectAllOnFocus(txtQuantity);
+        WorkflowFocusManager.selectAllOnFocus(txtRate);
+        WorkflowFocusManager.selectAllOnFocus(txtLineDiscount);
+        WorkflowFocusManager.selectAllOnFocus(txtGST);
+        txtGST.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                btnAddLine.fire();
+                event.consume();
+            }
+        });
+        Platform.runLater(() -> {
+            if (purchaseEntryRoot != null && purchaseEntryRoot.getScene() != null) {
+                purchaseEntryRoot.getScene().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+                    if ((event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.S)
+                            || event.getCode() == javafx.scene.input.KeyCode.F10) {
+                        btnSavePurchase.fire();
+                        event.consume();
+                    } else if (event.getCode() == javafx.scene.input.KeyCode.F2) {
+                        WorkflowFocusManager.initial(txtItemSearch);
+                        event.consume();
+                    }
+                });
+            }
+        });
     }
 
     private void configureItemSearch(){
@@ -541,8 +572,7 @@ public class PurchaseController implements ScreenLifecycle {
             txtGST.clear();
             txtLineDiscount.clear();
             tableLines.getSelectionModel().clearSelection();
-
-
+            WorkflowFocusManager.initial(txtItemSearch);
             recalculate();
 
 
@@ -618,10 +648,12 @@ public class PurchaseController implements ScreenLifecycle {
             saved -> {
                 setPurchaseSaveBusy(false);
                 attachmentRemovals.clear();
+                this.editingPurchase = saved;
                 if(saved != null && saved.getInvoiceNo() != null) txtInvoiceNo.setText(saved.getInvoiceNo());
                 org.example.util.ToastManager.success(tableLines,"Purchase saved","Purchase saved successfully.");
                 org.example.navigation.UnsavedChangesManager.clear(tableLines);
                 ScreenRefreshPolicy.invalidate("purchase-register");
+                org.example.navigation.WorkspaceTabManager.getInstance().closeTabByFxml("/fxml/pages/Purchase.fxml");
                 NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
             },
             failure -> {
@@ -660,6 +692,9 @@ public class PurchaseController implements ScreenLifecycle {
 
     private void setPurchaseSaveBusy(boolean busy){
         if(btnSavePurchase!=null) btnSavePurchase.setDisable(busy || viewMode);
+        if(tableLines!=null) tableLines.setDisable(busy || viewMode);
+        if(btnAddLine!=null) btnAddLine.setDisable(busy || viewMode);
+        if(btnRemoveLine!=null) btnRemoveLine.setDisable(busy || viewMode);
     }
 
     private Purchase buildPurchase(){
@@ -837,9 +872,9 @@ public class PurchaseController implements ScreenLifecycle {
         if(purchase!=null&&purchase.getId()>0){
             try{for(SupportApiClient.AttachmentMeta meta:supportApi.documentAttachments("PURCHASE",purchase.getId()))
                 loaded.add(new PurchaseAttachmentEntry(meta.id(),meta.fileName(),null));}
-            catch(Exception ignored){}
+            catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             if(loaded.isEmpty()&&purchase.getAttachmentPath()!=null&&!purchase.getAttachmentPath().isBlank()){
-                String name=purchase.getAttachmentPath();try{name=Path.of(name).getFileName().toString();}catch(Exception ignored){}
+                String name=purchase.getAttachmentPath();try{name=Path.of(name).getFileName().toString();}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
                 loaded.add(new PurchaseAttachmentEntry(-1,name,null));
             }
         }
@@ -1271,11 +1306,9 @@ public class PurchaseController implements ScreenLifecycle {
 
     @FXML
     private void cancel(){
+        org.example.navigation.WorkspaceTabManager.getInstance().closeTabByFxml("/fxml/pages/Purchase.fxml");
         NavigationManager.getInstance()
-            .loadPage(
-                "/fxml/pages/PurchaseList.fxml"
-            );
-
+            .loadPage("/fxml/pages/PurchaseList.fxml");
     }
 
     public void loadPurchase(Purchase purchase)

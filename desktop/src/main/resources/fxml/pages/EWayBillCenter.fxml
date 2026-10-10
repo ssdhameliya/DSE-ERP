@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.EWayBillCenterController" styleClass="approved-screen,erp-screen-root">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <top>
+    <VBox spacing="10">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,erp-page-identity-header,approved-card">
+        <StackPane fx:id="pageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2">
+          <Label text="E-Way Bill &amp; E-Invoice Center" styleClass="screen-title"/>
+          <Label text="Generate NIC JSON export, track vehicle movement, and manage transport compliance" wrapText="true" styleClass="screen-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnRefresh" text="Refresh" onAction="#refreshData" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+
+      <GridPane hgap="10" vgap="0" styleClass="erp-kpi-section,erp-kpi-single-row">
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-blue" GridPane.columnIndex="0">
+          <StackPane fx:id="kpiTotalIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Total E-Way Bills" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="All Permits" styleClass="metric-trend-pill,trend-neutral"/>
+            </HBox>
+            <Label fx:id="kpiTotalBills" text="0" styleClass="metric-value"/>
+            <Label text="Issued transit permits" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-green" GridPane.columnIndex="1">
+          <StackPane fx:id="kpiActiveIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Active In-Transit" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Live" styleClass="metric-trend-pill,trend-positive"/>
+            </HBox>
+            <Label fx:id="kpiActiveBills" text="0" styleClass="metric-value"/>
+            <Label text="Consignments in transit" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-orange" GridPane.columnIndex="2">
+          <StackPane fx:id="kpiEligibleIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Pending Generation" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Action Req." styleClass="metric-trend-pill,trend-warning"/>
+            </HBox>
+            <Label fx:id="kpiPendingInvoices" text="0" styleClass="metric-value"/>
+            <Label text="Sales &gt; ₹50,000 threshold" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" styleClass="standard-kpi-card,kpi-purple" GridPane.columnIndex="3">
+          <StackPane fx:id="kpiValueIcon" styleClass="standard-kpi-icon"/>
+          <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+              <Label text="Consignment Value" styleClass="metric-label"/>
+              <Region HBox.hgrow="ALWAYS"/>
+              <Label text="Transit" styleClass="metric-trend-pill,trend-info"/>
+            </HBox>
+            <Label fx:id="kpiTotalValue" text="₹ 0.00" styleClass="metric-value"/>
+            <Label text="Goods under dispatch" styleClass="metric-note"/>
+          </VBox>
+        </HBox>
+      </GridPane>
+    </VBox>
+  </top>
+
+  <center>
+    <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE" styleClass="approved-card,financial-tab-pane">
+      <Tab text="Active E-Way Bills" fx:id="tabActiveBills">
+        <VBox spacing="8">
+          <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+          <HBox spacing="8" alignment="CENTER_LEFT">
+            <TextField fx:id="txtSearchBills" promptText="Search E-Way bill no, invoice, vehicle no, consignee..." HBox.hgrow="ALWAYS"/>
+            <ComboBox fx:id="cmbStatusFilter" promptText="Filter by Status" prefWidth="180"/>
+          </HBox>
+
+          <TableView fx:id="tblBills" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-blue-selection-table">
+            <columns>
+              <TableColumn fx:id="colBillNo" text="E-Way Bill No."/>
+              <TableColumn fx:id="colBillDate" text="Date"/>
+              <TableColumn fx:id="colDocNo" text="Invoice No."/>
+              <TableColumn fx:id="colParty" text="Consignee / Party"/>
+              <TableColumn fx:id="colVehicle" text="Vehicle No."/>
+              <TableColumn fx:id="colDistance" text="Distance (km)"/>
+              <TableColumn fx:id="colAmount" text="Value (₹)"/>
+              <TableColumn fx:id="colStatus" text="Status"/>
+              <TableColumn fx:id="colActions" text="Actions" sortable="false"/>
+            </columns>
+            <placeholder>
+              <VBox alignment="CENTER" spacing="8">
+                <Label text="No E-Way Bills Found" styleClass="empty-title"/>
+                <Label text="Generate E-Way Bills from pending sales or upload existing permits." styleClass="empty-note"/>
+              </VBox>
+            </placeholder>
+          </TableView>
+
+          <HBox spacing="16" alignment="CENTER_LEFT" styleClass="table-summary-bar,table-footer-bar,table-footer">
+            <Label fx:id="lblBillsCount" text="Total Records: 0" styleClass="summary-caption"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <HBox spacing="16" alignment="CENTER_RIGHT">
+              <HBox spacing="6" alignment="CENTER">
+                <Label text="Filtered Bills:" styleClass="summary-caption"/>
+                <Label fx:id="lblBillsFilteredCount" text="0" styleClass="summary-caption,erp-table-value-bold"/>
+              </HBox>
+              <HBox spacing="6" alignment="CENTER">
+                <Label text="Total Consignment Value:" styleClass="summary-caption"/>
+                <Label fx:id="lblBillsTotalAmount" text="₹ 0.00" styleClass="summary-caption,erp-table-value-bold"/>
+              </HBox>
+            </HBox>
+          </HBox>
+        </VBox>
+      </Tab>
+
+      <Tab text="Pending Eligible Invoices (&gt; ₹50,000)" fx:id="tabEligibleSales">
+        <VBox spacing="8">
+          <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+          <HBox spacing="8" alignment="CENTER_LEFT">
+            <TextField fx:id="txtSearchSales" promptText="Search eligible invoices, customer name, GSTIN..." HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnGenerateSelected" text="Generate E-Way Bill" onAction="#generateForSelectedSale" styleClass="primary-action,approved-button,approved-primary-button"/>
+          </HBox>
+
+          <TableView fx:id="tblEligibleSales" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-green-selection-table">
+            <columns>
+              <TableColumn fx:id="colSaleInvoiceNo" text="Invoice No."/>
+              <TableColumn fx:id="colSaleDate" text="Invoice Date"/>
+              <TableColumn fx:id="colSaleCustomer" text="Customer Name"/>
+              <TableColumn fx:id="colSaleGstin" text="Customer GSTIN"/>
+              <TableColumn fx:id="colSaleCity" text="Destination City"/>
+              <TableColumn fx:id="colSaleAmount" text="Invoice Total (₹)"/>
+              <TableColumn fx:id="colSaleAction" text="Action" sortable="false"/>
+            </columns>
+            <placeholder>
+              <VBox alignment="CENTER" spacing="8">
+                <Label text="No Pending Eligible Sales" styleClass="empty-title"/>
+                <Label text="All sales invoices exceeding ₹50,000 have E-Way Bills assigned." styleClass="empty-note"/>
+              </VBox>
+            </placeholder>
+          </TableView>
+
+          <HBox spacing="16" alignment="CENTER_LEFT" styleClass="table-summary-bar,table-footer-bar,table-footer">
+            <Label fx:id="lblSalesCount" text="Eligible Invoices: 0" styleClass="summary-caption"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <HBox spacing="16" alignment="CENTER_RIGHT">
+              <HBox spacing="6" alignment="CENTER">
+                <Label text="Filtered Invoices:" styleClass="summary-caption"/>
+                <Label fx:id="lblSalesFilteredCount" text="0" styleClass="summary-caption,erp-table-value-bold"/>
+              </HBox>
+              <HBox spacing="6" alignment="CENTER">
+                <Label text="Total Eligible Value:" styleClass="summary-caption"/>
+                <Label fx:id="lblSalesTotalAmount" text="₹ 0.00" styleClass="summary-caption,erp-table-value-bold"/>
+              </HBox>
+            </HBox>
+          </HBox>
+        </VBox>
+      </Tab>
+    </TabPane>
+  </center>
+</BorderPane>

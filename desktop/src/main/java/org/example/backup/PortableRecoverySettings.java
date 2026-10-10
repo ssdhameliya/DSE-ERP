@@ -61,7 +61,7 @@ public final class PortableRecoverySettings {
                     String entryName = SETTINGS_PREFIX + "assets/" + asset.getValue() + ext;
                     putFile(out, file, entryName);
                     portable.setProperty(asset.getKey(), entryName);
-                } catch (Exception ignored) { }
+                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
             portable.setProperty("ui.diagnostics.enabled", Boolean.toString(UiDiagnostics.isEnabled()));
             ByteArrayOutputStream props = new ByteArrayOutputStream();

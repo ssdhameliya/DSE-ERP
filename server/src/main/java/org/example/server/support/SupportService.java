@@ -114,7 +114,7 @@ import org.example.server.persistence.JpaNativeRepository;import org.example.ser
   }catch(Exception ex){return null;}
  }
  private void deleteSupersededManagedReferenceAfterCommit(String oldRef,String newRef){if(oldRef==null||oldRef.isBlank()||Objects.equals(oldRef,newRef))return;deleteManagedReferenceAfterCommit(oldRef);}
- private void deleteManagedReferenceQuietly(String ref){try{Path p=resolveAttachmentReference(ref);Path root=attachmentRoot().toAbsolutePath().normalize();if(p!=null&&p.toAbsolutePath().normalize().startsWith(root))Files.deleteIfExists(p);}catch(Exception ignored){}}
+ private void deleteManagedReferenceQuietly(String ref){try{Path p=resolveAttachmentReference(ref);Path root=attachmentRoot().toAbsolutePath().normalize();if(p!=null&&p.toAbsolutePath().normalize().startsWith(root))Files.deleteIfExists(p);}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}
  private void deleteManagedReferenceAfterCommit(String ref){if(ref==null||ref.isBlank())return;if(TransactionSynchronizationManager.isActualTransactionActive()){TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){@Override public void afterCommit(){deleteManagedReferenceQuietly(ref);}});}else deleteManagedReferenceQuietly(ref);}
  private void deleteReferenceQuietly(String ref){deleteManagedReferenceQuietly(ref);}
  private String safeSegment(String value){String x=value==null?"document":value.replaceAll("[^A-Za-z0-9._-]","_");return x.isBlank()?"document":x;}

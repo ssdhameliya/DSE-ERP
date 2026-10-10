@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.Task;
@@ -26,7 +27,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 /** Controller for Settings-adjacent production-safe application rollback. */
-public class SafeRollbackController {
+public class SafeRollbackController implements ScreenLifecycle {
     private final RollbackService service = new RollbackService();
 
     @FXML private StackPane headerIconHolder;
@@ -397,4 +398,9 @@ public class SafeRollbackController {
 
     @FunctionalInterface
     private interface Work<T> { T run() throws Exception; }
+
+    @Override
+    public void onScreenHidden() {
+        
+    }
 }

@@ -49,7 +49,7 @@ public final class ExcelDefaultCertification {
                 if(!unresolved.isEmpty())throw new IOException("Rendered workbook still contains unresolved ERP fields: "+String.join(", ",unresolved));
             }
         }catch(IOException e){throw e;}catch(Exception e){throw new IOException("Excel default rendered-output certification failed: "+root(e),e);}
-        finally{try{Files.deleteIfExists(rendered);}catch(Exception ignored){}}
+        finally{try{Files.deleteIfExists(rendered);}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }}
     }
 
     private static TemplateData realValidationData(DocumentType type) throws IOException {
