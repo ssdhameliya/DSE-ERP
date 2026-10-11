@@ -120,7 +120,7 @@ public final class AppDialogRenderer {
         }
 
         boolean workspace = workspaceConfigured
-                || (!compactConfigured && !alert && !textInput && !configuredMessage);
+                || (!compactConfigured && !alert && !textInput && containsWorkspaceComponent(customContent));
 
         if (heading.isBlank() && !workspace) heading = defaultHeading(semantic, title);
         if (title.isBlank()) title = semanticLabel(semantic);
@@ -139,6 +139,19 @@ public final class AppDialogRenderer {
         pane.getProperties().put(PRESENTED, true);
         styleActions(dialog, pane, semantic, title, heading, message);
         promoteActionBar(pane);
+    }
+
+    private static boolean containsWorkspaceComponent(Node node) {
+        if (node == null) return false;
+        if (node instanceof TableView || node instanceof TreeTableView || node instanceof TabPane || node instanceof SplitPane) {
+            return true;
+        }
+        if (node instanceof javafx.scene.Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                if (containsWorkspaceComponent(child)) return true;
+            }
+        }
+        return false;
     }
 
     private static Node createShell(Dialog<?> dialog, String semantic, String title, String heading, String message,

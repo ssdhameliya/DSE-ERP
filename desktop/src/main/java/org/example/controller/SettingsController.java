@@ -2890,18 +2890,18 @@ private record AssetPreviewRequest(
     private String formatUpdateTimestamp(String raw) { return SettingsFieldSupport.formatUpdateTimestamp(raw); }
 
     private void loadModulesSettings() {
-        if (chkGlEnabled != null) chkGlEnabled.setSelected(ConfigManager.getBoolean("module.gl.enabled", true));
+        if (chkGlEnabled != null) chkGlEnabled.setSelected(ConfigManager.getBoolean("module.gl.enabled", ConfigManager.getBoolean("accounting.gl.enabled", true)));
         if (chkGlAutoPost != null) chkGlAutoPost.setSelected(ConfigManager.getBoolean("module.gl.autoPost", true));
         if (chkGlTrialBalance != null) chkGlTrialBalance.setSelected(ConfigManager.getBoolean("module.gl.trialBalance", true));
-        if (chkGstEnabled != null) chkGstEnabled.setSelected(ConfigManager.getBoolean("module.gst.enabled", true));
+        if (chkGstEnabled != null) chkGstEnabled.setSelected(ConfigManager.getBoolean("module.gst.enabled", ConfigManager.getBoolean("compliance.gst.enabled", true)));
         if (chkGstAuto2bMatch != null) chkGstAuto2bMatch.setSelected(ConfigManager.getBoolean("module.gst.auto2bMatch", true));
         if (chkGstPosGating != null) chkGstPosGating.setSelected(ConfigManager.getBoolean("module.gst.posGating", true));
         if (chkTdsEnabled != null) chkTdsEnabled.setSelected(ConfigManager.getBoolean("module.tds.enabled", true));
-        if (chkThreeWayMatch != null) chkThreeWayMatch.setSelected(ConfigManager.getBoolean("module.automation.threeWayMatch", true));
+        if (chkThreeWayMatch != null) chkThreeWayMatch.setSelected(ConfigManager.getBoolean("module.automation.threeWayMatch", ConfigManager.getBoolean("automation.threeway.enabled", true)));
         if (chkAutoDraftDebitNote != null) chkAutoDraftDebitNote.setSelected(ConfigManager.getBoolean("module.automation.autoDraftDebitNote", true));
-        if (chkStockAutoReorder != null) chkStockAutoReorder.setSelected(ConfigManager.getBoolean("module.automation.stockAutoReorder", true));
-        if (chkCreditHardStop != null) chkCreditHardStop.setSelected(ConfigManager.getBoolean("module.automation.creditHardStop", true));
-        if (chkDailyBriefing != null) chkDailyBriefing.setSelected(ConfigManager.getBoolean("module.briefing.daily", true));
+        if (chkStockAutoReorder != null) chkStockAutoReorder.setSelected(ConfigManager.getBoolean("module.automation.stockAutoReorder", ConfigManager.getBoolean("automation.reorder.enabled", true)));
+        if (chkCreditHardStop != null) chkCreditHardStop.setSelected(ConfigManager.getBoolean("module.automation.creditHardStop", ConfigManager.getBoolean("credit_control.hard_stop", false)));
+        if (chkDailyBriefing != null) chkDailyBriefing.setSelected(ConfigManager.getBoolean("module.briefing.daily", ConfigManager.getBoolean("automation.briefing.enabled", false)));
         if (chkBriefingWa != null) chkBriefingWa.setSelected(ConfigManager.getBoolean("module.briefing.whatsapp", true));
         if (chkBriefingEmail != null) chkBriefingEmail.setSelected(ConfigManager.getBoolean("module.briefing.email", true));
         if (txtBriefingPhone != null) txtBriefingPhone.setText(ConfigManager.get("module.briefing.phone", ""));
@@ -2909,18 +2909,42 @@ private record AssetPreviewRequest(
     }
 
     private void saveModulesSettings() {
-        if (chkGlEnabled != null) putSetting("module.gl.enabled", String.valueOf(chkGlEnabled.isSelected()));
+        if (chkGlEnabled != null) {
+            String val = String.valueOf(chkGlEnabled.isSelected());
+            putSetting("module.gl.enabled", val);
+            putSetting("accounting.gl.enabled", val);
+        }
         if (chkGlAutoPost != null) putSetting("module.gl.autoPost", String.valueOf(chkGlAutoPost.isSelected()));
         if (chkGlTrialBalance != null) putSetting("module.gl.trialBalance", String.valueOf(chkGlTrialBalance.isSelected()));
-        if (chkGstEnabled != null) putSetting("module.gst.enabled", String.valueOf(chkGstEnabled.isSelected()));
+        if (chkGstEnabled != null) {
+            String val = String.valueOf(chkGstEnabled.isSelected());
+            putSetting("module.gst.enabled", val);
+            putSetting("compliance.gst.enabled", val);
+        }
         if (chkGstAuto2bMatch != null) putSetting("module.gst.auto2bMatch", String.valueOf(chkGstAuto2bMatch.isSelected()));
         if (chkGstPosGating != null) putSetting("module.gst.posGating", String.valueOf(chkGstPosGating.isSelected()));
         if (chkTdsEnabled != null) putSetting("module.tds.enabled", String.valueOf(chkTdsEnabled.isSelected()));
-        if (chkThreeWayMatch != null) putSetting("module.automation.threeWayMatch", String.valueOf(chkThreeWayMatch.isSelected()));
+        if (chkThreeWayMatch != null) {
+            String val = String.valueOf(chkThreeWayMatch.isSelected());
+            putSetting("module.automation.threeWayMatch", val);
+            putSetting("automation.threeway.enabled", val);
+        }
         if (chkAutoDraftDebitNote != null) putSetting("module.automation.autoDraftDebitNote", String.valueOf(chkAutoDraftDebitNote.isSelected()));
-        if (chkStockAutoReorder != null) putSetting("module.automation.stockAutoReorder", String.valueOf(chkStockAutoReorder.isSelected()));
-        if (chkCreditHardStop != null) putSetting("module.automation.creditHardStop", String.valueOf(chkCreditHardStop.isSelected()));
-        if (chkDailyBriefing != null) putSetting("module.briefing.daily", String.valueOf(chkDailyBriefing.isSelected()));
+        if (chkStockAutoReorder != null) {
+            String val = String.valueOf(chkStockAutoReorder.isSelected());
+            putSetting("module.automation.stockAutoReorder", val);
+            putSetting("automation.reorder.enabled", val);
+        }
+        if (chkCreditHardStop != null) {
+            String val = String.valueOf(chkCreditHardStop.isSelected());
+            putSetting("module.automation.creditHardStop", val);
+            putSetting("credit_control.hard_stop", val);
+        }
+        if (chkDailyBriefing != null) {
+            String val = String.valueOf(chkDailyBriefing.isSelected());
+            putSetting("module.briefing.daily", val);
+            putSetting("automation.briefing.enabled", val);
+        }
         if (chkBriefingWa != null) putSetting("module.briefing.whatsapp", String.valueOf(chkBriefingWa.isSelected()));
         if (chkBriefingEmail != null) putSetting("module.briefing.email", String.valueOf(chkBriefingEmail.isSelected()));
         if (txtBriefingPhone != null) putSetting("module.briefing.phone", text(txtBriefingPhone));

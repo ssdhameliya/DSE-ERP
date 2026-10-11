@@ -216,7 +216,7 @@ public class CreditDebitNoteService {
 
             if (Boolean.TRUE.equals(dto.stockReturned()) && line.itemId() != null && line.itemId() > 0) {
                 try {
-                    jdbc.update("UPDATE item_master SET current_stock = COALESCE(current_stock, 0) + ? WHERE id = ?",
+                    jdbc.update("UPDATE item_master SET opening_stock = COALESCE(opening_stock, 0) + ? WHERE id = ?",
                             line.quantity(), line.itemId());
                 } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
@@ -422,7 +422,7 @@ public class CreditDebitNoteService {
 
             if (Boolean.TRUE.equals(dto.stockReturned()) && line.itemId() != null && line.itemId() > 0) {
                 try {
-                    jdbc.update("UPDATE item_master SET current_stock = GREATEST(0, COALESCE(current_stock, 0) - ?) WHERE id = ?",
+                    jdbc.update("UPDATE item_master SET opening_stock = GREATEST(0, COALESCE(opening_stock, 0) - ?) WHERE id = ?",
                             line.quantity(), line.itemId());
                 } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
             }
@@ -541,7 +541,7 @@ public class CreditDebitNoteService {
                 for (var line : note.lines()) {
                     if (line.itemId() != null && line.itemId() > 0) {
                         try {
-                            jdbc.update("UPDATE item_master SET current_stock = GREATEST(0, COALESCE(current_stock, 0) - ?) WHERE id = ?",
+                            jdbc.update("UPDATE item_master SET opening_stock = GREATEST(0, COALESCE(opening_stock, 0) - ?) WHERE id = ?",
                                     line.quantity(), line.itemId());
                         } catch (Exception e) {
                             auditService.log("CREDIT_NOTE", id, "WARN", "Could not reverse stock for item " + line.itemId() + ": " + e.getMessage());
@@ -588,7 +588,7 @@ public class CreditDebitNoteService {
                 for (var line : note.lines()) {
                     if (line.itemId() != null && line.itemId() > 0) {
                         try {
-                            jdbc.update("UPDATE item_master SET current_stock = COALESCE(current_stock, 0) + ? WHERE id = ?",
+                            jdbc.update("UPDATE item_master SET opening_stock = COALESCE(opening_stock, 0) + ? WHERE id = ?",
                                     line.quantity(), line.itemId());
                         } catch (Exception e) {
                             auditService.log("DEBIT_NOTE", id, "WARN", "Could not restore stock for item " + line.itemId() + ": " + e.getMessage());

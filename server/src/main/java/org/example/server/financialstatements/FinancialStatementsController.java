@@ -34,4 +34,27 @@ public class FinancialStatementsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
         return service.getDesktopBalanceSheet(asOfDate);
     }
+
+    @GetMapping("/three-tier")
+    public FinancialStatementsDtos.ThreeTierFinancialStatementDto getThreeTierStatements(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false, defaultValue = "OPERATIONAL") String engine) {
+        return service.getThreeTierStatements(fromDate, toDate, engine);
+    }
+
+    @GetMapping("/drill-down")
+    public FinancialStatementsDtos.DrillDownResponseDto getDrillDown(
+            @RequestParam(required = false, defaultValue = "SALES") String category,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
+        return service.getDrillDown(category, fromDate, toDate);
+    }
+
+    @GetMapping("/ratios")
+    public FinancialStatementsDtos.FinancialRatiosDto getRatios(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
+        return service.getThreeTierStatements(fromDate, toDate, "OPERATIONAL").ratios();
+    }
 }
