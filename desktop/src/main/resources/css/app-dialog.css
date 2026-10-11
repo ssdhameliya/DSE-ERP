@@ -112,10 +112,10 @@
     -fx-graphic-text-gap: 7;
 }
 .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell {
-    -fx-min-width: 940;
-    -fx-pref-width: 1180;
-    -fx-min-height: 620;
-    -fx-pref-height: 720;
+    -fx-min-width: 860;
+    -fx-pref-width: 1080;
+    -fx-min-height: 480;
+    -fx-pref-height: 600;
 }
 .dse-dialog-pane.dse-dialog-workspace .dse-dialog-body {
     -fx-padding: 0 20 18 20;
@@ -385,3 +385,32 @@
 
 .small-display .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell,
 .ultra-compact-shell .dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell { -fx-min-width: 760; -fx-pref-width: 900; -fx-min-height: 540; }
+
+.dse-dialog-pane .barcode-sticker-mockup {
+    -fx-background-color: #ffffff;
+    -fx-padding: 16px;
+    -fx-background-radius: 8px;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1.5px;
+}
+.dse-dialog-pane .barcode-sticker-company {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-text-fill: #1e293b;
+}
+.dse-dialog-pane .barcode-sticker-item-name {
+    -fx-font-weight: 600;
+    -fx-font-size: 13px;
+    -fx-text-fill: #0f172a;
+}
+.dse-dialog-pane .barcode-sticker-code {
+    -fx-font-family: monospace;
+    -fx-font-size: 11px;
+    -fx-text-fill: #334155;
+}
+.dse-dialog-pane .barcode-sticker-price {
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+    -fx-text-fill: #0f172a;
+}

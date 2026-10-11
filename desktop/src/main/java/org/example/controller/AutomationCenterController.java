@@ -491,13 +491,20 @@ public class AutomationCenterController implements ScreenLifecycle {
                     }
 
                     // System rules from ConfigManager
+                    boolean threeWayOn = ConfigManager.getBoolean("module.automation.threeWayMatch", ConfigManager.getBoolean("automation.threeway.enabled", true));
+                    boolean reorderOn = ConfigManager.getBoolean("module.automation.stockAutoReorder", ConfigManager.getBoolean("automation.reorder.enabled", true));
+                    boolean glOn = ConfigManager.getBoolean("module.gl.enabled", ConfigManager.getBoolean("accounting.gl.enabled", true));
+                    boolean gstOn = ConfigManager.getBoolean("module.gst.enabled", ConfigManager.getBoolean("compliance.gst.enabled", true));
+                    boolean creditStopOn = ConfigManager.getBoolean("module.automation.creditHardStop", ConfigManager.getBoolean("credit_control.hard_stop", false));
+                    boolean briefingOn = ConfigManager.getBoolean("module.briefing.daily", ConfigManager.getBoolean("automation.briefing.enabled", false));
+
                     List<RuleRow> rules = List.of(
-                            new RuleRow("AUTO-01", "3-Way Purchase Matching (PO-GRN-Bill)", "PURCHASE", ConfigManager.getBoolean("automation.threeway.enabled", true) ? "ENABLED" : "DISABLED", "Continuous", "Settings > System Modules"),
-                            new RuleRow("AUTO-02", "Dynamic Stock Replenishment & Reorder", "INVENTORY", ConfigManager.getBoolean("automation.reorder.enabled", true) ? "ENABLED" : "DISABLED", "On Save & Scan", "Settings > System Modules"),
-                            new RuleRow("AUTO-03", "General Ledger Real-time Double-Entry Posting", "FINANCIAL", ConfigManager.getBoolean("accounting.gl.enabled", true) ? "ENABLED" : "DISABLED", "Event-Driven", "Settings > System Modules"),
-                            new RuleRow("AUTO-04", "GSTR-2B Automated ITC Reconciliation", "TAX_COMPLIANCE", ConfigManager.getBoolean("compliance.gst.enabled", true) ? "ENABLED" : "DISABLED", "On Import", "Settings > System Modules"),
-                            new RuleRow("AUTO-05", "Customer Credit Overdue Hard-Stop", "CREDIT_CONTROL", ConfigManager.getBoolean("credit_control.hard_stop", false) ? "ENABLED" : "DISABLED", "Pre-Commit", "Settings > System Modules"),
-                            new RuleRow("AUTO-06", "Executive 8:00 PM Daily Briefing (WA/Email)", "EXECUTIVE", ConfigManager.getBoolean("automation.briefing.enabled", false) ? "ENABLED" : "DISABLED", "Daily Schedule", "Settings > System Modules")
+                            new RuleRow("AUTO-01", "3-Way Purchase Matching (PO-GRN-Bill)", "PURCHASE", threeWayOn ? "ENABLED" : "DISABLED", "Continuous", "Settings > System Modules"),
+                            new RuleRow("AUTO-02", "Dynamic Stock Replenishment & Reorder", "INVENTORY", reorderOn ? "ENABLED" : "DISABLED", "On Save & Scan", "Settings > System Modules"),
+                            new RuleRow("AUTO-03", "General Ledger Real-time Double-Entry Posting", "FINANCIAL", glOn ? "ENABLED" : "DISABLED", "Event-Driven", "Settings > System Modules"),
+                            new RuleRow("AUTO-04", "GSTR-2B Automated ITC Reconciliation", "TAX_COMPLIANCE", gstOn ? "ENABLED" : "DISABLED", "On Import", "Settings > System Modules"),
+                            new RuleRow("AUTO-05", "Customer Credit Overdue Hard-Stop", "CREDIT_CONTROL", creditStopOn ? "ENABLED" : "DISABLED", "Pre-Commit", "Settings > System Modules"),
+                            new RuleRow("AUTO-06", "Executive 8:00 PM Daily Briefing (WA/Email)", "EXECUTIVE", briefingOn ? "ENABLED" : "DISABLED", "Daily Schedule", "Settings > System Modules")
                     );
 
                     long activeRulesCount = rules.stream().filter(r -> "ENABLED".equals(r.enabled())).count();

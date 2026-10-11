@@ -522,24 +522,26 @@ public class DashboardController implements ScreenLifecycle {
         if (btnReconSupplier != null) btnReconSupplier.setDisable(!reconSupplierAllowed);
 
         // Finance & Accounts accordion
-        boolean glAllowed = PermissionService.allowed("GENERAL_LEDGER.VIEW");
-        boolean finAllowed = PermissionService.allowed("FINANCIAL_STATEMENTS.VIEW");
-        boolean agingAllowed = PermissionService.allowed("AGING_ANALYSIS.VIEW");
+        boolean glEnabled = ConfigManager.getBoolean("module.gl.enabled", ConfigManager.getBoolean("accounting.gl.enabled", true));
+        boolean glAllowed = PermissionService.allowed("GENERAL_LEDGER.VIEW") && glEnabled;
+        boolean finAllowed = PermissionService.allowed("FINANCIAL_STATEMENTS.VIEW") && glEnabled;
+        boolean agingAllowed = PermissionService.allowed("AGING_ANALYSIS.VIEW") && glEnabled;
         if (btnFinance != null) btnFinance.setDisable(!(glAllowed || finAllowed || agingAllowed));
         if (btnGeneralLedger != null) btnGeneralLedger.setDisable(!glAllowed);
         if (btnFinancialStatements != null) btnFinancialStatements.setDisable(!finAllowed);
         if (btnAgingAnalysis != null) btnAgingAnalysis.setDisable(!agingAllowed);
 
         // GST & Compliance accordion
-        boolean gstAllowed = PermissionService.allowed("GST_COMPLIANCE.VIEW");
-        boolean ewayAllowed = PermissionService.allowed("EWAY_BILL.VIEW");
+        boolean gstEnabled = ConfigManager.getBoolean("module.gst.enabled", ConfigManager.getBoolean("compliance.gst.enabled", true));
+        boolean gstAllowed = PermissionService.allowed("GST_COMPLIANCE.VIEW") && gstEnabled;
+        boolean ewayAllowed = PermissionService.allowed("EWAY_BILL.VIEW") && gstEnabled;
         if (btnGst != null) btnGst.setDisable(!(gstAllowed || ewayAllowed));
         if (btnGstCompliance != null) btnGstCompliance.setDisable(!gstAllowed);
         if (btnEWayBill != null) btnEWayBill.setDisable(!ewayAllowed);
 
         inheritGroupPermission(btnDocumentStudio, btnPdfStudio, btnExcelStudio);
         inheritGroupPermission(btnSettings, btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice,
-                btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates);
+                btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules);
     }
 
     private void protect(Button button, String permission) {

@@ -777,7 +777,9 @@ public final class IconFactory {
     }
 
     private static String clean(String text) {
-        return text == null ? "" : text.replaceFirst("^[^\\p{L}\\p{N}#]+\\s*", "");
+        if (text == null) return "";
+        String s = text.replaceFirst("^[^\\p{L}\\p{N}#]+\\s*", "");
+        return s.replaceAll("[:*\\s]+$", "").trim();
     }
 
     /** Maps legacy aliases to the stable semantic vocabulary. */
@@ -808,6 +810,7 @@ public final class IconFactory {
         String registered = UiSemanticRegistry.iconLiteral(semantic);
         if (registered != null) return registered;
         return switch (semantic) {
+            case "gstin" -> "fas-id-card";
             case "dashboard" -> "fas-th-large";
             case "business" -> "fas-building";
             case "application" -> "fas-desktop";
@@ -952,7 +955,7 @@ public final class IconFactory {
         return switch (semantic) {
             case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate", "approve", "publish" -> "green";
             case "export", "excel" -> "blue";
-            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle", "lock" -> "orange";
+            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "gstin", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle", "lock" -> "orange";
             case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "reset", "notes", "print", "application", "calendar", "audit", "archive", "duplicate" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit", "reject", "exit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email", "backup" -> "teal";
@@ -1056,6 +1059,7 @@ public final class IconFactory {
         if (value.contains("mark all read")) return "mark-all-read";
         if (value.equals("mark read") || value.contains("mark as read")) return "mark-read";
         if (value.contains("open record")) return "open-record";
+        if (value.contains("inspect") || value.contains("drill-down") || value.contains("drill down")) return "view";
         if (value.equals("dismiss")) return "dismiss";
         if (value.equals("reject") || value.contains("reject return") || value.contains("reject sale") || value.contains("reject purchase")) return "reject";
         if (value.equals("ignore") || value.contains("bulk ignore")) return "ignore";
@@ -1295,6 +1299,15 @@ public final class IconFactory {
         if (value.contains("qty") || value.contains("quantity") || value.contains("stock")) return "quantity";
         if (value.contains("status")) return "status";
         if (value.contains("document") || value.contains("invoice")) return "document";
+        if (value.contains("gstin")) return "gstin";
+        if (value.contains("debit note")) return "debit";
+        if (value.contains("credit note")) return "credit";
+        if (value.contains("itc") || value.contains("cgst") || value.contains("sgst") || value.contains("igst") || value.contains("reversal")) return "tax";
+        if (value.contains("recon")) return "status";
+        if (value.contains("eligibility")) return "complete";
+        if (value.contains("claim")) return "amount";
+        if (value.contains("dispatched")) return "delivery";
+        if (value.contains("restocked")) return "inventory";
         if (value.contains("refund")) return "refund";
         if (value.contains("return")) return "return";
         if (value.contains("view") || value.contains("preview") || value.contains("select")) return "view";

@@ -57,6 +57,7 @@ public class EWayBillCenterController implements ScreenLifecycle {
     private final ObservableList<EligibleSaleRow> filteredSales = FXCollections.observableArrayList();
 
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("en", "IN"));
+    private final org.example.service.LookupService lookupService = new org.example.service.LookupService();
 
     public void initialize() {
         if (pageIcon != null) pageIcon.getChildren().setAll(IconFactory.icon("delivery", 22));
@@ -101,31 +102,69 @@ public class EWayBillCenterController implements ScreenLifecycle {
         colDistance.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().actualDistKm > 0 ? d.getValue().actualDistKm + " km" : "-"));
         colAmount.setCellValueFactory(d -> new SimpleStringProperty(currency.format(d.getValue().totalValue)));
         colStatus.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().status));
+        colStatus.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : item);
+                getStyleClass().removeAll("status-pill", "status-pill-green", "status-pill-blue", "status-pill-orange", "status-pill-red");
+                if (!empty && item != null) {
+                    getStyleClass().add("status-pill");
+                    if ("GENERATED".equalsIgnoreCase(item) || "DELIVERED".equalsIgnoreCase(item)) {
+                        getStyleClass().add("status-pill-green");
+                    } else if ("IN_TRANSIT".equalsIgnoreCase(item)) {
+                        getStyleClass().add("status-pill-blue");
+                    } else if ("CANCELLED".equalsIgnoreCase(item)) {
+                        getStyleClass().add("status-pill-red");
+                    } else {
+                        getStyleClass().add("status-pill-orange");
+                    }
+                }
+            }
+        });
 
         colActions.setCellFactory(col -> new TableCell<>() {
-            private final Button btnJson = new Button("JSON");
-            private final Button btnVehicle = new Button("Vehicle");
+            private final MenuButton menu = new MenuButton("Actions");
             {
-                btnJson.getStyleClass().addAll("approved-button", "approved-secondary-button", "btn-sm");
-                btnVehicle.getStyleClass().addAll("approved-button", "approved-secondary-button", "btn-sm");
-                btnJson.setOnAction(e -> {
-                    EWayBillSummaryRow row = getTableRow().getItem();
-                    if (row != null) exportJson(row);
-                });
-                btnVehicle.setOnAction(e -> {
-                    EWayBillSummaryRow row = getTableRow().getItem();
+                menu.getStyleClass().setAll("row-actions", "table-action-menu", "approved-row-action");
+                menu.setGraphic(IconFactory.compactIcon("actions", 16));
+                menu.setContentDisplay(ContentDisplay.LEFT);
+                menu.setGraphicTextGap(6);
+                menu.setTooltip(new Tooltip("Actions"));
+                menu.getProperties().put("erp-icon-preserve", true);
+
+                MenuItem miVehicle = new MenuItem("Update Vehicle (Part-B)", IconFactory.compactIcon("delivery", 16));
+                miVehicle.setOnAction(e -> {
+                    EWayBillSummaryRow row = getTableRow() != null ? getTableRow().getItem() : null;
                     if (row != null) updateVehicle(row);
                 });
+
+                MenuItem miJson = new MenuItem("Export NIC JSON", IconFactory.compactIcon("download", 16));
+                miJson.setOnAction(e -> {
+                    EWayBillSummaryRow row = getTableRow() != null ? getTableRow().getItem() : null;
+                    if (row != null) exportJson(row);
+                });
+
+                MenuItem miAudit = new MenuItem("Audit Trail", IconFactory.compactIcon("history", 16));
+                miAudit.setOnAction(e -> {
+                    EWayBillSummaryRow row = getTableRow() != null ? getTableRow().getItem() : null;
+                    if (row != null) {
+                        ActivityTimelineDialog.show(tblBills, "EWAY_BILL", row.id != null ? row.id.intValue() : 1, row.ewayBillNo != null ? row.ewayBillNo : row.docNo);
+                    }
+                });
+
+                menu.getItems().addAll(miVehicle, miJson, miAudit);
+                IconFactory.decorateActionMenu(menu);
             }
+
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || getTableRow() == null || getTableRow().getItem() == null) {
                     setGraphic(null);
                 } else {
-                    HBox box = new HBox(6, btnJson, btnVehicle);
-                    box.setAlignment(Pos.CENTER);
-                    setGraphic(box);
+                    setGraphic(menu);
+                    setAlignment(Pos.CENTER);
                 }
             }
         });
@@ -305,13 +344,42 @@ public class EWayBillCenterController implements ScreenLifecycle {
         txtDistance.setPromptText("Approx Distance in KM");
 
         ComboBox<String> cmbMode = new ComboBox<>();
-        cmbMode.getItems().addAll("Road", "Rail", "Air", "Ship");
-        cmbMode.setValue("Road");
+        List<String> modeLookups = lookupService.getValuesByCategoryCode("TRANSPORT_MODE");
+        if (modeLookups != null && !modeLookups.isEmpty()) {
+            cmbMode.getItems().addAll(modeLookups);
+        } else {
+            cmbMode.getItems().addAll("Road", "Rail", "Air", "Ship");
+        }
+        cmbMode.setValue(cmbMode.getItems().get(0));
+
+        ComboBox<String> cmbTransporter = new ComboBox<>();
+        cmbTransporter.setPromptText("Select Transporter from Master");
+        List<org.example.model.Lookup> transporters = lookupService.getByCategoryCode("TRANSPORTER");
+        Map<String, String> transporterGstinMap = new HashMap<>();
+        cmbTransporter.getItems().add("-- Select Transporter (Optional) --");
+        if (transporters != null) {
+            for (org.example.model.Lookup t : transporters) {
+                String name = t.getLookupValue();
+                if (name != null && !name.isBlank()) {
+                    String gstin = t.getDescription() != null && !t.getDescription().isBlank() ? t.getDescription() : t.getLookupCode();
+                    cmbTransporter.getItems().add(name);
+                    if (gstin != null) transporterGstinMap.put(name, gstin);
+                }
+            }
+        }
+        cmbTransporter.setValue("-- Select Transporter (Optional) --");
+        cmbTransporter.valueProperty().addListener((obs, o, n) -> {
+            if (n != null && transporterGstinMap.containsKey(n)) {
+                txtTransporterName.setText(n);
+                txtTransporterId.setText(transporterGstinMap.get(n));
+            }
+        });
 
         VBox content = new VBox(10,
             new Label("Transportation Mode:"), cmbMode,
             new Label("Vehicle Number:"), txtVehicleNo,
             new Label("Distance (KM):"), txtDistance,
+            new Label("Select Transporter (Master):"), cmbTransporter,
             new Label("Transporter Name:"), txtTransporterName,
             new Label("Transporter GSTIN / ID:"), txtTransporterId
         );
@@ -374,8 +442,13 @@ public class EWayBillCenterController implements ScreenLifecycle {
         txtNewVehicle.setPromptText("New Vehicle Number");
 
         ComboBox<String> cmbReason = new ComboBox<>();
-        cmbReason.getItems().addAll("Transshipment", "Vehicle Breakdown", "First Time Update", "Consignment Split");
-        cmbReason.setValue("Transshipment");
+        List<String> reasonLookups = lookupService.getValuesByCategoryCode("TRANSPORT_REASON");
+        if (reasonLookups != null && !reasonLookups.isEmpty()) {
+            cmbReason.getItems().addAll(reasonLookups);
+        } else {
+            cmbReason.getItems().addAll("Transshipment", "Vehicle Breakdown", "First Time Update", "Consignment Split");
+        }
+        cmbReason.setValue(cmbReason.getItems().get(0));
 
         TextField txtPlace = new TextField();
         txtPlace.setPromptText("Current Location / Transshipment Place");
