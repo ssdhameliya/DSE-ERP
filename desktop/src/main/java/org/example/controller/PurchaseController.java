@@ -601,6 +601,7 @@ public class PurchaseController implements ScreenLifecycle {
         tableLines.getSelectionModel().clearSelection();
 
         btnAddLine.setText("+ Add Line");
+        WorkflowFocusManager.initial(txtItemSearch);
     }
 
 

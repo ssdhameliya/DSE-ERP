@@ -17045,10 +17045,10 @@
 }
 
 .text-field:focused, .password-field:focused, .approved-input:focused, .auth-input:focused, .entity-search:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .text-area {
@@ -17063,10 +17063,10 @@
 }
 
 .text-area:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .text-area .scroll-pane, .text-area .content {
@@ -17084,10 +17084,10 @@
 }
 
 .combo-box:focused, .choice-box:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .combo-box > .list-cell, .choice-box > .label {
@@ -17131,10 +17131,10 @@
 }
 
 .date-picker:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .date-picker-popup {
@@ -17162,10 +17162,10 @@
 }
 
 .spinner:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .scroll-bar:vertical, .virtual-flow .scroll-bar:vertical {

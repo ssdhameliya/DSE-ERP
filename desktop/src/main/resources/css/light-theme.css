@@ -17321,10 +17321,10 @@
 }
 
 .text-field:focused, .password-field:focused, .approved-input:focused, .auth-input:focused, .entity-search:focused {
-    -fx-border-color: #4f46e5;
-    -fx-border-width: 1px;
-    -fx-background-color: #ffffff;
-    -fx-effect: dropshadow(gaussian, rgba(79, 70, 229, 0.25), 6, 0.2, 0, 0);
+    -fx-border-color: #2563eb;
+    -fx-border-width: 2px;
+    -fx-background-color: #f0f7ff;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.35), 8, 0.3, 0, 0);
 }
 
 .text-area {
@@ -17339,10 +17339,10 @@
 }
 
 .text-area:focused {
-    -fx-border-color: #4f46e5;
-    -fx-border-width: 1px;
-    -fx-background-color: #ffffff;
-    -fx-effect: dropshadow(gaussian, rgba(79, 70, 229, 0.25), 6, 0.2, 0, 0);
+    -fx-border-color: #2563eb;
+    -fx-border-width: 2px;
+    -fx-background-color: #f0f7ff;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.35), 8, 0.3, 0, 0);
 }
 
 .text-area .scroll-pane, .text-area .content {
@@ -17360,10 +17360,10 @@
 }
 
 .combo-box:focused, .choice-box:focused {
-    -fx-border-color: #4f46e5;
-    -fx-border-width: 1px;
-    -fx-background-color: #ffffff;
-    -fx-effect: dropshadow(gaussian, rgba(79, 70, 229, 0.25), 6, 0.2, 0, 0);
+    -fx-border-color: #2563eb;
+    -fx-border-width: 2px;
+    -fx-background-color: #f0f7ff;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.35), 8, 0.3, 0, 0);
 }
 
 .combo-box > .list-cell, .choice-box > .label {
@@ -17407,10 +17407,10 @@
 }
 
 .date-picker:focused {
-    -fx-border-color: #4f46e5;
-    -fx-border-width: 1px;
-    -fx-background-color: #ffffff;
-    -fx-effect: dropshadow(gaussian, rgba(79, 70, 229, 0.25), 6, 0.2, 0, 0);
+    -fx-border-color: #2563eb;
+    -fx-border-width: 2px;
+    -fx-background-color: #f0f7ff;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.35), 8, 0.3, 0, 0);
 }
 
 .date-picker-popup {
@@ -17438,10 +17438,10 @@
 }
 
 .spinner:focused {
-    -fx-border-color: #4f46e5;
-    -fx-border-width: 1px;
-    -fx-background-color: #ffffff;
-    -fx-effect: dropshadow(gaussian, rgba(79, 70, 229, 0.25), 6, 0.2, 0, 0);
+    -fx-border-color: #2563eb;
+    -fx-border-width: 2px;
+    -fx-background-color: #f0f7ff;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.35), 8, 0.3, 0, 0);
 }
 
 .scroll-bar:vertical, .virtual-flow .scroll-bar:vertical {

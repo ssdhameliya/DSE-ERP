@@ -65,6 +65,7 @@ public final class ProfessionalUiEnhancer {
         // children and re-decorate rows/cells while scrolling.
         if (root instanceof Parent parent) installDynamicChildEnhancement(parent);
         SharedUiFramework.install(root);
+        WorkflowFocusManager.autoEnhanceScreen(root);
         UiViewportLayoutCoordinator.request(root);
     }
 

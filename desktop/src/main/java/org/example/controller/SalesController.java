@@ -1897,8 +1897,7 @@ public class SalesController implements ScreenLifecycle {
             txtGST.clear();
             txtLineDiscount.clear();
             tableLines.getSelectionModel().clearSelection();
-
-
+            WorkflowFocusManager.initial(txtItemSearch);
             recalculate();
 
 
