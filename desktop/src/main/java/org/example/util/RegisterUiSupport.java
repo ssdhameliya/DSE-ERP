@@ -98,6 +98,7 @@ public final class RegisterUiSupport {
         if (drawer != null) {
             drawer.setManaged(true);
             drawer.setVisible(true);
+            IconFactory.decorate(drawer);
         }
         if (splitPane != null) {
             if (drawer != null) {
@@ -108,6 +109,12 @@ public final class RegisterUiSupport {
             }
             splitPane.setDividerPositions(dividerPosition);
             splitPane.requestLayout();
+            javafx.application.Platform.runLater(() -> {
+                splitPane.setDividerPositions(dividerPosition);
+                splitPane.requestLayout();
+                UiViewportLayoutCoordinator.request(splitPane);
+                if (drawer != null) IconFactory.decorate(drawer);
+            });
             UiViewportLayoutCoordinator.request(splitPane);
         }
     }

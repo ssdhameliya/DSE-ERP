@@ -74,67 +74,29 @@
   </top>
 
   <center>
-    <SplitPane fx:id="splitPane" dividerPositions="0.6" styleClass="register-split-pane">
-      <VBox spacing="8" styleClass="approved-card">
-        <HBox spacing="8" alignment="CENTER_LEFT">
-          <TextField fx:id="txtSearch" promptText="Search items by code, name, category, or barcode..." HBox.hgrow="ALWAYS"/>
-          <Button fx:id="btnRefreshItems" text="Refresh" onAction="#refreshItems" styleClass="approved-button,approved-secondary-button"/>
-        </HBox>
+    <VBox spacing="8" styleClass="approved-card">
+      <HBox spacing="8" alignment="CENTER_LEFT">
+        <TextField fx:id="txtSearch" promptText="Search items by code, name, category, or barcode..." HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnRefreshItems" text="Refresh" onAction="#refreshItems" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
 
-        <TableView fx:id="tblItems" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-blue-selection-table">
-          <columns>
-            <TableColumn fx:id="colItemCode" text="Item Code"/>
-            <TableColumn fx:id="colItemName" text="Item Description"/>
-            <TableColumn fx:id="colCategory" text="Category"/>
-            <TableColumn fx:id="colBarcode" text="Barcode / EAN"/>
-            <TableColumn fx:id="colPrice" text="Selling Price (₹)"/>
-            <TableColumn fx:id="colStock" text="Stock"/>
-          </columns>
-          <placeholder>
-            <VBox alignment="CENTER" spacing="8">
-              <Label text="No Items Found" styleClass="empty-title"/>
-              <Label text="Items from Item Master will appear here for label printing." wrapText="true" styleClass="empty-note"/>
-            </VBox>
-          </placeholder>
-        </TableView>
-      </VBox>
-
-      <VBox spacing="12" styleClass="approved-card,barcode-preview-container">
-        <Label text="Label Design &amp; Live Preview" styleClass="section-title"/>
-        <Separator/>
-
-        <GridPane hgap="10" vgap="10">
-          <Label text="Template:" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="field-caption"/>
-          <ComboBox fx:id="cmbTemplate" prefWidth="200" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-
-          <Label text="Copies:" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="field-caption"/>
-          <Spinner fx:id="spnCopies" prefWidth="120" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-
-          <Label text="Show Price (MRP):" GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="field-caption"/>
-          <CheckBox fx:id="chkShowPrice" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-
-          <Label text="Show Company:" GridPane.columnIndex="0" GridPane.rowIndex="3" styleClass="field-caption"/>
-          <CheckBox fx:id="chkShowCompany" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-        </GridPane>
-
-        <Separator/>
-        <Label text="Thermal Sticker Preview (50x25mm)" styleClass="settings-subsection-title"/>
-
-        <VBox alignment="CENTER" styleClass="barcode-preview-box">
-          <VBox fx:id="stickerCard" alignment="CENTER" spacing="4" maxWidth="320" minHeight="160" styleClass="barcode-sticker-mockup">
-            <Label fx:id="lblPreviewCompany" text="DSE ENTERPRISES" styleClass="bold-label"/>
-            <Label fx:id="lblPreviewItemName" text="Select an item from the table" styleClass="barcode-item-title"/>
-            <HBox fx:id="boxBarcodeGraphic" alignment="CENTER" minHeight="45" styleClass="barcode-svg-container"/>
-            <Label fx:id="lblPreviewBarcode" text="*00000000*" styleClass="barcode-human-code"/>
-            <Label fx:id="lblPreviewPrice" text="MRP: ₹ 0.00 (Incl. of all taxes)" styleClass="barcode-mrp-label"/>
+      <TableView fx:id="tblItems" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,erp-blue-selection-table">
+        <columns>
+          <TableColumn fx:id="colItemCode" text="Item Code"/>
+          <TableColumn fx:id="colItemName" text="Item Description"/>
+          <TableColumn fx:id="colCategory" text="Category"/>
+          <TableColumn fx:id="colBarcode" text="Barcode / EAN"/>
+          <TableColumn fx:id="colPrice" text="Selling Price (₹)"/>
+          <TableColumn fx:id="colStock" text="Stock"/>
+          <TableColumn fx:id="colActions" text="Actions"/>
+        </columns>
+        <placeholder>
+          <VBox alignment="CENTER" spacing="8">
+            <Label text="No Items Found" styleClass="empty-title"/>
+            <Label text="Items from Item Master will appear here for label printing." wrapText="true" styleClass="empty-note"/>
           </VBox>
-        </VBox>
-
-        <Region VBox.vgrow="ALWAYS"/>
-        <HBox spacing="8" alignment="CENTER_RIGHT">
-          <Button fx:id="btnQuickPrint" text="Print Sticker Now" onAction="#printThermal" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="primary-action,approved-button,approved-primary-button"/>
-        </HBox>
-      </VBox>
-    </SplitPane>
+        </placeholder>
+      </TableView>
+    </VBox>
   </center>
 </BorderPane>

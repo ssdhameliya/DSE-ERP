@@ -74,6 +74,15 @@ public class Gstr2bReconciliationEntity {
     @Column(name = "row_version", nullable = false)
     private Long rowVersion = 0L;
 
+    @Column(name = "supplier_notice_sent")
+    private Boolean supplierNoticeSent = Boolean.FALSE;
+
+    @Column(name = "supplier_notice_text")
+    private String supplierNoticeText;
+
+    @Column(name = "supplier_notice_sent_at")
+    private LocalDateTime supplierNoticeSentAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -132,6 +141,12 @@ public class Gstr2bReconciliationEntity {
     public void setReconciledAt(LocalDateTime reconciledAt) { this.reconciledAt = reconciledAt; }
     public Long getRowVersion() { return rowVersion; }
     public void setRowVersion(Long rowVersion) { this.rowVersion = rowVersion; }
+    public Boolean getSupplierNoticeSent() { return supplierNoticeSent; }
+    public void setSupplierNoticeSent(Boolean supplierNoticeSent) { this.supplierNoticeSent = supplierNoticeSent; }
+    public String getSupplierNoticeText() { return supplierNoticeText; }
+    public void setSupplierNoticeText(String supplierNoticeText) { this.supplierNoticeText = supplierNoticeText; }
+    public LocalDateTime getSupplierNoticeSentAt() { return supplierNoticeSentAt; }
+    public void setSupplierNoticeSentAt(LocalDateTime supplierNoticeSentAt) { this.supplierNoticeSentAt = supplierNoticeSentAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
