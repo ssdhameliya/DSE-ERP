@@ -250,6 +250,7 @@
                 <GridPane hgap="8" vgap="8" styleClass="sales-detail-action-grid"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
                   <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button text="Edit Sale" onAction="#editSelectedSale" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
                   <Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity" GridPane.rowIndex="1" styleClass="approved-button,approved-primary-button"/><Button text="Excel" onAction="#excelSelected" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                  <Button text="Dispatch Barcode" onAction="#printDispatchBarcodeSelected" maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnSpan="2" styleClass="approved-button,approved-secondary-button"/>
                 </GridPane>
               </VBox>
             </content>

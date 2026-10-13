@@ -460,8 +460,36 @@ public class GstComplianceService {
         BigDecimal setOffSgst = itcSgst.min(remOutwardSgst);
         BigDecimal netSgst = remOutwardSgst.subtract(setOffSgst).max(BigDecimal.ZERO);
 
+        // Inward Reverse Charge Supplies (Table 3.1(d))
+        BigDecimal rcmTaxable = BigDecimal.ZERO;
+        BigDecimal rcmTax = BigDecimal.ZERO;
+        try {
+            List<PurchaseHeaderEntity> allPurchases = purchaseRepository.findAll();
+            for (PurchaseHeaderEntity p : allPurchases) {
+                if (p.getDocumentStatus() != null) {
+                    String st = p.getDocumentStatus().toUpperCase();
+                    if (st.contains("CANCEL") || st.contains("DELETE")) continue;
+                }
+                if (filterMonth != null && filterYear != null && p.getInvoiceDate() != null) {
+                    try {
+                        String ds = p.getInvoiceDate().length() >= 10 ? p.getInvoiceDate().substring(0, 10) : p.getInvoiceDate();
+                        LocalDate d = LocalDate.parse(ds);
+                        if (d.getMonthValue() != filterMonth || d.getYear() != filterYear) continue;
+                    } catch (Exception ignored) {}
+                }
+                String treat = p.getGstTreatment() != null ? p.getGstTreatment().toUpperCase() : "";
+                String rem = p.getRemarks() != null ? p.getRemarks().toUpperCase() : "";
+                if (treat.contains("REVERSE") || treat.contains("RCM") || rem.contains("RCM")) {
+                    BigDecimal sub = p.getSubtotal() != null ? BigDecimal.valueOf(p.getSubtotal()) : BigDecimal.ZERO;
+                    BigDecimal gst = p.getGstAmount() != null ? BigDecimal.valueOf(p.getGstAmount()) : BigDecimal.ZERO;
+                    rcmTaxable = rcmTaxable.add(sub);
+                    rcmTax = rcmTax.add(gst);
+                }
+            }
+        } catch (Exception ignored) {}
+
         BigDecimal netIgst = remOutwardIgst;
-        BigDecimal totalCash = netIgst.add(netCgst).add(netSgst);
+        BigDecimal totalCash = netIgst.add(netCgst).add(netSgst).add(rcmTax);
 
         BigDecimal totSetOffIgst = setOffIgstAgainstIgst.add(setOffIgstAgainstCgst).add(setOffIgstAgainstSgst);
         BigDecimal totSetOffCgst = setOffCgst;
@@ -470,7 +498,7 @@ public class GstComplianceService {
         return new GstDtos.Gstr3bSummaryDto(
                 returnPeriod, outwardTaxable, outwardIgst, outwardCgst, outwardSgst,
                 itcIgst, itcCgst, itcSgst, netIgst, netCgst, netSgst, totalCash,
-                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                rcmTaxable, rcmTax, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                 totSetOffIgst, totSetOffCgst, totSetOffSgst
         );
     }

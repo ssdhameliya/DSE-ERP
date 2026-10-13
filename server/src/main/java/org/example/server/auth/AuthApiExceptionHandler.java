@@ -73,7 +73,7 @@ public class AuthApiExceptionHandler {
     @ExceptionHandler(Exception.class)
     ResponseEntity<AuthDtos.OperationResponse> serverError(Exception ex) {
         ex.printStackTrace();
-        return ResponseEntity.internalServerError().body(new AuthDtos.OperationResponse(false, "The request could not be completed"));
+        return ResponseEntity.internalServerError().body(new AuthDtos.OperationResponse(false, directMessage(ex)));
     }
 
     private String directMessage(Throwable failure) {

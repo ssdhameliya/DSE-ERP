@@ -224,7 +224,7 @@ public class AuthService {
                 "Registered email verified. The old authenticator is no longer valid. Scan this new QR code and verify the current 6-digit code.");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthDtos.LoginMfaChallengeResponse resendLoginMfa(AuthDtos.LoginMfaResendRequest request) {
         if(request==null||request.challengeId()==null||request.challengeId().isBlank())throw new IllegalArgumentException("The MFA challenge is invalid or expired");
         Integer authenticatorUser=totp.peekLogin(request.challengeId());
@@ -291,7 +291,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthDtos.CaptchaResponse registrationCaptcha(){ return captcha.issue(); }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthDtos.ChallengeResponse requestRegistrationOtp(AuthDtos.RegistrationOtpRequest request) {
         cleanupExpiredRegistrations();
         String validation=publicRegistrationError(request==null?null:request.username(),request==null?null:request.fullName(),request==null?null:request.email(),request==null?null:request.role());
@@ -361,7 +361,7 @@ public class AuthService {
         return new AuthDtos.OperationResponse(true,"Registration submitted successfully. Your account is awaiting administrator approval. You cannot sign in until it is approved.");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthDtos.ChallengeResponse requestPasswordReset(AuthDtos.PasswordResetOtpRequest request) {
         String identity = request == null || request.identity() == null ? "" : request.identity().trim();
         if (identity.isBlank()) return new AuthDtos.ChallengeResponse(false, null, "Email or username is required");

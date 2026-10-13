@@ -42,6 +42,42 @@ class PreAuthMfaSecurityContractTest {
                 "enrollment loads the authentication row with a lock, so PostgreSQL cannot run it in a read-only transaction");
     }
 
+    @Test
+    void registrationOtpRequestMustBeReadWriteTransaction() throws Exception {
+        Path authService = resolveAuthService();
+        String source = Files.readString(authService);
+        int method = source.indexOf("public AuthDtos.ChallengeResponse requestRegistrationOtp");
+        assertTrue(method > 0, "requestRegistrationOtp method must exist");
+        String prefix = source.substring(Math.max(0, method - 120), method);
+        assertTrue(prefix.contains("@Transactional"), "requestRegistrationOtp must run in a transaction");
+        assertTrue(!prefix.contains("readOnly = true"),
+                "requestRegistrationOtp cleans expired registrations and issues OTP challenges via UPDATE/DELETE/INSERT, so PostgreSQL cannot run it in a read-only transaction");
+    }
+
+    @Test
+    void passwordResetOtpRequestMustBeReadWriteTransaction() throws Exception {
+        Path authService = resolveAuthService();
+        String source = Files.readString(authService);
+        int method = source.indexOf("public AuthDtos.ChallengeResponse requestPasswordReset");
+        assertTrue(method > 0, "requestPasswordReset method must exist");
+        String prefix = source.substring(Math.max(0, method - 120), method);
+        assertTrue(prefix.contains("@Transactional"), "requestPasswordReset must run in a transaction");
+        assertTrue(!prefix.contains("readOnly = true"),
+                "requestPasswordReset issues OTP challenges via DELETE/INSERT, so PostgreSQL cannot run it in a read-only transaction");
+    }
+
+    @Test
+    void loginMfaResendMustBeReadWriteTransaction() throws Exception {
+        Path authService = resolveAuthService();
+        String source = Files.readString(authService);
+        int method = source.indexOf("public AuthDtos.LoginMfaChallengeResponse resendLoginMfa");
+        assertTrue(method > 0, "resendLoginMfa method must exist");
+        String prefix = source.substring(Math.max(0, method - 120), method);
+        assertTrue(prefix.contains("@Transactional"), "resendLoginMfa must run in a transaction");
+        assertTrue(!prefix.contains("readOnly = true"),
+                "resendLoginMfa issues OTP challenges via DELETE/INSERT, so PostgreSQL cannot run it in a read-only transaction");
+    }
+
     private static Path resolveAuthService() {
         Path direct = Path.of("src/main/java/org/example/server/auth/AuthService.java");
         if (Files.exists(direct)) return direct;

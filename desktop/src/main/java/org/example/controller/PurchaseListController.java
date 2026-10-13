@@ -129,6 +129,7 @@ public class PurchaseListController implements ScreenLifecycle{
   editActionItem = purchaseActionItem("Edit Purchase", "edit", () -> edit(requirePurchaseActionTarget(target)));
   MenuItem duplicate = purchaseActionItem("Duplicate Purchase", "copy", () -> duplicate(requirePurchaseActionTarget(target)));
   MenuItem pdf = purchaseActionItem("Preview / Download PDF", "print", () -> pdf(requirePurchaseActionTarget(target)));
+  MenuItem barcode = purchaseActionItem("Print Inward Barcode Label", "barcode", () -> printInwardBarcode(requirePurchaseActionTarget(target)));
   MenuItem excel = purchaseActionItem("View / Download Excel", "excel", () -> excel(requirePurchaseActionTarget(target)));
   MenuItem email = purchaseActionItem("Send Email", "email", () -> email(requirePurchaseActionTarget(target)));
   MenuItem whatsapp = purchaseActionItem("Send WhatsApp", "whatsapp", () -> whatsapp(requirePurchaseActionTarget(target)));
@@ -139,7 +140,7 @@ public class PurchaseListController implements ScreenLifecycle{
   deleteActionItem = purchaseActionItem("Delete Purchase", "delete", () -> delete(requirePurchaseActionTarget(target)));
   deleteActionItem.getStyleClass().add("danger-menu-item");
 
-  sharedMenu.getItems().setAll(view, audit, editActionItem, duplicate, pdf, excel, email, whatsapp, paymentActionItem, returnActionItem, notes, cancelActionItem, deleteActionItem);
+  sharedMenu.getItems().setAll(view, audit, editActionItem, duplicate, pdf, barcode, excel, email, whatsapp, paymentActionItem, returnActionItem, notes, cancelActionItem, deleteActionItem);
   IconFactory.decorateActionMenu(sharedMenu);
 
   java.util.function.Consumer<Purchase> updateAvailability = current -> {
@@ -290,6 +291,8 @@ private void configureDetailsCloseButton(){
  @FXML private void editSelected(){if(selected!=null)edit(selected);}
  @FXML private void excelSelected(){if(selected!=null)excel(selected);}
  @FXML private void emailSelected(){if(selected!=null)email(selected);}
+ @FXML private void printInwardBarcodeSelected(){Purchase p=selected;if(p!=null)printInwardBarcode(p);}
+ private void printInwardBarcode(Purchase purchase){if(purchase==null)return;org.example.util.OrderDispatchBarcodeDialog.showForPurchase(tablePurchase,purchase);}
  private void payment(Purchase p){
   if(p==null)return;
   String document=s(p.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);

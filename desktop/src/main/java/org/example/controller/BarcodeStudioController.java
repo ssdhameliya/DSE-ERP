@@ -62,7 +62,7 @@ public class BarcodeStudioController implements ScreenLifecycle {
     @FXML private Label kpiTotalItems, kpiMappedItems, kpiLabelFormat, kpiSelectedCopies;
 
     @FXML private TextField txtScannerTest;
-    @FXML private Button btnPrintThermal, btnPrintA4, btnRefreshItems;
+    @FXML private Button btnPrintOrderLabel, btnPrintThermal, btnPrintA4, btnRefreshItems;
 
     @FXML private TextField txtSearch;
     @FXML private TableView<BarcodeItemDto> tblItems;
@@ -711,6 +711,52 @@ public class BarcodeStudioController implements ScreenLifecycle {
         } else {
             AppDialogService.warning(tblItems, "Barcode Studio", "No Item Selected", "Please select an item to print barcode sheet.");
         }
+    }
+
+    @FXML
+    public void printOrderDispatchLabel() {
+        OwnedTextInputDialog dlg = new OwnedTextInputDialog();
+        dlg.setTitle("Universal Order Barcode Label");
+        dlg.setHeaderText("Enter Document Number (Sales Invoice, PO, Credit Note, Debit Note)");
+        dlg.setContentText("Document No:");
+        dlg.showAndWait().map(String::trim).filter(s -> !s.isBlank()).ifPresent(docNo -> {
+            // Check Sales
+            try {
+                org.example.model.Sales sale = new org.example.service.SalesService().getByInvoice(docNo);
+                if (sale != null) {
+                    OrderDispatchBarcodeDialog.showForSale(tblItems, sale);
+                    return;
+                }
+            } catch (Exception ignored) {}
+
+            // Check Purchase
+            try {
+                org.example.model.Purchase po = new org.example.service.PurchaseService().getByInvoice(docNo);
+                if (po != null) {
+                    OrderDispatchBarcodeDialog.showForPurchase(tblItems, po);
+                    return;
+                }
+            } catch (Exception ignored) {}
+
+            // Fallback: create generic document label
+            List<OrderDispatchBarcodeDialog.OrderBarcodeItem> items = new ArrayList<>();
+            items.add(new OrderDispatchBarcodeDialog.OrderBarcodeItem("Consignment Goods", "8471", "Dispatch Consignment", 1.0, "LOT", docNo));
+            OrderDispatchBarcodeDialog.OrderBarcodeDocument doc = new OrderDispatchBarcodeDialog.OrderBarcodeDocument(
+                "DISPATCH ORDER",
+                docNo,
+                BusinessClock.today().toString(),
+                BrandingService.companyName(),
+                ConfigManager.get("company.gstin", "24ABCDE1234F1Z5"),
+                "Party:",
+                "Order Consignee",
+                "",
+                "Direct Dispatch Bay",
+                1,
+                1,
+                items
+            );
+            OrderDispatchBarcodeDialog.show(tblItems, doc);
+        });
     }
 
     public static class BarcodeItemDto {
