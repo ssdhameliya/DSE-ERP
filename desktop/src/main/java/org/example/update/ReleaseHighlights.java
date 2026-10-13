@@ -11,7 +11,23 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return BrandingService.applicationName() + " " + version + " — GST Compliance Suite, GSTR-1 Government Schema Export, GSTR-2B 4-Point Matching & 3-Tier Financial Statements\n\n" + """
+            return BrandingService.applicationName() + " " + version + " — Self-Registration Transaction Fix & QuickBooks Workflow Focus Tabbing\n\n" + """
+                    • Self-Registration & OTP Read-Write Transaction Fix: Resolved PostgreSQL read-only transaction errors by transitioning requestRegistrationOtp, requestPasswordReset, and resendLoginMfa to read-write @Transactional boundaries so user accounts and challenge tokens persist reliably.
+                    • Exception Transparency: Surface actual server validation details in AuthApiExceptionHandler rather than masking errors behind generic failure notices.
+                    • QuickBooks-Style Workflow Tabbing: Enter advances focus forward sequentially through logical transaction fields (Search → Date → Account/Party → Line Items → Quantities/Rates → Notes → Save) across Sale, Purchase, Quotation, Sales Register, and all major transaction screens.
+                    • Universal Auto-Select on Focus: Every text field, numeric input, currency cell, and combobox editor automatically highlights and selects all text on focus, allowing immediate one-stroke overwrite without manual backspacing or cursor repositioning.
+                    • High-Visibility Focus Tracking: Current cursor position and active input field are prominently outlined with a high-contrast 2px border, luminous ambient glow, and distinct background tint in both Light and Dark themes for instant visual recognition.
+                    • Reclaimed Workstation Screen Space: Removed obsolete fixed shortcut hint bars (`rapid-key-bar`) from Sale, Purchase, and Quotation pages, reclaiming 35 to 45 vertical pixels directly for table data rows and invoice line items.
+                    • Rapid Item Entry Loop: Pressing Enter on line-addition automatically posts the item and seamlessly resets focus back to Item Search for fast, continuous barcode and item scanning workflows.
+                    • Backward Navigation & Safety: Shift+Tab navigates backward without losing input data, Esc safely dismisses open dropdowns and date pickers, and Ctrl+S triggers immediate invoice save.
+                    • Restored sharp semantic icon rendering across table column headers, filter controls, date presets, and drawer fields; eliminated font-family inheritance loss so FontIcon glyphs render crisp and distinct rather than falling back to box characters.
+                    • Top Profile menu icons strictly apply distinct semantic glyph colors (Settings: purple, User Management: blue, Security: indigo, Backup: teal, Lock: orange, Sign Out: pink) guarded against parent ContextMenu CSS cascade.
+                    • Customer-facing branding follows Company Name centrally across the application shell, reports, PDFs and email surfaces while technical DSE package/API/database identifiers remain unchanged.
+                    • What's New for this running build is application-owned and packaged with the application, so LOCAL, UAT and PROD show this current release summary instead of stale GitHub PR/changelog text.
+                    """;
+        }
+        if ("10.0.31".equals(version)) {
+            return BrandingService.applicationName() + " 10.0.31 — GST Compliance Suite, GSTR-1 Government Schema Export, GSTR-2B 4-Point Matching & 3-Tier Financial Statements\n\n" + """
                     • Complete GSTR-1 Return Generator with Government GST Offline Tool JSON Schema compliance, covering Table 4 (B2B registered), Table 7 (B2C Small), Table 9B (CDNR Credit/Debit Notes registered), Table 12 (HSN/SAC 4/6/8-digit summary with UQC and rates), and Table 13 (Documents Issued invoice/credit/debit serial ranges).
                     • GSTR-2B Automated 4-Point Reconciliation Engine matching Supplier GSTIN, normalized invoice number, invoice date (within tolerance), and total tax (within ±₹1.00 tolerance).
                     • Integrated Supplier Follow-Up Notice generator with one-click WhatsApp and Email communication templates for unfiled ITC invoices to ensure compliance under Rule 36(4).
@@ -21,10 +37,6 @@ public final class ReleaseHighlights {
                     • Interactive Drill-Down API and Dialog: double-click any revenue, COGS, expense, or balance sheet row to inspect the underlying vouchers and invoices.
                     • Executive Financial Ratio Health Cards: Gross Margin %, Net Margin %, Current Ratio, Quick Ratio, Days Sales Outstanding (DSO), and Days Payables Outstanding (DPO).
                     • Sales Register and Financial Statements seamlessly integrate with the new 3-Tier Accounting and Statutory GST Return Generator.
-                    • Restored sharp semantic icon rendering across table column headers, filter controls, date presets, and drawer fields; eliminated font-family inheritance loss so FontIcon glyphs render crisp and distinct rather than falling back to box characters.
-                    • Top Profile menu icons strictly apply distinct semantic glyph colors (Settings: purple, User Management: blue, Security: indigo, Backup: teal, Lock: orange, Sign Out: pink) guarded against parent ContextMenu CSS cascade.
-                    • Customer-facing branding follows Company Name centrally across the application shell, reports, PDFs and email surfaces while technical DSE package/API/database identifiers remain unchanged.
-                    • What's New for this running build is application-owned and packaged with the application, so LOCAL, UAT and PROD show this current release summary instead of stale GitHub PR/changelog text.
                     """;
         }
         if ("10.0.30".equals(version)) {

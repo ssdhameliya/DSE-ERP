@@ -1307,6 +1307,7 @@ public final class IconFactory {
         if (value.contains("eligibility")) return "complete";
         if (value.contains("claim")) return "amount";
         if (value.contains("dispatched")) return "delivery";
+        if (value.contains("dispatch")) return "dispatch";
         if (value.contains("restocked")) return "inventory";
         if (value.contains("refund")) return "refund";
         if (value.contains("return")) return "return";

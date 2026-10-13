@@ -587,6 +587,13 @@ public class GstComplianceController implements ScreenLifecycle {
                                     s.getInvoiceDate() != null ? BusinessClock.formatDate(s.getInvoiceDate()) : "-",
                                     fmt(total), pos, rate + "%", fmt(taxable), fmt(sIgst), fmt(sCgst), fmt(sSgst)
                             ));
+                        } else if (total > 250000.0 && (!pos.equals("24") || sIgst > 0)) {
+                            // Table 5: B2CL (Interstate unregistered invoice > Rs 2.5L)
+                            b2bList.add(new Gstr1B2bRow(
+                                    "B2CL (Unreg)", cName, s.getInvoiceNo(),
+                                    s.getInvoiceDate() != null ? BusinessClock.formatDate(s.getInvoiceDate()) : "-",
+                                    fmt(total), pos, rate + "%", fmt(taxable), fmt(sIgst), fmt(sCgst), fmt(sSgst)
+                            ));
                         } else {
                             String key = pos + "_" + (int) rate;
                             double[] cur = b2csMap.computeIfAbsent(key, k -> new double[]{0.0, 0.0, 0.0, 0.0, rate});
@@ -644,6 +651,9 @@ public class GstComplianceController implements ScreenLifecycle {
                     double inputSgst = 0.0;
                     double inputIgst = 0.0;
 
+                    double rcmTaxable = 0.0;
+                    double rcmTax = 0.0;
+
                     for (Purchase p : purchases) {
                         if (p.getDocumentStatus() != null && (p.getDocumentStatus().contains("CANCEL") || p.getDocumentStatus().contains("DELETE"))) continue;
                         if (selMonth != null && selYear != null && p.getInvoiceDate() != null) {
@@ -662,6 +672,13 @@ public class GstComplianceController implements ScreenLifecycle {
                         }
                         double taxable = p.getSubtotal() > 0 ? p.getSubtotal() : (total - tax);
                         double cgst = 0.0, sgst = 0.0, igst = 0.0;
+
+                        String treat = p.getGstTreatment() != null ? p.getGstTreatment().toUpperCase() : "";
+                        String rem = p.getRemarks() != null ? p.getRemarks().toUpperCase() : "";
+                        if (treat.contains("REVERSE") || treat.contains("RCM") || rem.contains("RCM")) {
+                            rcmTaxable += taxable;
+                            rcmTax += tax;
+                        }
 
                         String pGstType = p.getGstType();
                         if ("IGST".equalsIgnoreCase(pGstType) || "INTER_STATE".equalsIgnoreCase(pGstType)) {
@@ -717,15 +734,17 @@ public class GstComplianceController implements ScreenLifecycle {
                     double sgstSetoff = Math.min(remOutSgst, inputSgst);
                     remOutSgst -= sgstSetoff;
 
-                    double netCashPayable = remOutIgst + remOutCgst + remOutSgst;
+                    double netCashPayable = remOutIgst + remOutCgst + remOutSgst + rcmTax;
                     double totalSetoff = igstSetoff + igstToCgst + igstToSgst + cgstSetoff + sgstSetoff;
 
-                    List<Gstr3bRow> bRows = List.of(
-                            new Gstr3bRow("Integrated Tax (IGST)", fmt(outwardIgst), fmt(inputIgst), fmt(igstSetoff), fmt(remOutIgst)),
-                            new Gstr3bRow("Central Tax (CGST)", fmt(outwardCgst), fmt(inputCgst + igstToCgst), fmt(cgstSetoff + igstToCgst), fmt(remOutCgst)),
-                            new Gstr3bRow("State Tax (SGST)", fmt(outwardSgst), fmt(inputSgst + igstToSgst), fmt(sgstSetoff + igstToSgst), fmt(remOutSgst)),
-                            new Gstr3bRow("TOTAL CASH LIABILITY", fmt(outwardIgst + outwardCgst + outwardSgst), fmt(totalEligibleItc), fmt(totalSetoff), fmt(netCashPayable))
-                    );
+                    List<Gstr3bRow> bRows = new ArrayList<>();
+                    bRows.add(new Gstr3bRow("Integrated Tax (IGST)", fmt(outwardIgst), fmt(inputIgst), fmt(igstSetoff), fmt(remOutIgst)));
+                    bRows.add(new Gstr3bRow("Central Tax (CGST)", fmt(outwardCgst), fmt(inputCgst + igstToCgst), fmt(cgstSetoff + igstToCgst), fmt(remOutCgst)));
+                    bRows.add(new Gstr3bRow("State Tax (SGST)", fmt(outwardSgst), fmt(inputSgst + igstToSgst), fmt(sgstSetoff + igstToSgst), fmt(remOutSgst)));
+                    if (rcmTax > 0.009) {
+                        bRows.add(new Gstr3bRow("3.1(d) Inward RCM Supplies", fmt(rcmTax), "₹ 0.00", "₹ 0.00", fmt(rcmTax)));
+                    }
+                    bRows.add(new Gstr3bRow("TOTAL CASH LIABILITY", fmt(outwardIgst + outwardCgst + outwardSgst + rcmTax), fmt(totalEligibleItc), fmt(totalSetoff), fmt(netCashPayable)));
 
                     return new GstCalculationResult(
                             fmt(totalEligibleItc),

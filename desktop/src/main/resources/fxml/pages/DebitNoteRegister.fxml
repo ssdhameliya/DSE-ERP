@@ -106,6 +106,7 @@
               <Label fx:id="lblDrawerSubtitle" text="Purchase return breakdown" styleClass="page-subtitle"/>
             </VBox>
             <Button fx:id="btnDrawerAudit" text="Audit Trail" onAction="#auditSelected" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnDrawerBarcode" text="Barcode Label" onAction="#printBarcodeSelected" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnCloseDrawer" text="Close" onAction="#closeDetails" styleClass="secondary-button,drawer-close-button,approved-button,approved-secondary-button"/>
           </HBox>
           <Separator/>

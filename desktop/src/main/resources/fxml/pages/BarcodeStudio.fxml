@@ -15,6 +15,7 @@
         <Region HBox.hgrow="ALWAYS"/>
         <HBox spacing="8" alignment="CENTER_RIGHT">
           <TextField fx:id="txtScannerTest" promptText="Scan USB Barcode Here to Test..." prefWidth="250" styleClass="scanner-input"/>
+          <Button fx:id="btnPrintOrderLabel" text="Order Dispatch Label" onAction="#printOrderDispatchLabel" styleClass="approved-button,approved-secondary-button"/>
           <Button fx:id="btnPrintThermal" text="Print Thermal Labels" onAction="#printThermal" styleClass="primary-action,approved-button,approved-primary-button"/>
           <Button fx:id="btnPrintA4" text="Print A4 Sheet" onAction="#printA4Sheet" styleClass="approved-button,approved-secondary-button"/>
         </HBox>

@@ -130,8 +130,9 @@ public class Gstr1Service {
         BigDecimal totalCgst = BigDecimal.ZERO;
         BigDecimal totalSgst = BigDecimal.ZERO;
 
-        // Group into B2B and B2CS
+        // Group into B2B, B2CL, and B2CS
         Map<String, List<Gstr1Dtos.Gstr1B2bInvoiceDto>> b2bMap = new LinkedHashMap<>();
+        Map<String, List<Gstr1Dtos.Gstr1B2clInvoiceDto>> b2clMap = new LinkedHashMap<>();
         Map<String, String> partyNames = new HashMap<>();
         Map<String, Gstr1Dtos.Gstr1B2csDto> b2csGroup = new LinkedHashMap<>();
 
@@ -207,6 +208,12 @@ public class Gstr1Service {
                         invNo, idt, totalAmt, pos, "N", "R", itmList
                 );
                 b2bMap.computeIfAbsent(cGstin, k -> new ArrayList<>()).add(invDto);
+            } else if (isInter && totalAmt.compareTo(BigDecimal.valueOf(250000.0)) > 0) {
+                // Table 5: B2CL (Interstate unregistered with invoice value > Rs 2.5 Lakhs)
+                Gstr1Dtos.Gstr1B2clInvoiceDto b2clInv = new Gstr1Dtos.Gstr1B2clInvoiceDto(
+                        invNo, idt, totalAmt, "", itmList
+                );
+                b2clMap.computeIfAbsent(pos, k -> new ArrayList<>()).add(b2clInv);
             } else {
                 // Table 7: B2CS
                 for (Gstr1Dtos.Gstr1ItemDetailDto it : itmList) {
@@ -232,16 +239,22 @@ public class Gstr1Service {
             b2bList.add(new Gstr1Dtos.Gstr1B2bPartyDto(entry.getKey(), partyNames.getOrDefault(entry.getKey(), "Valued Customer"), entry.getValue()));
         }
 
+        List<Gstr1Dtos.Gstr1B2clPartyDto> b2clList = new ArrayList<>();
+        for (var entry : b2clMap.entrySet()) {
+            b2clList.add(new Gstr1Dtos.Gstr1B2clPartyDto(entry.getKey(), entry.getValue()));
+        }
+
         List<Gstr1Dtos.Gstr1B2csDto> b2csList = new ArrayList<>(b2csGroup.values());
 
-        // 2. Table 9B: CDNR (Registered Credit & Debit Notes)
+        // 2. Table 9B: CDNR (Registered) & Table 9C: CDNUR (Unregistered) Credit/Debit Notes
         List<Gstr1Dtos.Gstr1CdnrPartyDto> cdnrList = new ArrayList<>();
+        List<Gstr1Dtos.Gstr1CdnurNoteDto> cdnurList = new ArrayList<>();
         try {
             List<Map<String, Object>> cnRows = jdbc.queryForList("""
                 SELECT id, credit_note_no, note_date, original_invoice_no, party_name, party_gstin,
                        taxable_amount, cgst_amount, sgst_amount, igst_amount, total_amount
                 FROM credit_note_header
-                WHERE note_date BETWEEN ? AND ? AND LENGTH(TRIM(COALESCE(party_gstin, ''))) = 15
+                WHERE note_date BETWEEN ? AND ?
                 ORDER BY id ASC
                 """, win.startDate(), win.endDate());
 
@@ -249,8 +262,7 @@ public class Gstr1Service {
             Map<String, String> cnPartyNames = new HashMap<>();
 
             for (Map<String, Object> cn : cnRows) {
-                String ctin = String.valueOf(cn.get("party_gstin")).trim();
-                cnPartyNames.put(ctin, String.valueOf(cn.get("party_name")));
+                String ctin = cn.get("party_gstin") != null ? String.valueOf(cn.get("party_gstin")).trim().toUpperCase(Locale.ROOT) : "";
                 String nNo = String.valueOf(cn.get("credit_note_no"));
                 String nDt = formatDateGst(String.valueOf(cn.get("note_date")));
                 String origInv = cn.get("original_invoice_no") != null ? String.valueOf(cn.get("original_invoice_no")) : "INV-ORIG";
@@ -264,9 +276,20 @@ public class Gstr1Service {
 
                 List<Gstr1Dtos.Gstr1ItemDetailDto> itm = List.of(new Gstr1Dtos.Gstr1ItemDetailDto(1, txVal, rt, igst, cgst, sgst, BigDecimal.ZERO));
                 String pos = ctin.length() >= 2 ? ctin.substring(0, 2) : homeState;
-                cnByParty.computeIfAbsent(ctin, k -> new ArrayList<>()).add(new Gstr1Dtos.Gstr1CdnrNoteDto(
-                        nNo, nDt, "C", origInv, nDt, totVal, pos, "N", itm
-                ));
+
+                if (ctin.length() == 15) {
+                    // Registered -> Table 9B CDNR
+                    cnPartyNames.put(ctin, String.valueOf(cn.get("party_name")));
+                    cnByParty.computeIfAbsent(ctin, k -> new ArrayList<>()).add(new Gstr1Dtos.Gstr1CdnrNoteDto(
+                            nNo, nDt, "C", origInv, nDt, totVal, pos, "N", itm
+                    ));
+                } else {
+                    // Unregistered -> Table 9C CDNUR
+                    cdnurList.add(new Gstr1Dtos.Gstr1CdnurNoteDto(
+                            totVal.compareTo(BigDecimal.valueOf(250000.0)) > 0 && !pos.equals(homeState) ? "B2CL" : "B2CS",
+                            nNo, nDt, "C", origInv, nDt, totVal, pos, "N", itm
+                    ));
+                }
             }
 
             for (var entry : cnByParty.entrySet()) {
@@ -375,7 +398,8 @@ public class Gstr1Service {
         return new Gstr1Dtos.Gstr1FullReturnDto(
                 myGstin, win.fp(), "GSTR1_v2.0", grossTurnover, totalTaxable,
                 totalIgst, totalCgst, totalSgst, totalTax,
-                b2bList, b2csList, cdnrList, hsnList, docSummary
+                b2bList, b2csList, cdnrList, hsnList, docSummary,
+                b2clList, cdnurList
         );
     }
 
@@ -390,7 +414,7 @@ public class Gstr1Service {
         root.put("cur_gt", gstr1.grossTurnover().setScale(2, RoundingMode.HALF_UP));
         root.put("gt", gstr1.grossTurnover().setScale(2, RoundingMode.HALF_UP));
 
-        // B2B Section
+        // B2B Section (Table 4)
         ArrayNode b2bArray = root.putArray("b2b");
         for (Gstr1Dtos.Gstr1B2bPartyDto party : gstr1.b2b()) {
             ObjectNode pNode = b2bArray.addObject();
@@ -420,7 +444,33 @@ public class Gstr1Service {
             }
         }
 
-        // B2CS Section
+        // B2CL Section (Table 5: Large Interstate Invoices to Unregistered > Rs 2.5L)
+        if (gstr1.b2cl() != null && !gstr1.b2cl().isEmpty()) {
+            ArrayNode b2clArray = root.putArray("b2cl");
+            for (Gstr1Dtos.Gstr1B2clPartyDto party : gstr1.b2cl()) {
+                ObjectNode pNode = b2clArray.addObject();
+                pNode.put("pos", party.pos());
+                ArrayNode invArray = pNode.putArray("inv");
+                for (Gstr1Dtos.Gstr1B2clInvoiceDto inv : party.inv()) {
+                    ObjectNode iNode = invArray.addObject();
+                    iNode.put("inum", inv.inum());
+                    iNode.put("idt", inv.idt());
+                    iNode.put("val", inv.val().setScale(2, RoundingMode.HALF_UP));
+                    ArrayNode itmArray = iNode.putArray("itms");
+                    for (Gstr1Dtos.Gstr1ItemDetailDto item : inv.itms()) {
+                        ObjectNode itmObj = itmArray.addObject();
+                        itmObj.put("num", item.num());
+                        ObjectNode itmDet = itmObj.putObject("itm_det");
+                        itmDet.put("txval", item.txval().setScale(2, RoundingMode.HALF_UP));
+                        itmDet.put("rt", item.rt().setScale(2, RoundingMode.HALF_UP));
+                        itmDet.put("iamt", item.iamt().setScale(2, RoundingMode.HALF_UP));
+                        itmDet.put("csamt", item.csamt().setScale(2, RoundingMode.HALF_UP));
+                    }
+                }
+            }
+        }
+
+        // B2CS Section (Table 7)
         ArrayNode b2csArray = root.putArray("b2cs");
         for (Gstr1Dtos.Gstr1B2csDto b2cs : gstr1.b2cs()) {
             ObjectNode bNode = b2csArray.addObject();
@@ -434,7 +484,7 @@ public class Gstr1Service {
             bNode.put("csamt", b2cs.csamt().setScale(2, RoundingMode.HALF_UP));
         }
 
-        // CDNR Section
+        // CDNR Section (Table 9B: Registered Credit & Debit Notes)
         ArrayNode cdnrArray = root.putArray("cdnr");
         for (Gstr1Dtos.Gstr1CdnrPartyDto cdnrParty : gstr1.cdnr()) {
             ObjectNode pNode = cdnrArray.addObject();
@@ -442,6 +492,36 @@ public class Gstr1Service {
             ArrayNode ntArray = pNode.putArray("nt");
             for (Gstr1Dtos.Gstr1CdnrNoteDto note : cdnrParty.nt()) {
                 ObjectNode nNode = ntArray.addObject();
+                nNode.put("nt_num", note.nt_num());
+                nNode.put("nt_dt", note.nt_dt());
+                nNode.put("ntty", note.ntty());
+                nNode.put("inum", note.inum());
+                nNode.put("idt", note.idt());
+                nNode.put("val", note.val().setScale(2, RoundingMode.HALF_UP));
+                nNode.put("pos", note.pos());
+                nNode.put("rchrg", note.rchrg());
+
+                ArrayNode itmArray = nNode.putArray("itms");
+                for (Gstr1Dtos.Gstr1ItemDetailDto itm : note.itms()) {
+                    ObjectNode itmObj = itmArray.addObject();
+                    itmObj.put("num", itm.num());
+                    ObjectNode itmDet = itmObj.putObject("itm_det");
+                    itmDet.put("txval", itm.txval().setScale(2, RoundingMode.HALF_UP));
+                    itmDet.put("rt", itm.rt().setScale(2, RoundingMode.HALF_UP));
+                    itmDet.put("iamt", itm.iamt().setScale(2, RoundingMode.HALF_UP));
+                    itmDet.put("camt", itm.camt().setScale(2, RoundingMode.HALF_UP));
+                    itmDet.put("samt", itm.samt().setScale(2, RoundingMode.HALF_UP));
+                    itmDet.put("csamt", itm.csamt().setScale(2, RoundingMode.HALF_UP));
+                }
+            }
+        }
+
+        // CDNUR Section (Table 9C: Unregistered Credit & Debit Notes)
+        if (gstr1.cdnur() != null && !gstr1.cdnur().isEmpty()) {
+            ArrayNode cdnurArray = root.putArray("cdnur");
+            for (Gstr1Dtos.Gstr1CdnurNoteDto note : gstr1.cdnur()) {
+                ObjectNode nNode = cdnurArray.addObject();
+                nNode.put("typ", note.typ());
                 nNode.put("nt_num", note.nt_num());
                 nNode.put("nt_dt", note.nt_dt());
                 nNode.put("ntty", note.ntty());

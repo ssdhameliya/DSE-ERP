@@ -73,7 +73,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 public class SalesController implements ScreenLifecycle {
-    @FXML private Button btnAddCustomer;
+    @FXML
+    private Button btnAddCustomer;
 
     @FXML
     private VBox salesEntryRoot;
@@ -95,30 +96,47 @@ public class SalesController implements ScreenLifecycle {
 
     @FXML
     private DatePicker dpInvoiceDate;
-    @FXML private DatePicker txtPoDate;
-    @FXML private ComboBox<String> cmbSalesPerson,cmbPaymentTerms;
-    @FXML private ComboBox<String> cmbGstType,cmbChargeType;
-    @FXML private ComboBox<Lookup> cmbTransporter;
-    @FXML private TextField txtOtherCharges,txtTransport,txtReference,txtAttachment;
-    @FXML private TextField txtVehicleNumber,txtContactPerson,txtContactPersonMobile,txtTransportNote,txtOrderNo;
-    @FXML private TextField txtBillingGstin,txtDeliveryGstin,txtTransporterGstin,txtChargeAmount;
-    @FXML private CheckBox chkSameAsBilling;
-    @FXML private TextArea txtInvoiceMessage;
+    @FXML
+    private DatePicker txtPoDate;
+    @FXML
+    private ComboBox<String> cmbSalesPerson, cmbPaymentTerms;
+    @FXML
+    private ComboBox<String> cmbGstType, cmbChargeType;
+    @FXML
+    private ComboBox<Lookup> cmbTransporter;
+    @FXML
+    private TextField txtOtherCharges, txtTransport, txtReference, txtAttachment;
+    @FXML
+    private TextField txtVehicleNumber, txtContactPerson, txtContactPersonMobile, txtTransportNote, txtOrderNo;
+    @FXML
+    private TextField txtBillingGstin, txtDeliveryGstin, txtTransporterGstin, txtChargeAmount;
+    @FXML
+    private CheckBox chkSameAsBilling;
+    @FXML
+    private TextArea txtInvoiceMessage;
 
     @FXML
     private ComboBox<Party> cmbCustomer;
 
     @FXML
     private TextField txtItemSearch;
-    @FXML private StackPane itemSearchIconBox;
-    @FXML private HBox stockPositionBar;
-    @FXML private Label lblStockOnHand,lblStockReserved,lblStockAvailable,lblStockAfterSale,lblStockState;
+    @FXML
+    private StackPane itemSearchIconBox;
+    @FXML
+    private HBox stockPositionBar;
+    @FXML
+    private Label lblStockOnHand, lblStockReserved, lblStockAvailable, lblStockAfterSale, lblStockState;
 
     @FXML
     private TextArea txtRemarks;
-    @FXML private TextArea txtBillingAddress;
-    /** Displays the selected customer's billing address using the same control pattern as Create Purchase. */
-    @FXML private TextArea txtDeliveryAddress;
+    @FXML
+    private TextArea txtBillingAddress;
+    /**
+     * Displays the selected customer's billing address using the same control
+     * pattern as Create Purchase.
+     */
+    @FXML
+    private TextArea txtDeliveryAddress;
 
     @FXML
     private Label lblInvoiceDisplay;
@@ -135,7 +153,9 @@ public class SalesController implements ScreenLifecycle {
     @FXML
     private Label lblGrandTotal;
 
-    @FXML private Label lblTotalItems, lblBottomDiscount, lblBottomTax, lblBottomCharges, lblBottomNet, lblTaxableAmount, lblChargeCaption, lblCharges;
+    @FXML
+    private Label lblTotalItems, lblBottomDiscount, lblBottomTax, lblBottomCharges, lblBottomNet, lblTaxableAmount,
+            lblChargeCaption, lblCharges;
 
     @FXML
     private TableView<SalesLine> tableLines;
@@ -173,36 +193,35 @@ public class SalesController implements ScreenLifecycle {
 
     @FXML
     private Button btnAddLine;
-    @FXML private Button btnRemoveLine;
-    @FXML private Button btnManageCharges;
-    @FXML private Label lblChargeManagerSummary, lblAttachmentName;
-    @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove;
-
-
+    @FXML
+    private Button btnRemoveLine;
+    @FXML
+    private Button btnManageCharges;
+    @FXML
+    private Label lblChargeManagerSummary, lblAttachmentName;
+    @FXML
+    private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove;
 
     @FXML
-    private Button btnSaveSale;
+    private Button btnSaveSale, btnPrintDispatchBarcode;
 
-    //-------------------------------------------------------
+    // -------------------------------------------------------
     // Services
-    //-------------------------------------------------------
+    // -------------------------------------------------------
 
-    private final ItemService itemService =
-        new ItemService();
+    private final ItemService itemService = new ItemService();
 
-    private final PartyService partyService =
-        new PartyService();
+    private final PartyService partyService = new PartyService();
 
-    private final SalesService salesService =
-        new SalesService();
+    private final SalesService salesService = new SalesService();
 
     private final LookupService lookupService = new LookupService();
     private final MasterApiClient masterApi = new MasterApiClient();
     private final SupportApiClient supportApi = new SupportApiClient();
 
-    //-------------------------------------------------------
+    // -------------------------------------------------------
     // Editing
-    //-------------------------------------------------------
+    // -------------------------------------------------------
 
     private Sales editingSale = null;
     private String companyGstin = "";
@@ -226,14 +245,17 @@ public class SalesController implements ScreenLifecycle {
     private final ObservableList<SalesCharge> invoiceCharges = FXCollections.observableArrayList();
     private final ObservableList<String> availableChargeTypes = FXCollections.observableArrayList();
 
-    //-------------------------------------------------------
+    // -------------------------------------------------------
     // Initialize
-    //-------------------------------------------------------
+    // -------------------------------------------------------
 
     @FXML
     public void initialize() {
         DatePickerFormatter.attachAll(dpInvoiceDate, txtPoDate);
-        if (btnAddCustomer != null) { btnAddCustomer.setGraphic(IconFactory.compactIcon("customer", 20)); btnAddCustomer.getProperties().put("erp-icon-preserve", true); }
+        if (btnAddCustomer != null) {
+            btnAddCustomer.setGraphic(IconFactory.compactIcon("customer", 20));
+            btnAddCustomer.getProperties().put("erp-icon-preserve", true);
+        }
         if (chkSameAsBilling != null) {
             // Keep this control as a conventional checkbox + label. A zero-size,
             // controller-owned graphic prevents the global action decorator from
@@ -255,14 +277,24 @@ public class SalesController implements ScreenLifecycle {
 
         setupEditableColumns();
         Platform.runLater(this::decorateActions);
-        cmbSalesPerson.getItems().setAll("Admin","Ajay Shah","Rahul Mehta");cmbSalesPerson.setValue("Admin");
+        cmbSalesPerson.getItems().setAll("Admin", "Ajay Shah", "Rahul Mehta");
+        cmbSalesPerson.setValue("Admin");
         if (btnManageCharges != null) {
             btnManageCharges.setGraphic(IconFactory.compactIcon("payment", 15));
             btnManageCharges.getProperties().put("erp-icon-preserve", true);
         }
-        if (btnAttachmentAdd != null) { btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment", 14)); btnAttachmentAdd.getProperties().put("erp-icon-preserve", true); }
-        if (btnAttachmentPreview != null) { btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view", 14)); btnAttachmentPreview.getProperties().put("erp-icon-preserve", true); }
-        if (btnAttachmentRemove != null) { btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete", 14)); btnAttachmentRemove.getProperties().put("erp-icon-preserve", true); }
+        if (btnAttachmentAdd != null) {
+            btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment", 14));
+            btnAttachmentAdd.getProperties().put("erp-icon-preserve", true);
+        }
+        if (btnAttachmentPreview != null) {
+            btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view", 14));
+            btnAttachmentPreview.getProperties().put("erp-icon-preserve", true);
+        }
+        if (btnAttachmentRemove != null) {
+            btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete", 14));
+            btnAttachmentRemove.getProperties().put("erp-icon-preserve", true);
+        }
         refreshAttachmentUi();
         updateChargeManagerSummary();
 
@@ -289,125 +321,140 @@ public class SalesController implements ScreenLifecycle {
         // the selector/listeners immediately so the page is interactive before
         // any API-backed master data arrives.
         configureTransporterSelector();
-        cmbGstType.valueProperty().addListener((o,a,b) -> updateGstHeaders());
+        cmbGstType.valueProperty().addListener((o, a, b) -> updateGstHeaders());
         updateGstHeaders();
 
-        invoiceCharges.addListener((javafx.collections.ListChangeListener<SalesCharge>) change -> {updateChargeManagerSummary();recalculate();});
+        invoiceCharges.addListener((javafx.collections.ListChangeListener<SalesCharge>) change -> {
+            updateChargeManagerSummary();
+            recalculate();
+        });
 
         tableLines.getSelectionModel()
-            .selectedItemProperty()
-            .addListener((obs, oldLine, newLine) -> {
+                .selectedItemProperty()
+                .addListener((obs, oldLine, newLine) -> {
 
-                if (newLine == null)
-                    return;
+                    if (newLine == null)
+                        return;
 
-                editingLine = newLine;
+                    editingLine = newLine;
 
-                editingIndex =
-                    tableLines.getSelectionModel()
-                        .getSelectedIndex();
+                    editingIndex = tableLines.getSelectionModel()
+                            .getSelectedIndex();
 
-                txtQuantity.setText(
-                    String.valueOf(
-                        newLine.getQuantity()));
+                    txtQuantity.setText(
+                            String.valueOf(
+                                    newLine.getQuantity()));
 
-                txtRate.setText(
-                    String.valueOf(
-                        newLine.getRate()));
+                    txtRate.setText(
+                            String.valueOf(
+                                    newLine.getRate()));
 
-                txtGST.setText(
-                    String.valueOf(
-                        newLine.getGstPercent()));
+                    txtGST.setText(
+                            String.valueOf(
+                                    newLine.getGstPercent()));
 
-                txtLineDiscount.setText(String.valueOf(newLine.getDiscountPercent()));
+                    txtLineDiscount.setText(String.valueOf(newLine.getDiscountPercent()));
 
-                Item cachedItem = allItems.stream()
-                    .filter(item -> safeItem(item.getItemCode()).equalsIgnoreCase(safeItem(newLine.getItemCode())))
-                    .findFirst().orElse(null);
-                if (cachedItem != null) {
-                    selectItem(cachedItem, false);
-                } else if (!safeItem(newLine.getItemCode()).isBlank()) {
-                    String code = newLine.getItemCode();
-                    UiTaskExecutor.submitLatest(
-                        "create-sale-line-item-lookup",
-                        () -> itemService.search(code, 12),
-                        matches -> matches.stream()
-                            .filter(item -> safeItem(item.getItemCode()).equalsIgnoreCase(safeItem(code)))
-                            .findFirst()
-                            .ifPresent(item -> { mergeItemCache(List.of(item)); selectItem(item, false); }),
-                        error -> System.err.println("Create Sale line item lookup: " + rootMessage(error))
-                    );
-                }
+                    Item cachedItem = allItems.stream()
+                            .filter(item -> safeItem(item.getItemCode())
+                                    .equalsIgnoreCase(safeItem(newLine.getItemCode())))
+                            .findFirst().orElse(null);
+                    if (cachedItem != null) {
+                        selectItem(cachedItem, false);
+                    } else if (!safeItem(newLine.getItemCode()).isBlank()) {
+                        String code = newLine.getItemCode();
+                        UiTaskExecutor.submitLatest(
+                                "create-sale-line-item-lookup",
+                                () -> itemService.search(code, 12),
+                                matches -> matches.stream()
+                                        .filter(item -> safeItem(item.getItemCode()).equalsIgnoreCase(safeItem(code)))
+                                        .findFirst()
+                                        .ifPresent(item -> {
+                                            mergeItemCache(List.of(item));
+                                            selectItem(item, false);
+                                        }),
+                                error -> System.err.println("Create Sale line item lookup: " + rootMessage(error)));
+                    }
 
-            });
+                });
 
-        //-------------------------------------------------------
+        // -------------------------------------------------------
         // Customer Combo
-        //-------------------------------------------------------
+        // -------------------------------------------------------
 
-        cmbCustomer.setCellFactory(list ->
-            new ListCell<>() {
+        cmbCustomer.setCellFactory(list -> new ListCell<>() {
 
-                @Override
-                protected void updateItem(
+            @Override
+            protected void updateItem(
                     Party party,
                     boolean empty) {
 
-                    super.updateItem(party, empty);
+                super.updateItem(party, empty);
 
-                    setText(
+                setText(
 
                         empty || party == null
 
-                            ? null
+                                ? null
 
-                            : party.getPartyCode()
-                              + " - "
-                              + party.getName()
+                                : party.getPartyCode()
+                                        + " - "
+                                        + party.getName()
 
-                    );
+                );
 
-                }
+            }
 
-            });
+        });
 
         cmbCustomer.setButtonCell(
-            new ListCell<>() {
+                new ListCell<>() {
 
-                @Override
-                protected void updateItem(
-                    Party party,
-                    boolean empty) {
+                    @Override
+                    protected void updateItem(
+                            Party party,
+                            boolean empty) {
 
-                    super.updateItem(party, empty);
+                        super.updateItem(party, empty);
 
-                    setText(
+                        setText(
 
-                        empty || party == null
+                                empty || party == null
 
-                            ? null
+                                        ? null
 
-                            : party.getPartyCode()
-                              + " - "
-                              + party.getName()
+                                        : party.getPartyCode()
+                                                + " - "
+                                                + party.getName()
 
-                    );
+                );
 
-                }
+                    }
 
-            });
+                });
 
         cmbCustomer.setEditable(true);
         cmbCustomer.setConverter(new StringConverter<>() {
-            @Override public String toString(Party party) { return party == null ? "" : safeParty(party.getPartyCode()) + " - " + safeParty(party.getName()); }
-            @Override public Party fromString(String text) {
-                if (text == null || text.isBlank()) return null;
-                return cmbCustomer.getItems().stream().filter(p -> customerDisplay(p).equalsIgnoreCase(text.trim()) || safeParty(p.getPartyCode()).equalsIgnoreCase(text.trim()) || safeParty(p.getName()).equalsIgnoreCase(text.trim())).findFirst().orElse(null);
+            @Override
+            public String toString(Party party) {
+                return party == null ? "" : safeParty(party.getPartyCode()) + " - " + safeParty(party.getName());
+            }
+
+            @Override
+            public Party fromString(String text) {
+                if (text == null || text.isBlank())
+                    return null;
+                return cmbCustomer.getItems().stream()
+                        .filter(p -> customerDisplay(p).equalsIgnoreCase(text.trim())
+                                || safeParty(p.getPartyCode()).equalsIgnoreCase(text.trim())
+                                || safeParty(p.getName()).equalsIgnoreCase(text.trim()))
+                        .findFirst().orElse(null);
             }
         });
         customerSearchDebounce.setOnFinished(event -> searchCustomers(cmbCustomer.getEditor().getText()));
         cmbCustomer.getEditor().textProperty().addListener((obs, oldText, text) -> {
-            if (updatingCustomerSearch || !cmbCustomer.getEditor().isFocused()) return;
+            if (updatingCustomerSearch || !cmbCustomer.getEditor().isFocused())
+                return;
             Party committed = cmbCustomer.getValue();
             if (committed != null && customerDisplay(committed).equalsIgnoreCase(safeParty(text))) {
                 customerSearchDebounce.stop();
@@ -416,44 +463,56 @@ public class SalesController implements ScreenLifecycle {
             customerSearchDebounce.playFromStart();
         });
         cmbCustomer.showingProperty().addListener((obs, oldValue, showing) -> {
-            if (showing && cmbCustomer.getItems().isEmpty()) searchCustomers("");
+            if (showing && cmbCustomer.getItems().isEmpty())
+                searchCustomers("");
         });
 
         cmbCustomer.valueProperty().addListener((observable, oldCustomer, customer) -> {
             // loadSale() and the asynchronous bootstrap both re-bind persisted
             // edit selections. During that re-bind the saved invoice addresses
             // must not be replaced by today's master-data address.
-            if (loadingSaleForEdit && editingSale != null) return;
+            if (loadingSaleForEdit && editingSale != null)
+                return;
             if (customer != null) {
                 customerSearchDebounce.stop();
                 UiTaskExecutor.cancel("create-sale-customer-search");
                 updatingCustomerSearch = true;
                 try {
                     String display = customerDisplay(customer);
-                    if (!display.equals(cmbCustomer.getEditor().getText())) cmbCustomer.getEditor().setText(display);
-                } finally { updatingCustomerSearch = false; }
+                    if (!display.equals(cmbCustomer.getEditor().getText()))
+                        cmbCustomer.getEditor().setText(display);
+                } finally {
+                    updatingCustomerSearch = false;
+                }
             }
             if (customer == null) {
-                if (cmbCustomer.isEditable() && cmbCustomer.getEditor().isFocused() && !cmbCustomer.getEditor().getText().isBlank()) return;
+                if (cmbCustomer.isEditable() && cmbCustomer.getEditor().isFocused()
+                        && !cmbCustomer.getEditor().getText().isBlank())
+                    return;
                 txtBillingAddress.clear();
-                if (txtBillingGstin != null) txtBillingGstin.clear();
-                if (txtDeliveryGstin != null) txtDeliveryGstin.clear();
-                if (editingSale == null && txtDeliveryAddress != null) txtDeliveryAddress.clear();
+                if (txtBillingGstin != null)
+                    txtBillingGstin.clear();
+                if (txtDeliveryGstin != null)
+                    txtDeliveryGstin.clear();
+                if (editingSale == null && txtDeliveryAddress != null)
+                    txtDeliveryAddress.clear();
                 return;
             }
             String address = customer.getAddress() == null ? "" : customer.getAddress().trim();
             txtBillingAddress.setText(address);
-            if (txtBillingGstin != null && (editingSale == null || txtBillingGstin.getText() == null || txtBillingGstin.getText().isBlank())) {
+            if (txtBillingGstin != null && (editingSale == null || txtBillingGstin.getText() == null
+                    || txtBillingGstin.getText().isBlank())) {
                 txtBillingGstin.setText(customer.getGstin() == null ? "" : customer.getGstin());
             }
-            if (editingSale == null && chkSameAsBilling != null) chkSameAsBilling.setSelected(true);
+            if (editingSale == null && chkSameAsBilling != null)
+                chkSameAsBilling.setSelected(true);
             syncDeliveryAddressState();
             suggestGstTypeFromGstin();
         });
 
-        //-------------------------------------------------------
+        // -------------------------------------------------------
         // Item Combo
-        //-------------------------------------------------------
+        // -------------------------------------------------------
 
         configureItemSearch();
         installBusinessFocusOrder();
@@ -465,69 +524,89 @@ public class SalesController implements ScreenLifecycle {
 
     }
 
-
     private void installBusinessFocusOrder() {
         WorkflowFocusManager.install(java.util.List.of(
-                cmbCustomer, txtOrderNo, dpInvoiceDate, txtPoDate, cmbPaymentTerms,
+                cmbCustomer, dpInvoiceDate, cmbPaymentTerms, txtPoDate, txtOrderNo,
                 txtItemSearch, txtQuantity, txtRate, txtLineDiscount, txtGST, btnAddLine, btnSaveSale));
         WorkflowFocusManager.selectAllOnFocus(txtQuantity);
         WorkflowFocusManager.selectAllOnFocus(txtRate);
         WorkflowFocusManager.selectAllOnFocus(txtLineDiscount);
         WorkflowFocusManager.selectAllOnFocus(txtGST);
         txtGST.setOnKeyPressed(event -> {
-            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) { btnAddLine.fire(); event.consume(); }
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                btnAddLine.fire();
+                event.consume();
+            }
         });
         btnAddLine.setOnKeyPressed(event -> {
-            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) { btnAddLine.fire(); event.consume(); }
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                btnAddLine.fire();
+                event.consume();
+            }
         });
-        if (salesEntryRoot != null) salesEntryRoot.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
-            if (event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.S) { btnSaveSale.fire(); event.consume(); }
-        });
+        if (salesEntryRoot != null)
+            salesEntryRoot.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+                if ((event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.S)
+                        || event.getCode() == javafx.scene.input.KeyCode.F10) {
+                    btnSaveSale.fire();
+                    event.consume();
+                } else if (event.getCode() == javafx.scene.input.KeyCode.F2) {
+                    WorkflowFocusManager.initial(txtItemSearch);
+                    event.consume();
+                }
+            });
     }
 
     private void loadSaleBootstrapAsync() {
         UiTaskExecutor.submitLatest(
-            "create-sale-bootstrap",
-            this::loadSaleBootstrap,
-            this::applySaleBootstrap,
-            this::handleSaleBootstrapFailure
-        );
+                "create-sale-bootstrap",
+                this::loadSaleBootstrap,
+                this::applySaleBootstrap,
+                this::handleSaleBootstrapFailure);
     }
 
     private SaleBootstrap loadSaleBootstrap() {
         List<String> errors = new ArrayList<>();
         List<String> paymentTerms = List.of(), charges = List.of(), gstTypes = List.of();
-        List<Lookup> transporters = List.of(); List<Party> customers = List.of(); List<Item> items = List.of();
+        List<Lookup> transporters = List.of();
+        List<Party> customers = List.of();
+        List<Item> items = List.of();
         try {
             if (ConfigManager.isApiDataEnabled()) {
                 MasterApiClient.SalesEntryBootstrap master = masterApi.salesEntryBootstrap();
-                paymentTerms = master.paymentTerms()==null?List.of():master.paymentTerms();
-                charges = master.chargeTypes()==null?List.of():master.chargeTypes();
-                gstTypes = master.gstTypes()==null?List.of():master.gstTypes();
-                transporters = master.transporters()==null?List.of():master.transporters();
-                customers = master.customers()==null?List.of():master.customers();
+                paymentTerms = master.paymentTerms() == null ? List.of() : master.paymentTerms();
+                charges = master.chargeTypes() == null ? List.of() : master.chargeTypes();
+                gstTypes = master.gstTypes() == null ? List.of() : master.gstTypes();
+                transporters = master.transporters() == null ? List.of() : master.transporters();
+                customers = master.customers() == null ? List.of() : master.customers();
             } else {
                 paymentTerms = lookupService.getValuesByCategoryCode("PAYMENT_TERMS");
                 charges = lookupService.getValuesByCategoryCode("CHARGES");
                 gstTypes = lookupService.getValuesByCategoryCode("GST_TYPE");
                 transporters = lookupService.getByCategoryCode("TRANSPORTER");
-                customers = partyService.search("CUSTOMER","",40);
+                customers = partyService.search("CUSTOMER", "", 40);
             }
         } catch (Exception exception) {
             errors.add("Master bootstrap: " + rootMessage(exception));
             // Keep Create Sale usable if an older/local server does not yet expose
             // the consolidated bootstrap endpoint. These fallbacks still execute
             // on UiTaskExecutor, never on the JavaFX Application Thread.
-            paymentTerms = loadOrDefault("Payment Terms", errors, () -> lookupService.getValuesByCategoryCode("PAYMENT_TERMS"), List.of());
-            charges = loadOrDefault("Charges", errors, () -> lookupService.getValuesByCategoryCode("CHARGES"), List.of());
-            gstTypes = loadOrDefault("GST Types", errors, () -> lookupService.getValuesByCategoryCode("GST_TYPE"), List.of());
-            transporters = loadOrDefault("Transporters", errors, () -> lookupService.getByCategoryCode("TRANSPORTER"), List.of());
+            paymentTerms = loadOrDefault("Payment Terms", errors,
+                    () -> lookupService.getValuesByCategoryCode("PAYMENT_TERMS"), List.of());
+            charges = loadOrDefault("Charges", errors, () -> lookupService.getValuesByCategoryCode("CHARGES"),
+                    List.of());
+            gstTypes = loadOrDefault("GST Types", errors, () -> lookupService.getValuesByCategoryCode("GST_TYPE"),
+                    List.of());
+            transporters = loadOrDefault("Transporters", errors, () -> lookupService.getByCategoryCode("TRANSPORTER"),
+                    List.of());
             customers = loadOrDefault("Customers", errors, () -> partyService.search("CUSTOMER", "", 40), List.of());
         }
         items = loadOrDefault("Items", errors, itemService::getAll, List.of());
         String invoiceNo = loadOrDefault("Next Invoice No", errors, salesService::nextInvoiceNo, "");
-        String loadedCompanyGstin = loadOrDefault("Company GSTIN", errors, () -> ConfigManager.get("company.gstin", ""), "");
-        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters, customers, items, invoiceNo, loadedCompanyGstin, List.copyOf(errors));
+        String loadedCompanyGstin = loadOrDefault("Company GSTIN", errors, () -> ConfigManager.get("company.gstin", ""),
+                "");
+        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters, customers, items, invoiceNo,
+                loadedCompanyGstin, List.copyOf(errors));
     }
 
     private <T> T loadOrDefault(String label, List<String> errors, Supplier<T> loader, T fallback) {
@@ -541,12 +620,14 @@ public class SalesController implements ScreenLifecycle {
     }
 
     private void applySaleBootstrap(SaleBootstrap bootstrap) {
-        if (bootstrap == null) return;
+        if (bootstrap == null)
+            return;
         companyGstin = bootstrap.companyGstin() == null ? "" : bootstrap.companyGstin();
 
         cmbPaymentTerms.getItems().setAll(bootstrap.paymentTerms());
         availableChargeTypes.setAll(bootstrap.chargeTypes());
-        if (cmbChargeType != null) cmbChargeType.getItems().setAll(availableChargeTypes);
+        if (cmbChargeType != null)
+            cmbChargeType.getItems().setAll(availableChargeTypes);
         cmbGstType.getItems().setAll(bootstrap.gstTypes());
         cmbTransporter.getItems().setAll(bootstrap.transporters());
         cmbCustomer.setItems(FXCollections.observableArrayList(bootstrap.customers()));
@@ -554,33 +635,44 @@ public class SalesController implements ScreenLifecycle {
         itemSearchIndex.clear();
         allItems.forEach(item -> itemSearchIndex.put(item, buildItemSearchHaystack(item)));
 
-        String requestedItemCode = editingSale == null && duplicateSource == null ? ItemTransactionContext.consumeSale() : null;
-        if (requestedItemCode != null && !requestedItemCode.isBlank()) allItems.stream().filter(i -> requestedItemCode.equalsIgnoreCase(i.getItemCode())).findFirst().ifPresent(this::selectItem);
+        String requestedItemCode = editingSale == null && duplicateSource == null ? ItemTransactionContext.consumeSale()
+                : null;
+        if (requestedItemCode != null && !requestedItemCode.isBlank())
+            allItems.stream().filter(i -> requestedItemCode.equalsIgnoreCase(i.getItemCode())).findFirst()
+                    .ifPresent(this::selectItem);
 
         Sales source = editingSale != null ? editingSale : duplicateSource;
         Integer requestedCustomerId = source == null ? CustomerSaleContext.consume() : null;
         if (source == null) {
             selectDefaultPaymentTerms();
-            if (!cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
+            if (!cmbGstType.getItems().isEmpty())
+                cmbGstType.getSelectionModel().selectFirst();
             if (!bootstrap.invoiceNo().isBlank()) {
                 txtInvoiceNo.setText(bootstrap.invoiceNo());
-                if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(bootstrap.invoiceNo());
+                if (lblInvoiceDisplay != null)
+                    lblInvoiceDisplay.setText(bootstrap.invoiceNo());
             } else if ("Loading...".equals(txtInvoiceNo.getText())) {
                 txtInvoiceNo.clear();
             }
             if (requestedCustomerId != null) {
                 Party selectedCustomer = cmbCustomer.getItems().stream()
-                    .filter(party -> party.getId() == requestedCustomerId)
-                    .findFirst().orElse(null);
+                        .filter(party -> party.getId() == requestedCustomerId)
+                        .findFirst().orElse(null);
                 if (selectedCustomer != null) {
                     cmbCustomer.setValue(selectedCustomer);
                     WorkflowFocusManager.initial(txtItemSearch);
                 } else {
                     UiTaskExecutor.submitLatest("create-sale-360-customer-lookup",
-                        () -> partyService.search("CUSTOMER", "", 100),
-                        customers -> customers.stream().filter(party -> party.getId() == requestedCustomerId).findFirst()
-                            .ifPresent(party -> { if (!cmbCustomer.getItems().contains(party)) cmbCustomer.getItems().add(party); cmbCustomer.setValue(party); WorkflowFocusManager.initial(txtItemSearch); }),
-                        error -> System.err.println("Customer 360 sale preselection: " + rootMessage(error)));
+                            () -> partyService.search("CUSTOMER", "", 100),
+                            customers -> customers.stream().filter(party -> party.getId() == requestedCustomerId)
+                                    .findFirst()
+                                    .ifPresent(party -> {
+                                        if (!cmbCustomer.getItems().contains(party))
+                                            cmbCustomer.getItems().add(party);
+                                        cmbCustomer.setValue(party);
+                                        WorkflowFocusManager.initial(txtItemSearch);
+                                    }),
+                            error -> System.err.println("Customer 360 sale preselection: " + rootMessage(error)));
                 }
             } else {
                 WorkflowFocusManager.initial(cmbCustomer);
@@ -595,37 +687,44 @@ public class SalesController implements ScreenLifecycle {
                 String terms = source.getPaymentTerms();
                 cmbPaymentTerms.setValue(terms == null || terms.isBlank() ? "15 Days" : terms);
                 String gstType = source.getGstType();
-                if (gstType != null && !gstType.isBlank()) cmbGstType.setValue(gstType);
+                if (gstType != null && !gstType.isBlank())
+                    cmbGstType.setValue(gstType);
                 if (source.getTransporter() != null && !source.getTransporter().isBlank()) {
                     cmbTransporter.getItems().stream()
-                        .filter(value -> value.getLookupValue().equalsIgnoreCase(source.getTransporter()))
-                        .findFirst().ifPresent(cmbTransporter::setValue);
+                            .filter(value -> value.getLookupValue().equalsIgnoreCase(source.getTransporter()))
+                            .findFirst().ifPresent(cmbTransporter::setValue);
                 }
                 if (source.getCustomer() != null) {
                     int customerId = source.getCustomer().getId();
                     Party loadedCustomer = cmbCustomer.getItems().stream()
-                        .filter(party -> party.getId() == customerId)
-                        .findFirst().orElse(null);
-                    if (loadedCustomer != null) cmbCustomer.setValue(loadedCustomer);
+                            .filter(party -> party.getId() == customerId)
+                            .findFirst().orElse(null);
+                    if (loadedCustomer != null)
+                        cmbCustomer.setValue(loadedCustomer);
                     else {
                         String customerQuery = source.getCustomer().getPartyCode();
                         UiTaskExecutor.submitLatest("create-sale-edit-customer-lookup",
-                            () -> partyService.search("CUSTOMER", customerQuery, 20),
-                            customers -> customers.stream().filter(party -> party.getId() == customerId).findFirst().ifPresent(party -> { cmbCustomer.getItems().add(party); cmbCustomer.setValue(party); }),
-                            error -> System.err.println("Create Sale customer lookup: " + rootMessage(error)));
+                                () -> partyService.search("CUSTOMER", customerQuery, 20),
+                                customers -> customers.stream().filter(party -> party.getId() == customerId).findFirst()
+                                        .ifPresent(party -> {
+                                            cmbCustomer.getItems().add(party);
+                                            cmbCustomer.setValue(party);
+                                        }),
+                                error -> System.err.println("Create Sale customer lookup: " + rootMessage(error)));
                     }
                 }
                 if (duplicateSource != null && !bootstrap.invoiceNo().isBlank()) {
                     txtInvoiceNo.setText(bootstrap.invoiceNo());
-                    if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(bootstrap.invoiceNo());
+                    if (lblInvoiceDisplay != null)
+                        lblInvoiceDisplay.setText(bootstrap.invoiceNo());
                 }
             } finally {
                 loadingSaleForEdit = previousLoadingState;
             }
         }
 
-
-        if (!bootstrap.errors().isEmpty()) showSaleBootstrapWarning(bootstrap.errors());
+        if (!bootstrap.errors().isEmpty())
+            showSaleBootstrapWarning(bootstrap.errors());
     }
 
     private void handleSaleBootstrapFailure(Throwable error) {
@@ -633,26 +732,27 @@ public class SalesController implements ScreenLifecycle {
     }
 
     private void showSaleBootstrapWarning(List<String> errors) {
-        if (errors == null || errors.isEmpty() || Boolean.getBoolean("dse.headless.snapshot")) return;
+        if (errors == null || errors.isEmpty() || Boolean.getBoolean("dse.headless.snapshot"))
+            return;
         System.err.println("Create Sale initialization: " + String.join(" | ", errors));
         new OwnedAlert(Alert.AlertType.WARNING,
-            "Create Sale opened, but some API-backed master data could not be loaded.\n\n" +
-            String.join("\n", errors) +
-            "\n\nCheck that the Spring server is running and review its console for the matching endpoint error.")
-            .showAndWait();
+                "Create Sale opened, but some API-backed master data could not be loaded.\n\n" +
+                        String.join("\n", errors) +
+                        "\n\nCheck that the Spring server is running and review its console for the matching endpoint error.")
+                .showAndWait();
     }
 
     private record SaleBootstrap(
-        List<String> paymentTerms,
-        List<String> chargeTypes,
-        List<String> gstTypes,
-        List<Lookup> transporters,
-        List<Party> customers,
-        List<Item> items,
-        String invoiceNo,
-        String companyGstin,
-        List<String> errors
-    ) { }
+            List<String> paymentTerms,
+            List<String> chargeTypes,
+            List<String> gstTypes,
+            List<Lookup> transporters,
+            List<Party> customers,
+            List<Item> items,
+            String invoiceNo,
+            String companyGstin,
+            List<String> errors) {
+    }
 
     /**
      * Suggests intra-state versus inter-state tax from the first two GSTIN
@@ -660,20 +760,22 @@ public class SalesController implements ScreenLifecycle {
      * override the suggested GST type afterwards.
      */
     private void suggestGstTypeFromGstin() {
-        if (cmbGstType == null || txtBillingGstin == null) return;
+        if (cmbGstType == null || txtBillingGstin == null)
+            return;
         DocumentLookupPolicy.suggestedGstType(
-            companyGstin, txtBillingGstin.getText(), cmbGstType.getItems()
-        ).ifPresent(cmbGstType::setValue);
+                companyGstin, txtBillingGstin.getText(), cmbGstType.getItems()).ifPresent(cmbGstType::setValue);
     }
 
-
     private void configureItemSearch() {
-        if (itemSearchIconBox != null) itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
-        itemSuggestions.getStyleClass().addAll("sales-entry-item-suggestions","erp-item-suggestions");
+        if (itemSearchIconBox != null)
+            itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
+        itemSuggestions.getStyleClass().addAll("sales-entry-item-suggestions", "erp-item-suggestions");
         itemSearchDebounce.setOnFinished(event -> refreshItemSuggestions(txtItemSearch.getText()));
-        if (txtQuantity != null) txtQuantity.textProperty().addListener((o,a,b)->updateSaleStockPosition());
+        if (txtQuantity != null)
+            txtQuantity.textProperty().addListener((o, a, b) -> updateSaleStockPosition());
         txtItemSearch.textProperty().addListener((obs, oldText, text) -> {
-            if (updatingItemSearch) return;
+            if (updatingItemSearch)
+                return;
             selectedItem = null;
             // Rebuilding a ContextMenu (including icons) for every physical
             // keystroke is expensive on high-DPI displays. A short debounce keeps
@@ -681,159 +783,237 @@ public class SalesController implements ScreenLifecycle {
             itemSearchDebounce.playFromStart();
         });
         txtItemSearch.focusedProperty().addListener((obs, oldValue, focused) -> {
-            if (focused && !txtItemSearch.getText().isBlank()) refreshItemSuggestions(txtItemSearch.getText());
-            else if (!focused) itemSuggestions.hide();
+            if (focused && !txtItemSearch.getText().isBlank())
+                refreshItemSuggestions(txtItemSearch.getText());
+            else if (!focused)
+                itemSuggestions.hide();
         });
         txtItemSearch.setOnKeyPressed(event -> {
-            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) itemSuggestions.hide();
+            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE)
+                itemSuggestions.hide();
             if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
                 Item match = resolveTypedItem(txtItemSearch.getText());
-                if (match != null) selectItem(match);
+                if (match != null)
+                    selectItem(match);
             }
         });
     }
 
     private void refreshItemSuggestions(String text) {
         String query = text == null ? "" : text.trim();
-        if (query.isBlank() || !txtItemSearch.isFocused()) { itemSuggestions.hide(); return; }
+        if (query.isBlank() || !txtItemSearch.isFocused()) {
+            itemSuggestions.hide();
+            return;
+        }
         UiTaskExecutor.submitLatest(
-            "create-sale-item-search",
-            () -> itemService.search(query, 12),
-            matches -> {
-                if (!txtItemSearch.isFocused() || !safeItem(txtItemSearch.getText()).equalsIgnoreCase(query)) return;
-                mergeItemCache(matches);
-                itemSuggestions.getItems().clear();
-                for (Item item : matches) {
-                    MenuItem option = new MenuItem(itemSearchSuggestionDisplay(item));
-                    option.setOnAction(event -> selectItem(item));
-                    itemSuggestions.getItems().add(option);
-                }
-                if (matches.isEmpty()) itemSuggestions.hide();
-                else if (!itemSuggestions.isShowing()) itemSuggestions.show(txtItemSearch, Side.BOTTOM, 0, 2);
-            },
-            error -> System.err.println("Create Sale item search: " + rootMessage(error))
-        );
+                "create-sale-item-search",
+                () -> itemService.search(query, 12),
+                matches -> {
+                    if (!txtItemSearch.isFocused() || !safeItem(txtItemSearch.getText()).equalsIgnoreCase(query))
+                        return;
+                    mergeItemCache(matches);
+                    itemSuggestions.getItems().clear();
+                    for (Item item : matches) {
+                        MenuItem option = new MenuItem(itemSearchSuggestionDisplay(item));
+                        option.setOnAction(event -> selectItem(item));
+                        itemSuggestions.getItems().add(option);
+                    }
+                    if (matches.isEmpty())
+                        itemSuggestions.hide();
+                    else if (!itemSuggestions.isShowing())
+                        itemSuggestions.show(txtItemSearch, Side.BOTTOM, 0, 2);
+                },
+                error -> System.err.println("Create Sale item search: " + rootMessage(error)));
     }
 
     private void mergeItemCache(List<Item> items) {
-        if (items == null) return;
+        if (items == null)
+            return;
         for (Item item : items) {
-            Item existing = allItems.stream().filter(x -> safeItem(x.getItemCode()).equalsIgnoreCase(safeItem(item.getItemCode()))).findFirst().orElse(null);
-            if (existing != null) { allItems.remove(existing); itemSearchIndex.remove(existing); }
-            allItems.add(item); itemSearchIndex.put(item, buildItemSearchHaystack(item));
+            Item existing = allItems.stream()
+                    .filter(x -> safeItem(x.getItemCode()).equalsIgnoreCase(safeItem(item.getItemCode()))).findFirst()
+                    .orElse(null);
+            if (existing != null) {
+                allItems.remove(existing);
+                itemSearchIndex.remove(existing);
+            }
+            allItems.add(item);
+            itemSearchIndex.put(item, buildItemSearchHaystack(item));
         }
     }
 
     private void searchCustomers(String text) {
         String query = text == null ? "" : text.trim();
         UiTaskExecutor.submitLatest(
-            "create-sale-customer-search",
-            () -> partyService.search("CUSTOMER", query, 30),
-            customers -> {
-                if (cmbCustomer.getEditor().isFocused() && !safeParty(cmbCustomer.getEditor().getText()).equalsIgnoreCase(query)) return;
-                Party selected = cmbCustomer.getValue();
-                updatingCustomerSearch = true;
-                try {
-                    java.util.List<Party> stable = new java.util.ArrayList<>(customers);
-                    if (selected != null && stable.stream().noneMatch(party -> party.getId() == selected.getId())) stable.add(0, selected);
-                    cmbCustomer.getItems().setAll(stable);
-                    if (selected != null) cmbCustomer.getItems().stream().filter(party -> party.getId() == selected.getId()).findFirst().ifPresent(cmbCustomer::setValue);
-                } finally { updatingCustomerSearch = false; }
-                if (!customers.isEmpty() && cmbCustomer.getEditor().isFocused() && !cmbCustomer.isShowing()) cmbCustomer.show();
-            },
-            error -> System.err.println("Create Sale customer search: " + rootMessage(error))
-        );
+                "create-sale-customer-search",
+                () -> partyService.search("CUSTOMER", query, 30),
+                customers -> {
+                    if (cmbCustomer.getEditor().isFocused()
+                            && !safeParty(cmbCustomer.getEditor().getText()).equalsIgnoreCase(query))
+                        return;
+                    Party selected = cmbCustomer.getValue();
+                    updatingCustomerSearch = true;
+                    try {
+                        java.util.List<Party> stable = new java.util.ArrayList<>(customers);
+                        if (selected != null && stable.stream().noneMatch(party -> party.getId() == selected.getId()))
+                            stable.add(0, selected);
+                        cmbCustomer.getItems().setAll(stable);
+                        if (selected != null)
+                            cmbCustomer.getItems().stream().filter(party -> party.getId() == selected.getId())
+                                    .findFirst().ifPresent(cmbCustomer::setValue);
+                    } finally {
+                        updatingCustomerSearch = false;
+                    }
+                    if (!customers.isEmpty() && cmbCustomer.getEditor().isFocused() && !cmbCustomer.isShowing())
+                        cmbCustomer.show();
+                },
+                error -> System.err.println("Create Sale customer search: " + rootMessage(error)));
     }
 
-    private static String safeParty(String value) { return DocumentLookupPolicy.safe(value); }
-    private static String customerDisplay(Party party) { return DocumentLookupPolicy.partyDisplay(party); }
+    private static String safeParty(String value) {
+        return DocumentLookupPolicy.safe(value);
+    }
 
+    private static String customerDisplay(Party party) {
+        return DocumentLookupPolicy.partyDisplay(party);
+    }
 
-    private void selectItem(Item item) { selectItem(item, true); }
+    private void selectItem(Item item) {
+        selectItem(item, true);
+    }
 
-    /** Select Item Master identity without overwriting persisted line values while editing an existing transaction. */
+    /**
+     * Select Item Master identity without overwriting persisted line values while
+     * editing an existing transaction.
+     */
     private void selectItem(Item item, boolean applyMasterDefaults) {
         selectedItem = item;
         updatingItemSearch = true;
-        try { txtItemSearch.setText(item == null ? "" : itemSearchDisplay(item)); }
-        finally { updatingItemSearch = false; }
+        try {
+            txtItemSearch.setText(item == null ? "" : itemSearchDisplay(item));
+        } finally {
+            updatingItemSearch = false;
+        }
         itemSuggestions.hide();
         if (item != null && applyMasterDefaults) {
             txtRate.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getSellingPrice()));
             txtGST.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getGst()));
             txtLineDiscount.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getDiscountPercent()));
+            Platform.runLater(() -> WorkflowFocusManager.initial(txtQuantity));
         }
         updateSaleStockPosition();
     }
 
-    private void clearItemSearch() { selectItem(null); updateSaleStockPosition(); }
+    private void clearItemSearch() {
+        selectItem(null);
+        updateSaleStockPosition();
+    }
 
     private Item resolveTypedItem(String text) {
-        if (selectedItem != null) return selectedItem;
+        if (selectedItem != null)
+            return selectedItem;
         String value = text == null ? "" : text.trim();
-        if (value.isBlank()) return null;
-        return allItems.stream().filter(item ->
-            itemSearchDisplay(item).equalsIgnoreCase(value)
+        if (value.isBlank())
+            return null;
+        return allItems.stream().filter(item -> itemSearchDisplay(item).equalsIgnoreCase(value)
                 || safeItem(item.getItemCode()).equalsIgnoreCase(value)
                 || safeItem(item.getDescription()).equalsIgnoreCase(value)
-                || itemRemark(item).equalsIgnoreCase(value)
-        ).findFirst().orElse(null);
+                || itemRemark(item).equalsIgnoreCase(value)).findFirst().orElse(null);
     }
 
     private String itemSearchHaystack(Item item) {
         String indexed = itemSearchIndex.get(item);
-        if (indexed != null) return indexed;
+        if (indexed != null)
+            return indexed;
         return buildItemSearchHaystack(item);
     }
 
-    private String buildItemSearchHaystack(Item item) { return DocumentLookupPolicy.itemHaystack(item); }
+    private String buildItemSearchHaystack(Item item) {
+        return DocumentLookupPolicy.itemHaystack(item);
+    }
 
+    private String itemSearchDisplay(Item item) {
+        return DocumentLookupPolicy.itemDisplay(item);
+    }
 
-    private String itemSearchDisplay(Item item) { return DocumentLookupPolicy.itemDisplay(item); }
+    private String itemSearchSuggestionDisplay(Item item) {
+        return DocumentLookupPolicy.itemSuggestionDisplay(item);
+    }
 
+    private String valueOrDash(String value) {
+        return DocumentLookupPolicy.valueOrDash(value);
+    }
 
-    private String itemSearchSuggestionDisplay(Item item) { return DocumentLookupPolicy.itemSuggestionDisplay(item); }
+    private String itemRemark(Item item) {
+        return DocumentLookupPolicy.itemRemark(item);
+    }
 
-
-    private String valueOrDash(String value) { return DocumentLookupPolicy.valueOrDash(value); }
-
-
-    private String itemRemark(Item item) { return DocumentLookupPolicy.itemRemark(item); }
-
-
-    private String safeItem(String value) { return DocumentLookupPolicy.safe(value); }
-
+    private String safeItem(String value) {
+        return DocumentLookupPolicy.safe(value);
+    }
 
     private String itemNameForDisplay(String itemCode, String persistedDescription) {
         return DocumentLookupPolicy.itemNameForDisplay(itemCode, persistedDescription, allItems);
     }
 
-
     private void updateSaleStockPosition() {
-        if (stockPositionBar == null) return;
+        if (stockPositionBar == null)
+            return;
         Item item = selectedItem;
         boolean show = item != null;
-        stockPositionBar.setVisible(show); stockPositionBar.setManaged(show);
-        if (!show) return;
-        double onHand=Math.max(0,item.getOpeningStock()), reserved=0, available=onHand, requested=0;
-        try { requested=Double.parseDouble(txtQuantity==null?"0":txtQuantity.getText().trim()); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
-        double after=available-Math.max(0,requested);
-        lblStockOnHand.setText(qtyText(onHand)); lblStockReserved.setText(qtyText(reserved)); lblStockAvailable.setText(qtyText(available)); lblStockAfterSale.setText(qtyText(after));
-        lblStockAfterSale.getStyleClass().removeAll("stock-positive","stock-warning","stock-shortage"); lblStockState.getStyleClass().removeAll("stock-positive","stock-warning","stock-shortage");
-        if(after<-.0001){lblStockAfterSale.getStyleClass().add("stock-shortage");lblStockState.getStyleClass().add("stock-shortage");lblStockState.setText("Short by "+qtyText(-after));}
-        else if(available<=.0001){lblStockAfterSale.getStyleClass().add("stock-warning");lblStockState.getStyleClass().add("stock-warning");lblStockState.setText("No free stock");}
-        else{lblStockAfterSale.getStyleClass().add("stock-positive");lblStockState.getStyleClass().add("stock-positive");lblStockState.setText("Available to sell");}
+        stockPositionBar.setVisible(show);
+        stockPositionBar.setManaged(show);
+        if (!show)
+            return;
+        double onHand = Math.max(0, item.getOpeningStock()), reserved = 0, available = onHand, requested = 0;
+        try {
+            requested = Double.parseDouble(txtQuantity == null ? "0" : txtQuantity.getText().trim());
+        } catch (Exception ignored) {
+            java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG,
+                    "Suppressed exception: " + ignored.getMessage(), ignored);
+        }
+        double after = available - Math.max(0, requested);
+        lblStockOnHand.setText(qtyText(onHand));
+        lblStockReserved.setText(qtyText(reserved));
+        lblStockAvailable.setText(qtyText(available));
+        lblStockAfterSale.setText(qtyText(after));
+        lblStockAfterSale.getStyleClass().removeAll("stock-positive", "stock-warning", "stock-shortage");
+        lblStockState.getStyleClass().removeAll("stock-positive", "stock-warning", "stock-shortage");
+        if (after < -.0001) {
+            lblStockAfterSale.getStyleClass().add("stock-shortage");
+            lblStockState.getStyleClass().add("stock-shortage");
+            lblStockState.setText("Short by " + qtyText(-after));
+        } else if (available <= .0001) {
+            lblStockAfterSale.getStyleClass().add("stock-warning");
+            lblStockState.getStyleClass().add("stock-warning");
+            lblStockState.setText("No free stock");
+        } else {
+            lblStockAfterSale.getStyleClass().add("stock-positive");
+            lblStockState.getStyleClass().add("stock-positive");
+            lblStockState.setText("Available to sell");
+        }
     }
-    private static String qtyText(double value){return java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();}
+
+    private static String qtyText(double value) {
+        return java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
+    }
 
     private void configureTransporterSelector() {
         cmbTransporter.setConverter(new StringConverter<>() {
-            @Override public String toString(Lookup lookup) { return lookup == null ? "" : lookup.getLookupValue(); }
-            @Override public Lookup fromString(String text) { return null; }
+            @Override
+            public String toString(Lookup lookup) {
+                return lookup == null ? "" : lookup.getLookupValue();
+            }
+
+            @Override
+            public Lookup fromString(String text) {
+                return null;
+            }
         });
         cmbTransporter.valueProperty().addListener((o, oldValue, lookup) -> {
             if (txtTransporterGstin != null) {
-                txtTransporterGstin.setText(lookup == null || lookup.getDescription() == null ? "" : lookup.getDescription().trim());
+                txtTransporterGstin.setText(
+                        lookup == null || lookup.getDescription() == null ? "" : lookup.getDescription().trim());
             }
         });
     }
@@ -843,17 +1023,22 @@ public class SalesController implements ScreenLifecycle {
         boolean igst = type != null && type.trim().equalsIgnoreCase("IGST");
         String percentLabel = igst ? "IGST %" : "GST %";
         String amountLabel = igst ? "IGST Amount (₹)" : "GST Amount (₹)";
-        if (colGst != null) colGst.setText(percentLabel);
-        if (colGstAmount != null) colGstAmount.setText(amountLabel);
-        if (txtGST != null) txtGST.setPromptText(percentLabel);
+        if (colGst != null)
+            colGst.setText(percentLabel);
+        if (colGstAmount != null)
+            colGstAmount.setText(amountLabel);
+        if (txtGST != null)
+            txtGST.setPromptText(percentLabel);
     }
 
     /** Opens the shared themed customer editor and refreshes the sale form. */
     @FXML
     private void addCustomer() {
         try {
-            FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
-            Parent root = loader.load(); org.example.util.ProfessionalUiEnhancer.enhance(root);
+            FXMLLoader loader = new FXMLLoader(
+                    org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
+            Parent root = loader.load();
+            org.example.util.ProfessionalUiEnhancer.enhance(root);
             loader.<PartyDialogController>getController().configure("CUSTOMER", null);
             Stage dialog = new Stage();
             PlatformUiSupport.configureDialogStage(dialog, cmbCustomer, "Add Customer", true);
@@ -862,166 +1047,157 @@ public class SalesController implements ScreenLifecycle {
             dialog.setScene(scene);
             dialog.showAndWait();
             Party selected = cmbCustomer.getValue();
-            cmbCustomer.getItems().setAll(partyService.search("CUSTOMER","",40));
-            if (selected != null) cmbCustomer.getSelectionModel().select(selected);
+            cmbCustomer.getItems().setAll(partyService.search("CUSTOMER", "", 40));
+            if (selected != null)
+                cmbCustomer.getSelectionModel().select(selected);
         } catch (Exception ex) {
             new OwnedAlert(Alert.AlertType.ERROR,
-                "Unable to open customer form: " + ex.getMessage(), ButtonType.OK).showAndWait();
+                    "Unable to open customer form: " + ex.getMessage(), ButtonType.OK).showAndWait();
         }
     }
 
-    //-------------------------------------------------------
+    // -------------------------------------------------------
     // Setup Table
-    //-------------------------------------------------------
-
+    // -------------------------------------------------------
 
     private void setupTable() {
 
-        colCode.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCode())));
+        colCode.setCellValueFactory(
+                value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCode())));
         colItem.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
-            itemNameForDisplay(value.getValue().getItemCode(), value.getValue().getItemDescription())));
-        colCategory.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCategory())));
-        colHsn.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemHsn())));
-        colUnit.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemUnit())));
+                itemNameForDisplay(value.getValue().getItemCode(), value.getValue().getItemDescription())));
+        colCategory.setCellValueFactory(
+                value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCategory())));
+        colHsn.setCellValueFactory(
+                value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemHsn())));
+        colUnit.setCellValueFactory(
+                value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemUnit())));
 
         colQuantity.setCellValueFactory(
-            new PropertyValueFactory<>("quantity"));
+                new PropertyValueFactory<>("quantity"));
 
         colRate.setCellValueFactory(
-            new PropertyValueFactory<>("rate"));
+                new PropertyValueFactory<>("rate"));
 
         colGst.setCellValueFactory(
-            new PropertyValueFactory<>("gstPercent"));
+                new PropertyValueFactory<>("gstPercent"));
 
         colDiscount.setCellValueFactory(new PropertyValueFactory<>("discountPercent"));
         colDiscountAmount.setCellValueFactory(new PropertyValueFactory<>("discountAmount"));
 
         colGstAmount.setCellValueFactory(
-            new PropertyValueFactory<>("gstAmount"));
+                new PropertyValueFactory<>("gstAmount"));
 
         colNetAmount.setCellValueFactory(
-            new PropertyValueFactory<>("netAmount"));
+                new PropertyValueFactory<>("netAmount"));
 
         colTotal.setCellValueFactory(
-            new PropertyValueFactory<>("totalAmount"));
+                new PropertyValueFactory<>("totalAmount"));
 
     }
 
-    //-------------------------------------------------------
+    // -------------------------------------------------------
     // Amount Formatting
-    //-------------------------------------------------------
+    // -------------------------------------------------------
 
     private void setupAmountFormatting() {
 
-        colQuantity.setCellFactory(column ->
-            new TextFieldTableCell<>(
-                new DoubleStringConverter()
-            ));
+        colQuantity.setCellFactory(column -> new TextFieldTableCell<>(
+                new DoubleStringConverter()));
 
-        colRate.setCellFactory(column ->
-            new TextFieldTableCell<>(
-                new DoubleStringConverter()
-            ));
+        colRate.setCellFactory(column -> new TextFieldTableCell<>(
+                new DoubleStringConverter()));
 
-        colGst.setCellFactory(column ->
-            new TextFieldTableCell<>(
-                new DoubleStringConverter()
-            ));
+        colGst.setCellFactory(column -> new TextFieldTableCell<>(
+                new DoubleStringConverter()));
 
-        colDiscount.setCellFactory(column ->
-            new TextFieldTableCell<>(new DoubleStringConverter()));
+        colDiscount.setCellFactory(column -> new TextFieldTableCell<>(new DoubleStringConverter()));
 
         colDiscountAmount.setCellFactory(column -> new TableCell<>() {
-            @Override protected void updateItem(Double value, boolean empty) {
+            @Override
+            protected void updateItem(Double value, boolean empty) {
                 super.updateItem(value, empty);
                 setText(empty || value == null ? null : String.format("₹ %.2f", value));
             }
         });
 
-        colGstAmount.setCellFactory(column ->
-            new TableCell<>() {
+        colGstAmount.setCellFactory(column -> new TableCell<>() {
 
-                @Override
-                protected void updateItem(Double value, boolean empty) {
+            @Override
+            protected void updateItem(Double value, boolean empty) {
 
-                    super.updateItem(value, empty);
+                super.updateItem(value, empty);
 
-                    if (empty || value == null) {
+                if (empty || value == null) {
 
-                        setText(null);
+                    setText(null);
 
-                    } else {
+                } else {
 
-                        setText(
-                            String.format("₹ %.2f", value)
-                        );
-
-                    }
+                    setText(
+                            String.format("₹ %.2f", value));
 
                 }
 
-            });
+            }
 
-        colNetAmount.setCellFactory(column ->
-            new TableCell<>() {
+        });
 
-                @Override
-                protected void updateItem(Double value, boolean empty) {
+        colNetAmount.setCellFactory(column -> new TableCell<>() {
 
-                    super.updateItem(value, empty);
+            @Override
+            protected void updateItem(Double value, boolean empty) {
 
-                    if (empty || value == null) {
+                super.updateItem(value, empty);
 
-                        setText(null);
+                if (empty || value == null) {
 
-                    } else {
+                    setText(null);
 
-                        setText(
-                            String.format("₹ %.2f", value)
-                        );
+                } else {
 
-                    }
+                    setText(
+                            String.format("₹ %.2f", value));
 
                 }
 
-            });
+            }
 
-        colTotal.setCellFactory(column ->
-            new TableCell<>() {
+        });
 
-                @Override
-                protected void updateItem(Double value, boolean empty) {
+        colTotal.setCellFactory(column -> new TableCell<>() {
 
-                    super.updateItem(value, empty);
+            @Override
+            protected void updateItem(Double value, boolean empty) {
 
-                    if (empty || value == null) {
+                super.updateItem(value, empty);
 
-                        setText(null);
+                if (empty || value == null) {
 
-                    } else {
+                    setText(null);
 
-                        setText(
-                            String.format("₹ %.2f", value)
-                        );
+                } else {
 
-                    }
+                    setText(
+                            String.format("₹ %.2f", value));
 
                 }
 
-            });
+            }
+
+        });
 
     }
 
-    //-------------------------------------------------------
+    // -------------------------------------------------------
     // Editable Columns
-    //-------------------------------------------------------
+    // -------------------------------------------------------
 
     private void setupEditableColumns() {
 
         colQuantity.setCellFactory(
-            TextFieldTableCell.forTableColumn(
-                new DoubleStringConverter()
-            ));
+                TextFieldTableCell.forTableColumn(
+                        new DoubleStringConverter()));
 
         colQuantity.setOnEditCommit(event -> {
 
@@ -1038,9 +1214,8 @@ public class SalesController implements ScreenLifecycle {
         });
 
         colRate.setCellFactory(
-            TextFieldTableCell.forTableColumn(
-                new DoubleStringConverter()
-            ));
+                TextFieldTableCell.forTableColumn(
+                        new DoubleStringConverter()));
 
         colRate.setOnEditCommit(event -> {
 
@@ -1057,9 +1232,8 @@ public class SalesController implements ScreenLifecycle {
         });
 
         colGst.setCellFactory(
-            TextFieldTableCell.forTableColumn(
-                new DoubleStringConverter()
-            ));
+                TextFieldTableCell.forTableColumn(
+                        new DoubleStringConverter()));
 
         colGst.setOnEditCommit(event -> {
 
@@ -1086,9 +1260,9 @@ public class SalesController implements ScreenLifecycle {
 
     }
 
-    //-------------------------------------------------------
+    // -------------------------------------------------------
     // Recalculate One Line
-    //-------------------------------------------------------
+    // -------------------------------------------------------
 
     private void recalculateLine(SalesLine line) {
 
@@ -1096,9 +1270,9 @@ public class SalesController implements ScreenLifecycle {
 
     }
 
-    //--------------------------------------------------
-// SAVE SALE
-//--------------------------------------------------
+    // --------------------------------------------------
+    // SAVE SALE
+    // --------------------------------------------------
 
     @FXML
     private void saveSale() {
@@ -1110,63 +1284,90 @@ public class SalesController implements ScreenLifecycle {
 
         setSalesSaveBusy(true);
         UiTaskExecutor.submitAction(
-            "sales-save",
-            () -> {
-                if (editingSale != null) {
-                    sale.setId(editingSale.getId());
-                    salesService.update(sale);
-                    notifySalesStatus(sale.getInvoiceNo());
-                } else {
-                    if (salesService.existsInvoice(sale.getInvoiceNo())) {
-                        sale.setInvoiceNo(salesService.nextInvoiceNo());
+                "sales-save",
+                () -> {
+                    if (editingSale != null) {
+                        sale.setId(editingSale.getId());
+                        salesService.update(sale);
+                        notifySalesStatus(sale.getInvoiceNo());
+                    } else {
+                        if (salesService.existsInvoice(sale.getInvoiceNo())) {
+                            sale.setInvoiceNo(salesService.nextInvoiceNo());
+                        }
+                        salesService.save(sale);
+                        notifySalesStatus(sale.getInvoiceNo());
                     }
-                    salesService.save(sale);
-                    notifySalesStatus(sale.getInvoiceNo());
-                }
 
-                String attachmentWarning = null;
-                try { persistAttachmentAfterSave(sale); }
-                catch (Exception attachmentError) { attachmentWarning = rootMessage(attachmentError); }
-                return attachmentWarning;
-            },
-            attachmentWarning -> {
-                setSalesSaveBusy(false);
-                this.editingSale = sale;
-                if (attachmentWarning == null) {
-                    org.example.util.AppDialogService.success(tableLines, "Sale saved", "Sales invoice saved successfully.");
-                } else {
-                    org.example.util.AppDialogService.warning(tableLines, "Sale saved with attachment warning",
-                        "The invoice was saved", "The attachment could not be updated. " + attachmentWarning);
-                }
+                    String attachmentWarning = null;
+                    try {
+                        persistAttachmentAfterSave(sale);
+                    } catch (Exception attachmentError) {
+                        attachmentWarning = rootMessage(attachmentError);
+                    }
+                    return attachmentWarning;
+                },
+                attachmentWarning -> {
+                    setSalesSaveBusy(false);
+                    this.editingSale = sale;
+                    if (attachmentWarning == null) {
+                        org.example.util.AppDialogService.success(tableLines, "Sale saved",
+                                "Sales invoice saved successfully.");
+                    } else {
+                        org.example.util.AppDialogService.warning(tableLines, "Sale saved with attachment warning",
+                                "The invoice was saved", "The attachment could not be updated. " + attachmentWarning);
+                    }
 
-                org.example.navigation.UnsavedChangesManager.clear(tableLines);
-                ScreenRefreshPolicy.invalidate("sales-register");
-                org.example.navigation.WorkspaceTabManager.getInstance().closeTabByFxml("/fxml/pages/Sale.fxml");
-                NavigationManager.getInstance()
-                    .loadPage("/fxml/pages/SalesList.fxml");
-            },
-            failure -> {
-                setSalesSaveBusy(false);
-                new OwnedAlert(
-                    Alert.AlertType.ERROR,
-                    rootMessage(failure)
-                ).showAndWait();
+                    org.example.navigation.UnsavedChangesManager.clear(tableLines);
+                    ScreenRefreshPolicy.invalidate("sales-register");
+                    org.example.navigation.WorkspaceTabManager.getInstance().closeTabByFxml("/fxml/pages/Sale.fxml");
+                    NavigationManager.getInstance()
+                            .loadPage("/fxml/pages/SalesList.fxml");
+                },
+                failure -> {
+                    setSalesSaveBusy(false);
+                    new OwnedAlert(
+                            Alert.AlertType.ERROR,
+                            rootMessage(failure)).showAndWait();
+                });
+
+    }
+
+    @FXML
+    private void printDispatchBarcode() {
+        Sales sale = editingSale != null ? editingSale : null;
+        if (sale == null) {
+            sale = new Sales();
+            sale.setInvoiceNo(txtInvoiceNo != null && txtInvoiceNo.getText() != null && !txtInvoiceNo.getText().isBlank() ? txtInvoiceNo.getText() : "DRAFT-INV");
+            sale.setInvoiceDate(dpInvoiceDate != null && dpInvoiceDate.getValue() != null ? dpInvoiceDate.getValue() : BusinessClock.today());
+            sale.setCustomer(cmbCustomer != null ? cmbCustomer.getValue() : null);
+            sale.setDeliveryAddress(txtDeliveryAddress != null ? txtDeliveryAddress.getText() : "");
+            if (tableLines != null && !tableLines.getItems().isEmpty()) {
+                sale.setLines(new ArrayList<>(tableLines.getItems()));
             }
-        );
-
+        } else if (sale.getLines() == null || sale.getLines().isEmpty()) {
+            if (tableLines != null && !tableLines.getItems().isEmpty()) {
+                sale.setLines(new ArrayList<>(tableLines.getItems()));
+            }
+        }
+        org.example.util.OrderDispatchBarcodeDialog.showForSale(salesEntryRoot, sale);
     }
 
     private void setSalesSaveBusy(boolean busy) {
-        if (btnSaveSale != null) btnSaveSale.setDisable(busy || viewMode);
-        if (tableLines != null) tableLines.setDisable(busy || viewMode);
-        if (btnAddLine != null) btnAddLine.setDisable(busy || viewMode);
-        if (btnRemoveLine != null) btnRemoveLine.setDisable(busy || viewMode);
+        if (btnSaveSale != null)
+            btnSaveSale.setDisable(busy || viewMode);
+        if (btnPrintDispatchBarcode != null)
+            btnPrintDispatchBarcode.setDisable(busy);
+        if (tableLines != null)
+            tableLines.setDisable(busy || viewMode);
+        if (btnAddLine != null)
+            btnAddLine.setDisable(busy || viewMode);
+        if (btnRemoveLine != null)
+            btnRemoveLine.setDisable(busy || viewMode);
     }
 
-
-//--------------------------------------------------
-// BUILD SALES OBJECT
-//--------------------------------------------------
+    // --------------------------------------------------
+    // BUILD SALES OBJECT
+    // --------------------------------------------------
 
     private Sales buildSale() {
 
@@ -1186,15 +1387,16 @@ public class SalesController implements ScreenLifecycle {
 
         }
 
-        if (txtDeliveryAddress != null && (txtDeliveryAddress.getText() == null || txtDeliveryAddress.getText().isBlank())) {
+        if (txtDeliveryAddress != null
+                && (txtDeliveryAddress.getText() == null || txtDeliveryAddress.getText().isBlank())) {
             warn("Enter delivery address");
             return null;
         }
         if (chkSameAsBilling != null && !chkSameAsBilling.isSelected()
-            && normalized(txtBillingAddress == null ? "" : txtBillingAddress.getText())
-                .equals(normalized(txtDeliveryAddress == null ? "" : txtDeliveryAddress.getText()))
-            && normalized(txtBillingGstin == null ? "" : txtBillingGstin.getText())
-                .equals(normalized(txtDeliveryGstin == null ? "" : txtDeliveryGstin.getText()))) {
+                && normalized(txtBillingAddress == null ? "" : txtBillingAddress.getText())
+                        .equals(normalized(txtDeliveryAddress == null ? "" : txtDeliveryAddress.getText()))
+                && normalized(txtBillingGstin == null ? "" : txtBillingGstin.getText())
+                        .equals(normalized(txtDeliveryGstin == null ? "" : txtDeliveryGstin.getText()))) {
             warn("Delivery address and GSTIN still match billing details. Select 'Same as Billing Address' or update the delivery details.");
             return null;
         }
@@ -1209,13 +1411,15 @@ public class SalesController implements ScreenLifecycle {
 
         Sales sale = new Sales();
 
-        // Preserve persisted workflow state during Edit -> Save.  This screen owns
+        // Preserve persisted workflow state during Edit -> Save. This screen owns
         // invoice/header details, lines and charges, but it must not silently reset
         // payment/communication/status fields that are managed elsewhere.
         if (editingSale != null) {
             sale.setId(editingSale.getId());
-            // Preserve the optimistic-lock token returned by the server. Without this, the first
-            // edit (rowVersion 0) succeeds, but every later edit is sent back as version 0 and
+            // Preserve the optimistic-lock token returned by the server. Without this, the
+            // first
+            // edit (rowVersion 0) succeeds, but every later edit is sent back as version 0
+            // and
             // is correctly rejected by the server as a concurrent/stale update.
             sale.setRowVersion(editingSale.getRowVersion());
             sale.setCreatedAt(editingSale.getCreatedAt());
@@ -1230,25 +1434,23 @@ public class SalesController implements ScreenLifecycle {
         }
 
         sale.setInvoiceNo(
-            txtInvoiceNo.getText()
-        );
+                txtInvoiceNo.getText());
 
         sale.setInvoiceDate(
-            dpInvoiceDate.getValue()
-        );
+                dpInvoiceDate.getValue());
 
         sale.setCustomer(
-            cmbCustomer.getValue()
-        );
+                cmbCustomer.getValue());
 
         sale.setLines(
-            List.copyOf(
-                tableLines.getItems()
-            )
-        );
+                List.copyOf(
+                        tableLines.getItems()));
 
         String chargeError = DocumentChargeDialog.validateSales(invoiceCharges);
-        if (chargeError != null) { warn(chargeError); return null; }
+        if (chargeError != null) {
+            warn(chargeError);
+            return null;
+        }
         DocumentCalculationEngine.Totals totals = salesDocumentTotals();
         sale.setSubtotal(totals.itemTaxable());
         sale.setDiscountAmount(totals.discountAmount());
@@ -1260,7 +1462,8 @@ public class SalesController implements ScreenLifecycle {
         sale.setPoDate(txtPoDate == null ? null : txtPoDate.getValue());
         sale.setOrderNo(txtOrderNo == null ? "" : txtOrderNo.getText());
         sale.setSalesperson(cmbSalesPerson.getValue());
-        sale.setNotes(txtInvoiceMessage == null || txtInvoiceMessage.getText() == null ? "" : txtInvoiceMessage.getText());
+        sale.setNotes(
+                txtInvoiceMessage == null || txtInvoiceMessage.getText() == null ? "" : txtInvoiceMessage.getText());
         String billing = txtBillingAddress == null ? "" : txtBillingAddress.getText();
         String shipping = txtDeliveryAddress == null ? "" : txtDeliveryAddress.getText();
         sale.setBillingAddress(billing == null ? "" : billing);
@@ -1272,8 +1475,10 @@ public class SalesController implements ScreenLifecycle {
         sale.setSameAsBilling(chkSameAsBilling != null && chkSameAsBilling.isSelected());
         sale.setTransporterGstin(txtTransporterGstin == null ? "" : txtTransporterGstin.getText());
         sale.setPaymentTerms(cmbPaymentTerms.getValue());
-        sale.setGstType(cmbGstType == null || cmbGstType.getValue() == null || cmbGstType.getValue().isBlank() ? "GST" : cmbGstType.getValue());
-        sale.setTransporter(cmbTransporter == null || cmbTransporter.getValue() == null ? "" : cmbTransporter.getValue().getLookupValue());
+        sale.setGstType(cmbGstType == null || cmbGstType.getValue() == null || cmbGstType.getValue().isBlank() ? "GST"
+                : cmbGstType.getValue());
+        sale.setTransporter(cmbTransporter == null || cmbTransporter.getValue() == null ? ""
+                : cmbTransporter.getValue().getLookupValue());
         sale.setDoorDelivery(editingSale == null ? "" : editingSale.getDoorDelivery());
         sale.setVehicleNumber(txtVehicleNumber == null ? "" : txtVehicleNumber.getText());
         sale.setContactPerson(txtContactPerson == null ? "" : txtContactPerson.getText());
@@ -1286,14 +1491,15 @@ public class SalesController implements ScreenLifecycle {
 
     }
 
-
-//--------------------------------------------------
-// NEW SALE
-//--------------------------------------------------
+    // --------------------------------------------------
+    // NEW SALE
+    // --------------------------------------------------
 
     private LocalDate calculatePaymentDueDate(LocalDate invoiceDate, String terms) {
-        if (invoiceDate == null) return null;
-        if (terms == null || terms.isBlank() || terms.equalsIgnoreCase("Due on Receipt")) return invoiceDate;
+        if (invoiceDate == null)
+            return null;
+        if (terms == null || terms.isBlank() || terms.equalsIgnoreCase("Due on Receipt"))
+            return invoiceDate;
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+)").matcher(terms);
         return matcher.find() ? invoiceDate.plusDays(Integer.parseInt(matcher.group(1))) : invoiceDate;
     }
@@ -1304,7 +1510,8 @@ public class SalesController implements ScreenLifecycle {
      * ComboBox can display its default after the first calculation already ran.
      */
     private void selectDefaultPaymentTerms() {
-        if (cmbPaymentTerms == null) return;
+        if (cmbPaymentTerms == null)
+            return;
         if (cmbPaymentTerms.getItems().contains("15 Days")) {
             cmbPaymentTerms.setValue("15 Days");
         } else if (!cmbPaymentTerms.getItems().isEmpty()) {
@@ -1317,13 +1524,15 @@ public class SalesController implements ScreenLifecycle {
     }
 
     private void syncDeliveryAddressState() {
-        if (txtDeliveryAddress == null) return;
+        if (txtDeliveryAddress == null)
+            return;
         boolean same = chkSameAsBilling != null && chkSameAsBilling.isSelected();
         if (same) {
             String billing = txtBillingAddress == null ? "" : txtBillingAddress.getText();
             txtDeliveryAddress.setText(billing == null ? "" : billing);
             String billingGstin = txtBillingGstin == null ? "" : txtBillingGstin.getText();
-            if (txtDeliveryGstin != null) txtDeliveryGstin.setText(billingGstin == null ? "" : billingGstin);
+            if (txtDeliveryGstin != null)
+                txtDeliveryGstin.setText(billingGstin == null ? "" : billingGstin);
         }
         txtDeliveryAddress.setEditable(!same);
         txtDeliveryAddress.setDisable(false);
@@ -1354,7 +1563,8 @@ public class SalesController implements ScreenLifecycle {
         loadingSaleForEdit = true;
         selectDefaultPaymentTerms();
         dpInvoiceDate.setValue(BusinessClock.today());
-        if (txtPoDate != null) txtPoDate.setValue(null);
+        if (txtPoDate != null)
+            txtPoDate.setValue(null);
         loadingSaleForEdit = false;
 
         cmbCustomer.setValue(null);
@@ -1369,25 +1579,39 @@ public class SalesController implements ScreenLifecycle {
         txtLineDiscount.clear();
 
         txtRemarks.clear();
-        if (txtInvoiceMessage != null) txtInvoiceMessage.clear();
+        if (txtInvoiceMessage != null)
+            txtInvoiceMessage.clear();
         pendingAttachment = null;
         attachmentRemovalPending = false;
-        if (txtAttachment != null) txtAttachment.clear();
+        if (txtAttachment != null)
+            txtAttachment.clear();
         refreshAttachmentUi();
-        if (txtReference != null) txtReference.clear();
+        if (txtReference != null)
+            txtReference.clear();
         txtBillingAddress.clear();
         txtDeliveryAddress.clear();
-        if (chkSameAsBilling != null) chkSameAsBilling.setSelected(true);
-        if (txtOrderNo != null) txtOrderNo.clear();
-        if (txtBillingGstin != null) txtBillingGstin.clear();
-        if (txtDeliveryGstin != null) txtDeliveryGstin.clear();
-        if (txtTransporterGstin != null) txtTransporterGstin.clear();
-        if (cmbGstType != null && !cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
-        if (cmbTransporter != null) cmbTransporter.setValue(null);
-        if (txtVehicleNumber != null) txtVehicleNumber.clear();
-        if (txtContactPerson != null) txtContactPerson.clear();
-        if (txtContactPersonMobile != null) txtContactPersonMobile.clear();
-        if (txtTransportNote != null) txtTransportNote.clear();
+        if (chkSameAsBilling != null)
+            chkSameAsBilling.setSelected(true);
+        if (txtOrderNo != null)
+            txtOrderNo.clear();
+        if (txtBillingGstin != null)
+            txtBillingGstin.clear();
+        if (txtDeliveryGstin != null)
+            txtDeliveryGstin.clear();
+        if (txtTransporterGstin != null)
+            txtTransporterGstin.clear();
+        if (cmbGstType != null && !cmbGstType.getItems().isEmpty())
+            cmbGstType.getSelectionModel().selectFirst();
+        if (cmbTransporter != null)
+            cmbTransporter.setValue(null);
+        if (txtVehicleNumber != null)
+            txtVehicleNumber.clear();
+        if (txtContactPerson != null)
+            txtContactPerson.clear();
+        if (txtContactPersonMobile != null)
+            txtContactPersonMobile.clear();
+        if (txtTransportNote != null)
+            txtTransportNote.clear();
         invoiceCharges.clear();
 
         tableLines.getItems().clear();
@@ -1395,9 +1619,9 @@ public class SalesController implements ScreenLifecycle {
         recalculate();
 
     }
-    //--------------------------------------------------
-// RECALCULATE TOTALS
-//--------------------------------------------------
+    // --------------------------------------------------
+    // RECALCULATE TOTALS
+    // --------------------------------------------------
 
     private void recalculate() {
         DocumentCalculationEngine.Totals totals = salesDocumentTotals();
@@ -1405,22 +1629,33 @@ public class SalesController implements ScreenLifecycle {
         lblDiscount.setText(String.format("₹ %.2f", totals.discountAmount()));
         lblGst.setText(String.format("₹ %.2f", totals.taxAmount()));
         lblGrandTotal.setText(String.format("₹ %.2f", totals.grandTotal()));
-        if (lblTotalItems != null) lblTotalItems.setText(Integer.toString(tableLines.getItems().size()));
-        if (lblBottomDiscount != null) lblBottomDiscount.setText(String.format("₹ %.2f", totals.discountAmount()));
-        if (lblBottomTax != null) lblBottomTax.setText(String.format("₹ %.2f", totals.taxAmount()));
-        if (lblBottomCharges != null) lblBottomCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
-        if (lblBottomNet != null) lblBottomNet.setText(String.format("₹ %.2f", totals.grandTotal()));
-        if (lblTaxableAmount != null) lblTaxableAmount.setText(String.format("₹ %.2f", totals.taxableAmount()));
-        if (lblCharges != null) lblCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
-        if (lblChargeCaption != null) lblChargeCaption.setText(invoiceCharges.isEmpty()?"Additional Charges":"Additional Charges • "+invoiceCharges.size());
+        if (lblTotalItems != null)
+            lblTotalItems.setText(Integer.toString(tableLines.getItems().size()));
+        if (lblBottomDiscount != null)
+            lblBottomDiscount.setText(String.format("₹ %.2f", totals.discountAmount()));
+        if (lblBottomTax != null)
+            lblBottomTax.setText(String.format("₹ %.2f", totals.taxAmount()));
+        if (lblBottomCharges != null)
+            lblBottomCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
+        if (lblBottomNet != null)
+            lblBottomNet.setText(String.format("₹ %.2f", totals.grandTotal()));
+        if (lblTaxableAmount != null)
+            lblTaxableAmount.setText(String.format("₹ %.2f", totals.taxableAmount()));
+        if (lblCharges != null)
+            lblCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
+        if (lblChargeCaption != null)
+            lblChargeCaption.setText(
+                    invoiceCharges.isEmpty() ? "Additional Charges" : "Additional Charges • " + invoiceCharges.size());
     }
 
-    private DocumentCalculationEngine.Totals salesDocumentTotals(){
+    private DocumentCalculationEngine.Totals salesDocumentTotals() {
         List<DocumentCalculationEngine.LineInput> lines = tableLines.getItems().stream()
-                .map(line -> new DocumentCalculationEngine.LineInput(line.getQuantity(), line.getRate(), line.getDiscountPercent(), line.getGstPercent()))
+                .map(line -> new DocumentCalculationEngine.LineInput(line.getQuantity(), line.getRate(),
+                        line.getDiscountPercent(), line.getGstPercent()))
                 .toList();
         List<DocumentCalculationEngine.ChargeInput> charges = invoiceCharges.stream()
-                .map(charge -> new DocumentCalculationEngine.ChargeInput(charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
+                .map(charge -> new DocumentCalculationEngine.ChargeInput(charge.getAmount(), charge.isTaxable(),
+                        charge.getGstPercent()))
                 .toList();
         // The form is created before API-backed GST master values arrive. During
         // that short bootstrap window the ComboBox exists but has no selected
@@ -1434,167 +1669,232 @@ public class SalesController implements ScreenLifecycle {
     @FXML
     private void manageCharges() {
         DocumentChargeDialog.editSales(invoiceCharges, availableChargeTypes, this::warn)
-            .ifPresent(invoiceCharges::setAll);
+                .ifPresent(invoiceCharges::setAll);
     }
 
     private void updateChargeManagerSummary() {
-        if (lblChargeManagerSummary == null) return;
+        if (lblChargeManagerSummary == null)
+            return;
         double amount = invoiceCharges.stream().mapToDouble(SalesCharge::getAmount).sum();
         lblChargeManagerSummary.setText(invoiceCharges.isEmpty() ? "No additional charges"
-                : String.format("%d charge%s · ₹ %,.2f", invoiceCharges.size(), invoiceCharges.size()==1?"":"s", amount));
+                : String.format("%d charge%s · ₹ %,.2f", invoiceCharges.size(), invoiceCharges.size() == 1 ? "" : "s",
+                        amount));
     }
 
-    private double number(TextField field){try{return field==null||field.getText()==null||field.getText().isBlank()?0:Double.parseDouble(field.getText().replace(",",""));}catch(Exception e){return 0;}}
+    private double number(TextField field) {
+        try {
+            return field == null || field.getText() == null || field.getText().isBlank() ? 0
+                    : Double.parseDouble(field.getText().replace(",", ""));
+        } catch (Exception e) {
+            return 0;
+        }
+    }
 
-
-    @FXML private void attachFile(){
-        if (viewMode) return;
-        javafx.stage.FileChooser chooser=new javafx.stage.FileChooser();
+    @FXML
+    private void attachFile() {
+        if (viewMode)
+            return;
+        javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
         chooser.setTitle("Attach document to sale");
-        File file=chooser.showOpenDialog(tableLines.getScene().getWindow());
-        if(file==null)return;
-        pendingAttachment=file;
-        attachmentRemovalPending=false;
+        File file = chooser.showOpenDialog(tableLines.getScene().getWindow());
+        if (file == null)
+            return;
+        pendingAttachment = file;
+        attachmentRemovalPending = false;
         org.example.navigation.UnsavedChangesManager.touch(tableLines);
-        if(txtAttachment!=null)txtAttachment.setText(file.getAbsolutePath());
+        if (txtAttachment != null)
+            txtAttachment.setText(file.getAbsolutePath());
         refreshAttachmentUi();
     }
 
-    @FXML private void previewAttachment(){
-        if(pendingAttachment!=null){openAttachmentPreviewPath(pendingAttachment.toPath());return;}
-        if(editingSale==null||editingSale.getId()<=0){warn("The attachment is not available. You can replace it with a new file.");return;}
-        int saleId=editingSale.getId();
-        UiTaskExecutor.submitLatest("sales-attachment-preview-"+saleId,()->AttachmentPreviewSupport.materialize(supportApi.documentAttachment("SALE",saleId),"attachment"),this::openAttachmentPreviewPath,failure->warn("Attachment preview failed: "+rootMessage(failure)));
+    @FXML
+    private void previewAttachment() {
+        if (pendingAttachment != null) {
+            openAttachmentPreviewPath(pendingAttachment.toPath());
+            return;
+        }
+        if (editingSale == null || editingSale.getId() <= 0) {
+            warn("The attachment is not available. You can replace it with a new file.");
+            return;
+        }
+        int saleId = editingSale.getId();
+        UiTaskExecutor.submitLatest("sales-attachment-preview-" + saleId,
+                () -> AttachmentPreviewSupport.materialize(supportApi.documentAttachment("SALE", saleId), "attachment"),
+                this::openAttachmentPreviewPath, failure -> warn("Attachment preview failed: " + rootMessage(failure)));
     }
 
-    private void openAttachmentPreviewPath(Path file){
-        try{
-            if(file==null||!Files.isRegularFile(file)){warn("The attachment is not available. You can replace it with a new file.");return;}
+    private void openAttachmentPreviewPath(Path file) {
+        try {
+            if (file == null || !Files.isRegularFile(file)) {
+                warn("The attachment is not available. You can replace it with a new file.");
+                return;
+            }
             java.awt.Desktop.getDesktop().open(file.toFile());
-        }catch(Exception e){warn("Attachment preview failed: "+rootMessage(e));}
+        } catch (Exception e) {
+            warn("Attachment preview failed: " + rootMessage(e));
+        }
     }
 
-    @FXML private void removeAttachment(){
-        if(viewMode)return;
+    @FXML
+    private void removeAttachment() {
+        if (viewMode)
+            return;
         boolean hasAttachment = pendingAttachment != null
-            || (!attachmentRemovalPending && currentAttachmentReference() != null && !currentAttachmentReference().isBlank());
-        if (hasAttachment && !confirmAction("Remove attachment", "Remove the selected sales attachment?")) return;
-        pendingAttachment=null;
-        attachmentRemovalPending=true;
+                || (!attachmentRemovalPending && currentAttachmentReference() != null
+                        && !currentAttachmentReference().isBlank());
+        if (hasAttachment && !confirmAction("Remove attachment", "Remove the selected sales attachment?"))
+            return;
+        pendingAttachment = null;
+        attachmentRemovalPending = true;
         org.example.navigation.UnsavedChangesManager.touch(tableLines);
-        if(txtAttachment!=null)txtAttachment.clear();
+        if (txtAttachment != null)
+            txtAttachment.clear();
         refreshAttachmentUi();
     }
 
-    private void refreshAttachmentUi(){
-        if(lblAttachmentName==null)return;
-        String reference=currentAttachmentReference();
-        boolean available=pendingAttachment!=null||(!attachmentRemovalPending&&reference!=null&&!reference.isBlank());
-        String name=pendingAttachment!=null?pendingAttachment.getName():attachmentDisplayName(reference);
-        lblAttachmentName.setText(available?name:"No attachment");
-        lblAttachmentName.setTooltip(available?new Tooltip(name):null);
-        if(btnAttachmentAdd!=null){btnAttachmentAdd.setText(available?"Replace":"Add");btnAttachmentAdd.setDisable(viewMode);}
-        if(btnAttachmentPreview!=null)btnAttachmentPreview.setDisable(!available);
-        if(btnAttachmentRemove!=null)btnAttachmentRemove.setDisable(viewMode||!available);
+    private void refreshAttachmentUi() {
+        if (lblAttachmentName == null)
+            return;
+        String reference = currentAttachmentReference();
+        boolean available = pendingAttachment != null
+                || (!attachmentRemovalPending && reference != null && !reference.isBlank());
+        String name = pendingAttachment != null ? pendingAttachment.getName() : attachmentDisplayName(reference);
+        lblAttachmentName.setText(available ? name : "No attachment");
+        lblAttachmentName.setTooltip(available ? new Tooltip(name) : null);
+        if (btnAttachmentAdd != null) {
+            btnAttachmentAdd.setText(available ? "Replace" : "Add");
+            btnAttachmentAdd.setDisable(viewMode);
+        }
+        if (btnAttachmentPreview != null)
+            btnAttachmentPreview.setDisable(!available);
+        if (btnAttachmentRemove != null)
+            btnAttachmentRemove.setDisable(viewMode || !available);
     }
 
-    private String currentAttachmentReference(){
-        if(attachmentRemovalPending)return "";
-        if(editingSale!=null)return editingSale.getAttachmentPath();
+    private String currentAttachmentReference() {
+        if (attachmentRemovalPending)
+            return "";
+        if (editingSale != null)
+            return editingSale.getAttachmentPath();
         return "";
     }
 
-    private void persistAttachmentAfterSave(Sales sale){
-        if(sale==null)return;
-        Sales persisted=sale;
-        if(persisted.getId()<=0&&persisted.getInvoiceNo()!=null&&!persisted.getInvoiceNo().isBlank()){
-            Sales loaded=salesService.getByInvoice(persisted.getInvoiceNo());
-            if(loaded!=null)persisted=loaded;
+    private void persistAttachmentAfterSave(Sales sale) {
+        if (sale == null)
+            return;
+        Sales persisted = sale;
+        if (persisted.getId() <= 0 && persisted.getInvoiceNo() != null && !persisted.getInvoiceNo().isBlank()) {
+            Sales loaded = salesService.getByInvoice(persisted.getInvoiceNo());
+            if (loaded != null)
+                persisted = loaded;
         }
-        int id=persisted.getId();
-        if(id<=0)throw new IllegalStateException("Sales attachment cannot be linked because the saved sale id is unavailable.");
-        if(attachmentRemovalPending){
-            supportApi.deletePrimaryDocumentAttachment("SALE",id,persisted.getRowVersion());
+        int id = persisted.getId();
+        if (id <= 0)
+            throw new IllegalStateException(
+                    "Sales attachment cannot be linked because the saved sale id is unavailable.");
+        if (attachmentRemovalPending) {
+            supportApi.deletePrimaryDocumentAttachment("SALE", id, persisted.getRowVersion());
             sale.setAttachmentPath("");
-            if(editingSale!=null)editingSale.setAttachmentPath("");
-        }else if(pendingAttachment!=null){
-            String reference=supportApi.uploadDocumentAttachment("SALE",id,pendingAttachment.toPath(),persisted.getRowVersion());
+            if (editingSale != null)
+                editingSale.setAttachmentPath("");
+        } else if (pendingAttachment != null) {
+            String reference = supportApi.uploadDocumentAttachment("SALE", id, pendingAttachment.toPath(),
+                    persisted.getRowVersion());
             sale.setAttachmentPath(reference);
-            if(editingSale!=null)editingSale.setAttachmentPath(reference);
+            if (editingSale != null)
+                editingSale.setAttachmentPath(reference);
         }
-        pendingAttachment=null;
-        attachmentRemovalPending=false;
-        if(txtAttachment!=null)txtAttachment.setText(sale.getAttachmentPath()==null?"":sale.getAttachmentPath());
+        pendingAttachment = null;
+        attachmentRemovalPending = false;
+        if (txtAttachment != null)
+            txtAttachment.setText(sale.getAttachmentPath() == null ? "" : sale.getAttachmentPath());
         refreshAttachmentUi();
     }
 
-    private String attachmentDisplayName(String reference){
-        if(reference==null||reference.isBlank())return "No attachment";
-        try{Path path=Path.of(reference);Path name=path.getFileName();return name==null?reference:name.toString();}
-        catch(Exception ignored){return reference;}
+    private String attachmentDisplayName(String reference) {
+        if (reference == null || reference.isBlank())
+            return "No attachment";
+        try {
+            Path path = Path.of(reference);
+            Path name = path.getFileName();
+            return name == null ? reference : name.toString();
+        } catch (Exception ignored) {
+            return reference;
+        }
     }
 
-    private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
-    @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
-
-    private void notifySalesStatus(String invoiceNo){
-        Sales persisted=salesService.getByInvoice(invoiceNo);
-        if(persisted==null)return;
-        String status=safeText(persisted.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);
-        if(status.isBlank())status="PENDING";
-        if("PENDING APPROVAL".equals(status))return; // server already emits the exact approval notification
-        NotificationService.createNotification(NotificationService.Category.SALES,"Sales "+invoiceNo+" • "+status,
-                invoiceNo+" current document status: "+status+".","INFO","/fxml/pages/SalesList.fxml",invoiceNo);
+    private String sanitizeAttachmentFileName(String value) {
+        String name = value == null ? "attachment" : value.replaceAll("[^A-Za-z0-9._() -]", "_").trim();
+        return name.isBlank() ? "attachment" : name;
     }
 
+    @FXML
+    private void preview() {
+        Sales sale = buildSale();
+        if (sale != null)
+            new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "Invoice " + sale.getInvoiceNo() + "\nCustomer: " + sale.getCustomer().getName() + "\nItems: "
+                            + sale.getLines().size() + "\nTotal: " + String.format("₹ %,.2f", sale.getTotalAmount()))
+                    .showAndWait();
+    }
+
+    private void notifySalesStatus(String invoiceNo) {
+        Sales persisted = salesService.getByInvoice(invoiceNo);
+        if (persisted == null)
+            return;
+        String status = safeText(persisted.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);
+        if (status.isBlank())
+            status = "PENDING";
+        if ("PENDING APPROVAL".equals(status))
+            return; // server already emits the exact approval notification
+        NotificationService.createNotification(NotificationService.Category.SALES,
+                "Sales " + invoiceNo + " • " + status,
+                invoiceNo + " current document status: " + status + ".", "INFO", "/fxml/pages/SalesList.fxml",
+                invoiceNo);
+    }
 
     private boolean confirmAction(String title, String message) {
         OwnedAlert alert = new OwnedAlert(
-            Alert.AlertType.CONFIRMATION,
-            message,
-            ButtonType.CANCEL,
-            ButtonType.OK
-        );
+                Alert.AlertType.CONFIRMATION,
+                message,
+                ButtonType.CANCEL,
+                ButtonType.OK);
         alert.setTitle(title);
         alert.setHeaderText(title);
         return alert.showAndWait().filter(ButtonType.OK::equals).isPresent();
     }
 
-//--------------------------------------------------
-// WARNING
-//--------------------------------------------------
+    // --------------------------------------------------
+    // WARNING
+    // --------------------------------------------------
 
     private void warn(String msg) {
 
         new OwnedAlert(
-            Alert.AlertType.WARNING,
-            msg
-        ).showAndWait();
+                Alert.AlertType.WARNING,
+                msg).showAndWait();
 
     }
 
-
-//--------------------------------------------------
-// CANCEL
-//--------------------------------------------------
+    // --------------------------------------------------
+    // CANCEL
+    // --------------------------------------------------
 
     @FXML
     private void cancel() {
         org.example.navigation.WorkspaceTabManager.getInstance().closeTabByFxml("/fxml/pages/Sale.fxml");
         NavigationManager.getInstance()
-            .loadPage("/fxml/pages/SalesList.fxml");
+                .loadPage("/fxml/pages/SalesList.fxml");
     }
 
-
-//--------------------------------------------------
-// LOAD SALE FOR EDIT
-//--------------------------------------------------
+    // --------------------------------------------------
+    // LOAD SALE FOR EDIT
+    // --------------------------------------------------
 
     public void loadSale(Sales sale) {
 
         System.out.println(
-            "Invoice = " + sale.getInvoiceNo()
-        );
+                "Invoice = " + sale.getInvoiceNo());
 
         editingSale = sale;
         duplicateSource = null;
@@ -1606,37 +1906,44 @@ public class SalesController implements ScreenLifecycle {
         final boolean savedSameAsBilling = sale.isSameAsBilling();
         final String savedDeliveryAddress = sale.getDeliveryAddress();
         final String savedDeliveryGstin = sale.getDeliveryGstin();
-        if (chkSameAsBilling != null) chkSameAsBilling.setSelected(false);
+        if (chkSameAsBilling != null)
+            chkSameAsBilling.setSelected(false);
 
         txtInvoiceNo.setText(
-            sale.getInvoiceNo()
-        );
+                sale.getInvoiceNo());
 
         lblInvoiceDisplay.setText(
-            sale.getInvoiceNo()
-        );
+                sale.getInvoiceNo());
 
         dpInvoiceDate.setValue(
-            sale.getInvoiceDate()
-        );
-        if (txtPoDate != null) txtPoDate.setValue(sale.getPoDate());
-        cmbSalesPerson.setValue(sale.getSalesperson().isBlank()?"Admin":sale.getSalesperson());
+                sale.getInvoiceDate());
+        if (txtPoDate != null)
+            txtPoDate.setValue(sale.getPoDate());
+        cmbSalesPerson.setValue(sale.getSalesperson().isBlank() ? "Admin" : sale.getSalesperson());
         txtInvoiceMessage.setText(sale.getNotes());
-        pendingAttachment=null;
-        attachmentRemovalPending=false;
-        if(txtAttachment!=null)txtAttachment.setText(sale.getAttachmentPath());
+        pendingAttachment = null;
+        attachmentRemovalPending = false;
+        if (txtAttachment != null)
+            txtAttachment.setText(sale.getAttachmentPath());
         refreshAttachmentUi();
         cmbPaymentTerms.setValue(sale.getPaymentTerms().isBlank() ? "15 Days" : sale.getPaymentTerms());
-        if (cmbGstType != null) cmbGstType.setValue(sale.getGstType().isBlank()
-            ? (cmbGstType.getItems().isEmpty() ? null : cmbGstType.getItems().get(0)) : sale.getGstType());
-        if (cmbTransporter != null) cmbTransporter.getItems().stream()
-            .filter(value -> value.getLookupValue().equalsIgnoreCase(sale.getTransporter()))
-            .findFirst().ifPresent(value -> cmbTransporter.setValue(value));
-        if (txtVehicleNumber != null) txtVehicleNumber.setText(sale.getVehicleNumber());
-        if (txtContactPerson != null) txtContactPerson.setText(sale.getContactPerson());
-        if (txtContactPersonMobile != null) txtContactPersonMobile.setText(sale.getContactPersonMobile());
+        if (cmbGstType != null)
+            cmbGstType.setValue(sale.getGstType().isBlank()
+                    ? (cmbGstType.getItems().isEmpty() ? null : cmbGstType.getItems().get(0))
+                    : sale.getGstType());
+        if (cmbTransporter != null)
+            cmbTransporter.getItems().stream()
+                    .filter(value -> value.getLookupValue().equalsIgnoreCase(sale.getTransporter()))
+                    .findFirst().ifPresent(value -> cmbTransporter.setValue(value));
+        if (txtVehicleNumber != null)
+            txtVehicleNumber.setText(sale.getVehicleNumber());
+        if (txtContactPerson != null)
+            txtContactPerson.setText(sale.getContactPerson());
+        if (txtContactPersonMobile != null)
+            txtContactPersonMobile.setText(sale.getContactPersonMobile());
         invoiceCharges.setAll(sale.getCharges().stream().map(SalesCharge::copy).toList());
-        if (txtTransportNote != null) txtTransportNote.setText(sale.getTransportNote());
+        if (txtTransportNote != null)
+            txtTransportNote.setText(sale.getTransportNote());
         if (txtOrderNo != null) {
             String savedCustomerPo = sale.getOrderNo();
             // Defensive compatibility for databases created by older 7.1.x
@@ -1645,9 +1952,12 @@ public class SalesController implements ScreenLifecycle {
             txtOrderNo.setText(isLegacyGeneratedPoOrderNo(savedCustomerPo) ? "" : savedCustomerPo);
         }
         String customerGstin = sale.getCustomer() == null ? "" : sale.getCustomer().getGstin();
-        if (txtBillingGstin != null) txtBillingGstin.setText(!sale.getBillingGstin().isBlank()
-            ? sale.getBillingGstin() : (!sale.getGstin().isBlank() ? sale.getGstin() : customerGstin));
-        if (txtTransporterGstin != null) txtTransporterGstin.setText(sale.getTransporterGstin());
+        if (txtBillingGstin != null)
+            txtBillingGstin.setText(!sale.getBillingGstin().isBlank()
+                    ? sale.getBillingGstin()
+                    : (!sale.getGstin().isBlank() ? sale.getGstin() : customerGstin));
+        if (txtTransporterGstin != null)
+            txtTransporterGstin.setText(sale.getTransporterGstin());
         txtReference.setText(sale.getReferenceNo() == null ? "" : sale.getReferenceNo());
 
         // Select customer
@@ -1655,15 +1965,15 @@ public class SalesController implements ScreenLifecycle {
         if (sale.getCustomer() != null) {
 
             txtBillingAddress.setText(sale.getCustomer().getAddress() == null
-                ? "" : sale.getCustomer().getAddress());
+                    ? ""
+                    : sale.getCustomer().getAddress());
 
             for (Party party : cmbCustomer.getItems()) {
 
-                if (party.getId()
-                    == sale.getCustomer().getId()) {
+                if (party.getId() == sale.getCustomer().getId()) {
 
                     cmbCustomer.getSelectionModel()
-                        .select(party);
+                            .select(party);
 
                     break;
 
@@ -1675,8 +1985,8 @@ public class SalesController implements ScreenLifecycle {
 
         if (txtBillingAddress != null) {
             String billing = sale.getBillingAddress().isBlank()
-                ? (sale.getCustomer() == null ? "" : sale.getCustomer().getAddress())
-                : sale.getBillingAddress();
+                    ? (sale.getCustomer() == null ? "" : sale.getCustomer().getAddress())
+                    : sale.getBillingAddress();
             txtBillingAddress.setText(billing == null ? "" : billing);
         }
         if (chkSameAsBilling != null) {
@@ -1685,18 +1995,20 @@ public class SalesController implements ScreenLifecycle {
         if (savedSameAsBilling) {
             syncDeliveryAddressState();
         } else {
-            if (txtDeliveryAddress != null) txtDeliveryAddress.setText(savedDeliveryAddress == null ? "" : savedDeliveryAddress);
-            if (txtDeliveryGstin != null) txtDeliveryGstin.setText(savedDeliveryGstin == null ? "" : savedDeliveryGstin);
+            if (txtDeliveryAddress != null)
+                txtDeliveryAddress.setText(savedDeliveryAddress == null ? "" : savedDeliveryAddress);
+            if (txtDeliveryGstin != null)
+                txtDeliveryGstin.setText(savedDeliveryGstin == null ? "" : savedDeliveryGstin);
             syncDeliveryAddressState();
         }
 
         txtRemarks.setText(
 
-            sale.getRemarks() == null
+                sale.getRemarks() == null
 
-                ? ""
+                        ? ""
 
-                : sale.getRemarks()
+                        : sale.getRemarks()
 
         );
 
@@ -1705,9 +2017,8 @@ public class SalesController implements ScreenLifecycle {
         if (sale.getLines() != null) {
 
             tableLines.getItems()
-                .addAll(
-                    sale.getLines()
-                );
+                    .addAll(
+                            sale.getLines());
 
         }
 
@@ -1716,31 +2027,37 @@ public class SalesController implements ScreenLifecycle {
 
     }
 
-
-
-    /** Prepare an existing sale as a new unsaved invoice, matching Duplicate Purchase behavior. */
+    /**
+     * Prepare an existing sale as a new unsaved invoice, matching Duplicate
+     * Purchase behavior.
+     */
     public void prepareDuplicate() {
-        if (editingSale == null) return;
+        if (editingSale == null)
+            return;
         duplicateSource = editingSale;
         editingSale = null;
-        if (txtOrderNo != null) txtOrderNo.clear();
+        if (txtOrderNo != null)
+            txtOrderNo.clear();
         pendingAttachment = null;
         attachmentRemovalPending = false;
-        if (txtAttachment != null) txtAttachment.clear();
+        if (txtAttachment != null)
+            txtAttachment.clear();
         refreshAttachmentUi();
         String nextInvoice = salesService.nextInvoiceNo();
         txtInvoiceNo.setText(nextInvoice);
-        if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(nextInvoice);
-        if (dpInvoiceDate != null) dpInvoiceDate.setValue(BusinessClock.today());
+        if (lblInvoiceDisplay != null)
+            lblInvoiceDisplay.setText(nextInvoice);
+        if (dpInvoiceDate != null)
+            dpInvoiceDate.setValue(BusinessClock.today());
     }
 
-//--------------------------------------------------
-// VIEW MODE
-//--------------------------------------------------
+    // --------------------------------------------------
+    // VIEW MODE
+    // --------------------------------------------------
 
     public void setViewMode(boolean value) {
 
-        viewMode=value;
+        viewMode = value;
         txtInvoiceNo.setDisable(value);
 
         dpInvoiceDate.setDisable(value);
@@ -1748,7 +2065,8 @@ public class SalesController implements ScreenLifecycle {
         cmbCustomer.setDisable(value);
 
         txtItemSearch.setDisable(value);
-        if (txtPoDate != null) txtPoDate.setDisable(value);
+        if (txtPoDate != null)
+            txtPoDate.setDisable(value);
 
         txtQuantity.setDisable(value);
 
@@ -1758,25 +2076,42 @@ public class SalesController implements ScreenLifecycle {
         txtLineDiscount.setDisable(value);
 
         txtRemarks.setDisable(value);
-        if(txtInvoiceMessage!=null){txtInvoiceMessage.setEditable(!value);txtInvoiceMessage.setDisable(false);}
+        if (txtInvoiceMessage != null) {
+            txtInvoiceMessage.setEditable(!value);
+            txtInvoiceMessage.setDisable(false);
+        }
         txtBillingAddress.setDisable(value);
         txtDeliveryAddress.setDisable(value);
-        if (cmbGstType != null) cmbGstType.setDisable(value);
-        if (cmbTransporter != null) cmbTransporter.setDisable(value);
-        if (txtVehicleNumber != null) txtVehicleNumber.setDisable(value);
-        if (txtContactPerson != null) txtContactPerson.setDisable(value);
-        if (txtContactPersonMobile != null) txtContactPersonMobile.setDisable(value);
-        if (btnManageCharges != null) btnManageCharges.setDisable(value);
-        if (txtTransportNote != null) txtTransportNote.setDisable(value);
-        if (txtOrderNo != null) txtOrderNo.setDisable(value);
-        if (txtBillingGstin != null) txtBillingGstin.setDisable(value);
-        if (txtDeliveryGstin != null) txtDeliveryGstin.setDisable(value);
-        if (txtTransporterGstin != null) txtTransporterGstin.setDisable(value);
-        if (chkSameAsBilling != null) chkSameAsBilling.setDisable(value);
+        if (cmbGstType != null)
+            cmbGstType.setDisable(value);
+        if (cmbTransporter != null)
+            cmbTransporter.setDisable(value);
+        if (txtVehicleNumber != null)
+            txtVehicleNumber.setDisable(value);
+        if (txtContactPerson != null)
+            txtContactPerson.setDisable(value);
+        if (txtContactPersonMobile != null)
+            txtContactPersonMobile.setDisable(value);
+        if (btnManageCharges != null)
+            btnManageCharges.setDisable(value);
+        if (txtTransportNote != null)
+            txtTransportNote.setDisable(value);
+        if (txtOrderNo != null)
+            txtOrderNo.setDisable(value);
+        if (txtBillingGstin != null)
+            txtBillingGstin.setDisable(value);
+        if (txtDeliveryGstin != null)
+            txtDeliveryGstin.setDisable(value);
+        if (txtTransporterGstin != null)
+            txtTransporterGstin.setDisable(value);
+        if (chkSameAsBilling != null)
+            chkSameAsBilling.setDisable(value);
 
         btnAddLine.setDisable(value);
-        if (btnRemoveLine != null) btnRemoveLine.setDisable(value);
-        if (btnAddCustomer != null) btnAddCustomer.setDisable(value);
+        if (btnRemoveLine != null)
+            btnRemoveLine.setDisable(value);
+        if (btnAddCustomer != null)
+            btnAddCustomer.setDisable(value);
 
         btnSaveSale.setDisable(value);
         refreshAttachmentUi();
@@ -1784,75 +2119,61 @@ public class SalesController implements ScreenLifecycle {
         tableLines.setDisable(value);
 
     }
-    @FXML
-    private void addLine(){
 
+    @FXML
+    private void addLine() {
 
         Item item = resolveTypedItem(txtItemSearch.getText());
-        if (item != null && selectedItem == null) selectItem(item);
+        if (item != null && selectedItem == null)
+            selectItem(item);
 
-
-        if(item==null){
+        if (item == null) {
 
             warn("Select item");
 
             return;
         }
 
+        try {
 
+            double qty = Double.parseDouble(txtQuantity.getText());
 
-        try{
+            double rate = Double.parseDouble(txtRate.getText());
 
-
-            double qty =
-                Double.parseDouble(txtQuantity.getText());
-
-
-            double rate =
-                Double.parseDouble(txtRate.getText());
-
-            if (qty <= 0) throw new IllegalArgumentException("Quantity must be greater than zero");
-            if (rate < 0) throw new IllegalArgumentException("Rate cannot be negative");
+            if (qty <= 0)
+                throw new IllegalArgumentException("Quantity must be greater than zero");
+            if (rate < 0)
+                throw new IllegalArgumentException("Rate cannot be negative");
             double alreadyOnInvoice = tableLines.getItems().stream()
-                .filter(line -> line != editingLine && item.getItemCode().equals(line.getItemCode()))
-                .mapToDouble(SalesLine::getQuantity).sum();
-            double freeToPromise=Math.max(0,item.getOpeningStock());
+                    .filter(line -> line != editingLine && item.getItemCode().equals(line.getItemCode()))
+                    .mapToDouble(SalesLine::getQuantity).sum();
+            double freeToPromise = Math.max(0, item.getOpeningStock());
             if (qty + alreadyOnInvoice > freeToPromise + 0.0001) {
-                throw new IllegalArgumentException("Only " + qtyText(freeToPromise) + " units of " + item.getDescription() + " are currently available (On hand " + qtyText(item.getOpeningStock()) + ")");
+                throw new IllegalArgumentException(
+                        "Only " + qtyText(freeToPromise) + " units of " + item.getDescription()
+                                + " are currently available (On hand " + qtyText(item.getOpeningStock()) + ")");
             }
 
-
-            double gst =
-                item.getGst();
+            double gst = item.getGst();
             double discount = item.getDiscountPercent();
 
+            if (txtGST.getText() != null &&
+                    !txtGST.getText().isBlank()) {
 
-
-            if(txtGST.getText()!=null &&
-                !txtGST.getText().isBlank()){
-
-                gst =
-                    Double.parseDouble(txtGST.getText());
+                gst = Double.parseDouble(txtGST.getText());
 
             }
-
-
 
             if (txtLineDiscount.getText() != null && !txtLineDiscount.getText().isBlank()) {
                 discount = Double.parseDouble(txtLineDiscount.getText());
             }
-            if (discount < 0 || discount > 100) throw new IllegalArgumentException("Discount must be between 0 and 100");
+            if (discount < 0 || discount > 100)
+                throw new IllegalArgumentException("Discount must be between 0 and 100");
 
-
-
-            SalesLine line =
-                new SalesLine();
-
+            SalesLine line = new SalesLine();
 
             line.setItemCode(
-                item.getItemCode()
-            );
-
+                    item.getItemCode());
 
             line.setItemDescription(item.getDescription());
             line.setItemCategory(item.getCategory());
@@ -1860,24 +2181,19 @@ public class SalesController implements ScreenLifecycle {
             line.setItemUnit(item.getUnit());
             line.setItemRemarks(item.getRemarks());
 
-
             line.setQuantity(qty);
 
-
             line.setRate(rate);
-
 
             line.setGstPercent(gst);
             line.setDiscountPercent(discount);
             line.recalculate();
 
-
-
-            if(editingLine == null){
+            if (editingLine == null) {
 
                 tableLines.getItems().add(line);
 
-            }else{
+            } else {
 
                 tableLines.getItems().set(editingIndex, line);
 
@@ -1885,8 +2201,6 @@ public class SalesController implements ScreenLifecycle {
                 editingIndex = -1;
 
             }
-
-
 
             clearItemSearch();
 
@@ -1897,14 +2211,10 @@ public class SalesController implements ScreenLifecycle {
             txtGST.clear();
             txtLineDiscount.clear();
             tableLines.getSelectionModel().clearSelection();
-
-
+            WorkflowFocusManager.initial(txtItemSearch);
             recalculate();
 
-
-
-        }
-        catch(Exception e){
+        } catch (Exception e) {
             warn(e instanceof NumberFormatException ? "Enter valid quantity and rate" : e.getMessage());
 
         }
@@ -1931,7 +2241,8 @@ public class SalesController implements ScreenLifecycle {
     }
 
     private void decorateActions() {
-        if (salesEntryRoot == null) return;
+        if (salesEntryRoot == null)
+            return;
 
         Node titleHolder = salesEntryRoot.lookup(".sales-entry-title-icon");
         if (titleHolder instanceof StackPane stackPane) {
@@ -1939,20 +2250,24 @@ public class SalesController implements ScreenLifecycle {
         }
 
         for (Node node : salesEntryRoot.lookupAll(".button")) {
-            if (!(node instanceof Button button) || button.getGraphic() != null) continue;
+            if (!(node instanceof Button button) || button.getGraphic() != null)
+                continue;
 
             String text = button.getText() == null ? "" : button.getText().trim().toLowerCase();
-            String key = text.contains("back") ? "return" :
-                text.contains("preview") ? "view" :
-                text.contains("pdf") ? "download" :
-                text.contains("email") ? "email" :
-                text.contains("whatsapp") ? "whatsapp" :
-                text.contains("remove") ? "delete" :
-                text.contains("cancel") ? "cancel" :
-                text.contains("draft") ? "save" :
-                text.contains("save") ? "print" :
-                text.contains("add customer") ? "customer" :
-                text.contains("add") ? "add" : null;
+            String key = text.contains("back") ? "return"
+                    : text.contains("preview") ? "view"
+                            : text.contains("pdf") ? "download"
+                                    : text.contains("email") ? "email"
+                                            : text.contains("whatsapp") ? "whatsapp"
+                                                    : text.contains("remove") ? "delete"
+                                                            : text.contains("cancel") ? "cancel"
+                                                                    : text.contains("draft") ? "save"
+                                                                            : text.contains("save") ? "print"
+                                                                                    : text.contains("add customer")
+                                                                                            ? "customer"
+                                                                                            : text.contains("add")
+                                                                                                    ? "add"
+                                                                                                    : null;
 
             if (key != null) {
                 button.setGraphic(IconFactory.icon(key));
@@ -1978,19 +2293,16 @@ public class SalesController implements ScreenLifecycle {
         btnAddLine.setText("+ Add Line");
     }
 
-
-
     @FXML
-    private void removeLine(){
+    private void removeLine() {
 
-        SalesLine line =
-            tableLines
+        SalesLine line = tableLines
                 .getSelectionModel()
                 .getSelectedItem();
 
-
-        if(line!=null){
-            if (!confirmAction("Remove line", "Remove the selected sales line?")) return;
+        if (line != null) {
+            if (!confirmAction("Remove line", "Remove the selected sales line?"))
+                return;
 
             tableLines.getItems().remove(line);
 
@@ -1999,9 +2311,6 @@ public class SalesController implements ScreenLifecycle {
         }
 
     }
-
-
-
 
     private void safeLoad(String label, List<String> errors, Runnable loader) {
         try {
@@ -2013,10 +2322,10 @@ public class SalesController implements ScreenLifecycle {
             Platform.runLater(() -> {
                 if (errors.size() == 1) {
                     new OwnedAlert(Alert.AlertType.WARNING,
-                        "Create Sale opened, but some API-backed master data could not be loaded.\n\n" +
-                        String.join("\n", errors) +
-                        "\n\nCheck that the Spring server is running and review its console for the matching endpoint error.")
-                        .showAndWait();
+                            "Create Sale opened, but some API-backed master data could not be loaded.\n\n" +
+                                    String.join("\n", errors) +
+                                    "\n\nCheck that the Spring server is running and review its console for the matching endpoint error.")
+                            .showAndWait();
                 }
             });
         }
@@ -2028,7 +2337,8 @@ public class SalesController implements ScreenLifecycle {
 
     private String rootMessage(Throwable error) {
         Throwable current = error;
-        while (current.getCause() != null && current.getCause() != current) current = current.getCause();
+        while (current.getCause() != null && current.getCause() != current)
+            current = current.getCause();
         String message = current.getMessage();
         return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
     }

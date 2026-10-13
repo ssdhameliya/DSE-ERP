@@ -24,6 +24,8 @@
         <Region HBox.hgrow="ALWAYS"/>
         <Button text="Cancel" onAction="#cancel"
                 styleClass="sales-entry-back-button,approved-button,approved-secondary-button"/>
+        <Button fx:id="btnPrintInwardBarcode" text="Inward Barcode" onAction="#printInwardBarcode"
+                styleClass="approved-button,approved-secondary-button"/>
         <Button fx:id="btnSavePurchase" text="Save" onAction="#savePurchase"
                 styleClass="sales-entry-save-button,approved-button,approved-primary-button"/>
     </HBox>
@@ -132,29 +134,6 @@
 
             <VBox spacing="8" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-items-card" VBox.vgrow="ALWAYS">
                 <Label text="Purchase Items" styleClass="flow-title,sales-entry-section-title,sales-entry-section-items"/>
-                <HBox alignment="CENTER_LEFT" spacing="10" styleClass="rapid-key-bar">
-                    <HBox alignment="CENTER_LEFT" spacing="5">
-                        <Label text="F2" styleClass="rapid-key-badge"/>
-                        <Label text="Item Search" styleClass="rapid-key-desc"/>
-                    </HBox>
-                    <Label text="|" styleClass="workspace-tab-hint"/>
-                    <HBox alignment="CENTER_LEFT" spacing="5">
-                        <Label text="Enter / Tab" styleClass="rapid-key-badge"/>
-                        <Label text="Next Field" styleClass="rapid-key-desc"/>
-                    </HBox>
-                    <Label text="|" styleClass="workspace-tab-hint"/>
-                    <HBox alignment="CENTER_LEFT" spacing="5">
-                        <Label text="Enter" styleClass="rapid-key-badge"/>
-                        <Label text="Add Line" styleClass="rapid-key-desc"/>
-                    </HBox>
-                    <Label text="|" styleClass="workspace-tab-hint"/>
-                    <HBox alignment="CENTER_LEFT" spacing="5">
-                        <Label text="Ctrl+S / F10" styleClass="rapid-key-badge"/>
-                        <Label text="Save Purchase" styleClass="rapid-key-desc"/>
-                    </HBox>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <Label text="⚡ High-Speed Entry Mode" styleClass="rapid-key-desc"/>
-                </HBox>
 
                 <!-- Entry controls mirror the editable line-item table columns.
                      The Discount (₹) slot is intentionally blank because it is calculated.

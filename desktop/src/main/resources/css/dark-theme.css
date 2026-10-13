@@ -10779,9 +10779,10 @@
     -fx-text-fill: #eef4fb;
     -fx-prompt-text-fill: #8297ad;
 }
-.sales-entry-page .text-field:focused, .sales-entry-page .text-area:focused, .sales-entry-page .combo-box:focused, .sales-entry-page .date-picker:focused {
--fx-border-color: #8b5cf6;
-    -fx-effect: dropshadow(gaussian, rgba(139, 92, 246, 0.25), 9, 0.08, 0, 0);
+.sales-entry-page .text-field:focused, .sales-entry-page .text-area:focused, .sales-entry-page .combo-box:focused, .sales-entry-page .date-picker:focused, .sales-entry-page .text-field.erp-input-active-focused, .sales-entry-page .text-area.erp-input-active-focused, .sales-entry-page .combo-box.erp-input-active-focused, .sales-entry-page .date-picker.erp-input-active-focused {
+-fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.50), 9, 0.25, 0, 0);
 }
 .sales-entry-page .sales-entry-add-button {
 -fx-background-color: #198754;
@@ -17044,11 +17045,11 @@
     -fx-padding: 8px 12px 8px 12px;
 }
 
-.text-field:focused, .password-field:focused, .approved-input:focused, .auth-input:focused, .entity-search:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+.text-field:focused, .password-field:focused, .approved-input:focused, .auth-input:focused, .entity-search:focused, .text-field.erp-input-active-focused, .password-field.erp-input-active-focused, .approved-input.erp-input-active-focused, .auth-input.erp-input-active-focused, .entity-search.erp-input-active-focused {
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .text-area {
@@ -17062,11 +17063,11 @@
     -fx-padding: 6px 8px 6px 8px;
 }
 
-.text-area:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+.text-area:focused, .text-area.erp-input-active-focused {
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .text-area .scroll-pane, .text-area .content {
@@ -17083,11 +17084,11 @@
     -fx-padding: 2px 4px 2px 4px;
 }
 
-.combo-box:focused, .choice-box:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+.combo-box:focused, .choice-box:focused, .combo-box.erp-input-active-focused, .choice-box.erp-input-active-focused {
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .combo-box > .list-cell, .choice-box > .label {
@@ -17130,11 +17131,11 @@
     -fx-border-radius: 8px;
 }
 
-.date-picker:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+.date-picker:focused, .date-picker.erp-input-active-focused {
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .date-picker-popup {
@@ -17146,7 +17147,7 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 14, 0.15, 0, 6);
 }
 
-.date-picker > .text-field, .spinner > .text-field {
+.combo-box > .text-field, .combo-box > .text-field:focused, .date-picker > .text-field, .spinner > .text-field {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
     -fx-border-width: 0;
@@ -17161,11 +17162,11 @@
     -fx-border-radius: 8px;
 }
 
-.spinner:focused {
-    -fx-border-color: #6366f1;
-    -fx-border-width: 1px;
-    -fx-background-color: #172033;
-    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.35), 6, 0.2, 0, 0);
+.spinner:focused, .spinner.erp-input-active-focused {
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
 .scroll-bar:vertical, .virtual-flow .scroll-bar:vertical {

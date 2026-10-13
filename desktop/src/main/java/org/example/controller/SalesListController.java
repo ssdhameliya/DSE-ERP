@@ -394,6 +394,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         MenuItem edit = salesActionItem("Edit Sale", "edit", () -> edit(requireSalesActionTarget(target)));
         MenuItem duplicate = salesActionItem("Duplicate Sale", "copy", () -> duplicate(requireSalesActionTarget(target)));
         MenuItem print = salesActionItem("View / Print Tax Invoice", "print", () -> openPdf(requireSalesActionTarget(target)));
+        MenuItem barcode = salesActionItem("Print Dispatch Barcode Label", "barcode", () -> printDispatchBarcode(requireSalesActionTarget(target)));
         MenuItem excel = salesActionItem("View / Download Excel", "excel", () -> openExcel(requireSalesActionTarget(target)));
         MenuItem email = salesActionItem("Send Email", "email", () -> sendEmail(requireSalesActionTarget(target)));
         MenuItem whatsapp = salesActionItem("Send WhatsApp", "whatsapp", () -> sendWhatsapp(requireSalesActionTarget(target)));
@@ -402,7 +403,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         MenuItem cancel = salesActionItem("Cancel Sale", "cancel", () -> cancelSale(requireSalesActionTarget(target)));
         MenuItem delete = salesActionItem("Delete Sale", "delete", () -> delete(requireSalesActionTarget(target)));
         delete.getStyleClass().add("danger-menu-item");
-        sharedMenu.getItems().setAll(view,audit,edit,duplicate,print,excel,email,whatsapp,payment,createReturn,cancel,delete);
+        sharedMenu.getItems().setAll(view,audit,edit,duplicate,print,barcode,excel,email,whatsapp,payment,createReturn,cancel,delete);
         IconFactory.decorateActionMenu(sharedMenu);
 
         java.util.function.Consumer<Sales> updateAvailability = current -> {
@@ -625,6 +626,8 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);}
     private Sales requireSelected(){if(selected==null){warning("Select an invoice first.");return null;}return selected;}
     @FXML private void emailSelected(){Sales s=requireSelected();if(s!=null)sendEmail(s);}@FXML private void whatsappSelected(){Sales s=requireSelected();if(s!=null)sendWhatsapp(s);}@FXML private void editSelectedSale(){Sales s=requireSelected();if(s!=null)edit(s);}@FXML private void recordSelectedPayment(){Sales s=requireSelected();if(s!=null)openPayment(s);}@FXML private void excelSelected(){Sales s=requireSelected();if(s!=null)openExcel(s);}
+    @FXML private void printDispatchBarcodeSelected(){Sales s=requireSelected();if(s!=null)printDispatchBarcode(s);}
+    private void printDispatchBarcode(Sales sale){if(sale==null)return;org.example.util.OrderDispatchBarcodeDialog.showForSale(tableSales,sale);}
     @FXML private void approveSelectedSale(){Sales s=requireSelected();if(s==null)return;try{service.approve(s.getInvoiceNo());NotificationService.add("Sale "+s.getInvoiceNo()+" approved.");refresh();}catch(Exception e){error(e);}}
     @FXML private void rejectSelectedSale(){Sales s=requireSelected();if(s==null)return;OwnedTextInputDialog dialog=new OwnedTextInputDialog();dialog.setTitle("Reject Sale");dialog.setHeaderText("Reject "+s.getInvoiceNo());dialog.setContentText("Reason:");dialog.showAndWait().map(String::trim).filter(v->!v.isBlank()).ifPresent(reason->{try{service.reject(s.getInvoiceNo(),reason);NotificationService.add("Sale "+s.getInvoiceNo()+" rejected.");refresh();}catch(Exception e){error(e);}});}
     private void openPayment(Sales s){

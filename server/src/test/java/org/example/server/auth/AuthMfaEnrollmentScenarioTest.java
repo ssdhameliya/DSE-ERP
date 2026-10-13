@@ -201,6 +201,36 @@ class AuthMfaEnrollmentScenarioTest {
         assertEquals("ENC-OLD", user.getTotpSecretEnc());
     }
 
+    @Test
+    void requestRegistrationOtpSucceedsWithValidCaptchaAndInputs() {
+        UserRepository users = mock(UserRepository.class);
+        RoleMasterService roles = mock(RoleMasterService.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        TokenService tokens = mock(TokenService.class);
+        AuthOtpService otp = mock(AuthOtpService.class);
+        SmtpMailService mail = mock(SmtpMailService.class);
+        TotpService totp = mock(TotpService.class);
+        RegistrationCaptchaService captcha = mock(RegistrationCaptchaService.class);
+        ScenarioDb db = new ScenarioDb();
+        AuthService service = new AuthService(users, roles, passwords, tokens, otp, mail, db, totp, captcha);
+
+        when(roles.selfRegistrationRole()).thenReturn(new RoleMasterService.RoleDefinition(1, "SALES", "Sales", "Sales Role", true, 1, 0L));
+        when(captcha.verify("chal-123", "10")).thenReturn(true);
+        when(users.existsByUsernameIgnoreCase("shailesh")).thenReturn(false);
+        when(users.existsByEmailIgnoreCase("shailesh@test.com")).thenReturn(false);
+        when(otp.issue(eq(AuthOtpService.Purpose.REGISTRATION), anyString(), anyString(), isNull(), eq("shailesh@test.com"), eq(mail)))
+                .thenReturn(new AuthOtpService.Issued("reg-challenge-456", true));
+
+        AuthDtos.ChallengeResponse response = service.requestRegistrationOtp(
+                new AuthDtos.RegistrationOtpRequest("shailesh", "Shailesh", "shailesh@test.com", "Sales", true, "chal-123", "10")
+        );
+
+        assertTrue(response.success());
+        assertEquals("reg-challenge-456", response.challengeId());
+        assertEquals("Verification code sent to your email", response.message());
+        verify(mail).requireConfigured();
+    }
+
     private static UserEntity user(int id, String username, String role, boolean active) throws Exception {
         UserEntity user = new UserEntity();
         Field idField = UserEntity.class.getDeclaredField("id");
@@ -229,6 +259,7 @@ class AuthMfaEnrollmentScenarioTest {
             if (sql.contains("security.auth.mfa.policy")) return type.cast("ADMIN_CONTROLLED");
             if (sql.contains("auth_totp_enrollment_pending")) return type.cast(Long.valueOf(pending ? 1 : 0));
             if (sql.contains("login_throttle")) return type.cast(Long.valueOf(0));
+            if (sql.contains("registration_request")) return type.cast(Long.valueOf(0));
             throw new AssertionError("Unexpected query: " + sql);
         }
     }

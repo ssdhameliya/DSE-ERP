@@ -109,8 +109,14 @@ public class DebitNoteRegisterController implements ScreenLifecycle {
         colStatus.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().status));
 
         colActions.setCellFactory(col -> new TableCell<>() {
+            private final Button btnBarcode = new Button("Barcode");
             private final Button btnCancel = new Button("Cancel");
             {
+                btnBarcode.getStyleClass().addAll("approved-button", "approved-secondary-button", "btn-sm");
+                btnBarcode.setOnAction(e -> {
+                    DebitNoteRow row = getTableRow().getItem();
+                    if (row != null) printBarcode(row);
+                });
                 btnCancel.getStyleClass().addAll("approved-button", "approved-secondary-button", "btn-sm");
                 btnCancel.setOnAction(e -> {
                     DebitNoteRow row = getTableRow().getItem();
@@ -125,7 +131,7 @@ public class DebitNoteRegisterController implements ScreenLifecycle {
                 } else {
                     DebitNoteRow row = getTableRow().getItem();
                     btnCancel.setDisable(!"ACTIVE".equalsIgnoreCase(row.status));
-                    HBox box = new HBox(6, btnCancel);
+                    HBox box = new HBox(6, btnBarcode, btnCancel);
                     box.setAlignment(Pos.CENTER);
                     setGraphic(box);
                 }
@@ -341,6 +347,25 @@ public class DebitNoteRegisterController implements ScreenLifecycle {
         if (selectedRow != null) {
             ActivityTimelineDialog.show(tblDebitNotes, "DEBIT_NOTE", selectedRow.id != null ? selectedRow.id.intValue() : 0, selectedRow.debitNoteNo);
         }
+    }
+
+    @FXML
+    public void printBarcodeSelected() {
+        if (selectedRow != null) printBarcode(selectedRow);
+    }
+
+    private void printBarcode(DebitNoteRow row) {
+        if (row == null) return;
+        OrderDispatchBarcodeDialog.showForDebitNote(
+            tblDebitNotes,
+            row.debitNoteNo,
+            row.noteDate,
+            row.partyName,
+            "",
+            row.originalPurchaseNo,
+            row.reasonCode,
+            row.totalAmount != null ? row.totalAmount.doubleValue() : 0.0
+        );
     }
 
     public static class DebitNoteRow {

@@ -75,7 +75,7 @@ public class PurchaseController implements ScreenLifecycle {
     @FXML private VBox purchaseEntryRoot;
     @FXML private Button btnAddSupplier;
     @FXML private Button btnManageCharges;
-    @FXML private Button btnSavePurchase, btnRemoveLine;
+    @FXML private Button btnSavePurchase, btnPrintInwardBarcode, btnRemoveLine;
     @FXML private Button btnSaveView, btnReset, btnRefresh;
     @FXML private MenuButton savedViewsMenu;
     @FXML private javafx.scene.layout.StackPane purchasePageIcon;
@@ -343,7 +343,7 @@ public class PurchaseController implements ScreenLifecycle {
 
     private void installBusinessFocusOrder() {
         WorkflowFocusManager.install(java.util.List.of(
-            cmbSupplier, txtOrderNo, dpInvoiceDate, txtPoDate, cmbPaymentTerms,
+            cmbSupplier, dpInvoiceDate, cmbPaymentTerms, txtPoDate, txtOrderNo,
             txtItemSearch, txtQuantity, txtRate, txtLineDiscount, txtGST, btnAddLine, btnSavePurchase));
         WorkflowFocusManager.selectAllOnFocus(txtQuantity);
         WorkflowFocusManager.selectAllOnFocus(txtRate);
@@ -402,7 +402,12 @@ public class PurchaseController implements ScreenLifecycle {
         selectedItem=item;updatingItemSearch=true;
         try{txtItemSearch.setText(item==null?"":itemDisplay(item));}finally{updatingItemSearch=false;}
         itemSuggestions.hide();
-        if(item!=null&&applyMasterDefaults){txtRate.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getPurchasePrice()));txtGST.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getGst()));txtLineDiscount.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getDiscountPercent()));}
+        if(item!=null&&applyMasterDefaults){
+            txtRate.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getPurchasePrice()));
+            txtGST.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getGst()));
+            txtLineDiscount.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getDiscountPercent()));
+            javafx.application.Platform.runLater(() -> WorkflowFocusManager.initial(txtQuantity));
+        }
     }
     private void clearItemSearch(){selectItem(null);}
     private Item resolveTypedItem(String text){
@@ -601,6 +606,7 @@ public class PurchaseController implements ScreenLifecycle {
         tableLines.getSelectionModel().clearSelection();
 
         btnAddLine.setText("+ Add Line");
+        WorkflowFocusManager.initial(txtItemSearch);
     }
 
 
@@ -688,6 +694,26 @@ public class PurchaseController implements ScreenLifecycle {
             purchaseService.markEmailSent(full.getId());
         }
         return full;
+    }
+
+    @FXML
+    private void printInwardBarcode() {
+        Purchase purchase = editingPurchase != null ? editingPurchase : null;
+        if (purchase == null) {
+            purchase = new Purchase();
+            purchase.setInvoiceNo(txtInvoiceNo != null && txtInvoiceNo.getText() != null && !txtInvoiceNo.getText().isBlank() ? txtInvoiceNo.getText() : "DRAFT-PO");
+            purchase.setInvoiceDate(dpInvoiceDate != null && dpInvoiceDate.getValue() != null ? dpInvoiceDate.getValue() : BusinessClock.today());
+            purchase.setSupplier(cmbSupplier != null ? cmbSupplier.getValue() : null);
+            purchase.setWarehouse(txtDeliveryAddress != null ? txtDeliveryAddress.getText() : "");
+            if (tableLines != null && !tableLines.getItems().isEmpty()) {
+                purchase.setLines(new ArrayList<>(tableLines.getItems()));
+            }
+        } else if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
+            if (tableLines != null && !tableLines.getItems().isEmpty()) {
+                purchase.setLines(new ArrayList<>(tableLines.getItems()));
+            }
+        }
+        org.example.util.OrderDispatchBarcodeDialog.showForPurchase(purchaseEntryRoot, purchase);
     }
 
     private void setPurchaseSaveBusy(boolean busy){
