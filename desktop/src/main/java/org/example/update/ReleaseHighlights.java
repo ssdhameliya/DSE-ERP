@@ -11,7 +11,19 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return BrandingService.applicationName() + " " + version + " — Self-Registration Transaction Fix & QuickBooks Workflow Focus Tabbing\n\n" + """
+            return BrandingService.applicationName() + " " + version + " — Enterprise Settings Studio, Server Sync & MFA Recovery Parity\n\n" + """
+                    • Unified Enterprise Settings Studio: Complete 1:1 FXML parity and synchronization across all 7 core settings screens (Company & Billing, Payment & Bank, Invoice & Print, Notifications, Email/SMTP, Security & Session, and Module Management).
+                    • Server-Authoritative Configuration Sync: Enhanced ConfigManager to persist and load all shared enterprise settings directly to/from PostgreSQL `application_setting` table via `/api/support/settings`.
+                    • Authenticator MFA Recovery & Transition Parity: Streamlined desktop and web MFA recovery workflow with real-time transition guidance from Email OTP verification directly to new Authenticator QR code enrollment.
+                    • Intelligent Re-enrollment Handling: Preserves pending enrollment setup in the UI state and enables one-click reopening of QR code setup modal if OTP is left blank.
+                    • Hardened Web Authentication & Role Parity: Auto-detects and aligns user roles from server credentials, restores "Remember Me" credentials, and prevents false MFA failure alerts during post-login data loading.
+                    • Role-Based Landing Navigation: Automatically routes authenticated users to their authorized operational dashboard (Sales Register, Purchase Register, Item Master, General Ledger, or Profile).
+                    • Non-Admin Permission & Login Stabilization: Authenticated users seamlessly read application metadata and time zone settings via /api/support/settings without 403 authorization rejections; hardened ConfigManager and SceneManager to prevent UI thread lockups during login.
+                    • Customer-facing branding follows Company Name centrally across the application shell, reports, PDFs and email surfaces while technical DSE package/API/database identifiers remain unchanged.
+                    """;
+        }
+        if ("10.0.32".equals(version)) {
+            return BrandingService.applicationName() + " 10.0.32 — Self-Registration Transaction Fix & QuickBooks Workflow Focus Tabbing\n\n" + """
                     • Self-Registration & OTP Read-Write Transaction Fix: Resolved PostgreSQL read-only transaction errors by transitioning requestRegistrationOtp, requestPasswordReset, and resendLoginMfa to read-write @Transactional boundaries so user accounts and challenge tokens persist reliably.
                     • Exception Transparency: Surface actual server validation details in AuthApiExceptionHandler rather than masking errors behind generic failure notices.
                     • QuickBooks-Style Workflow Tabbing: Enter advances focus forward sequentially through logical transaction fields (Search → Date → Account/Party → Line Items → Quantities/Rates → Notes → Save) across Sale, Purchase, Quotation, Sales Register, and all major transaction screens.
