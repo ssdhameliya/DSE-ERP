@@ -273,6 +273,11 @@ public class LoginController implements ScreenLifecycle {
     @FXML private void login() {
         clearErrors();
 
+        if (pendingEnrollmentSetup != null && (txtOtp.getText() == null || txtOtp.getText().trim().isEmpty())) {
+            showAuthenticatorEnrollment(pendingEnrollmentSetup);
+            return;
+        }
+
         if (pendingMfaChallengeId != null) {
             verifyLoginOtp();
             return;
@@ -456,7 +461,7 @@ public class LoginController implements ScreenLifecycle {
                 // Keep the server challenge + setup details alive. A reset/enrollment user may close
                 // the QR once accidentally; Get Help must be able to reopen it without another reset.
                 updateLoginMode();
-                message("Authenticator enrollment is not complete. Click Get Help to reopen the QR code and setup key.", true);
+                message("Authenticator enrollment pending. Scan QR code and enter 6-digit code. Click Get Help to reopen the QR code and setup key.", true);
             }
         });
         javafx.application.Platform.runLater(code::requestFocus);
@@ -613,6 +618,7 @@ public class LoginController implements ScreenLifecycle {
                         updateLoginMode();
                         dlg.setResult(Boolean.TRUE);
                         dlg.close();
+                        message("Registered email verified. Old authenticator invalidated. Scan the new QR code below to complete sign-in.", false);
                         javafx.application.Platform.runLater(() -> showAuthenticatorEnrollment(setup));
                     }, failure -> {
                         verifyButton.setDisable(false);
@@ -645,7 +651,15 @@ public class LoginController implements ScreenLifecycle {
             }
             return user;
         }, authenticated -> {
-            SceneManager.showDashboard();
+            try {
+                SceneManager.showDashboard();
+            } catch (Exception ex) {
+                System.err.println("[Login] Failed to show dashboard: " + ex.getMessage());
+                ex.printStackTrace();
+                setLoginBusy(false, null);
+                message("Unable to open dashboard: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage()), true);
+                return;
+            }
             setLoginBusy(false, null);
             long elapsed = PerformanceMonitor.finish("login-click");
             if (elapsed >= 0) PerformanceBudgets.record("login", elapsed, PerformanceBudgets.LOGIN_MS);
@@ -685,22 +699,36 @@ public class LoginController implements ScreenLifecycle {
         String role = selectedDatabaseRole();
         boolean roleRequiresOtp = !role.isBlank() && !"ADMIN".equals(role);
         boolean mfaPending = pendingMfaChallengeId != null;
+        boolean enrollmentPending = pendingEnrollmentSetup != null;
         if (otpPanel != null) {
-            boolean show = roleRequiresOtp || mfaPending;
+            boolean show = roleRequiresOtp || mfaPending || enrollmentPending;
             otpPanel.setManaged(show);
             otpPanel.setVisible(show);
         }
         txtOtp.setDisable(!mfaPending);
-        if (!mfaPending && roleRequiresOtp) {
+        if (enrollmentPending) {
+            txtOtp.setPromptText("Scan QR code, then enter 6-digit code");
+        } else if (!mfaPending && roleRequiresOtp) {
             txtOtp.setPromptText("Authenticator code is required after password verification");
         } else {
             txtOtp.setPromptText("Enter current 6-digit authenticator code");
         }
         if (btnResendOtp != null) {
-            boolean helpAvailable = !role.isBlank() || mfaPending || pendingEnrollmentSetup != null;
+            boolean helpAvailable = !role.isBlank() || mfaPending || enrollmentPending;
             btnResendOtp.setDisable(!helpAvailable);
+            if (enrollmentPending) {
+                btnResendOtp.setText("View QR Code");
+            } else {
+                btnResendOtp.setText("Get Help");
+            }
         }
-        btnLogin.setText(mfaPending ? "VERIFY AUTHENTICATOR" : "LOGIN");
+        if (enrollmentPending) {
+            btnLogin.setText("SCAN QR & VERIFY");
+        } else if (mfaPending) {
+            btnLogin.setText("VERIFY AUTHENTICATOR");
+        } else {
+            btnLogin.setText("LOGIN");
+        }
     }
 
     @FXML private void forgotPassword() {

@@ -83,11 +83,15 @@ public final class ConfigManager {
 
     public static synchronized String get(String key, String defaultValue) {
         if (shouldUseServerSetting(key)) {
-            try { String remote=new org.example.api.support.SupportApiClient().setting(key, defaultValue);return SharedAssetBridge.isAssetKey(key)?SharedAssetBridge.resolve(key,remote):remote; }
-            catch (org.example.api.ApiSession.AuthenticationRequiredException ignored) { }
+            try {
+                String remote = new org.example.api.support.SupportApiClient().setting(key, defaultValue);
+                return SharedAssetBridge.isAssetKey(key) ? SharedAssetBridge.resolve(key, remote) : remote;
+            } catch (Exception ignored) {
+                // Graceful fallback to local properties if offline, unauthorized, or network error
+            }
         }
-        String value=properties.getProperty(key, defaultValue);
-        return "smtp.appPassword".equals(key)?SecretValueCodec.decrypt(value):value;
+        String value = properties.getProperty(key, defaultValue);
+        return "smtp.appPassword".equals(key) ? SecretValueCodec.decrypt(value) : value;
     }
 
     public static boolean getBoolean(String key, boolean defaultValue) {
@@ -106,13 +110,25 @@ public final class ConfigManager {
     }
 
     private static boolean shouldUseServerSetting(String key) {
-        if (key != null && key.equals("payment.bankMatchRoundingTolerance") && org.example.api.ApiSession.token() != null) return true;
-        if (key != null && key.startsWith("storage.") && org.example.api.ApiSession.token() != null) return true;
-        if (getConfiguredDeploymentMode() != DeploymentMode.SHARED_CLIENT
-                || key == null || org.example.api.ApiSession.token() == null) return false;
-        return key.startsWith("company.") || key.startsWith("payment.") || key.startsWith("invoice.")
-                || key.startsWith("business.") || key.startsWith("tax.") || key.startsWith("reference.")
-                || key.equals("date.format") || key.equals("timezone.business");
+        if (key == null || org.example.api.ApiSession.token() == null) return false;
+        if (key.equals("payment.bankMatchRoundingTolerance") || key.startsWith("storage.")) return true;
+        return key.startsWith("company.")
+                || key.startsWith("payment.")
+                || key.startsWith("invoice.")
+                || key.startsWith("business.")
+                || key.startsWith("tax.")
+                || key.startsWith("reference.")
+                || key.startsWith("application.")
+                || key.startsWith("module.")
+                || key.startsWith("accounting.")
+                || key.startsWith("compliance.")
+                || key.startsWith("automation.")
+                || key.startsWith("credit_control.")
+                || key.startsWith("security.")
+                || key.startsWith("email.")
+                || key.startsWith("whatsapp.")
+                || key.equals("date.format")
+                || key.equals("timezone.business");
     }
 
     public static synchronized void setWithoutSaving(String key, String value) {
