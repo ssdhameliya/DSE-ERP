@@ -67,7 +67,7 @@ public class QuotationController implements org.example.navigation.ScreenLifecyc
  private boolean all(ComboBox<String> box){String value=box.getValue();return value==null||value.startsWith("All");}
  private void applyStats(QuotationApiClient.Metrics m){if(m==null)return;lblTotalValue.setText(fmt(m.totalValue()));lblTotalCount.setText(m.totalCount()+" quotations");lblPendingValue.setText(fmt(m.pendingValue()));lblPendingCount.setText(m.pendingCount()+" quotations");lblAcceptedValue.setText(fmt(m.acceptedValue()));lblAcceptedCount.setText(m.acceptedCount()+" quotations");lblExpiredValue.setText(fmt(m.expiredValue()));lblExpiredCount.setText(m.expiredCount()+" quotations");lblConversion.setText(String.format("%.1f%%",m.conversionRate()));lblAverage.setText(fmt(m.average()));}
  private void updateCharts(QuotationApiClient.Metrics m){if(m==null||trendChart==null||statusChart==null)return;XYChart.Series<String,Number> series=new XYChart.Series<>();for(var point:m.trend()==null?List.<QuotationApiClient.MetricPoint>of():m.trend())series.getData().add(new XYChart.Data<>(point.label(),point.value()));trendChart.getData().setAll(series);statusChart.getData().setAll((m.statuses()==null?List.<QuotationApiClient.MetricPoint>of():m.statuses()).stream().map(x->new PieChart.Data(x.label(),x.value())).toList());}
-private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final MenuButton m=new MenuButton("Actions");{add("View","view",e->showDetails(row()));add("Audit Trail","history",e->{QuoteRow q=row();if(q!=null)org.example.util.ActivityTimelineDialog.show(table,"QUOTATION",q.id,q.no.get());});add("Edit","edit",e->edit(row()));add("View PDF","pdf",e->openPdf(row()));add("View / Download Excel","excel",e->openExcel(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("Create Follow Up","reminder",e->followUp(row()));add("Convert to Sale","sale",e->convert(row()));add("Duplicate","copy",e->duplicate(row()));add("Delete","delete",e->delete(row()));m.getStyleClass().add("row-actions");m.setGraphic(IconFactory.compactIcon("actions",16));m.setText("Actions");m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.setTooltip(new Tooltip("Actions"));m.getProperties().put("erp-icon-preserve",true);IconFactory.decorateActionMenu(m);}private QuoteRow row(){int index=getIndex();return index<0||index>=getTableView().getItems().size()?null:getTableView().getItems().get(index);}private void add(String t,String semantic,javafx.event.EventHandler<javafx.event.ActionEvent>h){MenuItem i=new MenuItem(t);i.setGraphic(IconFactory.compactIcon(semantic,16));i.setOnAction(h);m.getItems().add(i);}protected void updateItem(Void v,boolean e){super.updateItem(v,e);setGraphic(e?null:m);setAlignment(Pos.CENTER);}});}
+private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final MenuButton m=new MenuButton("Actions");{add("View","view",e->showDetails(row()));add("Audit Trail","history",e->{QuoteRow q=row();if(q!=null)org.example.util.ActivityTimelineDialog.show(table,"QUOTATION",q.id,q.no.get());});add("Edit","edit",e->edit(row()));add("View / Download PDF","pdf",e->openPdf(row()));add("Save PDF To...","download",e->downloadPdf(row()));add("View / Download Excel","excel",e->openExcel(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("Create Follow Up","reminder",e->followUp(row()));add("Convert to Sale","sale",e->convert(row()));add("Duplicate","copy",e->duplicate(row()));add("Delete","delete",e->delete(row()));m.getStyleClass().add("row-actions");m.setGraphic(IconFactory.compactIcon("actions",16));m.setText("Actions");m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.setTooltip(new Tooltip("Actions"));m.getProperties().put("erp-icon-preserve",true);IconFactory.decorateActionMenu(m);}private QuoteRow row(){int index=getIndex();return index<0||index>=getTableView().getItems().size()?null:getTableView().getItems().get(index);}private void add(String t,String semantic,javafx.event.EventHandler<javafx.event.ActionEvent>h){MenuItem i=new MenuItem(t);i.setGraphic(IconFactory.compactIcon(semantic,16));i.setOnAction(h);m.getItems().add(i);}protected void updateItem(Void v,boolean e){super.updateItem(v,e);setGraphic(e?null:m);setAlignment(Pos.CENTER);}});}
  @FXML private void newQuotation(){QuotationEditorContext.open(null);org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/QuotationEditor.fxml");}
  private void edit(QuoteRow q){if(q==null)return;if(q.converted.get()!=null&&!q.converted.get().isBlank()){info("Converted quotations are read-only. Duplicate the quotation if a new revision is required.");return;}QuotationEditorContext.open(q.id);org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/QuotationEditor.fxml");}
 
@@ -85,8 +85,51 @@ private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final
  @FXML private void openConvertedSale(){QuoteRow q=req();if(q==null||safe(q.converted.get()).isBlank()){info("This quotation is not linked to a Sale yet.");return;}LinkedRecordContext.open("SALE",null,q.converted.get(),"VIEW","Quotation "+q.no.get());NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");}
  @FXML private void editSelected(){QuoteRow q=req();if(q!=null)edit(q);}@FXML private void pdfSelected(){QuoteRow q=req();if(q!=null)openPdf(q);}@FXML private void emailSelected(){QuoteRow q=req();if(q!=null)sendEmail(q);}@FXML private void whatsappSelected(){QuoteRow q=req();if(q!=null)sendWhatsapp(q);}@FXML private void convertSelected(){QuoteRow q=req();if(q!=null)convert(q);}@FXML private void followUpSelected(){QuoteRow q=req();if(q!=null)followUp(q);} /** Returns the same branded quotation used by download, email and WhatsApp actions. */
  private Path quotePdf(QuoteRow q)throws Exception{return ManagedInvoicePdfService.quotation(q.no.get());}
- private void openPdf(QuoteRow q){try{java.awt.Desktop.getDesktop().open(quotePdf(q).toFile());log(q.id,"PDF_OPENED",q.no.get());}catch(Exception e){error(e);}}
- private void openExcel(QuoteRow q){if(q==null)return;try{java.awt.Desktop.getDesktop().open(org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.QUOTATION,q.no.get()).toFile());log(q.id,"EXCEL_OPENED",q.no.get());}catch(Exception e){error(e);}}
+ private void openPdf(QuoteRow q){
+     if(q==null)return;
+     UiTaskExecutor.submitAction("quotation-pdf-"+q.id,()->quotePdf(q),p->{
+         try{
+             if(java.awt.Desktop.isDesktopSupported()&&java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)){
+                 java.awt.Desktop.getDesktop().open(p.toFile());
+             }else{
+                 info("Quotation PDF generated at: "+p.toAbsolutePath());
+             }
+             log(q.id,"PDF_OPENED",q.no.get());
+         }catch(Exception e){error(e);}
+     },err->error(asException(err)));
+ }
+ private void downloadPdf(QuoteRow q){
+     if(q==null)return;
+     FileChooser chooser=new FileChooser();
+     chooser.setTitle("Save Quotation PDF");
+     chooser.setInitialFileName("Quotation_"+q.no.get()+".pdf");
+     chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Document (*.pdf)","*.pdf"));
+     File file=chooser.showSaveDialog(table.getScene().getWindow());
+     if(file==null)return;
+     UiTaskExecutor.submitAction("quotation-download-pdf-"+q.id,()->{
+         Path src=quotePdf(q);
+         Files.copy(src,file.toPath(),StandardCopyOption.REPLACE_EXISTING);
+         return file.toPath();
+     },p->{
+         info("Quotation PDF saved successfully: "+file.getName());
+         log(q.id,"PDF_DOWNLOADED",q.no.get());
+     },err->error(asException(err)));
+ }
+ private void openExcel(QuoteRow q){
+     if(q==null)return;
+     UiTaskExecutor.submitAction("quotation-excel-"+q.id,()->
+         org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.QUOTATION,q.no.get()),
+         p->{
+             try{
+                 if(java.awt.Desktop.isDesktopSupported()&&java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)){
+                     java.awt.Desktop.getDesktop().open(p.toFile());
+                 }else{
+                     info("Quotation Excel generated at: "+p.toAbsolutePath());
+                 }
+                 log(q.id,"EXCEL_OPENED",q.no.get());
+             }catch(Exception e){error(e);}
+         },err->error(asException(err)));
+ }
  private void sendEmail(QuoteRow q){
   if(q.email.isBlank()){error(new IllegalStateException("Customer email is missing"));return;}
   LiveOperationDialog.run(table,"Sending Quotation Email","email","Preparing quotation document...",reporter->{

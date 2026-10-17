@@ -441,7 +441,7 @@ public final class ProfessionalDocumentRenderer {
         if (value == null || value.isBlank()) return "Not provided";
         try {
             java.time.LocalDate date = java.time.LocalDate.parse(value.substring(0, 10));
-            return date.format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH));
+            return BusinessClock.formatDate(date);
         } catch (Exception ignored) {
             return value;
         }

@@ -130,6 +130,7 @@ class DeploymentConnectionServiceTest {
                 "2026-09-10",
                 "2026-09-10T00:00:00Z",
                 "dd/MM/yyyy",
+                "hh:mm a",
                 "ISO_DATE_UTC_INSTANT",
                 "UTC");
     }

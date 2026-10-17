@@ -242,49 +242,129 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
         dp.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         dp.getStyleClass().addAll("approved-dialog", "erp-dialog");
 
-        TextField txtCustomer = new TextField();
-        txtCustomer.setPromptText("Customer Name");
-        TextField txtInvoiceNo = new TextField();
-        txtInvoiceNo.setPromptText("Original Invoice No (optional)");
+        ComboBox<String> cmbCustomer = new ComboBox<>();
+        cmbCustomer.setPromptText("Search & select customer...");
+        cmbCustomer.setMaxWidth(Double.MAX_VALUE);
+        PartySearchUi.install(cmbCustomer, "CUSTOMER", "Select Customer", "credit-note-party-search");
+
+        ComboBox<String> cmbInvoiceNo = new ComboBox<>();
+        cmbInvoiceNo.setPromptText("Select Original Invoice (optional)");
+        cmbInvoiceNo.setMaxWidth(Double.MAX_VALUE);
+        cmbInvoiceNo.setEditable(true);
+
         ComboBox<String> cmbReason = new ComboBox<>();
-        cmbReason.getItems().addAll("Sales Return", "Rate Difference", "Post-Sale Discount", "Correction");
-        cmbReason.setValue("Sales Return");
+        org.example.service.LookupService lookupService = new org.example.service.LookupService();
+        List<String> reasons = lookupService.getValuesByCategoryCode("CREDIT_NOTE_REASON");
+        if (reasons == null || reasons.isEmpty()) {
+            reasons = List.of("Sales Return", "Rate Difference", "Post-Sale Discount", "Correction");
+        }
+        cmbReason.getItems().setAll(reasons);
+        cmbReason.setValue(reasons.get(0));
+        cmbReason.setMaxWidth(Double.MAX_VALUE);
 
         TextField txtTaxable = new TextField();
         txtTaxable.setPromptText("Taxable Amount (₹)");
-        TextField txtGstRate = new TextField("18");
-        txtGstRate.setPromptText("GST % (e.g. 18)");
+
+        ComboBox<String> cmbGstRate = new ComboBox<>();
+        List<String> gstRates = lookupService.getValuesByCategoryCode("GST");
+        if (gstRates == null || gstRates.isEmpty()) {
+            gstRates = List.of("0", "5", "12", "18", "28");
+        }
+        cmbGstRate.getItems().setAll(gstRates);
+        cmbGstRate.setValue(gstRates.contains("18") ? "18" : gstRates.get(0));
+        cmbGstRate.setMaxWidth(Double.MAX_VALUE);
 
         CheckBox chkAdjustInventory = new CheckBox("Adjust Inventory (Restock returned items)");
         chkAdjustInventory.setSelected(true);
 
+        // Cascading: when customer is selected, load customer invoices
+        cmbCustomer.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || newVal.isBlank() || "Select Customer".equalsIgnoreCase(newVal.trim())) {
+                cmbInvoiceNo.getItems().clear();
+                return;
+            }
+            UiTaskExecutor.submitAction("credit-note-load-invoices", () -> {
+                org.example.service.SalesService salesService = new org.example.service.SalesService();
+                return salesService.allFiltered(null, null, newVal.trim(), null, null, null, null, null, null, null, null, null, null);
+            }, invoices -> {
+                List<String> invNumbers = new ArrayList<>();
+                for (org.example.model.Sales s : invoices) {
+                    if (s != null && s.getInvoiceNo() != null && !s.getInvoiceNo().isBlank()) {
+                        invNumbers.add(s.getInvoiceNo());
+                    }
+                }
+                cmbInvoiceNo.getItems().setAll(invNumbers);
+            }, err -> {});
+        });
+
+        // When invoice is chosen, auto-fill taxable amount
+        cmbInvoiceNo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isBlank()) {
+                UiTaskExecutor.submitAction("credit-note-load-invoice-details", () -> {
+                    org.example.service.SalesService salesService = new org.example.service.SalesService();
+                    return salesService.getByInvoice(newVal.trim());
+                }, sale -> {
+                    if (sale != null && sale.getTotalAmount() > 0) {
+                        txtTaxable.setText(String.format(Locale.ROOT, "%.2f", sale.getTotalAmount()));
+                    }
+                }, err -> {});
+            }
+        });
+
         VBox content = new VBox(10,
-            new Label("Customer:"), txtCustomer,
-            new Label("Original Invoice No:"), txtInvoiceNo,
+            new Label("Customer:"), cmbCustomer,
+            new Label("Original Invoice No:"), cmbInvoiceNo,
             new Label("Reason:"), cmbReason,
             new Label("Taxable Amount (₹):"), txtTaxable,
-            new Label("GST Rate (%):"), txtGstRate,
+            new Label("GST Rate (%):"), cmbGstRate,
             chkAdjustInventory
         );
+        content.setPrefWidth(420);
         dp.setContent(content);
 
         dialog.setResultConverter(btn -> {
             if (btn == ButtonType.OK) {
+                String party = cmbCustomer.getValue();
+                if (party == null || "Select Customer".equalsIgnoreCase(party.trim())) {
+                    party = cmbCustomer.getEditor() != null ? cmbCustomer.getEditor().getText().trim() : "";
+                }
+                String inv = cmbInvoiceNo.getValue();
+                if (inv == null && cmbInvoiceNo.getEditor() != null) {
+                    inv = cmbInvoiceNo.getEditor().getText().trim();
+                }
+
                 Map<String, Object> req = new HashMap<>();
-                req.put("partyName", txtCustomer.getText().trim());
-                req.put("originalInvoiceNo", txtInvoiceNo.getText().trim());
+                req.put("partyName", party != null ? party.trim() : "");
+                req.put("originalInvoiceNo", inv != null ? inv.trim() : "");
                 req.put("reasonCode", cmbReason.getValue());
+                BigDecimal taxableAmt = BigDecimal.ZERO;
                 try {
-                    req.put("taxableAmount", new BigDecimal(txtTaxable.getText().trim()));
-                } catch (Exception e) {
-                    req.put("taxableAmount", BigDecimal.ZERO);
-                }
+                    taxableAmt = new BigDecimal(txtTaxable.getText().trim());
+                } catch (Exception ignored) {}
+                req.put("taxableAmount", taxableAmt);
+
+                BigDecimal rate = new BigDecimal("18");
                 try {
-                    req.put("gstRate", new BigDecimal(txtGstRate.getText().trim()));
-                } catch (Exception e) {
-                    req.put("gstRate", new BigDecimal("18"));
-                }
+                    rate = new BigDecimal(cmbGstRate.getValue().trim());
+                } catch (Exception ignored) {}
+                req.put("gstRate", rate);
                 req.put("adjustInventory", chkAdjustInventory.isSelected());
+
+                // Synthesize 1 line item for accurate tax split and GL journal calculation
+                BigDecimal taxTotal = taxableAmt.multiply(rate).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                BigDecimal halfTax = taxTotal.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
+                Map<String, Object> line = new HashMap<>();
+                line.put("itemDescription", "Credit Note Adjustment: " + cmbReason.getValue());
+                line.put("quantity", BigDecimal.ONE);
+                line.put("unitPrice", taxableAmt);
+                line.put("gstRate", rate);
+                line.put("taxableValue", taxableAmt);
+                line.put("cgstAmount", halfTax);
+                line.put("sgstAmount", taxTotal.subtract(halfTax));
+                line.put("igstAmount", BigDecimal.ZERO);
+                line.put("totalLineAmount", taxableAmt.add(taxTotal));
+                req.put("lines", List.of(line));
+
                 return req;
             }
             return null;

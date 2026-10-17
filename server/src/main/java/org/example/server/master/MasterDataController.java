@@ -31,8 +31,8 @@ public class MasterDataController {
  @GetMapping("/reference-formats") public MasterDtos.ReferenceFormatsResponse referenceFormats(){return new MasterDtos.ReferenceFormatsResponse(service.referenceFormats());}
  @GetMapping("/lookups") public List<MasterDtos.LookupDto> lookups(@RequestParam String type){return service.lookups(type);}
  @GetMapping("/lookups/values") public MasterDtos.ValuesResponse values(@RequestParam String type){return new MasterDtos.ValuesResponse(service.values(type));}
- @GetMapping("/lookups/values-by-category-code") public MasterDtos.ValuesResponse valuesByCode(@RequestParam String code){return new MasterDtos.ValuesResponse(service.valuesByCategoryCode(code));}
- @GetMapping("/lookups/by-category-code") public List<MasterDtos.LookupDto> lookupsByCode(@RequestParam String code){return service.lookupsByCategoryCode(code);}
+ @GetMapping({"/lookups/values-by-category-code", "/lookups/values/category/{code}"}) public MasterDtos.ValuesResponse valuesByCode(@RequestParam(required=false) String code, @PathVariable(required=false, name="code") String pathCode){return new MasterDtos.ValuesResponse(service.valuesByCategoryCode(code!=null&&!code.isBlank()?code:pathCode));}
+ @GetMapping({"/lookups/by-category-code", "/lookups/category/{code}"}) public List<MasterDtos.LookupDto> lookupsByCode(@RequestParam(required=false) String code, @PathVariable(required=false, name="code") String pathCode){return service.lookupsByCategoryCode(code!=null&&!code.isBlank()?code:pathCode);}
  @PostMapping("/lookups") public MasterDtos.LookupDto saveLookup(@RequestBody MasterDtos.LookupDto d){return service.saveLookup(d);}
  @PutMapping("/lookups") public MasterDtos.LookupDto updateLookup(@RequestBody MasterDtos.LookupDto d){return service.updateLookup(d);}
  @DeleteMapping("/lookups/{id}") public MasterDtos.OperationResponse deleteLookup(@PathVariable int id,@RequestParam(defaultValue="-1") long rowVersion){service.deleteLookup(id,rowVersion);return new MasterDtos.OperationResponse(true,"OK");}

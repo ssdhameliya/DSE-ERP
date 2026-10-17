@@ -84,6 +84,23 @@ public final class WorkspaceTabManager {
         }
     }
 
+    public static void reset() {
+        WorkspaceTabManager mgr = instance;
+        if (mgr == null) return;
+        Runnable cleanup = () -> {
+            mgr.openTabs.clear();
+            mgr.activeTab = null;
+            if (mgr.tabContainer != null) {
+                mgr.tabContainer.getChildren().clear();
+            }
+        };
+        if (Platform.isFxApplicationThread()) {
+            cleanup.run();
+        } else {
+            Platform.runLater(cleanup);
+        }
+    }
+
     public List<TabEntry> getOpenTabs() {
         return Collections.unmodifiableList(openTabs);
     }

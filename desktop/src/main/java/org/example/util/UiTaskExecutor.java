@@ -248,10 +248,29 @@ public final class UiTaskExecutor {
         try {
             PerformanceMonitor.event("background-work-failed", key + " | " + safeMessage(error));
             DesktopLog.error("UiTaskExecutor", "READ_FAILED", key + " | " + safeMessage(error), error);
+            if (!org.example.api.ApiSession.isEstablished() || isAuthenticationFailure(error)) {
+                logSkipped(key, token, "suppressed-after-logout");
+                return;
+            }
             invokeFailureHandler(key, onFailure, error);
         } finally {
             cleanupReadIfCurrent(key, token);
         }
+    }
+
+    private static boolean isAuthenticationFailure(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof org.example.api.ApiSession.AuthenticationRequiredException) {
+                return true;
+            }
+            String msg = current.getMessage();
+            if (msg != null && (msg.contains("Please sign in again") || msg.contains("401"))) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static <T> void applyActionSuccess(
@@ -333,6 +352,15 @@ public final class UiTaskExecutor {
                 .filter(key -> key.startsWith(prefix))
                 .toList()
                 .forEach(UiTaskExecutor::cancel);
+    }
+
+    /** Cancel all active and pending latest-result-wins read work (e.g. on logout). */
+    public static void cancelAllReads() {
+        READ_TOKENS.clear();
+        for (Future<?> future : ACTIVE_READS.values()) {
+            if (future != null) future.cancel(true);
+        }
+        ACTIVE_READS.clear();
     }
 
     public static boolean actionInProgress(String key) {

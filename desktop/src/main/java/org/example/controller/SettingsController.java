@@ -539,8 +539,8 @@ public class SettingsController implements ScreenLifecycle {
     private void initializeLoadedSection(Section section) {
         switch (section) {
             case COMPANY -> {
-                cmbBusinessType.setItems(FXCollections.observableArrayList("Proprietorship","Partnership","Private Limited Company","Public Limited Company","Limited Liability Partnership","Trust","Society","Other"));
-                cmbIndustry.setItems(FXCollections.observableArrayList("Manufacturing","Trading","Retail","Wholesale","Construction","Engineering","Textile","Automotive","Information Technology","Professional Services","Logistics","Healthcare","Food & Beverage","Other"));
+                populateLookupDropdown(cmbBusinessType, "BUSINESS_TYPE", List.of("Proprietorship","Partnership","Private Limited Company","Public Limited Company","Limited Liability Partnership","Trust","Society","Other"));
+                populateLookupDropdown(cmbIndustry, "INDUSTRY", List.of("Manufacturing","Trading","Retail","Wholesale","Construction","Engineering","Textile","Automotive","Information Technology","Professional Services","Logistics","Healthcare","Food & Beverage","Other"));
                 BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
                 BrandImagePresenter.contain(imgApplicationMark, applicationMarkPreview);
                 refreshAllAssetPreviewsAsync();
@@ -552,11 +552,11 @@ public class SettingsController implements ScreenLifecycle {
                 loadSectionDataAsync(section);
             }
             case INVOICE -> {
-                cmbCurrency.setItems(FXCollections.observableArrayList("INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","AED - UAE Dirham"));
-                cmbTimeZone.setItems(FXCollections.observableArrayList("Asia/Kolkata","Asia/Dubai","Europe/London","America/New_York","America/Los_Angeles","UTC"));
-                cmbDateFormat.setItems(FXCollections.observableArrayList("dd/MM/yyyy","dd-MM-yyyy","yyyy-MM-dd","MM/dd/yyyy","dd MMM yyyy"));
+                populateLookupDropdown(cmbCurrency, "CURRENCY", List.of("INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","AED - UAE Dirham"));
+                populateLookupDropdown(cmbTimeZone, "TIME_ZONE", List.of("Asia/Kolkata","Asia/Dubai","Europe/London","America/New_York","America/Los_Angeles","UTC"));
+                populateLookupDropdown(cmbDateFormat, "DATE_FORMAT", List.of("dd/MM/yyyy","dd-MM-yyyy","yyyy-MM-dd","MM/dd/yyyy","dd MMM yyyy"));
                 if (cmbTimeFormat != null) {
-                    cmbTimeFormat.setItems(FXCollections.observableArrayList("hh:mm a","hh:mm:ss a","HH:mm","HH:mm:ss"));
+                    populateLookupDropdown(cmbTimeFormat, "TIME_FORMAT", List.of("hh:mm a","hh:mm:ss a","HH:mm","HH:mm:ss"));
                 }
                 BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
                 BrandImagePresenter.contain(imgSignature, signaturePreview);
@@ -834,6 +834,28 @@ public class SettingsController implements ScreenLifecycle {
         if (configuredValue == null || configuredValue.isBlank()) return;
         if (!comboBox.getItems().contains(configuredValue)) comboBox.getItems().add(configuredValue);
         comboBox.setValue(configuredValue);
+    }
+    private void populateLookupDropdown(ComboBox<String> box, String categoryCode, List<String> fallback) {
+        if (box == null) return;
+        List<String> values = new ArrayList<>();
+        try {
+            org.example.service.LookupService service = new org.example.service.LookupService();
+            List<String> lookupValues = service.getValuesByCategoryCode(categoryCode);
+            if (lookupValues != null && !lookupValues.isEmpty()) {
+                values.addAll(lookupValues);
+            }
+        } catch (Exception ignored) {}
+        if (values.isEmpty()) {
+            values.addAll(fallback);
+        }
+        String current = box.getValue();
+        if (current != null && !current.isBlank() && !values.contains(current)) {
+            values.add(current);
+        }
+        box.setItems(FXCollections.observableArrayList(values));
+        if (current != null && !current.isBlank()) {
+            box.setValue(current);
+        }
     }
     private LocalDate parseDate(String value) { return SettingsFieldSupport.parseDate(value); }
 

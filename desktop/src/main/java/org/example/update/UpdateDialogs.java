@@ -419,7 +419,7 @@ public final class UpdateDialogs {
         TableView<UpdateHistoryStore.Entry> table = new TableView<>();
         PopupTableWorkspace.prepareTable(table, "erp-table-profile-history");
         TableColumn<UpdateHistoryStore.Entry,String> version = column("Version", UpdateHistoryStore.Entry::version);
-        TableColumn<UpdateHistoryStore.Entry,String> installed = column("Date & Time", e -> DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a").withZone(BusinessClock.zone()).format(e.timestamp()));
+        TableColumn<UpdateHistoryStore.Entry,String> installed = column("Date & Time", e -> BusinessClock.formatTimestamp(e.timestamp()));
         TableColumn<UpdateHistoryStore.Entry,String> channel = column("Channel", UpdateHistoryStore.Entry::channel);
         TableColumn<UpdateHistoryStore.Entry,String> result = column("Result", UpdateHistoryStore.Entry::result);
         TableColumn<UpdateHistoryStore.Entry,String> detail = column("Details", UpdateHistoryStore.Entry::detail);

@@ -30,9 +30,27 @@ public final class ClockService {
         }
     }
 
+    public static void refreshAll() {
+        try {
+            if (javafx.application.Platform.isFxApplicationThread()) {
+                updateAll();
+            } else {
+                javafx.application.Platform.runLater(ClockService::updateAll);
+            }
+        } catch (IllegalStateException noToolkit) {
+            // Headless unit test without JavaFX Toolkit initialized
+        } catch (Throwable ignored) {
+            java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
+        }
+    }
+
+    private static String formatClockText() {
+        return BusinessClock.now().format(DateTimeFormatter.ofPattern("EEEE, " + BusinessClock.datePattern() + "  |  " + BusinessClock.timePattern())) + "  |  " + BusinessClock.zoneAbbreviation();
+    }
+
     private static void updateAll() {
         long started=System.nanoTime();
-        String value = BusinessClock.now().format(DateTimeFormatter.ofPattern("EEEE, " + BusinessClock.datePattern() + "  |  hh:mm:ss a")) + "  |  " + BusinessClock.zoneAbbreviation();
+        String value = formatClockText();
         for (WeakReference<Label> reference : LABELS) {
             Label label = reference.get();
             if (label != null && (label.getScene() != null || label.isVisible())) {
@@ -45,6 +63,6 @@ public final class ClockService {
     }
 
     private static void update(Label label) {
-        label.setText(BusinessClock.now().format(DateTimeFormatter.ofPattern("EEEE, " + BusinessClock.datePattern() + "  |  hh:mm:ss a")) + "  |  " + BusinessClock.zoneAbbreviation());
+        label.setText(formatClockText());
     }
 }
