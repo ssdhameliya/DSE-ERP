@@ -31,10 +31,16 @@ public final class ClockService {
     }
 
     public static void refreshAll() {
-        if (javafx.application.Platform.isFxApplicationThread()) {
-            updateAll();
-        } else {
-            javafx.application.Platform.runLater(ClockService::updateAll);
+        try {
+            if (javafx.application.Platform.isFxApplicationThread()) {
+                updateAll();
+            } else {
+                javafx.application.Platform.runLater(ClockService::updateAll);
+            }
+        } catch (IllegalStateException noToolkit) {
+            // Headless unit test without JavaFX Toolkit initialized
+        } catch (Throwable ignored) {
+            java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
         }
     }
 

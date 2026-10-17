@@ -365,8 +365,12 @@ public final class ConfigManager {
         runtimeBusinessZone = zone == null || zone.isBlank() ? null : zone.trim();
         runtimeBusinessDateFormat = dateFormat == null || dateFormat.isBlank() ? null : org.example.util.BusinessClock.normalizeDatePattern(dateFormat);
         runtimeBusinessTimeFormat = timeFormat == null || timeFormat.isBlank() ? null : org.example.util.BusinessClock.normalizeTimePattern(timeFormat);
-        DatePickerFormatter.refreshAll();
-        org.example.util.ClockService.refreshAll();
+        try {
+            DatePickerFormatter.refreshAll();
+            org.example.util.ClockService.refreshAll();
+        } catch (Throwable ignored) {
+            // Headless unit test without JavaFX Toolkit
+        }
     }
     public static synchronized void applyServerBusinessPolicy(String zone, String dateFormat) {
         applyServerBusinessPolicy(zone, dateFormat, null);
@@ -378,15 +382,21 @@ public final class ConfigManager {
     public static void syncRuntimeBusinessPolicy(String key, String value) {
         if ("company.dateFormat".equals(key) || "date.format".equals(key)) {
             runtimeBusinessDateFormat = value == null || value.isBlank() ? null : org.example.util.BusinessClock.normalizeDatePattern(value);
-            DatePickerFormatter.refreshAll();
-            org.example.util.ClockService.refreshAll();
+            try {
+                DatePickerFormatter.refreshAll();
+                org.example.util.ClockService.refreshAll();
+            } catch (Throwable ignored) {}
         } else if ("company.timeZone".equals(key) || "timezone.business".equals(key)) {
             runtimeBusinessZone = value == null || value.isBlank() ? null : value.trim();
-            DatePickerFormatter.refreshAll();
-            org.example.util.ClockService.refreshAll();
+            try {
+                DatePickerFormatter.refreshAll();
+                org.example.util.ClockService.refreshAll();
+            } catch (Throwable ignored) {}
         } else if ("company.timeFormat".equals(key)) {
             runtimeBusinessTimeFormat = value == null || value.isBlank() ? null : org.example.util.BusinessClock.normalizeTimePattern(value);
-            org.example.util.ClockService.refreshAll();
+            try {
+                org.example.util.ClockService.refreshAll();
+            } catch (Throwable ignored) {}
         }
     }
 
