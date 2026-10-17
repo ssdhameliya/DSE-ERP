@@ -99,6 +99,7 @@ public class RuntimeController {
         result.put("businessDate", BusinessClock.today().toString());
         result.put("utcTime", BusinessClock.nowUtcText());
         result.put("dateFormat", BusinessClock.datePattern());
+        result.put("timeFormat", BusinessClock.timePattern());
         result.put("timePolicy", "ISO_DATE_UTC_INSTANT");
     }
 }

@@ -90,6 +90,7 @@ public class DashboardController implements ScreenLifecycle {
 
     /** Periodically refreshes the unread badge while the main shell is open. */
     private Timeline notificationRefresh;
+    private Timeline idlePrewarm;
     private final Runnable shellIndicatorListener = this::refreshShellIndicatorsAsync;
     private final Runnable permissionChangeListener = this::refreshRolePermissionsOnFxThread;
     private final AtomicBoolean indicatorRefreshRunning = new AtomicBoolean();
@@ -277,7 +278,7 @@ public class DashboardController implements ScreenLifecycle {
             });
         }
         applyRolePermissions();
-        Timeline idlePrewarm = new Timeline(
+        idlePrewarm = new Timeline(
             new KeyFrame(Duration.millis(1200), evt -> {
                 NavigationManager.prewarmPage("/fxml/pages/SalesList.fxml");
                 NavigationManager.prewarmPage("/fxml/pages/PurchaseList.fxml");
@@ -414,6 +415,10 @@ public class DashboardController implements ScreenLifecycle {
             if (shortcutScene.getProperties().get("dse.dynamic-shortcuts.owner") == this)
                 shortcutScene.getProperties().remove("dse.dynamic-shortcuts.owner");
             shortcutScene = null;
+        }
+        if (idlePrewarm != null) {
+            idlePrewarm.stop();
+            idlePrewarm = null;
         }
         if (notificationRefresh != null) {
             notificationRefresh.stop();
@@ -1748,6 +1753,10 @@ public class DashboardController implements ScreenLifecycle {
     @FXML
     private void logout() {
         if (!org.example.navigation.UnsavedChangesManager.allowExit("sign out")) return;
+        stopRecurringTasks();
+        org.example.util.UiTaskExecutor.cancelAllReads();
+        org.example.navigation.NavigationManager.clearGlobalCache();
+        org.example.navigation.WorkspaceTabManager.reset();
         try { new org.example.service.UserService().logout(); }
         finally { SessionService.clear(); }
         org.example.util.SceneManager.showLogin();

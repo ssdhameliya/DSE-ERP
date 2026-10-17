@@ -61,6 +61,12 @@ public final class ConfigManager {
                 }
             }
             if (configurationChanged) save();
+            String zone = properties.getProperty("company.timeZone", properties.getProperty("timezone.business"));
+            String dateFmt = properties.getProperty("company.dateFormat", properties.getProperty("date.format"));
+            String timeFmt = properties.getProperty("company.timeFormat");
+            if (zone != null && !zone.isBlank()) runtimeBusinessZone = zone.trim();
+            if (dateFmt != null && !dateFmt.isBlank()) runtimeBusinessDateFormat = org.example.util.BusinessClock.normalizeDatePattern(dateFmt);
+            if (timeFmt != null && !timeFmt.isBlank()) runtimeBusinessTimeFormat = org.example.util.BusinessClock.normalizeTimePattern(timeFmt);
             System.out.println("Workspace   : " + WorkspaceManager.getWorkspaceRoot());
             System.out.println("Config File : " + configFile);
         } catch (IOException exception) {
@@ -356,10 +362,11 @@ public final class ConfigManager {
     }
 
     public static synchronized void applyServerBusinessPolicy(String zone, String dateFormat, String timeFormat) {
-        runtimeBusinessZone = zone == null ? null : zone.trim();
-        runtimeBusinessDateFormat = dateFormat == null ? null : dateFormat.trim();
-        runtimeBusinessTimeFormat = timeFormat == null ? null : timeFormat.trim();
+        runtimeBusinessZone = zone == null || zone.isBlank() ? null : zone.trim();
+        runtimeBusinessDateFormat = dateFormat == null || dateFormat.isBlank() ? null : org.example.util.BusinessClock.normalizeDatePattern(dateFormat);
+        runtimeBusinessTimeFormat = timeFormat == null || timeFormat.isBlank() ? null : org.example.util.BusinessClock.normalizeTimePattern(timeFormat);
         DatePickerFormatter.refreshAll();
+        org.example.util.ClockService.refreshAll();
     }
     public static synchronized void applyServerBusinessPolicy(String zone, String dateFormat) {
         applyServerBusinessPolicy(zone, dateFormat, null);
@@ -370,13 +377,16 @@ public final class ConfigManager {
 
     public static void syncRuntimeBusinessPolicy(String key, String value) {
         if ("company.dateFormat".equals(key) || "date.format".equals(key)) {
-            runtimeBusinessDateFormat = value == null || value.isBlank() ? null : value.trim();
+            runtimeBusinessDateFormat = value == null || value.isBlank() ? null : org.example.util.BusinessClock.normalizeDatePattern(value);
             DatePickerFormatter.refreshAll();
+            org.example.util.ClockService.refreshAll();
         } else if ("company.timeZone".equals(key) || "timezone.business".equals(key)) {
             runtimeBusinessZone = value == null || value.isBlank() ? null : value.trim();
             DatePickerFormatter.refreshAll();
+            org.example.util.ClockService.refreshAll();
         } else if ("company.timeFormat".equals(key)) {
-            runtimeBusinessTimeFormat = value == null || value.isBlank() ? null : value.trim();
+            runtimeBusinessTimeFormat = value == null || value.isBlank() ? null : org.example.util.BusinessClock.normalizeTimePattern(value);
+            org.example.util.ClockService.refreshAll();
         }
     }
 

@@ -322,6 +322,7 @@ public abstract class PartyMasterController implements ScreenLifecycle {
                 if (selectPartyCode != null && !selectPartyCode.isBlank()) selectSavedParty(selectPartyCode);
             },
             failure -> {
+                if (!org.example.api.ApiSession.isEstablished()) return;
                 org.example.util.OperationalUiSupport.showError(tableParties, displayName() + " master could not load", failure);
                 error("Could not load " + displayName().toLowerCase(Locale.ROOT) + "s: " + message(failure));
             }

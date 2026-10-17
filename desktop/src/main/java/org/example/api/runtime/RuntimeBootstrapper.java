@@ -111,7 +111,7 @@ public final class RuntimeBootstrapper {
             // Defense in depth: if a future startup path ever reaches this helper for a Shared Client,
             // use the same server-owned compatibility window as startup/login instead of exact version equality.
             DeploymentConnectionService.validateCompatibility(status);
-            ConfigManager.applyServerBusinessPolicy(status.businessZone(), status.dateFormat());
+            ConfigManager.applyServerBusinessPolicy(status.businessZone(), status.dateFormat(), status.timeFormat());
         } else {
             // LOCAL owns its packaged Spring backend, so exact version/build identity remains mandatory
             // to prevent reuse of a stale localhost process from another desktop build.
@@ -134,18 +134,7 @@ public final class RuntimeBootstrapper {
                         + org.example.update.BuildInfo.version() + " but server is " + status.version()
                         + ". A stale backend is running and must not be reused.");
             }
-        }
-        String desktopZone = BusinessClock.zone().getId();
-        if (!ConfigManager.isSharedClient() && status.businessZone() != null && !status.businessZone().isBlank() && !desktopZone.equals(status.businessZone())) {
-            throw new IllegalStateException("DSE ERP business timezone mismatch. Desktop uses " + desktopZone
-                    + " but server uses " + status.businessZone()
-                    + ". Save Application Settings and restart DSE ERP so desktop and server use one timezone.");
-        }
-        String desktopDateFormat = BusinessClock.datePattern();
-        if (!ConfigManager.isSharedClient() && status.dateFormat() != null && !status.dateFormat().isBlank() && !desktopDateFormat.equals(status.dateFormat())) {
-            throw new IllegalStateException("DSE ERP date-format mismatch. Desktop uses " + desktopDateFormat
-                    + " but server uses " + status.dateFormat()
-                    + ". Save Application Settings and restart DSE ERP so desktop and server use one date policy.");
+            ConfigManager.applyServerBusinessPolicy(status.businessZone(), status.dateFormat(), status.timeFormat());
         }
         if (status.timePolicy() != null && !status.timePolicy().isBlank()
                 && !"ISO_DATE_UTC_INSTANT".equals(status.timePolicy())) {

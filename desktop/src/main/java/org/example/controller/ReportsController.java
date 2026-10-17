@@ -212,7 +212,7 @@ public class ReportsController implements ScreenLifecycle {
         loadRequested=true; setBusy(true);
         UiTaskExecutor.submitLatest(TASK_KEY, () -> loadReport(from,to,reportType,party,item,salesperson), data -> {
             applyReportCore(data); loaded=true; loadRequested=false; ScreenRefreshPolicy.markRefreshed("reports"); setBusy(false);
-        }, failure -> { loadRequested=false; setBusy(false); error("Could not load report data: "+root(failure)); });
+        }, failure -> { loadRequested=false; setBusy(false); if (!org.example.api.ApiSession.isEstablished()) return; error("Could not load report data: "+root(failure)); });
     }
     private ReportData loadReport(String from,String to,String reportType,String party,String item,String salesperson) {
         var d=insightsApi.report(from,to,reportType,party,item,salesperson);
@@ -267,7 +267,7 @@ public class ReportsController implements ScreenLifecycle {
             LinkedHashSet<String> cats=new LinkedHashSet<>(); cats.add("Favorites"); for(ReportDefinition d:reportDefinitions)cats.add(d.category());
             reportCategories.getItems().setAll(cats); if(reportCategories.getSelectionModel().getSelectedItem()==null){ String first=cats.contains("Sales")?"Sales":cats.stream().findFirst().orElse("Favorites"); reportCategories.getSelectionModel().select(first); }
             renderReportCards(); loadSavedReports();
-        }, e -> error("Could not load Report Center definitions: "+root(e)));
+        }, e -> { if (!org.example.api.ApiSession.isEstablished()) return; error("Could not load Report Center definitions: "+root(e)); });
     }
     private void loadFavorites(){
         Integer uid=currentUserId();
@@ -483,7 +483,7 @@ public class ReportsController implements ScreenLifecycle {
         UiTaskExecutor.submitLatest("reports-schedule-options",scheduleApi::savedReports,options->{
             if(options==null||options.isEmpty()){info("Scheduled Reports","Create and save a report in Report Viewer before creating a schedule.");return;}
             showScheduleDialog(row,options,preferredSavedReport);
-        },e->error("Could not load Saved Reports for scheduling: "+root(e)));
+        },e->{ if (!org.example.api.ApiSession.isEstablished()) return; error("Could not load Saved Reports for scheduling: "+root(e)); });
     }
 
     private void showScheduleDialog(ScheduleRow existing,List<SavedReportOption> options,String preferredSavedReport){

@@ -29,16 +29,38 @@ public final class BusinessClock {
         return ZoneId.systemDefault();
     }
 
-    public static String datePattern() {
-        String configured = ConfigManager.runtimeBusinessDateFormat();
-        if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.dateFormat", DEFAULT_DATE_FORMAT);
-        String candidate = configured == null || configured.isBlank() ? DEFAULT_DATE_FORMAT : configured.trim();
+    public static String normalizeDatePattern(String candidate) {
+        if (candidate == null || candidate.isBlank()) return DEFAULT_DATE_FORMAT;
+        String s = candidate.trim();
+        if ("DD-MM-YYYY".equalsIgnoreCase(s)) return "dd-MM-yyyy";
+        if ("DD/MM/YYYY".equalsIgnoreCase(s)) return "dd/MM/yyyy";
+        if ("YYYY-MM-DD".equalsIgnoreCase(s)) return "yyyy-MM-dd";
+        if ("MM/DD/YYYY".equalsIgnoreCase(s)) return "MM/dd/yyyy";
         try {
-            DateTimeFormatter.ofPattern(candidate, Locale.getDefault());
-            return candidate;
+            DateTimeFormatter.ofPattern(s, Locale.getDefault());
+            return s;
         } catch (IllegalArgumentException ignored) {
             return DEFAULT_DATE_FORMAT;
         }
+    }
+
+    public static String normalizeTimePattern(String candidate) {
+        if (candidate == null || candidate.isBlank()) return "hh:mm a";
+        String s = candidate.trim();
+        if ("12-hour".equalsIgnoreCase(s) || "12h".equalsIgnoreCase(s) || "12_HOUR".equalsIgnoreCase(s)) return "hh:mm a";
+        if ("24-hour".equalsIgnoreCase(s) || "24h".equalsIgnoreCase(s) || "24_HOUR".equalsIgnoreCase(s)) return "HH:mm";
+        try {
+            DateTimeFormatter.ofPattern(s, Locale.getDefault());
+            return s;
+        } catch (IllegalArgumentException ignored) {
+            return "hh:mm a";
+        }
+    }
+
+    public static String datePattern() {
+        String configured = ConfigManager.runtimeBusinessDateFormat();
+        if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.dateFormat", DEFAULT_DATE_FORMAT);
+        return normalizeDatePattern(configured);
     }
 
     public static DateTimeFormatter dateFormatter() {
@@ -85,7 +107,7 @@ public final class BusinessClock {
     public static String timePattern() {
         String configured = ConfigManager.runtimeBusinessTimeFormat();
         if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.timeFormat", "hh:mm a");
-        return (configured == null || configured.isBlank()) ? "hh:mm a" : configured.trim();
+        return normalizeTimePattern(configured);
     }
 
     public static String formatInstant(Instant value, String timePattern) {

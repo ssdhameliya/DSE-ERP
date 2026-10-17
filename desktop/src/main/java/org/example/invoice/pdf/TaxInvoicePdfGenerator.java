@@ -1345,7 +1345,7 @@ public final class TaxInvoicePdfGenerator {
     private record AssetCacheKey(String path, long size, long modified, String variant) { }
 
     private static String formatDate(java.time.LocalDate value) {
-        return value == null ? "-" : value.format(DATE);
+        return value == null ? "-" : org.example.util.BusinessClock.formatDate(value);
     }
 
     private static String joinNonBlank(String separator, String... values) {

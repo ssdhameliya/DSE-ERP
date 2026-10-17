@@ -169,7 +169,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V10_0_30_1__credit_debit_eway_financials",
                     "db/migration/V10_0_30_1__credit_debit_eway_financials.sql"),
             new Migration("V10_0_31_1__gst_gstr1_and_financials_enhancement",
-                    "db/migration/V10_0_31_1__gst_gstr1_and_financials_enhancement.sql")
+                    "db/migration/V10_0_31_1__gst_gstr1_and_financials_enhancement.sql"),
+            new Migration("V10_0_34_1__company_settings_master_lookups",
+                    "db/migration/V10_0_34_1__company_settings_master_lookups.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

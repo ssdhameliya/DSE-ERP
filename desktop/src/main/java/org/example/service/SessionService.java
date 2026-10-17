@@ -40,5 +40,8 @@ public final class SessionService {
         NotificationPreferenceService.reset();
         current = null;
         org.example.api.ApiSession.clear();
+        org.example.util.UiTaskExecutor.cancelAllReads();
+        org.example.navigation.NavigationManager.clearGlobalCache();
+        org.example.navigation.WorkspaceTabManager.reset();
     }
 }

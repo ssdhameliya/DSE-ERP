@@ -336,7 +336,7 @@ public class BackupRestoreController implements ScreenLifecycle {
     private BackupRow toRemoteRow(ServerBackupClient.BackupFile backup) {
         String created;
         try {
-            created = BusinessClock.formatInstant(Instant.parse(backup.createdAt()), "hh:mm a");
+            created = BusinessClock.formatTimestamp(backup.createdAt());
         } catch (Exception ignored) {
             created = backup.createdAt() == null ? "Unknown" : backup.createdAt();
         }
@@ -875,7 +875,7 @@ public class BackupRestoreController implements ScreenLifecycle {
     private String formatModified(Path path) {
         try {
             Instant instant = Files.getLastModifiedTime(path).toInstant();
-            return BusinessClock.formatInstant(instant, "hh:mm a");
+            return BusinessClock.formatTimestamp(instant);
         } catch (Exception ignored) {
             return "Unknown";
         }

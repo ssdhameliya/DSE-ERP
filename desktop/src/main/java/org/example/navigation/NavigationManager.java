@@ -374,16 +374,26 @@ public class NavigationManager {
         }
     }
 
+    public static void clearGlobalCache() {
+        if (instance != null) {
+            instance.clearCache("session-terminated");
+        } else {
+            pageCache.clear();
+        }
+    }
+
     /**
      * Pre-warms an FXML page in the background when the application is idle.
      * Compiles the FXML and runs the pre-enhancement so when the user navigates
      * to this page, it loads instantly from cache.
      */
     public static void prewarmPage(String fxml) {
+        if (!org.example.api.ApiSession.isEstablished()) return;
         if (fxml == null || fxml.isBlank() || NON_CACHEABLE.contains(fxml)) return;
         if (pageCache.containsKey(fxml)) return;
         Platform.runLater(() -> {
             try {
+                if (!org.example.api.ApiSession.isEstablished()) return;
                 if (pageCache.containsKey(fxml)) return;
                 URL url = org.example.util.ResourceLocator.require(fxml);
                 long loadStarted = System.nanoTime();

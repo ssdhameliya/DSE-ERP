@@ -2,7 +2,7 @@
 **Document Status:** 📋 Active Specification & Requirement Gathering (No Code Implementation Until Confirmed)  
 **Target Architecture:** Dual-Portal Web Platform (Public Worldwide Business Showcase + Web ERP Admin Panel)  
 **Host Environment:** Existing Oracle Cloud Always Free Tier (200GB Storage) + Hostinger DNS  
-**Version Alignment:** DSE ERP Server & Shared Contracts v10.0.32  
+**Version Alignment:** DSE ERP Server & Shared Contracts v10.x  
 
 ---
 
