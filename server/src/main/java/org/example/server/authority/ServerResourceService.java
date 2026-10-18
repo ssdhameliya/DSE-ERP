@@ -36,10 +36,7 @@ public class ServerResourceService {
         switch(normalized){
             case "ISSUED_SALES_PDF" -> CurrentUser.requirePermission("SALES.VIEW","View issued sales PDFs");
             case "EXCEL_TEMPLATE","PDF_STUDIO_V3_TEMPLATE","PDF_STUDIO_V3_ACTIVE" -> CurrentUser.requirePermission("DOCUMENT_STUDIO.VIEW","View document templates");
-            case "BUSINESS_ASSET" -> {
-                if(!(CurrentUser.hasPermission("SETTINGS.VIEW")||CurrentUser.hasPermission("DOCUMENT_STUDIO.VIEW")))
-                    throw new SecurityException("Viewing business assets requires SETTINGS.VIEW or DOCUMENT_STUDIO.VIEW permission");
-            }
+            case "BUSINESS_ASSET" -> CurrentUser.require();
             default -> { if(!"ADMIN".equalsIgnoreCase(CurrentUser.require().role())) throw new SecurityException("Administrator permission is required for this server resource"); }
         }
     }
@@ -53,7 +50,57 @@ public class ServerResourceService {
                 if(!(CurrentUser.hasPermission("DOCUMENT_STUDIO.EDIT")||CurrentUser.hasPermission("DOCUMENT_STUDIO.MANAGE_TEMPLATES")))
                     throw new SecurityException("Managing document templates requires DOCUMENT_STUDIO.EDIT or DOCUMENT_STUDIO.MANAGE_TEMPLATES permission");
             }
+            case "BUSINESS_ASSET" -> {
+                if(!CurrentUser.hasPermission("SETTINGS.EDIT"))
+                    throw new SecurityException("Managing business assets requires SETTINGS.EDIT or ADMIN permission");
+            }
             default -> { if(!"ADMIN".equalsIgnoreCase(CurrentUser.require().role())) throw new SecurityException("Administrator permission is required for this server resource"); }
+        }
+    }
+
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @Transactional
+    public void migrateLegacyDiskAssets() {
+        String[] keys = {
+            "company.logoPath",
+            "company.signaturePath",
+            "payment.qrImagePath",
+            "application.brandImagePath",
+            "application.markImagePath"
+        };
+        for (String key : keys) {
+            try {
+                List<String> values = db.query(
+                    "SELECT setting_value FROM application_setting WHERE setting_key=?",
+                    (r, i) -> r.getString(1), key);
+                if (values.isEmpty() || values.getFirst() == null) continue;
+                String current = values.getFirst().trim();
+                if (current.startsWith("server-resource:")) continue;
+                if (!current.isBlank()) {
+                    java.nio.file.Path p = java.nio.file.Path.of(current);
+                    if (java.nio.file.Files.isRegularFile(p)) {
+                        byte[] bytes = java.nio.file.Files.readAllBytes(p);
+                        String fileName = p.getFileName().toString();
+                        String contentType = fileName.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+                        put("BUSINESS_ASSET", key, fileName, contentType, bytes);
+                        db.update("UPDATE application_setting SET setting_value=? WHERE setting_key=?",
+                                "server-resource:" + key, key);
+                        java.lang.System.getLogger("org.example.server.authority")
+                            .log(java.lang.System.Logger.Level.INFO, "Migrated legacy disk asset " + key + " into server_resource");
+                    }
+                }
+            } catch (Exception ex) {
+                java.lang.System.getLogger("org.example.server.authority")
+                    .log(java.lang.System.Logger.Level.WARNING, "Suppressed asset migration error for " + key + ": " + ex.getMessage());
+            }
+        }
+    }
+
+    private static String currentActor() {
+        try {
+            return CurrentUser.require().username();
+        } catch (Exception e) {
+            return "system";
         }
     }
 
@@ -86,7 +133,7 @@ public class ServerResourceService {
             throw new org.example.server.web.ConcurrentEditException("Server template");
         String checksum=sha256(content), now=BusinessClock.nowUtcText();
         db.update("INSERT INTO server_resource(resource_type,resource_key,file_name,content_type,content,checksum,updated_at,updated_by) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(resource_type,resource_key) DO UPDATE SET file_name=excluded.file_name,content_type=excluded.content_type,content=excluded.content,checksum=excluded.checksum,updated_at=excluded.updated_at,updated_by=excluded.updated_by",
-                normalizedType,normalizedKey,safeName(fileName),contentType==null?"application/octet-stream":contentType,content,checksum,now,CurrentUser.require().username());
+                normalizedType,normalizedKey,safeName(fileName),contentType==null?"application/octet-stream":contentType,content,checksum,now,currentActor());
         return new ResourceMeta(normalizedKey,safeName(fileName),contentType,checksum,now,content.length);
     }
 
