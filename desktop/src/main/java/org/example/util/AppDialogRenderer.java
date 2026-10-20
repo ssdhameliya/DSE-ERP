@@ -120,7 +120,7 @@ public final class AppDialogRenderer {
         }
 
         boolean workspace = workspaceConfigured
-                || (!compactConfigured && !alert && !textInput && containsWorkspaceComponent(customContent));
+                || (!compactConfigured && !alert && !textInput && (pane.getPrefWidth() >= 650 || pane.getMinWidth() >= 650 || containsWorkspaceComponent(customContent)));
 
         if (heading.isBlank() && !workspace) heading = defaultHeading(semantic, title);
         if (title.isBlank()) title = semanticLabel(semantic);
@@ -144,6 +144,9 @@ public final class AppDialogRenderer {
     private static boolean containsWorkspaceComponent(Node node) {
         if (node == null) return false;
         if (node instanceof TableView || node instanceof TreeTableView || node instanceof TabPane || node instanceof SplitPane) {
+            return true;
+        }
+        if (node instanceof Region region && (region.getPrefWidth() >= 650 || region.getMinWidth() >= 650)) {
             return true;
         }
         if (node instanceof javafx.scene.Parent parent) {

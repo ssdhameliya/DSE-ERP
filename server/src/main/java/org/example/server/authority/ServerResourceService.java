@@ -76,6 +76,14 @@ public class ServerResourceService {
                 if (values.isEmpty() || values.getFirst() == null) continue;
                 String current = values.getFirst().trim();
                 if (current.startsWith("server-resource:")) continue;
+                List<String> existingResource = db.query(
+                    "SELECT key FROM server_resource WHERE resource_type='BUSINESS_ASSET' AND key=?",
+                    (r, i) -> r.getString(1), key);
+                if (!existingResource.isEmpty()) {
+                    db.update("UPDATE application_setting SET setting_value=? WHERE setting_key=?",
+                            "server-resource:" + key, key);
+                    continue;
+                }
                 if (!current.isBlank()) {
                     java.nio.file.Path p = java.nio.file.Path.of(current);
                     if (java.nio.file.Files.isRegularFile(p)) {

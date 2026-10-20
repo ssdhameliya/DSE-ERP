@@ -1115,6 +1115,13 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private List<AssetPreviewResult> loadAssetPreviews(List<AssetPreviewRequest> requests) {
+        if (ConfigManager.isSharedClient() && org.example.api.ApiSession.isEstablished()) {
+            try {
+                org.example.config.SharedAssetBridge.syncAll();
+            } catch (Exception ignored) {
+                java.lang.System.getLogger("org.example.controller").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
+            }
+        }
         Map<String, AssetPreviewRequest> byKey = new LinkedHashMap<>();
         List<SettingsAssetPreviewLoader.Request> work = new ArrayList<>();
         for (AssetPreviewRequest request : requests) {

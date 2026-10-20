@@ -95,7 +95,7 @@ public class EWayBillCenterController implements ScreenLifecycle {
 
     private void configureBillsColumns() {
         colBillNo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().ewayBillNo != null ? d.getValue().ewayBillNo : "-"));
-        colBillDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().ewayBillDate != null ? d.getValue().ewayBillDate : "-"));
+        colBillDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().ewayBillDate != null ? BusinessClock.formatDate(d.getValue().ewayBillDate) : "-"));
         colDocNo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().docNo));
         colParty.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().toPartyName));
         colVehicle.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().vehicleNo != null ? d.getValue().vehicleNo : "-"));
@@ -174,7 +174,7 @@ public class EWayBillCenterController implements ScreenLifecycle {
 
     private void configureSalesColumns() {
         colSaleInvoiceNo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceNumber));
-        colSaleDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceDate));
+        colSaleDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceDate != null ? BusinessClock.formatDate(d.getValue().invoiceDate) : "-"));
         colSaleCustomer.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().customerName));
         colSaleGstin.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().customerGstin != null ? d.getValue().customerGstin : "Unregistered"));
         colSaleCity.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().destinationCity != null ? d.getValue().destinationCity : "-"));

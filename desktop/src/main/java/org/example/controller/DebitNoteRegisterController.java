@@ -63,7 +63,15 @@ public class DebitNoteRegisterController implements ScreenLifecycle {
         if (kpiStockIcon != null) kpiStockIcon.getChildren().setAll(IconFactory.compactIcon("inventory", 16));
 
         configureTableColumns();
+        IconFactory.applyTableHeaderIcon(colActions, "actions");
         DynamicTableLayoutManager.install(tblDebitNotes);
+        Platform.runLater(() -> {
+            if (tblDebitNotes.getScene() != null && tblDebitNotes.getScene().getRoot() != null) {
+                ProfessionalUiEnhancer.enhance(tblDebitNotes.getScene().getRoot());
+            } else if (tblDebitNotes.getParent() != null) {
+                ProfessionalUiEnhancer.enhance(tblDebitNotes.getParent());
+            }
+        });
 
         cmbReasonFilter.getItems().setAll("All Reasons", "Purchase Return", "Rate Difference", "Supplier Discount", "Correction");
         cmbReasonFilter.setValue("All Reasons");
@@ -99,7 +107,7 @@ public class DebitNoteRegisterController implements ScreenLifecycle {
 
     private void configureTableColumns() {
         colNoteNo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().debitNoteNo));
-        colDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().noteDate));
+        colDate.setCellValueFactory(d -> new SimpleStringProperty(BusinessClock.formatDate(d.getValue().noteDate)));
         colParty.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().partyName));
         colInvoiceRef.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().originalPurchaseNo != null ? d.getValue().originalPurchaseNo : "-"));
         colReason.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().reasonCode));

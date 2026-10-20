@@ -251,9 +251,11 @@ public class BarcodeStudioController implements ScreenLifecycle {
 
         Dialog<ButtonType> dialog = new OwnedDialog<>(tblItems);
         dialog.setTitle("Label Design & Live Preview");
-        dialog.setHeaderText("Thermal Sticker & Sheet Preview — " + (item.itemName != null ? item.itemName : item.itemCode));
+        org.example.util.AppDialogRenderer.configureWorkspace(dialog, "info", "Label Design & Live Preview", "Thermal Sticker & Sheet Preview", "Item: " + (item.itemName != null ? item.itemName : item.itemCode), "");
 
         DialogPane dp = dialog.getDialogPane();
+        dp.setPrefWidth(780);
+        dp.setPrefHeight(480);
         dp.getButtonTypes().addAll(ButtonType.CLOSE);
         dp.getStyleClass().addAll("approved-dialog", "erp-dialog");
 
@@ -713,49 +715,113 @@ public class BarcodeStudioController implements ScreenLifecycle {
         }
     }
 
+    public record DispatchOrderCandidate(String type, String documentNo, String partyName, String date, double amount, Object source) {
+        @Override
+        public String toString() {
+            String formattedDate = BusinessClock.formatDate(date);
+            String formattedAmt = NumberFormat.getCurrencyInstance(Locale.of("en", "IN")).format(amount);
+            return String.format("[%s] %s  •  %s  •  %s  •  %s", type, documentNo, partyName, formattedDate, formattedAmt);
+        }
+    }
+
     @FXML
     public void printOrderDispatchLabel() {
-        OwnedTextInputDialog dlg = new OwnedTextInputDialog();
+        UiTaskExecutor.submitAction("load-dispatch-orders", () -> {
+            List<DispatchOrderCandidate> list = new ArrayList<>();
+            try {
+                List<org.example.model.Sales> sales = new org.example.service.SalesService().getAll();
+                if (sales != null) {
+                    for (org.example.model.Sales s : sales) {
+                        if (s != null && s.getInvoiceNo() != null && !s.getInvoiceNo().isBlank()) {
+                            String party = s.getCustomer() != null && s.getCustomer().getName() != null ? s.getCustomer().getName() : "Customer";
+                            String dt = s.getInvoiceDate() != null ? s.getInvoiceDate().toString() : "";
+                            list.add(new DispatchOrderCandidate("SALE", s.getInvoiceNo(), party, dt, s.getTotalAmount(), s));
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            try {
+                List<org.example.model.Purchase> pos = new org.example.service.PurchaseService().getAll();
+                if (pos != null) {
+                    for (org.example.model.Purchase p : pos) {
+                        if (p != null && p.getInvoiceNo() != null && !p.getInvoiceNo().isBlank()) {
+                            String party = p.getSupplier() != null && p.getSupplier().getName() != null ? p.getSupplier().getName() : "Supplier";
+                            String dt = p.getInvoiceDate() != null ? p.getInvoiceDate().toString() : "";
+                            list.add(new DispatchOrderCandidate("PURCHASE", p.getInvoiceNo(), party, dt, p.getTotalAmount(), p));
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+            return list;
+        }, candidates -> {
+            if (candidates.isEmpty()) {
+                AppDialogService.warning(tblItems, "Order Dispatch Barcode", "No Orders Found", "No valid Sales Invoices or Purchase Orders exist to dispatch.");
+                return;
+            }
+            showOrderDispatchSelectionDialog(candidates);
+        }, failure -> {
+            AppDialogService.error(tblItems, "Order Dispatch Barcode", "Failed to Load Orders", failure.getMessage());
+        });
+    }
+
+    private void showOrderDispatchSelectionDialog(List<DispatchOrderCandidate> candidates) {
+        Dialog<DispatchOrderCandidate> dlg = new OwnedDialog<>(tblItems);
         dlg.setTitle("Universal Order Barcode Label");
-        dlg.setHeaderText("Enter Document Number (Sales Invoice, PO, Credit Note, Debit Note)");
-        dlg.setContentText("Document No:");
-        dlg.showAndWait().map(String::trim).filter(s -> !s.isBlank()).ifPresent(docNo -> {
-            // Check Sales
-            try {
-                org.example.model.Sales sale = new org.example.service.SalesService().getByInvoice(docNo);
-                if (sale != null) {
-                    OrderDispatchBarcodeDialog.showForSale(tblItems, sale);
-                    return;
-                }
-            } catch (Exception ignored) {}
+        AppDialogRenderer.configureWorkspace(dlg, "info", "Universal Order Barcode Label", "Select Order for Dispatch", "Select a valid Sales Invoice or Purchase Order to generate order barcode labels.", "");
+        DialogPane pane = dlg.getDialogPane();
+        pane.setPrefWidth(680);
+        pane.getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 
-            // Check Purchase
-            try {
-                org.example.model.Purchase po = new org.example.service.PurchaseService().getByInvoice(docNo);
-                if (po != null) {
-                    OrderDispatchBarcodeDialog.showForPurchase(tblItems, po);
-                    return;
-                }
-            } catch (Exception ignored) {}
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
 
-            // Fallback: create generic document label
-            List<OrderDispatchBarcodeDialog.OrderBarcodeItem> items = new ArrayList<>();
-            items.add(new OrderDispatchBarcodeDialog.OrderBarcodeItem("Consignment Goods", "8471", "Dispatch Consignment", 1.0, "LOT", docNo));
-            OrderDispatchBarcodeDialog.OrderBarcodeDocument doc = new OrderDispatchBarcodeDialog.OrderBarcodeDocument(
-                "DISPATCH ORDER",
-                docNo,
-                BusinessClock.today().toString(),
-                BrandingService.companyName(),
-                ConfigManager.get("company.gstin", "24ABCDE1234F1Z5"),
-                "Party:",
-                "Order Consignee",
-                "",
-                "Direct Dispatch Bay",
-                1,
-                1,
-                items
-            );
-            OrderDispatchBarcodeDialog.show(tblItems, doc);
+        TextField txtFilter = new TextField();
+        txtFilter.setPromptText("Type invoice number or party name to search...");
+
+        ComboBox<DispatchOrderCandidate> cmbOrders = new ComboBox<>();
+        cmbOrders.setMaxWidth(Double.MAX_VALUE);
+        cmbOrders.setVisibleRowCount(10);
+        ObservableList<DispatchOrderCandidate> master = FXCollections.observableArrayList(candidates);
+        javafx.collections.transformation.FilteredList<DispatchOrderCandidate> filtered = new javafx.collections.transformation.FilteredList<>(master, p -> true);
+        cmbOrders.setItems(filtered);
+        if (!filtered.isEmpty()) cmbOrders.setValue(filtered.get(0));
+
+        txtFilter.textProperty().addListener((obs, ov, nv) -> {
+            String q = nv == null ? "" : nv.trim().toLowerCase(Locale.ROOT);
+            filtered.setPredicate(cand -> {
+                if (q.isBlank()) return true;
+                return cand.documentNo.toLowerCase(Locale.ROOT).contains(q)
+                        || cand.partyName.toLowerCase(Locale.ROOT).contains(q)
+                        || cand.type.toLowerCase(Locale.ROOT).contains(q);
+            });
+            if (!filtered.isEmpty()) {
+                cmbOrders.setValue(filtered.get(0));
+            } else {
+                cmbOrders.setValue(null);
+            }
+        });
+
+        Label lblHelp = new Label("Only registered orders can be selected to ensure dispatch accuracy and prevent duplicate numbers.");
+        lblHelp.getStyleClass().add("text-muted");
+        lblHelp.setStyle("-fx-font-size: 11px;");
+
+        content.getChildren().addAll(new Label("Search Order:"), txtFilter, new Label("Select Order Document:"), cmbOrders, lblHelp);
+        pane.setContent(content);
+
+        Button btnOk = (Button) pane.lookupButton(ButtonType.OK);
+        if (btnOk != null) {
+            btnOk.setText("Generate Label");
+            btnOk.disableProperty().bind(cmbOrders.valueProperty().isNull());
+        }
+
+        dlg.setResultConverter(bt -> bt == ButtonType.OK ? cmbOrders.getValue() : null);
+        dlg.showAndWait().ifPresent(selected -> {
+            if (selected.source instanceof org.example.model.Sales sale) {
+                OrderDispatchBarcodeDialog.showForSale(tblItems, sale);
+            } else if (selected.source instanceof org.example.model.Purchase po) {
+                OrderDispatchBarcodeDialog.showForPurchase(tblItems, po);
+            }
         });
     }
 

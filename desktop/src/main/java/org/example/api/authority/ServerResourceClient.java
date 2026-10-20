@@ -21,10 +21,24 @@ public final class ServerResourceClient {
     public ResourceMeta put(String type,String key,String fileName,byte[] content){return put(type,key,fileName,content,"");}
     public ResourceMeta put(String type,String key,String fileName,byte[] content,String expectedChecksum){
         try{
-            String p=path(type,key)+"?filename="+enc(fileName)+"&contentType="+enc("application/zip")+"&expectedChecksum="+enc(expectedChecksum);
+            String ct = inferContentType(fileName);
+            String p=path(type,key)+"?filename="+enc(fileName)+"&contentType="+enc(ct)+"&expectedChecksum="+enc(expectedChecksum);
             var r=sendUpload(p,content);
             return json.readValue(r.body(),ResourceMeta.class);
         }catch(Exception e){throw failure(e);}
+    }
+    public static String inferContentType(String name) {
+        if (name == null) return "application/octet-stream";
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        if (lower.endsWith(".zip")) return "application/zip";
+        return "application/octet-stream";
     }
     public void delete(String type,String key){try{sendBytes("DELETE",path(type,key),null);}catch(Exception e){throw failure(e);}}
     private HttpResponse<String> send(String method,String p,byte[] body,String accept)throws Exception{HttpRequest.Builder b=HttpRequest.newBuilder(URI.create(base+p)).timeout(Duration.ofSeconds(90)).header("Accept",accept);ApiSession.authorize(b);b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofByteArray(body));var r=http.send(b.build(),HttpResponse.BodyHandlers.ofString());requireOk(r.statusCode(),r.body());return r;}

@@ -89,7 +89,7 @@
             <TableColumn fx:id="colTax" text="GST Reversal (₹)"/>
             <TableColumn fx:id="colTotal" text="Total Amount (₹)"/>
             <TableColumn fx:id="colStatus" text="Status"/>
-            <TableColumn fx:id="colActions" text="Actions" sortable="false"/>
+            <TableColumn fx:id="colActions" text="Actions" sortable="false" styleClass="approved-table-column,erp-icon-table-column"/>
           </columns>
           <placeholder>
             <VBox alignment="CENTER" spacing="8">
