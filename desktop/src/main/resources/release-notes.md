@@ -1,7 +1,6 @@
-# What's New in DSE ERP v10.0.37
+# What's New in DSE ERP v10.0.38
 
-### User-Friendly Server Error Messages & Constraint Diagnostics
-- **Actionable Error Diagnostics:** Replaced generic masked server error messages with clear, root-cause diagnostic feedback across all API operations.
-- **Database Integrity Violation Transparency:** Dedicated exception handlers explicitly detect and clarify unique constraint violations (duplicate keys), missing mandatory database columns, and foreign key link errors.
-- **Payload & Validation Clarity:** Added specific error reporting for JSON payload formatting issues (`HttpMessageNotReadableException`) and bean validation field errors (`MethodArgumentNotValidException`).
-- **Data Import Studio Reliability:** Sales and Purchase Register imports receive detailed, item-by-item root-cause messages in case of validation or business constraint conflicts.
+### Contract Deserialization Hardening & Zero-Null Primitive Protection
+- **Record Deserialization Resilience:** Hardened `SaleDto` and `PurchaseDto` in `OperationDtos.java` with compact constructor default coercers, gracefully mapping null or omitted boolean and numeric fields to safe defaults (`false` / `0.0`) instead of throwing Jackson `InvalidNullException`.
+- **Data Import Studio Parity:** Ensured Sales and Purchase Register bulk loaders across Web and Desktop communicate over a 100% resilient contract without deserialization crashes.
+- **Enterprise Operations API Stability:** Universal protection against primitive deserialization failures across all REST client endpoints.
