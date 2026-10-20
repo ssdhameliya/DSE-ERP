@@ -9,7 +9,12 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import jakarta.persistence.OptimisticLockException;
+import org.springframework.core.NestedExceptionUtils;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -78,14 +83,70 @@ public class ApiExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> dataIntegrity(DataIntegrityViolationException error) {
+        Throwable root = NestedExceptionUtils.getMostSpecificCause(error);
+        String rootMsg = root == null || root.getMessage() == null ? "" : root.getMessage().trim();
+        String userFriendly;
+        if (rootMsg.contains("violates unique constraint") || rootMsg.contains("duplicate key")) {
+            userFriendly = "A record with this identifier already exists in the ERP database (duplicate key violation).";
+        } else if (rootMsg.contains("violates not-null constraint")) {
+            userFriendly = "A mandatory required field was missing in database: " + rootMsg;
+        } else if (rootMsg.contains("violates foreign key constraint")) {
+            userFriendly = "A referenced record (customer, supplier, or item) could not be linked because it does not exist in master data.";
+        } else if (rootMsg.contains("violates check constraint")) {
+            userFriendly = "The submitted document violates a business integrity check constraint: " + rootMsg;
+        } else {
+            userFriendly = rootMsg.isBlank() ? "Database data integrity constraint violation." : rootMsg;
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("code", "DATA_INTEGRITY_VIOLATION");
+        body.put("message", userFriendly);
+        body.put("details", rootMsg);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> jsonNotReadable(HttpMessageNotReadableException error) {
+        Throwable root = NestedExceptionUtils.getMostSpecificCause(error);
+        String rootMsg = root == null || root.getMessage() == null ? error.getMessage() : root.getMessage();
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("code", "INVALID_REQUEST_BODY");
+        body.put("message", "Request payload could not be read or contains invalid data formats.");
+        body.put("details", rootMsg);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> validationError(MethodArgumentNotValidException error) {
+        String msg = error.getBindingResult().getFieldErrors().stream()
+            .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+            .reduce((a, b) -> a + "; " + b)
+            .orElse("Validation failed for one or more fields");
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("code", "VALIDATION_FAILED");
+        body.put("message", msg);
+        body.put("details", msg);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> serverError(Exception error) {
         error.printStackTrace();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-            "status", HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            "code", "SERVER_ERROR",
-            "message", "The ERP server could not complete this operation. Check the server log for the underlying error."
-        ));
+        Throwable root = NestedExceptionUtils.getMostSpecificCause(error);
+        String rootMsg = root == null || root.getMessage() == null ? error.getMessage() : root.getMessage();
+        String displayMsg = (rootMsg != null && !rootMsg.isBlank())
+            ? rootMsg
+            : "The ERP server encountered an internal error during this operation.";
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        body.put("code", "SERVER_ERROR");
+        body.put("message", displayMsg);
+        body.put("details", (root == null ? error.getClass().getSimpleName() : root.getClass().getSimpleName()) + ": " + displayMsg);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     private static String message(Throwable error, String fallback) {
