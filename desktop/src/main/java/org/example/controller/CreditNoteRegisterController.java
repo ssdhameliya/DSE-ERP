@@ -63,7 +63,15 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
         if (kpiStockIcon != null) kpiStockIcon.getChildren().setAll(IconFactory.compactIcon("inventory", 16));
 
         configureTableColumns();
+        IconFactory.applyTableHeaderIcon(colActions, "actions");
         DynamicTableLayoutManager.install(tblCreditNotes);
+        Platform.runLater(() -> {
+            if (tblCreditNotes.getScene() != null && tblCreditNotes.getScene().getRoot() != null) {
+                ProfessionalUiEnhancer.enhance(tblCreditNotes.getScene().getRoot());
+            } else if (tblCreditNotes.getParent() != null) {
+                ProfessionalUiEnhancer.enhance(tblCreditNotes.getParent());
+            }
+        });
 
         cmbReasonFilter.getItems().setAll("All Reasons", "Sales Return", "Rate Difference", "Post-Sale Discount", "Correction");
         cmbReasonFilter.setValue("All Reasons");
@@ -99,7 +107,7 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
 
     private void configureTableColumns() {
         colNoteNo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().creditNoteNo));
-        colDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().noteDate));
+        colDate.setCellValueFactory(d -> new SimpleStringProperty(BusinessClock.formatDate(d.getValue().noteDate)));
         colParty.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().partyName));
         colInvoiceRef.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().originalInvoiceNo != null ? d.getValue().originalInvoiceNo : "-"));
         colReason.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().reasonCode));

@@ -56,8 +56,21 @@ public final class WindowUtilsFx {
         if (stage == null) return;
         Rectangle2D screen = visualBoundsFor(owner);
         double margin = screen.getWidth() < 1100 || screen.getHeight() < 700 ? 16 : 36;
-        double maxW = Math.max(360, Math.min(620, screen.getWidth() - margin * 2));
-        double maxH = Math.max(220, Math.min(720, screen.getHeight() - margin * 2));
+        double baseCap = 620;
+
+        // Check if DialogPane or custom content requested larger dimensions
+        if (stage.getScene() != null && stage.getScene().getRoot() instanceof javafx.scene.control.DialogPane dialogPane) {
+            double reqW = dialogPane.getPrefWidth();
+            javafx.scene.Node content = dialogPane.getContent();
+            if (content instanceof javafx.scene.layout.Region reg && reg.getPrefWidth() > reqW) {
+                reqW = reg.getPrefWidth();
+            }
+            if (reqW > baseCap) {
+                baseCap = Math.min(reqW + 48, 1100);
+            }
+        }
+        double maxW = Math.max(360, Math.min(baseCap, screen.getWidth() - margin * 2));
+        double maxH = Math.max(220, Math.min(780, screen.getHeight() - margin * 2));
 
         // Let the DialogPane/CSS compute the natural message size first; then
         // cap it to the owner's usable monitor without imposing workspace mins.
@@ -69,7 +82,7 @@ public final class WindowUtilsFx {
                 if (content != null && !(content instanceof javafx.scene.control.ScrollPane)) {
                     javafx.scene.control.ScrollPane sp = new javafx.scene.control.ScrollPane(content);
                     sp.setFitToWidth(true);
-                    sp.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+                    sp.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
                     sp.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
                     sp.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
                     dialogPane.setContent(sp);

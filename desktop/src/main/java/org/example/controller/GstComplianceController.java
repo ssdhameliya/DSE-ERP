@@ -181,7 +181,7 @@ public class GstComplianceController implements ScreenLifecycle {
             colSupplierGstin.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().gstin()));
             colSupplierTrade.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().tradeName()));
             colInvoiceNo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceNo()));
-            colInvoiceDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceDate()));
+            colInvoiceDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceDate() != null ? BusinessClock.formatDate(d.getValue().invoiceDate()) : "-"));
             colTaxableValue.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().taxable()));
             colIgst.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().igst()));
             colCgst.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().cgst()));
@@ -281,7 +281,7 @@ public class GstComplianceController implements ScreenLifecycle {
             colGstr1B2bCgstin.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().gstin()));
             colGstr1B2bName.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().partyName()));
             colGstr1B2bInum.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceNo()));
-            colGstr1B2bIdt.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceDate()));
+            colGstr1B2bIdt.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceDate() != null ? BusinessClock.formatDate(d.getValue().invoiceDate()) : "-"));
             colGstr1B2bVal.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().invoiceValue()));
             colGstr1B2bPos.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().pos()));
             colGstr1B2bRate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().rate()));
@@ -309,7 +309,7 @@ public class GstComplianceController implements ScreenLifecycle {
             colGstr1CdnrGstin.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().gstin()));
             colGstr1CdnrName.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().partyName()));
             colGstr1CdnrNoteNo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().noteNo()));
-            colGstr1CdnrNoteDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().noteDate()));
+            colGstr1CdnrNoteDate.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().noteDate() != null ? BusinessClock.formatDate(d.getValue().noteDate()) : "-"));
             colGstr1CdnrType.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().noteType()));
             colGstr1CdnrOrigInv.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().origInvoiceNo()));
             colGstr1CdnrVal.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().noteValue()));

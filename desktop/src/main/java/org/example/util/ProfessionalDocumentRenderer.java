@@ -443,7 +443,7 @@ public final class ProfessionalDocumentRenderer {
             java.time.LocalDate date = java.time.LocalDate.parse(value.substring(0, 10));
             return BusinessClock.formatDate(date);
         } catch (Exception ignored) {
-            return value;
+            return BusinessClock.formatDate(value);
         }
     }
 

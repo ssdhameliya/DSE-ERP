@@ -36,7 +36,7 @@ public final class BrandedRegisterPdfService {
             Table banner = new Table(new float[]{3, 2}).useAllAvailableWidth();
             banner.addCell(headerCell(org.example.service.BrandingService.companyName() +
                 "\n" + ConfigManager.get("company.tagline", "ERP Solutions"), 16));
-            banner.addCell(headerCell(title.toUpperCase() + "\nGenerated " + BusinessClock.today(), 15)
+            banner.addCell(headerCell(title.toUpperCase() + "\nGenerated " + BusinessClock.formatDate(BusinessClock.today()), 15)
                 .setTextAlignment(TextAlignment.RIGHT));
             document.add(banner);
             document.add(new Paragraph(ConfigManager.get("company.address", "") + "  |  " +

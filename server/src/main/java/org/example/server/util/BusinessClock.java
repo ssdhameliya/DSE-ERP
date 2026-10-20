@@ -47,18 +47,60 @@ public final class BusinessClock {
         }
     }
 
+    public static String normalizeDatePattern(String candidate) {
+        if (candidate == null || candidate.isBlank()) return "dd/MM/yyyy";
+        String s = candidate.trim();
+        if ("DD-MM-YYYY".equalsIgnoreCase(s)) return "dd-MM-yyyy";
+        if ("DD/MM/YYYY".equalsIgnoreCase(s)) return "dd/MM/yyyy";
+        if ("YYYY-MM-DD".equalsIgnoreCase(s)) return "yyyy-MM-dd";
+        if ("MM/DD/YYYY".equalsIgnoreCase(s)) return "MM/dd/yyyy";
+        try {
+            DateTimeFormatter.ofPattern(s, java.util.Locale.getDefault());
+            return s;
+        } catch (IllegalArgumentException ignored) {
+            return "dd/MM/yyyy";
+        }
+    }
+
     public static String datePattern() {
-        String configured = readConfigured("company.dateFormat");
+        String configured = org.example.config.ConfigManager.get("company.dateFormat", "");
+        if (configured == null || configured.isBlank()) configured = readConfigured("company.dateFormat");
         if (configured == null || configured.isBlank()) configured = System.getenv("DSE_BUSINESS_DATE_FORMAT");
-        String candidate = configured == null || configured.isBlank() ? "dd/MM/yyyy" : configured.trim();
-        try { DateTimeFormatter.ofPattern(candidate); return candidate; }
-        catch (IllegalArgumentException ignored) { return "dd/MM/yyyy"; }
+        return normalizeDatePattern(configured);
+    }
+
+    public static String formatDate(LocalDate value) {
+        if (value == null) return "";
+        try {
+            return DateTimeFormatter.ofPattern(datePattern(), java.util.Locale.getDefault()).format(value);
+        } catch (Exception e) {
+            return value.toString();
+        }
+    }
+
+    public static String formatDate(String value) {
+        if (value == null || value.isBlank()) return "";
+        String text = value.trim();
+        for (DateTimeFormatter parser : List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("d/M/uuuu"),
+                DateTimeFormatter.ofPattern("dd/MM/uuuu"),
+                DateTimeFormatter.ofPattern("dd-MM-uuuu"),
+                DateTimeFormatter.ofPattern("dd-MMM-uuuu", java.util.Locale.ENGLISH))) {
+            try {
+                return formatDate(LocalDate.parse(text, parser));
+            } catch (DateTimeParseException ignored) { }
+        }
+        return text;
     }
 
     public static String timePattern() {
-        String configured = readConfigured("company.timeFormat");
+        String configured = org.example.config.ConfigManager.get("company.timeFormat", "");
+        if (configured == null || configured.isBlank()) configured = readConfigured("company.timeFormat");
         if (configured == null || configured.isBlank()) configured = System.getenv("DSE_BUSINESS_TIME_FORMAT");
         String candidate = configured == null || configured.isBlank() ? "hh:mm a" : configured.trim();
+        if ("12-hour".equalsIgnoreCase(candidate) || "12h".equalsIgnoreCase(candidate) || "12_HOUR".equalsIgnoreCase(candidate)) return "hh:mm a";
+        if ("24-hour".equalsIgnoreCase(candidate) || "24h".equalsIgnoreCase(candidate) || "24_HOUR".equalsIgnoreCase(candidate)) return "HH:mm";
         try { DateTimeFormatter.ofPattern(candidate); return candidate; }
         catch (IllegalArgumentException ignored) { return "hh:mm a"; }
     }

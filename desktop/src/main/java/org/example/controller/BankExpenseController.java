@@ -358,7 +358,21 @@ public class BankExpenseController implements ScreenLifecycle {
 
     @FXML private void clearForm(){ reconciliationStatementId=null; reconciliationAmount=null; if(entryDate!=null)entryDate.setValue(BusinessClock.today()); if(referenceNo!=null)referenceNo.clear(); if(description!=null)description.clear(); if(amount!=null){amount.clear();amount.setEditable(true);} if(creditRadio!=null)creditRadio.setSelected(true); if(expenseCategory!=null)expenseCategory.getSelectionModel().clearSelection(); editingId=null; editingVersion=0L; selectedBill=null; if(billName!=null)billName.setText("No file selected"); if(saveButton!=null)saveButton.setText(mode==Mode.EXPENSE?"Save Expense":"Save Entry"); }
     @FXML private void focusForm(){ clearForm(); showEntryDialog(); if(mode==Mode.EXPENSE)expenseCategory.requestFocus(); else bankAccount.requestFocus(); }
-    private void showEntryDialog(){if(entryFormPanel==null)return;if(entryDialog==null){entryDialog=new OwnedDialog<>();entryDialog.setResizable(true);entryDialog.setTitle(mode==Mode.EXPENSE?"Expense Entry":"Bank Entry");entryDialog.getDialogPane().setContent(entryFormPanel);entryDialog.getDialogPane().setPrefWidth(820);entryDialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);entryDialog.setOnHidden(e->{if(entryFormPanel!=null)entryFormPanel.setVisible(true);});}entryDialog.setTitle(editingId==null?(mode==Mode.EXPENSE?"New Expense Entry":"New Bank Entry"):(mode==Mode.EXPENSE?"Edit Expense Entry":"Edit Bank Entry"));if(!entryDialog.isShowing())entryDialog.show();}
+    private void showEntryDialog(){
+        if(entryFormPanel==null)return;
+        if(entryDialog==null){
+            entryDialog=new OwnedDialog<>();
+            entryDialog.setResizable(true);
+            entryDialog.setTitle(mode==Mode.EXPENSE?"Expense Entry":"Bank Entry");
+            org.example.util.AppDialogRenderer.configureWorkspace(entryDialog, "complete", mode==Mode.EXPENSE?"Expense Entry":"Bank Entry", mode==Mode.EXPENSE?"Expense Entry":"Bank Entry", "", "");
+            entryDialog.getDialogPane().setContent(entryFormPanel);
+            entryDialog.getDialogPane().setPrefWidth(840);
+            entryDialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            entryDialog.setOnHidden(e->{if(entryFormPanel!=null)entryFormPanel.setVisible(true);});
+        }
+        entryDialog.setTitle(editingId==null?(mode==Mode.EXPENSE?"New Expense Entry":"New Bank Entry"):(mode==Mode.EXPENSE?"Edit Expense Entry":"Edit Bank Entry"));
+        if(!entryDialog.isShowing())entryDialog.show();
+    }
     private void closeEntryDialog(){if(entryDialog!=null&&entryDialog.isShowing())entryDialog.close();}
     @FXML private void chooseBill(){ FileChooser f=new FileChooser(); f.setTitle("Choose expense bill"); f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bill files","*.pdf","*.png","*.jpg","*.jpeg")); selectedBill=f.showOpenDialog(table.getScene().getWindow()); if(selectedBill!=null)billName.setText(selectedBill.getName()); }
 

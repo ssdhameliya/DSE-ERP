@@ -61,8 +61,10 @@ public final class ActivityTimelineDialog {
         dialog.setHeaderText(null);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.getDialogPane().getStyleClass().add("audit-dialog");
+        AppDialogRenderer.configureWorkspace(dialog, "info", "Audit Trail", "Audit Trail", pretty(entityType) + " • " + safe(reference), "");
+        dialog.getDialogPane().setPrefWidth(980);
 
-        VBox root=new VBox(12);root.setPadding(new Insets(14));root.setPrefWidth(940);
+        VBox root=new VBox(12);root.setPadding(new Insets(14));root.setPrefWidth(960);
         HBox head=new HBox(12);head.setAlignment(Pos.CENTER_LEFT);
         Label icon=new Label("◷");icon.getStyleClass().add("audit-title-icon");
         VBox titles=new VBox(2,new Label("Audit Trail"),new Label(pretty(entityType)+" • "+safe(reference)));

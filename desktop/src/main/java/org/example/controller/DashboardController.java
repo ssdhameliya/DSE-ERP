@@ -271,6 +271,11 @@ public class DashboardController implements ScreenLifecycle {
                 UpdateDialogs.showWhatsNewOnce(contentPane.getScene().getWindow());
                 installHoverPeekDrawer(contentPane.getScene());
             }
+            try {
+                org.example.config.SharedAssetBridge.syncAllAsync();
+            } catch (Exception ignored) {
+                java.lang.System.getLogger("org.example.controller").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
+            }
         });
         if (contentPane != null) {
             contentPane.sceneProperty().addListener((obs, oldScene, newScene) -> {

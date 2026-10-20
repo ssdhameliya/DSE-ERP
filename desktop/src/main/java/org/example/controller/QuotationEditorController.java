@@ -195,7 +195,8 @@ public final class QuotationEditorController implements ScreenLifecycle {
         List<String> sources = (masters.sources() == null ? List.<String>of() : masters.sources()).stream()
             .filter(Objects::nonNull).map(String::trim).filter(v -> !v.isBlank()).distinct().toList();
         cmbSource.getItems().setAll(sources);
-        if (!sources.isEmpty() && cmbSource.getValue() == null) cmbSource.getSelectionModel().selectFirst();
+        cmbSource.setVisibleRowCount(10);
+        cmbCustomer.setVisibleRowCount(10);
         cmbSource.setDisable(false);
         cmbSource.setPromptText(sources.isEmpty() ? "No active Source in Master Data" : "Select from Master Data...");
     }
@@ -213,7 +214,6 @@ public final class QuotationEditorController implements ScreenLifecycle {
             cmbSource.getItems().setAll(values);
             String match=values.stream().filter(v->v.equalsIgnoreCase(selected)).findFirst().orElse(null);
             if(match!=null)cmbSource.setValue(match);
-            else if(!values.isEmpty())cmbSource.getSelectionModel().selectFirst();
             cmbSource.setPromptText(values.isEmpty()?"No active Source in Master Data":"Select from Master Data...");
         },failure->{
             cmbSource.setPromptText("Source could not be loaded");
@@ -273,12 +273,13 @@ public final class QuotationEditorController implements ScreenLifecycle {
 
     private void configureCustomerSearch(){
         cmbCustomer.setEditable(true);
+        cmbCustomer.setVisibleRowCount(10);
         cmbCustomer.setConverter(new StringConverter<>(){@Override public String toString(CustomerChoice value){return value==null?"":value.display();}@Override public CustomerChoice fromString(String text){String q=safe(text).trim();if(q.isBlank())return null;return cmbCustomer.getItems().stream().filter(c->c.display().equalsIgnoreCase(q)||c.name.equalsIgnoreCase(q)||c.code.equalsIgnoreCase(q)).findFirst().orElse(null);}});
         customerSearchDebounce.setOnFinished(e->searchQuotationCustomers(cmbCustomer.getEditor().getText()));
         cmbCustomer.getEditor().textProperty().addListener((o,a,text)->{if(updatingCustomerSearch||!cmbCustomer.getEditor().isFocused())return;CustomerChoice selected=cmbCustomer.getValue();if(selected!=null&&selected.display().equalsIgnoreCase(safe(text))){customerSearchDebounce.stop();return;}customerSearchDebounce.playFromStart();});
         cmbCustomer.showingProperty().addListener((o,a,showing)->{if(showing&&cmbCustomer.getItems().isEmpty())searchQuotationCustomers("");});
     }
-    private void searchQuotationCustomers(String text){String query=safe(text).trim();UiTaskExecutor.submitLatest("quotation-customer-search",()->partyService.search("CUSTOMER",query,30),rows->{if(cmbCustomer.getEditor().isFocused()&&!safe(cmbCustomer.getEditor().getText()).equalsIgnoreCase(query))return;CustomerChoice selected=cmbCustomer.getValue();List<CustomerChoice> choices=new ArrayList<>();if(rows!=null)for(Party p:rows)choices.add(new CustomerChoice(p));if(selected!=null&&choices.stream().noneMatch(c->c.id==selected.id))choices.add(0,selected);updatingCustomerSearch=true;try{cmbCustomer.getItems().setAll(choices);if(selected!=null)cmbCustomer.getItems().stream().filter(c->c.id==selected.id).findFirst().ifPresent(cmbCustomer::setValue);}finally{updatingCustomerSearch=false;}if(!choices.isEmpty()&&cmbCustomer.getEditor().isFocused()&&!cmbCustomer.isShowing())cmbCustomer.show();},failure->System.err.println("Quotation customer search: "+message(failure)));}
+    private void searchQuotationCustomers(String text){String query=safe(text).trim();UiTaskExecutor.submitLatest("quotation-customer-search",()->partyService.search("CUSTOMER",query,30),rows->{if(cmbCustomer.getEditor().isFocused()&&!safe(cmbCustomer.getEditor().getText()).equalsIgnoreCase(query))return;CustomerChoice selected=cmbCustomer.getValue();List<CustomerChoice> choices=new ArrayList<>();if(rows!=null)for(Party p:rows)choices.add(new CustomerChoice(p));if(selected!=null&&choices.stream().noneMatch(c->c.id==selected.id))choices.add(0,selected);updatingCustomerSearch=true;try{cmbCustomer.getItems().setAll(choices);if(selected!=null)cmbCustomer.getItems().stream().filter(c->c.id==selected.id).findFirst().ifPresent(cmbCustomer::setValue);}finally{updatingCustomerSearch=false;}if(!choices.isEmpty()&&cmbCustomer.getEditor().isFocused()){if(cmbCustomer.isShowing()){cmbCustomer.hide();cmbCustomer.show();}else{cmbCustomer.show();}}},failure->System.err.println("Quotation customer search: "+message(failure)));}
     private void selectQuotationCustomer(int customerId,String customerName){CustomerChoice local=cmbCustomer.getItems().stream().filter(c->c.id==customerId).findFirst().orElse(null);if(local!=null){cmbCustomer.setValue(local);return;}UiTaskExecutor.submitLatest("quotation-customer-selected",()->partyService.search("CUSTOMER",safe(customerName),30),rows->{CustomerChoice match=(rows==null?List.<Party>of():rows).stream().filter(p->p.getId()==customerId).findFirst().map(CustomerChoice::new).orElse(null);if(match!=null){cmbCustomer.getItems().add(0,match);cmbCustomer.setValue(match);}},failure->System.err.println("Quotation selected customer: "+message(failure)));}
 
     private void loadEditorBootstrapAsync(){
@@ -326,7 +327,6 @@ public final class QuotationEditorController implements ScreenLifecycle {
             cmbSource.getItems().setAll(values);
             String match=values.stream().filter(v->v.equalsIgnoreCase(selected)).findFirst().orElse(null);
             if(match!=null) cmbSource.setValue(match);
-            else if(!values.isEmpty()) cmbSource.getSelectionModel().selectFirst();
             cmbSource.setDisable(false);
             cmbSource.setPromptText(values.isEmpty()?"No active Source in Master Data":"Select from Master Data...");
         },failure->{
@@ -347,7 +347,6 @@ public final class QuotationEditorController implements ScreenLifecycle {
         cmbCustomer.setDisable(false);cmbSource.setDisable(false);
         cmbCustomer.setPromptText(customers.isEmpty()?"No active Customers available":"Search customer...");
         cmbSource.setPromptText(sources.isEmpty()?"No active Source in Master Data":"Select from Master Data...");
-        if(!cmbSource.getItems().isEmpty())cmbSource.getSelectionModel().selectFirst();
         QuotationApiClient.QuoteDto quote=data==null?null:data.quote();
         if(quote!=null){selectQuotationCustomer(quote.customerId(),quote.customer());dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));String savedSource=safe(quote.source()).trim();String activeSource=sources.stream().filter(v->v.equalsIgnoreCase(savedSource)).findFirst().orElse(null);cmbSource.setValue(activeSource!=null?activeSource:(savedSource.isBlank()?null:savedSource));txtRemarks.setText(safe(quote.remarks()));List<QuotationApiClient.LineDto> lines=data.lines()==null?List.of():data.lines();tableLines.getItems().setAll(lines.stream().map(LineRow::new).toList());existingAttachment=safe(quote.attachment());quotationRowVersion=quote.rowVersion();selectedAttachment=null;attachmentRemovalPending=false;lblPageTitle.setText("Edit Quotation");lblPageSubtitle.setText(quote.no()+"  |  "+quote.customer());dirty=false;}
         updateAttachmentLabel();updateTotals();tableLines.refresh();org.example.navigation.UnsavedChangesManager.markClean(tableLines);
