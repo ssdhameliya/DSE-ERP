@@ -12,6 +12,8 @@ import org.example.server.audit.AuditService;
 import org.example.server.operations.BusinessOperationsService;
 import org.example.server.security.CurrentUser;
 import org.example.server.support.SupportService;
+import org.example.server.quotation.QuotationService;
+import org.example.server.returns.ReturnService;
 import org.example.util.ProfessionalDocumentRenderer;
 import org.springframework.stereotype.Service;
 
@@ -36,11 +38,13 @@ public class CanonicalDocumentService {
     private final CanonicalDocumentDataFactory dataFactory;
     private final IssuedSalesPdfStore issuedSalesPdf;
     private final AuditService audit;
+    private final QuotationService quotationService;
+    private final ReturnService returnService;
 
     public CanonicalDocumentService(BusinessOperationsService operations, SupportService support,
             ServerResourceService resources, CanonicalTemplateStore templates,
             CanonicalDocumentDataFactory dataFactory, IssuedSalesPdfStore issuedSalesPdf,
-            AuditService audit) {
+            AuditService audit, QuotationService quotationService, ReturnService returnService) {
         this.operations = operations;
         this.support = support;
         this.resources = resources;
@@ -48,6 +52,8 @@ public class CanonicalDocumentService {
         this.dataFactory = dataFactory;
         this.issuedSalesPdf = issuedSalesPdf;
         this.audit = audit;
+        this.quotationService = quotationService;
+        this.returnService = returnService;
     }
 
     public Rendered render(String typeValue, String number, String formatValue) throws Exception {
@@ -86,13 +92,41 @@ public class CanonicalDocumentService {
                 }
                 renderExcel(type, dataFactory.sales(sale, config, assets.templateImages()), output, "SALE", sale.id(),
                         documentNo);
-            } else {
+            } else if (type == DocumentType.PURCHASE_INVOICE) {
                 var purchase = operations.purchase(documentNo);
                 if (format == Format.PDF)
                     renderPurchasePdf(purchase, config, assets, output);
                 else
                     renderExcel(type, dataFactory.purchase(purchase, config, assets.templateImages()), output,
                             "PURCHASE", purchase.id(), documentNo);
+            } else if (type == DocumentType.QUOTATION) {
+                var quote = quotationService.quoteByNumber(documentNo);
+                if (quote == null)
+                    throw new IllegalArgumentException("Quotation not found: " + documentNo);
+                var lines = quotationService.lines(quote.id());
+                if (format == Format.PDF)
+                    renderQuotationPdf(quote, lines, config, assets, output);
+                else
+                    renderExcel(type, dataFactory.quotation(quote, lines, config, assets.templateImages()), output,
+                            "QUOTATION", quote.id(), documentNo);
+            } else if (type == DocumentType.SALES_RETURN || type == DocumentType.CREDIT_NOTE) {
+                var ret = returnService.details(documentNo);
+                if (ret == null)
+                    throw new IllegalArgumentException("Return not found: " + documentNo);
+                if (format == Format.PDF)
+                    renderReturnPdf(ret, true, config, assets, output);
+                else
+                    renderExcel(DocumentType.SALES_RETURN, dataFactory.salesReturn(ret, config, assets.templateImages()), output,
+                            "SALES_RETURN", 0, documentNo);
+            } else if (type == DocumentType.PURCHASE_RETURN || type == DocumentType.DEBIT_NOTE) {
+                var ret = returnService.details(documentNo);
+                if (ret == null)
+                    throw new IllegalArgumentException("Return not found: " + documentNo);
+                if (format == Format.PDF)
+                    renderReturnPdf(ret, false, config, assets, output);
+                else
+                    renderExcel(DocumentType.PURCHASE_RETURN, dataFactory.purchaseReturn(ret, config, assets.templateImages()), output,
+                            "PURCHASE_RETURN", 0, documentNo);
             }
             validate(output, format, documentNo);
             return new Rendered(fileName(type, documentNo, format), format.contentType, Files.readAllBytes(output));
@@ -159,6 +193,75 @@ public class CanonicalDocumentService {
             return output;
         });
         validate(output, Format.PDF, purchase.invoiceNo());
+    }
+
+    private void renderQuotationPdf(org.example.server.quotation.QuotationDtos.QuoteDto quote,
+            List<org.example.server.quotation.QuotationDtos.LineDto> lines,
+            Map<String, String> config, Assets assets, Path output) throws Exception {
+        String studioFailure = null;
+        try (var selected = templates.pdf(DocumentType.QUOTATION).orElse(null)) {
+            if (selected != null) {
+                try {
+                    var data = dataFactory.quotation(quote, lines, config, assets.templateImages());
+                    TemplateStorageService.withRoot(selected.activeRoot(),
+                            () -> PdfStudioRenderer.render(selected.template(), data, output));
+                    validate(output, Format.PDF, quote.no());
+                    return;
+                } catch (Exception failure) {
+                    studioFailure = rootMessage(failure);
+                    Files.deleteIfExists(output);
+                    audit.log("QUOTATION", quote.id(), "PDF_STUDIO_FALLBACK", quote.no() + " • " + studioFailure);
+                }
+            }
+        } catch (Exception failure) {
+            studioFailure = rootMessage(failure);
+            Files.deleteIfExists(output);
+            audit.log("QUOTATION", quote.id(), "PDF_STUDIO_FALLBACK", quote.no() + " • " + studioFailure);
+        }
+        ConfigManager.withValues(config, () -> {
+            ProfessionalDocumentRenderer.render(output, assets.logo,
+                    dataFactory.professionalQuotation(quote, lines, config),
+                    ProfessionalDocumentRenderer.Kind.QUOTATION);
+            return output;
+        });
+        validate(output, Format.PDF, quote.no());
+    }
+
+    private void renderReturnPdf(org.example.server.returns.ReturnDtos.Details ret, boolean sales,
+            Map<String, String> config, Assets assets, Path output) throws Exception {
+        DocumentType dt = sales ? DocumentType.SALES_RETURN : DocumentType.PURCHASE_RETURN;
+        ProfessionalDocumentRenderer.Kind kind = sales ? ProfessionalDocumentRenderer.Kind.SALES_REFUND
+                : ProfessionalDocumentRenderer.Kind.PURCHASE_REFUND;
+        String entity = sales ? "SALES_RETURN" : "PURCHASE_RETURN";
+        String studioFailure = null;
+        try (var selected = templates.pdf(dt).orElse(null)) {
+            if (selected != null) {
+                try {
+                    var data = sales ? dataFactory.salesReturn(ret, config, assets.templateImages())
+                            : dataFactory.purchaseReturn(ret, config, assets.templateImages());
+                    TemplateStorageService.withRoot(selected.activeRoot(),
+                            () -> PdfStudioRenderer.render(selected.template(), data, output));
+                    validate(output, Format.PDF, ret.no());
+                    return;
+                } catch (Exception failure) {
+                    studioFailure = rootMessage(failure);
+                    Files.deleteIfExists(output);
+                    audit.log(entity, 0, "PDF_STUDIO_FALLBACK", ret.no() + " • " + studioFailure);
+                }
+            }
+        } catch (Exception failure) {
+            studioFailure = rootMessage(failure);
+            Files.deleteIfExists(output);
+            audit.log(entity, 0, "PDF_STUDIO_FALLBACK", ret.no() + " • " + studioFailure);
+        }
+        ConfigManager.withValues(config, () -> {
+            ProfessionalDocumentRenderer.render(output, assets.logo,
+                    sales ? dataFactory.professionalSalesReturn(ret, config)
+                            : dataFactory.professionalPurchaseReturn(ret, config),
+                    kind);
+            return output;
+        });
+        validate(output, Format.PDF, ret.no());
     }
 
     private void renderExcel(DocumentType type, org.example.documentstudio.model.TemplateData data, Path output,
@@ -253,8 +356,11 @@ public class CanonicalDocumentService {
         return switch (n) {
             case "SALE", "SALES", "SALES_INVOICE" -> DocumentType.SALES_INVOICE;
             case "PURCHASE", "PURCHASES", "PURCHASE_INVOICE" -> DocumentType.PURCHASE_INVOICE;
+            case "QUOTATION", "QUOTE" -> DocumentType.QUOTATION;
+            case "SALES_RETURN", "CREDIT_NOTE", "SALE_RETURN" -> DocumentType.SALES_RETURN;
+            case "PURCHASE_RETURN", "DEBIT_NOTE" -> DocumentType.PURCHASE_RETURN;
             default -> throw new IllegalArgumentException(
-                    "Canonical output is currently supported for Sales Invoice and Purchase Invoice.");
+                    "Unsupported document type: " + value + ". Supported types are Sales, Purchase, Quotation, Sales Return, and Purchase Return.");
         };
     }
 
@@ -267,14 +373,21 @@ public class CanonicalDocumentService {
     }
 
     private static void requireView(DocumentType type) {
-        if (type == DocumentType.SALES_INVOICE)
-            CurrentUser.requirePermission("SALES.VIEW", "Render Sales Invoice");
+        if (type == DocumentType.SALES_INVOICE || type == DocumentType.SALES_RETURN || type == DocumentType.CREDIT_NOTE || type == DocumentType.QUOTATION)
+            CurrentUser.requirePermission("SALES.VIEW", "Render " + type.label());
         else
-            CurrentUser.requirePermission("PURCHASE.VIEW", "Render Purchase Invoice");
+            CurrentUser.requirePermission("PURCHASE.VIEW", "Render " + type.label());
     }
 
     private static String fileName(DocumentType type, String no, Format f) {
-        String prefix = type == DocumentType.SALES_INVOICE ? "Sales-Tax-Invoice-" : "Purchase-Invoice-";
+        String prefix = switch (type) {
+            case SALES_INVOICE -> "Sales-Tax-Invoice-";
+            case PURCHASE_INVOICE -> "Purchase-Invoice-";
+            case QUOTATION -> "Quotation-";
+            case SALES_RETURN, CREDIT_NOTE -> "Sales-Return-Credit-Note-";
+            case PURCHASE_RETURN, DEBIT_NOTE -> "Purchase-Return-Debit-Note-";
+            default -> type.name().replace('_', '-') + "-";
+        };
         return prefix + no.replaceAll("[\\\\/:*?\"<>|]", "_") + f.extension;
     }
 
