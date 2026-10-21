@@ -59,7 +59,6 @@ public class ServerResourceService {
     }
 
     @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
-    @Transactional
     public void migrateLegacyDiskAssets() {
         String[] keys = {
             "company.logoPath",
@@ -75,27 +74,25 @@ public class ServerResourceService {
                     (r, i) -> r.getString(1), key);
                 if (values.isEmpty() || values.getFirst() == null) continue;
                 String current = values.getFirst().trim();
-                if (current.startsWith("server-resource:")) continue;
+                if (current.isBlank() || current.startsWith("server-resource:")) continue;
                 List<String> existingResource = db.query(
-                    "SELECT key FROM server_resource WHERE resource_type='BUSINESS_ASSET' AND key=?",
+                    "SELECT resource_key FROM server_resource WHERE resource_type='BUSINESS_ASSET' AND resource_key=?",
                     (r, i) -> r.getString(1), key);
                 if (!existingResource.isEmpty()) {
                     db.update("UPDATE application_setting SET setting_value=? WHERE setting_key=?",
                             "server-resource:" + key, key);
                     continue;
                 }
-                if (!current.isBlank()) {
-                    java.nio.file.Path p = java.nio.file.Path.of(current);
-                    if (java.nio.file.Files.isRegularFile(p)) {
-                        byte[] bytes = java.nio.file.Files.readAllBytes(p);
-                        String fileName = p.getFileName().toString();
-                        String contentType = fileName.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
-                        put("BUSINESS_ASSET", key, fileName, contentType, bytes);
-                        db.update("UPDATE application_setting SET setting_value=? WHERE setting_key=?",
-                                "server-resource:" + key, key);
-                        java.lang.System.getLogger("org.example.server.authority")
-                            .log(java.lang.System.Logger.Level.INFO, "Migrated legacy disk asset " + key + " into server_resource");
-                    }
+                java.nio.file.Path p = java.nio.file.Path.of(current);
+                if (java.nio.file.Files.isRegularFile(p)) {
+                    byte[] bytes = java.nio.file.Files.readAllBytes(p);
+                    String fileName = p.getFileName().toString();
+                    String contentType = fileName.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+                    put("BUSINESS_ASSET", key, fileName, contentType, bytes);
+                    db.update("UPDATE application_setting SET setting_value=? WHERE setting_key=?",
+                            "server-resource:" + key, key);
+                    java.lang.System.getLogger("org.example.server.authority")
+                        .log(java.lang.System.Logger.Level.INFO, "Migrated legacy disk asset " + key + " into server_resource");
                 }
             } catch (Exception ex) {
                 java.lang.System.getLogger("org.example.server.authority")
