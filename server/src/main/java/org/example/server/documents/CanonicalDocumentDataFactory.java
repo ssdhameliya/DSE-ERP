@@ -300,8 +300,8 @@ public class CanonicalDocumentDataFactory {
         d.numberLabel = "Quotation No.";
         d.dateLabel = "Quotation Date";
         d.number = quote.no();
-        d.date = rawDate(quote.date());
-        d.dueDate = rawDate(quote.valid());
+        d.date = date(quote.date(), config);
+        d.dueDate = date(quote.valid(), config);
         d.partyName = present(quote.customer());
         d.partyGstin = present(quote.gstin());
         d.partyPhone = present(quote.phone());
@@ -379,7 +379,7 @@ public class CanonicalDocumentDataFactory {
         d.numberLabel = sales ? "Credit Note No." : "Debit Note No.";
         d.dateLabel = "Date";
         d.number = ret.no();
-        d.date = rawDate(ret.date());
+        d.date = date(ret.date(), config);
         d.originalNumber = ret.invoice();
         d.partyName = present(ret.party());
         parties.findFirstByNameIgnoreCase(ret.party()).ifPresent(mp -> {
@@ -481,9 +481,9 @@ public class CanonicalDocumentDataFactory {
         d.dateLabel = "Invoice Date";
         if (sales) {
             d.number = sale.invoiceNo();
-            d.date = rawDate(sale.invoiceDate());
-            d.dueDate = rawDate(sale.dueDate());
-            d.poDate = rawDate(sale.poDate());
+            d.date = date(sale.invoiceDate(), config);
+            d.dueDate = date(sale.dueDate(), config);
+            d.poDate = date(sale.poDate(), config);
             populateProfessionalParty(d, sale.customer());
             d.partyAddress = first(sale.billingAddress(), d.partyAddress);
             d.billingGstin = first(sale.billingGstin(), sale.gstin(), d.partyGstin);
@@ -510,8 +510,8 @@ public class CanonicalDocumentDataFactory {
             professionalLines(d, sale.lines());
         } else {
             d.number = purchase.invoiceNo();
-            d.date = rawDate(purchase.invoiceDate());
-            d.dueDate = rawDate(purchase.dueDate());
+            d.date = date(purchase.invoiceDate(), config);
+            d.dueDate = date(purchase.dueDate(), config);
             populateProfessionalParty(d, purchase.supplier());
             d.subtotal = purchase.subtotal();
             d.gst = purchase.gstAmount();
@@ -682,7 +682,7 @@ public class CanonicalDocumentDataFactory {
         LocalDate d = parseDate(value);
         if (d == null)
             return safe(value);
-        String pattern = cfg(c, "date.format", cfg(c, "company.dateFormat", "dd/MM/yyyy"));
+        String pattern = org.example.server.util.BusinessClock.normalizeDatePattern(cfg(c, "company.dateFormat", cfg(c, "date.format", "dd/MM/yyyy")));
         try {
             return d.format(DateTimeFormatter.ofPattern(pattern));
         } catch (Exception ignored) {
@@ -694,17 +694,18 @@ public class CanonicalDocumentDataFactory {
         if (value == null || value.isBlank())
             return null;
         String x = value.trim();
-        try {
-            return LocalDate.parse(x.substring(0, Math.min(10, x.length())));
-        } catch (Exception ignored) {
-            for (String p : List.of("dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy"))
-                try {
-                    return LocalDate.parse(x, DateTimeFormatter.ofPattern(p));
-                } catch (Exception ignored2) {
-                    java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG,
-                            "Suppressed exception: " + ignored2.getMessage(), ignored2);
-                }
+        String candidate = x.length() > 10 && (x.contains(" ") || x.contains("T")) ? x.substring(0, 10) : x;
+        for (String p : List.of("uuuu-MM-dd", "dd/MM/uuuu", "d/M/uuuu", "dd-MM-uuuu", "d-M-uuuu", "MM/dd/uuuu", "M/d/uuuu", "uuuu/MM/dd")) {
+            try {
+                return LocalDate.parse(candidate, DateTimeFormatter.ofPattern(p));
+            } catch (Exception ignored) {}
+            try {
+                return LocalDate.parse(x, DateTimeFormatter.ofPattern(p));
+            } catch (Exception ignored) {}
         }
+        try {
+            return LocalDate.parse(candidate);
+        } catch (Exception ignored) {}
         return null;
     }
 
