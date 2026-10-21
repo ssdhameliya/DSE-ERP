@@ -142,8 +142,11 @@ public class CanonicalDocumentService {
             if (selected != null) {
                 try {
                     var data = dataFactory.sales(sale, config, assets.templateImages());
-                    TemplateStorageService.withRoot(selected.activeRoot(),
-                            () -> PdfStudioRenderer.render(selected.template(), data, output));
+                    ConfigManager.withValues(config, () -> {
+                        TemplateStorageService.withRoot(selected.activeRoot(),
+                                () -> PdfStudioRenderer.render(selected.template(), data, output));
+                        return output;
+                    });
                     validate(output, Format.PDF, sale.invoiceNo());
                     return "PDF_STUDIO:" + safeTemplate(selected.template().getId()) + ":v"
                             + selected.template().getActiveVersion();
@@ -158,8 +161,11 @@ public class CanonicalDocumentService {
             Files.deleteIfExists(output);
             auditRequired(sale.id(), "PDF_STUDIO_FALLBACK", sale.invoiceNo() + " • " + studioFailure);
         }
-        TaxInvoicePdfGenerator.generate(dataFactory.salesBuiltIn(sale, config, assets.logo, assets.signature), output,
-                TaxInvoicePdfGenerator.Presentation.FULL);
+        ConfigManager.withValues(config, () -> {
+            TaxInvoicePdfGenerator.generate(dataFactory.salesBuiltIn(sale, config, assets.logo, assets.signature), output,
+                    TaxInvoicePdfGenerator.Presentation.FULL);
+            return output;
+        });
         validate(output, Format.PDF, sale.invoiceNo());
         return studioFailure == null ? "STANDARD:NO_ACTIVE_STUDIO" : "STANDARD:FALLBACK";
     }
@@ -297,6 +303,13 @@ public class CanonicalDocumentService {
                 "payment.mode", "payment.accountHolder", "date.format", "timezone.business");
         for (String key : keys)
             c.put(key, support.setting(key, ""));
+        String dateFmt = c.get("company.dateFormat");
+        if (dateFmt == null || dateFmt.isBlank()) dateFmt = c.get("date.format");
+        if (dateFmt != null && !dateFmt.isBlank()) {
+            String norm = org.example.server.util.BusinessClock.normalizeDatePattern(dateFmt);
+            c.put("company.dateFormat", norm);
+            c.put("date.format", norm);
+        }
         return c;
     }
 

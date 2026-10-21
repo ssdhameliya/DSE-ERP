@@ -672,8 +672,8 @@ public final class TemplateDataFactory {
     private static String formatDate(LocalDate value) { return BusinessClock.formatDate(value); }
     private static String displayDate(String value) {
         if (value == null || value.isBlank()) return "";
-        try { return BusinessClock.formatDate(LocalDate.parse(value.substring(0, Math.min(10, value.length())))); }
-        catch (Exception ignored) { return value; }
+        String formatted = BusinessClock.formatDate(value);
+        return (formatted == null || formatted.isBlank()) ? value : formatted;
     }
     private static void put(Map<String, String> values, String key, String value) { values.put(key, value == null ? "" : value); }
     private static List<TemplateCharge> salesCharges(Sales sale) {

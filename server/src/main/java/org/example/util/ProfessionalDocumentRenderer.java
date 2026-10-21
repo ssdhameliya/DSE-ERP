@@ -428,12 +428,8 @@ public final class ProfessionalDocumentRenderer {
 
     private static String displayDate(String value) {
         if (value == null || value.isBlank()) return "Not provided";
-        try {
-            java.time.LocalDate date = java.time.LocalDate.parse(value.substring(0, 10));
-            return org.example.server.util.BusinessClock.formatDate(date);
-        } catch (Exception ignored) {
-            return org.example.server.util.BusinessClock.formatDate(value);
-        }
+        String formatted = org.example.server.util.BusinessClock.formatDate(value);
+        return (formatted == null || formatted.isBlank()) ? value : formatted;
     }
 
     private static void addJasviPageNumbers(PdfDocument pdf) {
@@ -498,9 +494,9 @@ public final class ProfessionalDocumentRenderer {
                 .setHorizontalAlignment(HorizontalAlignment.RIGHT)
                 .setMarginTop(4);
         if (data.refund) {
-            documentRefPair(info, "calendar", "Return Date", data.date);
+            documentRefPair(info, "calendar", "Return Date", displayDate(data.date));
             documentRefPair(info, "document", "Original Invoice", data.originalNumber);
-            documentRefPair(info, "calendar", "Invoice Date", data.originalDate);
+            documentRefPair(info, "calendar", "Invoice Date", displayDate(data.originalDate));
             if (kind == Kind.SALES_REFUND) {
                 documentRefPair(info, "reference", "Payment / Refund Mode", data.status);
                 documentRefPair(info, "document", "Delivery / Pickup Ref.", data.reference);
@@ -510,20 +506,20 @@ public final class ProfessionalDocumentRenderer {
         } else if (kind == Kind.SALES_INVOICE) {
             // The invoice number is already displayed in the blue badge above.
             // These rows intentionally mirror the approved icon/label/value grid.
-            salesRefPair(info, "calendar", "Invoice Date", data.date);
-            salesRefPair(info, "calendar", "PO Date", data.poDate);
+            salesRefPair(info, "calendar", "Invoice Date", displayDate(data.date));
+            salesRefPair(info, "calendar", "PO Date", displayDate(data.poDate));
             salesRefPair(info, "reference", "PO No.", data.purchaseOrder);
             salesRefPair(info, "reference", "GST Type", data.gstType);
             salesRefPair(info, "user", "Sales Person", data.salesperson);
             salesRefPair(info, "currency", "Currency", "INR");
         } else {
             if (kind == Kind.PURCHASE_INVOICE) {
-                documentRefPair(info, "calendar", "Purchase Date", data.date);
-                documentRefPair(info, "calendar", "Invoice Date", firstNonBlank(data.originalDate, data.date));
-                documentRefPair(info, "clock", "Due Date", data.dueDate);
+                documentRefPair(info, "calendar", "Purchase Date", displayDate(data.date));
+                documentRefPair(info, "calendar", "Invoice Date", displayDate(firstNonBlank(data.originalDate, data.date)));
+                documentRefPair(info, "clock", "Due Date", displayDate(data.dueDate));
             } else {
-                documentRefPair(info, "calendar", "Date", data.date);
-                documentRefPair(info, "clock", "Valid Until", data.dueDate);
+                documentRefPair(info, "calendar", "Date", displayDate(data.date));
+                documentRefPair(info, "clock", "Valid Until", displayDate(data.dueDate));
             }
         }
         identity.add(info);
@@ -696,8 +692,8 @@ public final class ProfessionalDocumentRenderer {
             cards.addCell(documentPartyCard("SUPPLIER / VENDOR", "bill-to.png", data, accent));
             cards.addCell(companyDeliveryCard("DELIVER TO", accent));
             cards.addCell(documentDetailsCard("PURCHASE DETAILS", new String[][]{
-                {"Purchase No.", data.number}, {"Purchase Date", data.date},
-                {"Invoice No.", data.reference}, {"Invoice Date", firstNonBlank(data.originalDate, data.date)},
+                {"Purchase No.", data.number}, {"Purchase Date", displayDate(data.date)},
+                {"Invoice No.", data.reference}, {"Invoice Date", displayDate(firstNonBlank(data.originalDate, data.date))},
                 {"Payment Terms", data.paymentTerms}, {"Delivery Terms", data.transporter}, {"Currency", "INR"}
             }, accent));
         } else if (kind == Kind.SALES_INVOICE) {
@@ -708,8 +704,8 @@ public final class ProfessionalDocumentRenderer {
             cards.addCell(documentPartyCard("BILL TO", "bill-to.png", data, accent));
             cards.addCell(documentShipCard("SHIP TO", data, accent));
             cards.addCell(documentDetailsCard("QUOTATION DETAILS", new String[][]{
-                {"Quotation No.", data.number}, {"Quotation Date", data.date},
-                {"Valid Until", data.dueDate}, {"Sales Person", data.salesperson},
+                {"Quotation No.", data.number}, {"Quotation Date", displayDate(data.date)},
+                {"Valid Until", displayDate(data.dueDate)}, {"Sales Person", data.salesperson},
                 {"Payment Terms", data.paymentTerms}, {"Delivery Terms", data.transporter}, {"Currency", "INR"}
             }, accent));
         }
@@ -774,12 +770,12 @@ public final class ProfessionalDocumentRenderer {
 
     private static Cell returnDetailsCard(Data data, Kind kind, Color accent) {
         String[][] rows = kind == Kind.SALES_REFUND
-            ? new String[][]{{"Return Note No.", data.number}, {"Return Date", data.date},
-                {"Original Invoice", data.originalNumber}, {"Invoice Date", data.originalDate},
+            ? new String[][]{{"Return Note No.", data.number}, {"Return Date", displayDate(data.date)},
+                {"Original Invoice", data.originalNumber}, {"Invoice Date", displayDate(data.originalDate)},
                 {"Payment / Refund Mode", data.status},
                 {"Settlement / Reference", firstNonBlank(data.reference, data.status)}}
-            : new String[][]{{"Return Note No.", data.number}, {"Return Date", data.date},
-                {"Original Invoice", data.originalNumber}, {"Invoice Date", data.originalDate},
+            : new String[][]{{"Return Note No.", data.number}, {"Return Date", displayDate(data.date)},
+                {"Original Invoice", data.originalNumber}, {"Invoice Date", displayDate(data.originalDate)},
                 {"Payment Mode", data.status},
                 {"Settlement / Reference", firstNonBlank(data.reference, data.status)}};
         return documentDetailsCard(kind == Kind.SALES_REFUND ? "RETURN DETAILS" : "RETURN / SETTLEMENT DETAILS",

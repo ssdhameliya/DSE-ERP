@@ -54,9 +54,11 @@ public final class BusinessClock {
         if ("DD/MM/YYYY".equalsIgnoreCase(s)) return "dd/MM/yyyy";
         if ("YYYY-MM-DD".equalsIgnoreCase(s)) return "yyyy-MM-dd";
         if ("MM/DD/YYYY".equalsIgnoreCase(s)) return "MM/dd/yyyy";
+        if ("DD MMM YYYY".equalsIgnoreCase(s)) return "dd MMM yyyy";
+        String cleaned = s.replace("YYYY", "yyyy").replace("DD", "dd");
         try {
-            DateTimeFormatter.ofPattern(s, java.util.Locale.getDefault());
-            return s;
+            DateTimeFormatter.ofPattern(cleaned, java.util.Locale.getDefault());
+            return cleaned;
         } catch (IllegalArgumentException ignored) {
             return "dd/MM/yyyy";
         }
@@ -64,6 +66,7 @@ public final class BusinessClock {
 
     public static String datePattern() {
         String configured = org.example.config.ConfigManager.get("company.dateFormat", "");
+        if (configured == null || configured.isBlank()) configured = org.example.config.ConfigManager.get("date.format", "");
         if (configured == null || configured.isBlank()) configured = readConfigured("company.dateFormat");
         if (configured == null || configured.isBlank()) configured = System.getenv("DSE_BUSINESS_DATE_FORMAT");
         return normalizeDatePattern(configured);
@@ -81,12 +84,20 @@ public final class BusinessClock {
     public static String formatDate(String value) {
         if (value == null || value.isBlank()) return "";
         String text = value.trim();
+        String candidate = text.length() > 10 && (text.contains(" ") || text.contains("T")) ? text.substring(0, 10) : text;
         for (DateTimeFormatter parser : List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE,
                 DateTimeFormatter.ofPattern("d/M/uuuu"),
                 DateTimeFormatter.ofPattern("dd/MM/uuuu"),
                 DateTimeFormatter.ofPattern("dd-MM-uuuu"),
+                DateTimeFormatter.ofPattern("d-M-uuuu"),
+                DateTimeFormatter.ofPattern("MM/dd/uuuu"),
+                DateTimeFormatter.ofPattern("M/d/uuuu"),
+                DateTimeFormatter.ofPattern("uuuu/MM/dd"),
                 DateTimeFormatter.ofPattern("dd-MMM-uuuu", java.util.Locale.ENGLISH))) {
+            try {
+                return formatDate(LocalDate.parse(candidate, parser));
+            } catch (DateTimeParseException ignored) { }
             try {
                 return formatDate(LocalDate.parse(text, parser));
             } catch (DateTimeParseException ignored) { }
