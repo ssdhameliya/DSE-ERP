@@ -10,6 +10,8 @@ import org.example.server.persistence.entity.ItemEntity;
 import org.example.server.persistence.entity.PartyEntity;
 import org.example.server.persistence.repository.ItemRepository;
 import org.example.server.persistence.repository.PartyRepository;
+import org.example.server.quotation.QuotationDtos;
+import org.example.server.returns.ReturnDtos;
 import org.example.util.ProfessionalDocumentRenderer;
 import org.springframework.stereotype.Component;
 
@@ -114,6 +116,318 @@ public class CanonicalDocumentDataFactory {
         enrichPartyContact(v, p.supplier(), "supplier");
         totals(v, p.subtotal(), p.discountAmount(), p.gstAmount(), p.totalAmount(), p.paidAmount(), p.gstType());
         return new TemplateData(v, imgs, lineItems(p.lines()), charges(p.charges()), safe(p.gstType()));
+    }
+
+    public TemplateData quotation(QuotationDtos.QuoteDto quote, List<QuotationDtos.LineDto> lines,
+            Map<String, String> config, Map<String, Path> images) {
+        if (quote == null)
+            throw new IllegalArgumentException("Quotation is required.");
+        Map<String, String> v = base(config);
+        Map<String, Path> imgs = new LinkedHashMap<>(images);
+
+        put(v, "quotation.number", quote.no());
+        put(v, "quotation.date", date(quote.date(), config));
+        put(v, "quotation.validUntil", date(quote.valid(), config));
+        put(v, "quotation.status", quote.status());
+        put(v, "quotation.salesperson", quote.salesperson());
+        put(v, "quotation.source", quote.source());
+        put(v, "quotation.remarks", quote.remarks());
+        put(v, "customer.name", quote.customer());
+        put(v, "customer.gstin", quote.gstin());
+        put(v, "customer.phone", quote.phone());
+        put(v, "customer.email", quote.email());
+        put(v, "customer.address", "");
+
+        if (quote.customerId() > 0) {
+            parties.findById(quote.customerId()).ifPresent(mp -> {
+                put(v, "customer.address", mp.getAddress());
+                put(v, "customer.contactPerson", mp.getContactPerson());
+                if (safe(quote.gstin()).isBlank())
+                    put(v, "customer.gstin", mp.getGstin());
+                if (safe(quote.phone()).isBlank())
+                    put(v, "customer.phone", mp.getPhone());
+                if (safe(quote.email()).isBlank())
+                    put(v, "customer.email", mp.getEmail());
+                if (safe(quote.customer()).isBlank())
+                    put(v, "customer.name", mp.getName());
+            });
+        }
+
+        Set<String> codes = new LinkedHashSet<>();
+        if (lines != null) {
+            for (var l : lines)
+                if (l != null && !safe(l.code()).isBlank())
+                    codes.add(safe(l.code()));
+        }
+        Map<String, ItemEntity> itemMaster = new HashMap<>();
+        if (!codes.isEmpty()) {
+            for (var i : items.findByItemCodeIn(codes))
+                if (i != null)
+                    itemMaster.put(norm(i.getItemCode()), i);
+        }
+
+        List<TaxInvoiceItem> itemsList = new ArrayList<>();
+        int serial = 1;
+        double gross = 0, discount = 0, gst = 0;
+        if (lines != null) {
+            for (var l : lines) {
+                if (l == null)
+                    continue;
+                var m = itemMaster.get(norm(l.code()));
+                String hsn = first(l.hsn(), m == null ? "" : m.getHsn()),
+                        unit = first(l.unit(), m == null ? "NOS" : first(m.getUnit(), "NOS"));
+                double qty = l.quantity(), rate = l.rate(), discPct = l.discount(), gstPct = l.gst();
+                double lineGross = qty * rate;
+                double lineDisc = lineGross * discPct / 100d;
+                double lineTaxable = lineGross - lineDisc;
+                double lineTax = lineTaxable * gstPct / 100d;
+                gross += lineGross;
+                discount += lineDisc;
+                gst += lineTax;
+                itemsList.add(new TaxInvoiceItem(serial++, hsn, cleanDescription(l.description(), l.code()), "",
+                        qty, unit, rate, discPct, gstPct, safe(l.code()),
+                        m == null ? "" : safe(m.getCategory()), m == null ? "" : safe(m.getBrand()),
+                        m == null ? "" : safe(m.getMaterial()), m == null ? "" : safe(m.getSize()),
+                        m == null ? "" : safe(m.getLocation()), m == null ? 0 : n(m.getPurchasePrice()),
+                        m == null ? 0 : n(m.getSellingPrice()), m == null ? 0 : Math.max(0, n(m.getOpeningStock())),
+                        m == null ? 0 : n(m.getOpeningStock()), m == null ? 0 : n(m.getMinimumStock()), 0,
+                        m == null ? 0 : n(m.getGst()), m == null ? 0 : n(m.getDiscountPercent())));
+            }
+        }
+        double taxable = Math.max(0, gross - discount);
+        double total = quote.amount() > 0 ? quote.amount() : taxable + gst;
+        totals(v, taxable, quote.discount() > 0 ? quote.discount() : discount, gst, total, 0, "GST");
+        return new TemplateData(v, imgs, List.copyOf(itemsList), List.of(), "GST");
+    }
+
+    public TemplateData salesReturn(ReturnDtos.Details ret, Map<String, String> config, Map<String, Path> images) {
+        return returnTemplateData(ret, true, config, images);
+    }
+
+    public TemplateData purchaseReturn(ReturnDtos.Details ret, Map<String, String> config, Map<String, Path> images) {
+        return returnTemplateData(ret, false, config, images);
+    }
+
+    private TemplateData returnTemplateData(ReturnDtos.Details ret, boolean sales, Map<String, String> config,
+            Map<String, Path> images) {
+        if (ret == null)
+            throw new IllegalArgumentException("Return details are required.");
+        Map<String, String> v = base(config);
+        Map<String, Path> imgs = new LinkedHashMap<>(images);
+
+        put(v, "return.number", ret.no());
+        put(v, "return.date", date(ret.date(), config));
+        put(v, "return.referenceNo", ret.invoice());
+        String reason = safe(ret.notes());
+        if (reason.isBlank() && ret.lines() != null) {
+            reason = ret.lines().stream().map(ReturnDtos.Line::reason)
+                    .filter(x -> x != null && !x.isBlank()).distinct()
+                    .reduce((a, b) -> a + "; " + b).orElse("");
+        }
+        put(v, "return.reason", reason);
+        put(v, "party.name", ret.party());
+
+        String prefix = sales ? "customer" : "supplier";
+        parties.findFirstByNameIgnoreCase(ret.party()).ifPresent(mp -> {
+            put(v, "party.address", mp.getAddress());
+            put(v, "party.gstin", mp.getGstin());
+            put(v, "party.phone", mp.getPhone());
+            put(v, "party.email", mp.getEmail());
+            put(v, "party.code", mp.getPartyCode());
+            put(v, prefix + ".name", mp.getName());
+            put(v, prefix + ".address", mp.getAddress());
+            put(v, prefix + ".gstin", mp.getGstin());
+            put(v, prefix + ".phone", mp.getPhone());
+            put(v, prefix + ".email", mp.getEmail());
+            put(v, prefix + ".code", mp.getPartyCode());
+        });
+
+        Set<String> codes = new LinkedHashSet<>();
+        if (ret.lines() != null) {
+            for (var l : ret.lines())
+                if (l != null && !safe(l.code()).isBlank())
+                    codes.add(safe(l.code()));
+        }
+        Map<String, ItemEntity> itemMaster = new HashMap<>();
+        if (!codes.isEmpty()) {
+            for (var i : items.findByItemCodeIn(codes))
+                if (i != null)
+                    itemMaster.put(norm(i.getItemCode()), i);
+        }
+
+        List<TaxInvoiceItem> itemsList = new ArrayList<>();
+        int serial = 1;
+        double subtotal = 0, gst = 0;
+        if (ret.lines() != null) {
+            for (var line : ret.lines()) {
+                if (line == null)
+                    continue;
+                var m = itemMaster.get(norm(line.code()));
+                String hsn = m == null ? "" : m.getHsn(),
+                        unit = first(line.unit(), m == null ? "NOS" : first(m.getUnit(), "NOS"));
+                double qty = line.quantity(), rate = line.rate(), taxRate = line.tax();
+                double lineTotal = line.amount();
+                double lineTaxable = Math.max(0, qty * rate);
+                double lineTax = lineTaxable * taxRate / 100d;
+                if (lineTotal > 0 && Math.abs(lineTotal - (lineTaxable + lineTax)) > 0.05) {
+                    lineTaxable = lineTotal / (1 + taxRate / 100d);
+                    lineTax = lineTotal - lineTaxable;
+                }
+                subtotal += lineTaxable;
+                gst += lineTax;
+                itemsList.add(new TaxInvoiceItem(serial++, hsn, cleanDescription(line.name(), line.code()),
+                        safe(line.reason()), qty, unit, rate, 0, taxRate, safe(line.code()),
+                        m == null ? "" : safe(m.getCategory()), m == null ? "" : safe(m.getBrand()),
+                        m == null ? "" : safe(m.getMaterial()), m == null ? "" : safe(m.getSize()),
+                        m == null ? "" : safe(m.getLocation()), m == null ? 0 : n(m.getPurchasePrice()),
+                        m == null ? 0 : n(m.getSellingPrice()), m == null ? 0 : Math.max(0, n(m.getOpeningStock())),
+                        m == null ? 0 : n(m.getOpeningStock()), m == null ? 0 : n(m.getMinimumStock()), 0,
+                        m == null ? 0 : n(m.getGst()), m == null ? 0 : n(m.getDiscountPercent())));
+            }
+        }
+        double total = ret.total() > 0 ? ret.total() : subtotal + gst;
+        totals(v, subtotal, 0, gst, total, ret.refund(), "GST");
+        return new TemplateData(v, imgs, List.copyOf(itemsList), List.of(), "GST");
+    }
+
+    public ProfessionalDocumentRenderer.Data professionalQuotation(QuotationDtos.QuoteDto quote,
+            List<QuotationDtos.LineDto> lines, Map<String, String> config) {
+        if (quote == null)
+            throw new IllegalArgumentException("Quotation is required.");
+        var d = new ProfessionalDocumentRenderer.Data();
+        d.quotation = true;
+        d.title = "QUOTATION";
+        d.numberLabel = "Quotation No.";
+        d.dateLabel = "Quotation Date";
+        d.number = quote.no();
+        d.date = rawDate(quote.date());
+        d.dueDate = rawDate(quote.valid());
+        d.partyName = present(quote.customer());
+        d.partyGstin = present(quote.gstin());
+        d.partyPhone = present(quote.phone());
+        d.partyEmail = present(quote.email());
+        if (quote.customerId() > 0) {
+            parties.findById(quote.customerId()).ifPresent(mp -> {
+                d.partyCode = present(mp.getPartyCode());
+                d.partyAddress = present(mp.getAddress());
+                if (d.partyGstin.equals("-"))
+                    d.partyGstin = present(mp.getGstin());
+                if (d.partyPhone.equals("-"))
+                    d.partyPhone = present(mp.getPhone());
+                if (d.partyEmail.equals("-"))
+                    d.partyEmail = present(mp.getEmail());
+            });
+        }
+        d.subtotal = quote.amount();
+        d.total = quote.amount();
+        d.salesperson = quote.salesperson();
+        d.paymentTerms = "As agreed";
+        d.reference = quote.source();
+        d.shipTo = d.partyAddress;
+
+        Set<String> codes = new LinkedHashSet<>();
+        if (lines != null) {
+            for (var l : lines)
+                if (l != null && !safe(l.code()).isBlank())
+                    codes.add(safe(l.code()));
+        }
+        Map<String, ItemEntity> itemMaster = new HashMap<>();
+        if (!codes.isEmpty()) {
+            for (var i : items.findByItemCodeIn(codes))
+                if (i != null)
+                    itemMaster.put(norm(i.getItemCode()), i);
+        }
+
+        if (lines != null) {
+            for (var l : lines) {
+                if (l == null)
+                    continue;
+                var m = itemMaster.get(norm(l.code()));
+                var x = new ProfessionalDocumentRenderer.Line();
+                x.code = present(l.code());
+                x.description = present(l.description());
+                x.hsn = first(l.hsn(), m == null ? "" : m.getHsn());
+                x.unit = first(l.unit(), m == null ? "Nos" : first(m.getUnit(), "Nos"));
+                x.quantity = l.quantity();
+                x.rate = l.rate();
+                x.gst = l.gst();
+                x.discount = Math.max(0, l.quantity() * l.rate() * (l.discount() / 100d));
+                d.lines.add(x);
+            }
+        }
+        normalizeProfessionalTotals(d);
+        return d;
+    }
+
+    public ProfessionalDocumentRenderer.Data professionalSalesReturn(ReturnDtos.Details ret,
+            Map<String, String> config) {
+        return professionalReturn(ret, true, config);
+    }
+
+    public ProfessionalDocumentRenderer.Data professionalPurchaseReturn(ReturnDtos.Details ret,
+            Map<String, String> config) {
+        return professionalReturn(ret, false, config);
+    }
+
+    private ProfessionalDocumentRenderer.Data professionalReturn(ReturnDtos.Details ret, boolean sales,
+            Map<String, String> config) {
+        if (ret == null)
+            throw new IllegalArgumentException("Return details are required.");
+        var d = new ProfessionalDocumentRenderer.Data();
+        d.refund = true;
+        d.title = sales ? "CREDIT NOTE (SALES RETURN)" : "DEBIT NOTE (PURCHASE RETURN)";
+        d.numberLabel = sales ? "Credit Note No." : "Debit Note No.";
+        d.dateLabel = "Date";
+        d.number = ret.no();
+        d.date = rawDate(ret.date());
+        d.originalNumber = ret.invoice();
+        d.partyName = present(ret.party());
+        parties.findFirstByNameIgnoreCase(ret.party()).ifPresent(mp -> {
+            d.partyCode = present(mp.getPartyCode());
+            d.partyAddress = present(mp.getAddress());
+            d.partyGstin = present(mp.getGstin());
+            d.partyPhone = present(mp.getPhone());
+            d.partyEmail = present(mp.getEmail());
+        });
+        d.shipTo = d.partyAddress;
+        d.status = ret.refundStatus();
+        d.total = ret.total();
+        d.reason = safe(ret.notes());
+
+        Set<String> codes = new LinkedHashSet<>();
+        if (ret.lines() != null) {
+            for (var l : ret.lines())
+                if (l != null && !safe(l.code()).isBlank())
+                    codes.add(safe(l.code()));
+        }
+        Map<String, ItemEntity> itemMaster = new HashMap<>();
+        if (!codes.isEmpty()) {
+            for (var i : items.findByItemCodeIn(codes))
+                if (i != null)
+                    itemMaster.put(norm(i.getItemCode()), i);
+        }
+
+        if (ret.lines() != null) {
+            for (var l : ret.lines()) {
+                if (l == null)
+                    continue;
+                var m = itemMaster.get(norm(l.code()));
+                var x = new ProfessionalDocumentRenderer.Line();
+                x.code = present(l.code());
+                x.description = present(l.name());
+                x.hsn = m == null ? "" : m.getHsn();
+                x.unit = first(l.unit(), m == null ? "Nos" : first(m.getUnit(), "Nos"));
+                x.quantity = l.quantity();
+                x.rate = l.rate();
+                x.gst = l.tax();
+                x.discount = 0;
+                d.lines.add(x);
+                if (d.reason.isBlank())
+                    d.reason = safe(l.reason());
+            }
+        }
+        normalizeProfessionalTotals(d);
+        return d;
     }
 
     public TaxInvoiceDocument salesBuiltIn(OperationDtos.SaleDto sale, Map<String, String> config, Path logo,
