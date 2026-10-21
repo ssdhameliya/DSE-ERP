@@ -1,7 +1,6 @@
-# What's New in DSE ERP v10.0.39
+# What's New in DSE ERP v10.0.40
 
-### Canonical Document Rendering Parity & Universal Multi-Document Output
-- **Universal Backend Canonical Rendering:** Extended `/api/documents/render` to natively process `QUOTATION`, `SALES_RETURN`, `PURCHASE_RETURN`, `CREDIT_NOTE`, and `DEBIT_NOTE` across both PDF and Excel formats.
-- **2-Way Rendering Parity:** Complete support for both PDF/Excel Studio custom active templates and standard built-in engines (`ProfessionalDocumentRenderer` & `ExcelTemplateRenderer`) across all document categories.
-- **Enterprise Web & Desktop Parity:** Web clients can now stream server-authoritative, byte-for-byte identical PDF and Excel documents with complete company branding, dark-blue `#193a74` table headers, tax breakdown, amount in words, and authorized signatory blocks.
-- **Audit & Email Dispatch Support:** Return and Quotation dispatch services now bundle high-fidelity server-rendered PDF attachments for seamless email and WhatsApp transmission.
+### Server Resource Startup Resilience & Business Branding Synchronization
+- **Server Startup Resilience:** Hardened application startup initialization so that missing, blank, or partially configured branding images never trigger unexpected transaction rollbacks or service restarts.
+- **Authoritative Database Alignment:** Aligned business resource queries with canonical PostgreSQL `resource_key` schema across all 5 company branding assets.
+- **Cross-Platform Branding Sync:** Seamless two-way synchronization for Application Banner, Application Mark, Company Logo, Signature Seal, and Payment QR Code between Web and Desktop clients via centralized server storage.
