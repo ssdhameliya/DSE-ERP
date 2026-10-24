@@ -76,7 +76,14 @@ jobs:
         run: |
           set -euo pipefail
           echo "Verifying erp-uat.jasviindustries.in reaches Vaadin Flow web application..."
-          curl --fail --silent --show-error --max-time 20 -IL https://erp-uat.jasviindustries.in/login | tee web-verify.log
+          if ! curl --fail --silent --show-error --max-time 20 -IL https://erp-uat.jasviindustries.in/login | tee web-verify.log; then
+            echo "=== FAILED RESPONSE BODY ==="
+            curl -s https://erp-uat.jasviindustries.in/login || true
+            echo "=== UAT SERVER JOURNAL LOGS ==="
+            ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+              'sudo journalctl -u dse-erp-uat -n 100 --no-pager' || true
+            exit 1
+          fi
           grep -qi 'nosniff\|Set-Cookie\|vaadin' web-verify.log || {
             echo "Response did not originate from Spring Boot application" >&2
             exit 1
