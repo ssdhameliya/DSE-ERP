@@ -77,4 +77,8 @@ jobs:
           set -euo pipefail
           echo "Verifying erp-uat.jasviindustries.in reaches Vaadin Flow web application..."
           curl --fail --silent --show-error --max-time 20 -IL https://erp-uat.jasviindustries.in/login | tee web-verify.log
+          grep -qi 'nosniff\|Set-Cookie\|vaadin' web-verify.log || {
+            echo "Response did not originate from Spring Boot application" >&2
+            exit 1
+          }
           echo "UAT_VAADIN_WEB_ROUTING_VERIFIED_OK"
