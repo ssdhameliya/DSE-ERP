@@ -133,5 +133,5 @@ sleep 2
 sudo systemctl is-active --quiet caddy
 
 trap - EXIT
-rm -f "$TMP"
+sudo rm -f "$TMP"
 echo "PROD_CADDY_CONFIGURED_OK: erp.jasviindustries.in -> 127.0.0.1:8080"

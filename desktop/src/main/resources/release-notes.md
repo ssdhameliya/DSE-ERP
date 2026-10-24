@@ -1,3 +1,10 @@
+# What's New in DSE ERP v10.0.49
+
+### Official Vaadin Security Configurer & Forward Dispatch Authorization
+- **Official Vaadin Security Configurer Integration:** Upgraded Spring Security Chain 2 to utilize official `VaadinSecurityConfigurer.vaadin()`, configuring specialized CSRF exemptions, request caching, and seamless `loginView(VaadinLoginView.class)` lifecycle handling.
+- **DispatcherType FORWARD & ERROR Permitted:** Explicitly permitted `DispatcherType.FORWARD` and `DispatcherType.ERROR` in `authorizeHttpRequests`, completely eliminating the infinite redirect loop caused by Spring Security 6/7 intercepting internal servlet forwards.
+- **Caddy Configuration Privilege Fix:** Updated candidate cleanup in `configure-caddy-uat.sh` and `configure-caddy-prod.sh` to use `sudo rm -f`, ensuring zero permission errors during automated proxy reconfiguration.
+
 # What's New in DSE ERP v10.0.48
 
 ### Cloud Reverse Proxy & Vaadin Security Hardening

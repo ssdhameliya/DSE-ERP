@@ -133,5 +133,5 @@ sleep 2
 sudo systemctl is-active --quiet caddy
 
 trap - EXIT
-rm -f "$TMP"
+sudo rm -f "$TMP"
 echo "UAT_CADDY_CONFIGURED_OK: erp-uat.jasviindustries.in -> 127.0.0.1:8081"
