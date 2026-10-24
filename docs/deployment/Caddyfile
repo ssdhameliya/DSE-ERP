@@ -1,0 +1,55 @@
+# DSE ERP — OCI Reverse Proxy Config (Caddy)
+#
+# Deploy to: /etc/caddy/Caddyfile  on the OCI VM
+# Caddy version: 2.x
+# Caddy handles: automatic HTTPS (Let's Encrypt), HTTP→HTTPS redirect, GZIP
+#
+# Prerequisites:
+#   1. DNS A record:  erp.yourdomain.com → OCI VM public IP
+#   2. OCI Security List: ports 80 and 443 open inbound
+#   3. PostgreSQL port 5432 remains CLOSED on OCI Security List (loopback only)
+#
+# Install:  sudo apt install -y caddy
+# Start:    sudo systemctl enable --now caddy
+# Reload:   sudo systemctl reload caddy
+
+erp.yourdomain.com {
+
+    # ── Reverse proxy to Spring Boot ─────────────────────────────────────────
+    reverse_proxy localhost:8080 {
+        # Forward real client IP to Spring Boot
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Health check — Caddy marks upstream unhealthy if this fails
+        health_uri    /api/runtime/health
+        health_interval 30s
+        health_timeout  5s
+    }
+
+    # ── Compression ──────────────────────────────────────────────────────────
+    encode gzip zstd
+
+    # ── Security headers ─────────────────────────────────────────────────────
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "SAMEORIGIN"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        -Server                   # Remove server identity header
+    }
+
+    # ── TLS (automatic via Let's Encrypt) ────────────────────────────────────
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    # ── Access log ───────────────────────────────────────────────────────────
+    log {
+        output file /var/log/caddy/dse-erp-access.log {
+            roll_size 50mb
+            roll_keep 5
+        }
+    }
+}

@@ -22,6 +22,7 @@
         <dse.phase>${project.version}</dse.phase>
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
+    <vaadin.version>25.0-SNAPSHOT</vaadin.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <javafx.version>25.0.2</javafx.version>
     <poi.version>5.2.5</poi.version>

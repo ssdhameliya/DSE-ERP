@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# DSE ERP — UAT Spring Profile  (OCI Always Free 3 GB VM)
+# Activate with:  -Dspring.profiles.active=uat
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Server ────────────────────────────────────────────────────────────────────
+server:
+  address: 0.0.0.0      # Caddy reverse-proxy on same host → expose all interfaces
+  port: 8080
+
+# ── Virtual Threads (Java 21+ Loom) ──────────────────────────────────────────
+spring:
+  threads:
+    virtual:
+      enabled: true     # Eliminates blocking thread-pool bottlenecks under load
+
+  # ── Flyway auto-migration ──────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false   # All migrations run from scratch on a fresh DB
+    validate-on-migrate: true
+
+  # ── HikariCP — tuned for 3 GB VM ─────────────────────────────────────────
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 3
+      connection-timeout: 10000
+      validation-timeout: 3000
+      idle-timeout: 300000
+      max-lifetime: 900000
+      keepalive-time: 120000
+      data-source-properties:
+        tcpKeepAlive: true
+
+  # ── JPA ────────────────────────────────────────────────────────────────────
+  jpa:
+    show-sql: false
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+
+# ── DSE deployment tag ────────────────────────────────────────────────────────
+dse:
+  deployment:
+    environment: UAT
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    org.example: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN

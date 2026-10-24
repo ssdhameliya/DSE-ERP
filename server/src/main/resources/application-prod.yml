@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# DSE ERP — PROD Spring Profile  (OCI Always Free 9 GB VM)
+# Activate with:  -Dspring.profiles.active=prod
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Server ────────────────────────────────────────────────────────────────────
+server:
+  address: 0.0.0.0      # Caddy reverse-proxy on same host → expose all interfaces
+  port: 8080
+
+# ── Virtual Threads (Java 21+ Loom) ──────────────────────────────────────────
+spring:
+  threads:
+    virtual:
+      enabled: true     # Scales I/O-bound request handling without extra threads
+
+  # ── Flyway auto-migration ──────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    out-of-order: false          # Strict migration ordering for PROD safety
+
+  # ── HikariCP — tuned for 9 GB VM ─────────────────────────────────────────
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+      connection-timeout: 8000
+      validation-timeout: 2000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      keepalive-time: 60000
+      data-source-properties:
+        tcpKeepAlive: true
+
+  # ── JPA ────────────────────────────────────────────────────────────────────
+  jpa:
+    show-sql: false
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+
+# ── DSE deployment tag ────────────────────────────────────────────────────────
+dse:
+  deployment:
+    environment: PROD
+
+# ── Logging (minimal for production) ─────────────────────────────────────────
+logging:
+  level:
+    root: WARN
+    org.example: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
