@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
 /**
  * Dual-chain Spring Security configuration.
@@ -300,8 +301,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .ignoringRequestMatchers(
-                    "/vaadinServlet/**",    // Vaadin server push & heartbeat
-                    "/VAADIN/**"            // Vaadin static resources bootstrap
+                    antMatcher("/vaadinServlet/**"),    // Vaadin server push & heartbeat
+                    antMatcher("/VAADIN/**")            // Vaadin static resources bootstrap
                 )
             )
             .sessionManagement(session ->
@@ -309,20 +310,20 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Vaadin static resources and login page are public
                 .requestMatchers(
-                    "/VAADIN/**",
-                    "/vaadinServlet/**",
-                    "/login",
-                    "/login/**",
-                    "/PUSH/**",
-                    "/favicon.ico",
-                    "/manifest.webmanifest",
-                    "/sw.js",
-                    "/sw-runtime-resources-precache.js",
-                    "/offline.html",
-                    "/icons/**",
-                    "/images/**",
-                    "/frontend/**",
-                    "/webjars/**"
+                    antMatcher("/VAADIN/**"),
+                    antMatcher("/vaadinServlet/**"),
+                    antMatcher("/login"),
+                    antMatcher("/login/**"),
+                    antMatcher("/PUSH/**"),
+                    antMatcher("/favicon.ico"),
+                    antMatcher("/manifest.webmanifest"),
+                    antMatcher("/sw.js"),
+                    antMatcher("/sw-runtime-resources-precache.js"),
+                    antMatcher("/offline.html"),
+                    antMatcher("/icons/**"),
+                    antMatcher("/images/**"),
+                    antMatcher("/frontend/**"),
+                    antMatcher("/webjars/**")
                 ).permitAll()
                 // All other Vaadin views require authentication;
                 // fine-grained access is enforced by @RolesAllowed on each @Route view class
@@ -341,8 +342,13 @@ public class SecurityConfig {
                 .deleteCookies("JSESSIONID", "XSRF-TOKEN")
             )
             .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((request, response, error) ->
-                    response.sendRedirect("/login"))
+                .authenticationEntryPoint((request, response, error) -> {
+                    String uri = request.getRequestURI();
+                    if (uri != null && uri.startsWith("/login")) {
+                        return;
+                    }
+                    response.sendRedirect("/login");
+                })
                 .accessDeniedHandler((request, response, error) ->
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permission"))
             )

@@ -1,3 +1,10 @@
+# What's New in DSE ERP v10.0.48
+
+### Cloud Reverse Proxy & Vaadin Security Hardening
+- **Vaadin AntPathRequestMatcher Security Hardening:** Updated Spring Security Chain 2 (`vaadinFilterChain`) to use explicit `AntPathRequestMatcher` for all public Vaadin static resources and login routes, ensuring robust path matching independent of Spring MVC handlers.
+- **Infinite Redirect Loop Guard:** Added defensive loop detection in `vaadinFilterChain` authentication entry point to prevent infinite 302 redirects when requesting `/login`.
+- **Brace-Balanced Caddyfile Parser:** Upgraded `configure-caddy-uat.sh` and `configure-caddy-prod.sh` with a comprehensive curly-brace-balanced parser to cleanly detect and replace legacy static file server blocks (`root * /srv/dse-erp/web/admin` and `handle /api/*`), guaranteeing exact routing to the pure Java Vaadin Flow application.
+
 # What's New in DSE ERP v10.0.47
 
 ### Cloud Reverse Proxy Automation & Dual Environment Hardening
