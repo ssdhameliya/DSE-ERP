@@ -124,6 +124,9 @@
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-maven-plugin</artifactId>
                 <version>${vaadin.version}</version>
+                <configuration>
+                    <productionMode>true</productionMode>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
