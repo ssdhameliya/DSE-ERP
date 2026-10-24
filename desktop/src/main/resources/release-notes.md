@@ -1,3 +1,10 @@
+# What's New in DSE ERP v10.0.50
+
+### Vaadin Production Bundle & Webapp Classpath Packaging
+- **Vaadin Production Precompiled Bundle:** Integrated `com.vaadin:vaadin-prod-bundle` dependency into `server/pom.xml`, providing precompiled web component bundles, stats manifest, and chunk mappings.
+- **Embedded Webapp index.html & Static Assets:** Packaged `META-INF/VAADIN/webapp/index.html` along with precompiled frontend builds and service worker assets into the server JAR classpath, resolving the HTTP 500 `IOException: Unable to find index.html` on cloud servers.
+- **Production Manifest Alignment:** Embedded production `flow-build-info.json` and `stats.json` directly into `META-INF/VAADIN/config/`, ensuring seamless standalone execution in production mode.
+
 # What's New in DSE ERP v10.0.49
 
 ### Official Vaadin Security Configurer & Forward Dispatch Authorization
