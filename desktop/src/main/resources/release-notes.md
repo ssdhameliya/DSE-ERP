@@ -1,4 +1,14 @@
+# What's New in DSE ERP v10.0.51
+
+### Pure Java Flow Routing & 3D Web UI Modernization
+- **Pure Java Flow Routing & SPA Client Navigation:** Disabled React Router (`"react.enable": false` in `flow-build-info.json`), allowing Vaadin's Java Flow router to directly resolve `@Route("")` and `@RouteAlias("dashboard")`. Replaced full-page reload anchors in `MainAppLayout` with true client-side `RouterLink` elements for instantaneous SPA transitions.
+- **Unrestricted Subpackage Route Discovery:** Removed restrictive package whitelist from `application.properties`, enabling full recursive route scanning across all functional ERP modules (`.dashboard`, `.sales`, `.purchase`, `.master`, `.finance`, `.admin`, etc.).
+- **Modern 3D Glassmorphic Login Experience:** Overhauled `VaadinLoginView` with a sleek 3D glassmorphic card on a deep radial gradient canvas, glowing emblem icon, high-contrast typography, and version badge.
+- **Executive 3D Dashboard & Defensive Data Handling:** Redesigned `DashboardView` with elevated 3D KPI metric cards with colored accent borders, thematic icons, quick action studio buttons, and safe fallback data loaders that prevent construction errors on cold or empty databases.
+- **Custom Modern 404 Route Error Handler:** Implemented `CustomNotFoundErrorView` implementing `HasErrorParameter<NotFoundException>`, rendering an intuitive branded error screen with a return button and eliminating unstyled default navigation errors.
+
 # What's New in DSE ERP v10.0.50
+
 
 ### Vaadin Production Bundle & Webapp Classpath Packaging
 - **Vaadin Production Precompiled Bundle:** Integrated `com.vaadin:vaadin-prod-bundle` dependency into `server/pom.xml`, providing precompiled web component bundles, stats manifest, and chunk mappings.
