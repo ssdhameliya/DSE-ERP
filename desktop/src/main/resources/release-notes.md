@@ -1,3 +1,9 @@
+# What's New in DSE ERP v10.0.45
+
+### Cloud Deployment Standalone Production Fix
+- **Eliminated Frontend Prepare Plugin:** Removed `vaadin-maven-plugin:prepare-frontend` execution from `server/pom.xml` to prevent compile-time overwriting of `flow-build-info.json` in pure Java server-side Flow applications.
+- **Embedded Static Production Mode Token:** Packaged static `flow-build-info.json` with `"productionMode": true` directly into the server JAR, bypassing runner directory validation (`verifyFolderExists`) on Oracle Cloud Infrastructure (OCI) Linux instances.
+
 # What's New in DSE ERP v10.0.44
 
 ### Cloud Deployment Production Token Fix
