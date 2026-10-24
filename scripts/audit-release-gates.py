@@ -120,6 +120,7 @@ allowed_current_literals = {
     str((ROOT / ".mvn/maven.config").resolve()),
     str((ROOT / f"CHANGELOG-{VERSION}.md").resolve()),
     str((ROOT / "desktop/src/main/resources/release-notes.md").resolve()),
+    str((ROOT / "rollback.md").resolve()),
 }
 # Prune generated/build/runtime trees before traversal rather than discovering every file and
 # filtering afterwards. This keeps the aggregate release gate fast after Maven/JavaFX evidence runs.

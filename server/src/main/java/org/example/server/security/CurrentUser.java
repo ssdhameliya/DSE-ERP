@@ -9,16 +9,10 @@ public final class CurrentUser {
 
     public static AuthenticatedUser require() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
             throw new IllegalStateException("Authenticated user is required");
         }
-        if (authentication.getPrincipal() instanceof AuthenticatedUser user) {
-            return user;
-        }
-        if (authentication.getPrincipal() instanceof ErpUserDetails userDetails) {
-            return userDetails.toAuthenticatedUser();
-        }
-        throw new IllegalStateException("Authenticated user is required");
+        return user;
     }
 
     public static boolean isSales() {

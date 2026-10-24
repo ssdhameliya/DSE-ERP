@@ -28,15 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Real PostgreSQL workflow test. It is intentionally disabled unless CI (or a developer)
  * supplies DSE_IT_DB_URL so ordinary unit tests do not require Docker/PostgreSQL.
  */
-@SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.NONE,
-        properties = {
-                "spring.autoconfigure.exclude=" +
-                        "com.vaadin.flow.spring.SpringBootAutoConfiguration," +
-                        "com.vaadin.flow.spring.SpringSecurityAutoConfiguration," +
-                        "com.vaadin.flow.spring.VaadinScopesConfig"
-        }
-)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @EnabledIfEnvironmentVariable(named = "DSE_IT_DB_URL", matches = ".+")
 class PostgresWorkflowIntegrationTest {
     private static final String INVOICE = "IT-SALE-9034";

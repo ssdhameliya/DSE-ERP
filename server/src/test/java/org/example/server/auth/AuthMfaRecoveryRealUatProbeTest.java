@@ -30,15 +30,7 @@ import static org.mockito.Mockito.doAnswer;
  * the real database, password/TOTP state machine and AuthService transactions are used.
  */
 @EnabledIfSystemProperty(named = "dse.uat.mfa.probe", matches = "true")
-@SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.NONE,
-        properties = {
-                "spring.autoconfigure.exclude=" +
-                        "com.vaadin.flow.spring.SpringBootAutoConfiguration," +
-                        "com.vaadin.flow.spring.SpringSecurityAutoConfiguration," +
-                        "com.vaadin.flow.spring.VaadinScopesConfig"
-        }
-)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class AuthMfaRecoveryRealUatProbeTest {
     @DynamicPropertySource
     static void postgres(DynamicPropertyRegistry registry) {

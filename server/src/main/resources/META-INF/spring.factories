@@ -1,1 +1,0 @@
-org.springframework.boot.EnvironmentPostProcessor=org.example.server.support.VaadinNonWebEnvironmentPostProcessor
