@@ -25,6 +25,9 @@ fi
 
 # Prepare new Caddy block or update existing block with brace-balanced block inspection
 GEN_OUTPUT=$(sudo python3 - << 'PY'
+import os
+import re
+import subprocess
 import sys
 
 config_path = "/etc/caddy/Caddyfile"
@@ -32,18 +35,54 @@ with open(config_path, "r", encoding="utf-8") as f:
     content = f.read()
 
 target_domain = "erp.jasviindustries.in"
-target_port = "8080"
 
-target_block = """# DSE ERP — Production Web Application (Pure Java Vaadin UI)
-erp.jasviindustries.in {
-    reverse_proxy 127.0.0.1:8080 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
+# Detect target port dynamically
+detected_port = None
+
+# 1. From existing api.jasviindustries.in block in Caddyfile
+api_match = re.search(r'api\.jasviindustries\.in\s*\{[^}]*reverse_proxy\s+(?:127\.0\.0\.1|localhost):(\d+)', content)
+if api_match:
+    detected_port = api_match.group(1)
+
+# 2. From /etc/dse-erp/prod.env
+if not detected_port and os.path.exists("/etc/dse-erp/prod.env"):
+    try:
+        with open("/etc/dse-erp/prod.env", "r", encoding="utf-8") as env_f:
+            for line in env_f:
+                if line.startswith("DSE_SERVER_PORT="):
+                    val = line.strip().split("=", 1)[1].strip().strip('"\'')
+                    if val.isdigit():
+                        detected_port = val
+                        break
+    except Exception:
+        pass
+
+# 3. From running java process listening ports
+if not detected_port:
+    try:
+        ss_out = subprocess.check_output(["ss", "-tlpn"], text=True)
+        for line in ss_out.splitlines():
+            if "java" in line:
+                m = re.search(r':(\d+)\s', line)
+                if m and m.group(1) in ("8080", "8081", "8082"):
+                    detected_port = m.group(1)
+                    break
+    except Exception:
+        pass
+
+target_port = detected_port if detected_port else "8080"
+print(f"PORT_DETECTED={target_port}")
+
+target_block = f"""# DSE ERP — Production Web Application (Pure Java Vaadin UI)
+erp.jasviindustries.in {{
+    reverse_proxy 127.0.0.1:{target_port} {{
+        header_up Host {{host}}
+        header_up X-Real-IP {{remote_host}}
+        header_up X-Forwarded-For {{remote_host}}
+        header_up X-Forwarded-Proto {{scheme}}
+    }}
     encode gzip zstd
-}
+}}
 """
 
 def extract_blocks(text):
@@ -108,7 +147,7 @@ PY
 echo "$GEN_OUTPUT"
 
 if [[ "$GEN_OUTPUT" == *"ALREADY_CONFIGURED"* ]]; then
-  echo "PROD Caddy configuration already proxies erp to 8080."
+  echo "PROD Caddy configuration already proxies erp to the correct port."
   sudo caddy validate --config "$CONFIG"
   exit 0
 fi

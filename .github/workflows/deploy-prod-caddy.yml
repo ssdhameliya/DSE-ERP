@@ -81,7 +81,13 @@ jobs:
             curl -s https://erp.jasviindustries.in/login || true
             echo "=== PROD SERVER JOURNAL LOGS ==="
             ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
-              'sudo journalctl -u dse-erp -n 100 --no-pager' || true
+              'sudo journalctl -u dse-erp-prod -n 100 --no-pager' || true
+            echo "=== PROD SERVER PORTS ==="
+            ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+              'sudo ss -tlpn' || true
+            echo "=== PROD CADDYFILE ==="
+            ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+              'sudo cat /etc/caddy/Caddyfile' || true
             exit 1
           fi
           grep -qi 'nosniff\|Set-Cookie\|vaadin' web-verify.log || {
