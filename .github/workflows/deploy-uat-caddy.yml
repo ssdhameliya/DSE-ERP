@@ -77,9 +77,10 @@ jobs:
           set -euo pipefail
           echo "Verifying erp-uat.jasviindustries.in reaches HTML5/JS Web Portal..."
           ERP_HTML=$(curl --fail --silent --show-error --max-time 20 https://erp-uat.jasviindustries.in)
-          echo "$ERP_HTML" | grep -q "Jasvi Industries ERP"
+          [[ "$ERP_HTML" == *"Jasvi Industries ERP"* ]] || { echo "Web portal verification failed" >&2; exit 1; }
           echo "Verifying erp-uat.jasviindustries.in REST health..."
           HEALTH_JSON=$(curl --fail --silent --show-error --max-time 20 https://erp-uat.jasviindustries.in/api/runtime/health)
-          echo "$HEALTH_JSON" | grep -q '"ready":true'
+          [[ "$HEALTH_JSON" == *'"ready":true'* ]] || { echo "REST health verification failed" >&2; exit 1; }
           echo "UAT_WEB_PORTAL_ROUTING_VERIFIED_OK"
+
 
