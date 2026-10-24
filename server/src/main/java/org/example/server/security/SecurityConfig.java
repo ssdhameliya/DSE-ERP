@@ -341,8 +341,13 @@ public class SecurityConfig {
                 .deleteCookies("JSESSIONID", "XSRF-TOKEN")
             )
             .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((request, response, error) ->
-                    response.sendRedirect("/login"))
+                .authenticationEntryPoint((request, response, error) -> {
+                    String uri = request.getRequestURI();
+                    if (uri != null && uri.startsWith("/login")) {
+                        return;
+                    }
+                    response.sendRedirect("/login");
+                })
                 .accessDeniedHandler((request, response, error) ->
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permission"))
             )

@@ -23,34 +23,79 @@ if [[ ! -e "$BACKUP" ]]; then
   echo "Backup created at $BACKUP"
 fi
 
-# Prepare new Caddy block or update existing block with precise block inspection
+# Prepare new Caddy block or update existing block with brace-balanced block inspection
 GEN_OUTPUT=$(sudo python3 - << 'PY'
-import re, sys
+import sys
 
 config_path = "/etc/caddy/Caddyfile"
 with open(config_path, "r", encoding="utf-8") as f:
     content = f.read()
 
+target_domain = "erp.jasviindustries.in"
+target_port = "8080"
+
 target_block = """# DSE ERP — Production Web Application (Pure Java Vaadin UI)
 erp.jasviindustries.in {
     reverse_proxy 127.0.0.1:8080 {
+        header_up Host {host}
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Proto {scheme}
     }
+    encode gzip zstd
 }
 """
 
-pattern = r'(?ms)^[ \t]*erp\.jasviindustries\.in\b[^{]*\{.*?\n\}'
-match = re.search(pattern, content)
-if match and "reverse_proxy" in match.group(0) and "8080" in match.group(0):
-    print("ALREADY_CONFIGURED")
-    sys.exit(0)
+def extract_blocks(text):
+    blocks = []
+    i = 0
+    n = len(text)
+    while i < n:
+        brace_pos = text.find("{", i)
+        if brace_pos == -1:
+            break
+        k = brace_pos - 1
+        while k >= i and text[k] in ' \t\r\n':
+            k -= 1
+        line_start = text.rfind("\n", i, k + 1)
+        start = line_start + 1 if line_start != -1 else i
+        header = text[start:brace_pos].strip()
 
-if match:
-    new_content = content[:match.start()] + target_block.strip() + content[match.end():]
+        depth = 1
+        pos = brace_pos + 1
+        while pos < n and depth > 0:
+            ch = text[pos]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+            pos += 1
+        
+        blocks.append((header, start, pos, text[start:pos]))
+        i = pos
+    return blocks
+
+blocks = extract_blocks(content)
+target_match = None
+for h, s, e, blk in blocks:
+    parts = [p.strip() for p in h.replace(",", " ").split() if p.strip()]
+    if target_domain in parts:
+        target_match = (h, s, e, blk)
+        break
+
+if target_match:
+    h, s, e, blk = target_match
+    has_file_server = "file_server" in blk or "root " in blk
+    has_api_only = "handle /api" in blk or "handle_path /api" in blk
+    has_proxy = f"reverse_proxy 127.0.0.1:{target_port}" in blk or f"reverse_proxy localhost:{target_port}" in blk
+    
+    if has_proxy and not has_file_server and not has_api_only:
+        print("ALREADY_CONFIGURED")
+        sys.exit(0)
+    
+    new_content = content[:s] + target_block.strip() + content[e:]
 else:
-    new_content = content.rstrip() + "\n\n" + target_block
+    new_content = content.rstrip() + "\n\n" + target_block.strip() + "\n"
 
 tmp_path = "/tmp/Caddyfile.candidate"
 with open(tmp_path, "w", encoding="utf-8") as f:
