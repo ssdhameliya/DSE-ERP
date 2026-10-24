@@ -1,3 +1,9 @@
+# What's New in DSE ERP v10.0.46
+
+### Cloud Reverse Proxy & Native Forward Headers Hardening
+- **Spring Boot Native Forward Headers Strategy:** Enabled `server.forward-headers-strategy=native` in `application.properties` to ensure embedded Tomcat honors `X-Forwarded-Proto` and `X-Forwarded-For` from Caddy/Nginx reverse proxies, preventing infinite HTTPS redirect loops.
+- **UAT Web Proxy Automation:** Added safe automated Caddy configuration workflow and script (`configure-caddy-uat.sh`) routing `erp-uat.jasviindustries.in` directly to the pure Java Vaadin Flow web application on port 8081.
+
 # What's New in DSE ERP v10.0.45
 
 ### Cloud Deployment Standalone Production Fix

@@ -1,0 +1,80 @@
+name: Configure UAT Web Proxy (Caddy)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dse-erp-uat-caddy-config
+  cancel-in-progress: false
+
+jobs:
+  configure-caddy:
+    name: Configure UAT Caddy for Pure Java Web UI
+    runs-on: ubuntu-latest
+    environment: uat
+    timeout-minutes: 10
+    env:
+      SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
+      SSH_USER: ${{ secrets.DSE_SSH_USER }}
+      SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      SSH_PORT: ${{ vars.DSE_SSH_PORT }}
+      PUBLIC_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate connection secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PUBLIC_HEALTH_URL; do
+            [[ -n "${!name:-}" ]] || { echo "Missing GitHub uat environment secret/variable: $name" >&2; exit 1; }
+          done
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+
+      - name: Configure strict SSH host verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/dse_deploy_key
+          chmod 600 ~/.ssh/dse_deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Verify UAT Server Health Before Proxy Change
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL" | grep -q '"ready":true'
+          echo "UAT_SERVER_HEALTH_VERIFIED"
+
+      - name: Upload and Execute Caddy Configuration Script
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'mkdir -p /tmp/dse-erp-ci-deploy'
+          scp -i ~/.ssh/dse_deploy_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            scripts/linux/configure-caddy-uat.sh \
+            "$SSH_USER@$SSH_HOST:/tmp/dse-erp-ci-deploy/"
+          ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            'bash /tmp/dse-erp-ci-deploy/configure-caddy-uat.sh'
+
+      - name: Clean Remote Staging
+        if: always()
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            'rm -rf /tmp/dse-erp-ci-deploy' || true
+
+      - name: Verify Public UAT Pure Java Web UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Verifying erp-uat.jasviindustries.in reaches Vaadin Flow web application..."
+          curl --fail --silent --show-error --max-time 20 -IL https://erp-uat.jasviindustries.in/login | tee web-verify.log
+          echo "UAT_VAADIN_WEB_ROUTING_VERIFIED_OK"
