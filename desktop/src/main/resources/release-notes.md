@@ -1,3 +1,9 @@
+# What's New in DSE ERP v10.0.44
+
+### Cloud Deployment Production Token Fix
+- **Embedded Production Mode Token:** Packaged static `flow-build-info.json` and configured `vaadin-maven-plugin` with `<productionMode>true</productionMode>` to prevent runtime verification of compile-time builder folders on Oracle Cloud Linux instances.
+- **Automated Zero-Downtime Deployment:** Verified continuous deployment to UAT environment with zero filesystem dependency errors.
+
 # What's New in DSE ERP v10.0.43
 
 ### Cloud Runtime Hardening & Standalone Production Mode
