@@ -1,0 +1,55 @@
+[Unit]
+Description=DSE ERP Portal Server (Spring Boot)
+Documentation=https://github.com/ssdhameliya/DSE-ERP
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dse
+Group=dse
+WorkingDirectory=/opt/dse-erp
+
+# ── JVM startup ───────────────────────────────────────────────────────────────
+# ZGC Generational: low-latency GC with large heap, ideal for ERP UI throughput
+# -Xmx / -Xms pinned equal to avoid GC pressure from heap resizing
+ExecStart=/usr/bin/java \
+  -XX:+UseZGC \
+  -XX:+ZGenerational \
+  -Xmx4096m \
+  -Xms4096m \
+  -XX:+ExitOnOutOfMemoryError \
+  -Djava.security.egd=file:/dev/./urandom \
+  -Dspring.profiles.active=${DSE_SPRING_PROFILE:prod} \
+  -DDSE_DB_URL=${DSE_DB_URL} \
+  -DDSE_DB_USERNAME=${DSE_DB_USERNAME} \
+  -DDSE_DB_PASSWORD=${DSE_DB_PASSWORD} \
+  -DDSE_SERVER_PORT=8080 \
+  -DDSE_SERVER_ADDRESS=127.0.0.1 \
+  -DDSE_WORKSPACE_PATH=/opt/dse-erp/workspace \
+  -jar /opt/dse-erp/dse-erp-server.jar
+
+# ── Restart policy ────────────────────────────────────────────────────────────
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+# ── Process limits ────────────────────────────────────────────────────────────
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dse-erp
+
+# ── Security hardening ────────────────────────────────────────────────────────
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/dse-erp/workspace
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
