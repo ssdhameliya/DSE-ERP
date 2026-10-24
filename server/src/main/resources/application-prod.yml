@@ -54,3 +54,8 @@ logging:
     org.example: INFO
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
+
+vaadin:
+  productionMode: true
+  whitelisted-packages: org.example.server.webui
+

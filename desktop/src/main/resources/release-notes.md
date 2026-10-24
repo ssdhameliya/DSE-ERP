@@ -1,3 +1,9 @@
+# What's New in DSE ERP v10.0.43
+
+### Cloud Runtime Hardening & Standalone Production Mode
+- **Vaadin Production Runtime Mode:** Configured `vaadin.productionMode=true` and `vaadin.whitelisted-packages=org.example.server.webui` across all environment profiles (`default`, `uat`, `prod`) for standalone headless cloud execution without compile-time directory lookup dependencies.
+- **Automated OCI UAT Deployment:** Ensured zero-downtime, validated server startup on Oracle Cloud Infrastructure Linux instances with automated health check verification.
+
 # What's New in DSE ERP v10.0.42
 
 ### Cloud Migration & Pure Java Vaadin Flow Web UI
