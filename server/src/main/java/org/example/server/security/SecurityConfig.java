@@ -1,6 +1,9 @@
 package org.example.server.security;
 
+import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
+import org.example.server.webui.VaadinLoginView;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -297,62 +300,14 @@ public class SecurityConfig {
             throws Exception {
 
         http
-            .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .ignoringRequestMatchers(
-                    "/vaadinServlet/**",    // Vaadin server push & heartbeat
-                    "/VAADIN/**"            // Vaadin static resources bootstrap
-                )
-            )
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
-                // Vaadin static resources and login page are public
-                .requestMatchers(
-                    "/VAADIN/**",
-                    "/vaadinServlet/**",
-                    "/login",
-                    "/login/**",
-                    "/PUSH/**",
-                    "/favicon.ico",
-                    "/manifest.webmanifest",
-                    "/sw.js",
-                    "/sw-runtime-resources-precache.js",
-                    "/offline.html",
-                    "/icons/**",
-                    "/images/**",
-                    "/frontend/**",
-                    "/webjars/**"
-                ).permitAll()
-                // All other Vaadin views require authentication;
-                // fine-grained access is enforced by @RolesAllowed on each @Route view class
-                .anyRequest().authenticated()
+                .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
+                .requestMatchers("/favicon.ico", "/icons/**", "/images/**").permitAll()
             )
-            .formLogin(form -> form
-                .loginPage("/login")
-                .defaultSuccessUrl("/", true)
-                .failureUrl("/login?error")
-                .permitAll()
-            )
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout")
-                .invalidateHttpSession(true)
-                .deleteCookies("JSESSIONID", "XSRF-TOKEN")
-            )
-            .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((request, response, error) -> {
-                    String uri = request.getRequestURI();
-                    if (uri != null && uri.startsWith("/login")) {
-                        return;
-                    }
-                    response.sendRedirect("/login");
-                })
-                .accessDeniedHandler((request, response, error) ->
-                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient permission"))
-            )
-            // Also run the bearer filter for web users who authenticate via token
-            // (enables API calls from within the Vaadin UI without double-auth)
+            .with(VaadinSecurityConfigurer.vaadin(), vaadin -> {
+                vaadin.loginView(VaadinLoginView.class);
+                vaadin.defaultSuccessUrl("/", true);
+            })
             .addFilterBefore(bearerFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
