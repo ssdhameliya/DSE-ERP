@@ -39,6 +39,11 @@
             <!-- Version managed by Vaadin BOM in dependencyManagement -->
         </dependency>
         <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-prod-bundle</artifactId>
+            <!-- Version managed by Vaadin BOM in dependencyManagement -->
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
