@@ -1,3 +1,10 @@
+# What's New in DSE ERP v10.0.47
+
+### Cloud Reverse Proxy Automation & Dual Environment Hardening
+- **Production Web Proxy Automation:** Added safe automated Caddy configuration workflow and script (`configure-caddy-prod.sh`) routing `erp.jasviindustries.in` directly to the pure Java Vaadin Flow web application on port 8080.
+- **Accurate Block Parsing:** Upgraded Caddy block detection in `configure-caddy-uat.sh` and `configure-caddy-prod.sh` to precisely inspect domain configuration blocks, preventing false positives from companion `api` endpoints.
+- **Dual Reverse Proxy Deployment Workflows:** Added `.github/workflows/deploy-prod-caddy.yml` alongside `deploy-uat-caddy.yml` with pre-flight health gates and automatic rollback.
+
 # What's New in DSE ERP v10.0.46
 
 ### Cloud Reverse Proxy & Native Forward Headers Hardening

@@ -23,16 +23,8 @@ if [[ ! -e "$BACKUP" ]]; then
   echo "Backup created at $BACKUP"
 fi
 
-# Check if erp-uat is already proxying to 8081
-if sudo grep -q 'erp-uat.jasviindustries.in' "$CONFIG" && sudo grep -q 'reverse_proxy.*8081' "$CONFIG"; then
-  echo "UAT Caddy configuration already proxies to 8081."
-  sudo caddy validate --config "$CONFIG"
-  exit 0
-fi
-
-# Prepare new Caddy block or update existing block
-# If erp-uat.jasviindustries.in exists, replace it or append safe reverse_proxy block
-sudo python3 - << 'PY'
+# Prepare new Caddy block or update existing block with precise block inspection
+GEN_OUTPUT=$(sudo python3 - << 'PY'
 import re, sys
 
 config_path = "/etc/caddy/Caddyfile"
@@ -49,10 +41,14 @@ erp-uat.jasviindustries.in {
 }
 """
 
-# Replace existing erp-uat block if present
-pattern = r'(?ms)erp-uat\.jasviindustries\.in\s*\{.*?\n\}'
-if re.search(pattern, content):
-    new_content = re.sub(pattern, target_block.strip(), content)
+pattern = r'(?ms)^[ \t]*erp-uat\.jasviindustries\.in\b[^{]*\{.*?\n\}'
+match = re.search(pattern, content)
+if match and "reverse_proxy" in match.group(0) and "8081" in match.group(0):
+    print("ALREADY_CONFIGURED")
+    sys.exit(0)
+
+if match:
+    new_content = content[:match.start()] + target_block.strip() + content[match.end():]
 else:
     new_content = content.rstrip() + "\n\n" + target_block
 
@@ -60,8 +56,17 @@ tmp_path = "/tmp/Caddyfile.candidate"
 with open(tmp_path, "w", encoding="utf-8") as f:
     f.write(new_content)
 
-print("Candidate Caddy configuration generated at /tmp/Caddyfile.candidate")
+print("CANDIDATE_GENERATED")
 PY
+)
+
+echo "$GEN_OUTPUT"
+
+if [[ "$GEN_OUTPUT" == *"ALREADY_CONFIGURED"* ]]; then
+  echo "UAT Caddy configuration already proxies erp-uat to 8081."
+  sudo caddy validate --config "$CONFIG"
+  exit 0
+fi
 
 echo "Validating candidate Caddyfile..."
 sudo caddy validate --config "$TMP"
