@@ -71,21 +71,13 @@ jobs:
           ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
             'rm -rf /tmp/dse-erp-ci-deploy' || true
 
-      - name: Verify Public UAT Pure Java Web UI
+      - name: Verify Public UAT Decoupled Web Portal
         shell: bash
         run: |
           set -euo pipefail
-          echo "Verifying erp-uat.jasviindustries.in reaches Vaadin Flow web application..."
-          if ! curl --fail --silent --show-error --max-time 20 -IL https://erp-uat.jasviindustries.in/login | tee web-verify.log; then
-            echo "=== FAILED RESPONSE BODY ==="
-            curl -s https://erp-uat.jasviindustries.in/login || true
-            echo "=== UAT SERVER JOURNAL LOGS ==="
-            ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
-              'sudo journalctl -u dse-erp-uat -n 100 --no-pager' || true
-            exit 1
-          fi
-          grep -qi 'nosniff\|Set-Cookie\|vaadin' web-verify.log || {
-            echo "Response did not originate from Spring Boot application" >&2
-            exit 1
-          }
-          echo "UAT_VAADIN_WEB_ROUTING_VERIFIED_OK"
+          echo "Verifying erp-uat.jasviindustries.in reaches HTML5/JS Web Portal..."
+          curl --fail --silent --show-error --max-time 20 https://erp-uat.jasviindustries.in | grep -q "Jasvi Industries ERP"
+          echo "Verifying erp-uat.jasviindustries.in REST health..."
+          curl --fail --silent --show-error --max-time 20 https://erp-uat.jasviindustries.in/api/runtime/health | grep -q '"ready":true'
+          echo "UAT_WEB_PORTAL_ROUTING_VERIFIED_OK"
+
