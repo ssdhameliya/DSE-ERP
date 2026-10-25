@@ -101,7 +101,7 @@ public final class PopupTableWorkspace {
 
     public static VBox content(Node metrics, Node tableOrContent, Node footer) {
         VBox box = new VBox(14);
-        box.getStyleClass().add("erp-popup-workspace");
+        box.getStyleClass().addAll("erp-popup-workspace", "erp-ui-standard");
         if (metrics != null) box.getChildren().add(metrics);
         if (tableOrContent != null) {
             box.getChildren().add(tableOrContent);
@@ -115,6 +115,9 @@ public final class PopupTableWorkspace {
         if (dialog == null) return;
         if (!dialog.getDialogPane().getStyleClass().contains("erp-table-workspace-dialog")) {
             dialog.getDialogPane().getStyleClass().add("erp-table-workspace-dialog");
+        }
+        if (!dialog.getDialogPane().getStyleClass().contains("erp-ui-standard")) {
+            dialog.getDialogPane().getStyleClass().add("erp-ui-standard");
         }
         if (prefWidth > 0) dialog.getDialogPane().setPrefWidth(prefWidth);
         if (!Boolean.TRUE.equals(dialog.getDialogPane().getProperties().get("erp-popup-responsive-width"))) {
@@ -137,6 +140,7 @@ public final class PopupTableWorkspace {
     public static void prepareTable(TableView<?> table, String profileClass) {
         if (table == null) return;
         if (!table.getStyleClass().contains("approved-table")) table.getStyleClass().add("approved-table");
+        if (!table.getStyleClass().contains("erp-table-standard")) table.getStyleClass().add("erp-table-standard");
         if (profileClass != null && !profileClass.isBlank() && !table.getStyleClass().contains(profileClass)) {
             table.getStyleClass().add(profileClass);
         }

@@ -2267,6 +2267,13 @@
 -fx-text-overrun: ELLIPSIS;
     -fx-font-weight: 700;
 }
+.table-view .column-header .erp-table-header-label.erp-table-header-colour-blue { -fx-text-fill: #86b8ff; }
+.table-view .column-header .erp-table-header-label.erp-table-header-colour-green { -fx-text-fill: #62e3ad; }
+.table-view .column-header .erp-table-header-label.erp-table-header-colour-orange { -fx-text-fill: #ffc66b; }
+.table-view .column-header .erp-table-header-label.erp-table-header-colour-purple { -fx-text-fill: #c4b5fd; }
+.table-view .column-header .erp-table-header-label.erp-table-header-colour-pink { -fx-text-fill: #f9a8d4; }
+.table-view .column-header .erp-table-header-label.erp-table-header-colour-teal { -fx-text-fill: #5eead4; }
+.table-view .column-header .erp-table-header-label.erp-table-header-colour-indigo { -fx-text-fill: #a5b4fc; }
 .erp-table-profile-register, .erp-table-profile-master, .erp-table-profile-history, .erp-table-profile-administration, .erp-table-profile-import {
 -fx-fixed-cell-size: 42px;
 }

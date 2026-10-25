@@ -645,13 +645,16 @@ public final class IconFactory {
     /** One canonical icon-plus-label renderer for every ERP TableColumn header. */
     public static Node tableHeader(String label, String semantic) {
         Label title = new Label(label == null ? "" : label);
-        title.getStyleClass().addAll("erp-table-header-label", "erp-table-header-colour-" + semanticColour(semantic));
+        String colour = semanticColour(semantic);
+        title.getStyleClass().addAll("erp-table-header-label", "erp-table-header-colour-" + colour);
         boolean multiWord = label != null && label.trim().contains(" ");
         title.getStyleClass().add(multiWord ? "erp-table-header-multi-word" : "erp-table-header-single-word");
         title.getProperties().put("erp.header.semantic", normalize(semantic));
         title.setWrapText(multiWord);
         title.setMinWidth(0);
         title.setMaxWidth(Double.MAX_VALUE);
+        String hex = hexColor(colour);
+        title.setStyle("-fx-text-fill: " + hex + ";");
         HBox header = new HBox(6, compactIcon(semantic, 14), title);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setMinWidth(0);
@@ -801,6 +804,7 @@ public final class IconFactory {
             case "sales" -> "sale";
             case "export" -> "export";
             case "send" -> "sent";
+            case "match" -> "reconcile";
             default -> value.isBlank() ? "unknown" : value;
         };
     }
@@ -1127,7 +1131,7 @@ public final class IconFactory {
         if (value.equals("move")) return "move";
         if (value.contains("find another")) return "find-another";
         if (value.contains("confirm partial settlement")) return "partial-settlement";
-        if (value.contains("confirm match")) return "match";
+        if (value.contains("auto match") || value.contains("confirm match") || value.contains("auto-match") || value.contains("suggestions")) return "reconcile";
         if (value.equals("record")) return "record";
         if (value.contains("stay signed in")) return "stay-signed-in";
         if (value.contains("log out now")) return "exit";
