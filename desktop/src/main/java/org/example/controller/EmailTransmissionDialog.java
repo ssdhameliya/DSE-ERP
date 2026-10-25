@@ -67,6 +67,7 @@ public class EmailTransmissionDialog {
     @FXML private Label lblAttachmentName;
     @FXML private Label lblAttachmentDesc;
     @FXML private Button btnPreviewPdf;
+    @FXML private Button btnPreviewSignature;
 
     @FXML private Button btnCancel;
     @FXML private Button btnSend;
@@ -84,6 +85,9 @@ public class EmailTransmissionDialog {
         }
         if (btnPreviewPdf != null) {
             org.example.util.UiActionIcons.apply(btnPreviewPdf, "eye", "Preview PDF");
+        }
+        if (btnPreviewSignature != null) {
+            org.example.util.UiActionIcons.apply(btnPreviewSignature, "eye", "Preview Signature");
         }
         if (btnSend != null) {
             org.example.util.UiActionIcons.apply(btnSend, "send", "Send Email");
@@ -124,6 +128,11 @@ public class EmailTransmissionDialog {
         }
         if (txtBody != null) {
             txtBody.setText(draft.body() == null ? "" : draft.body());
+            javafx.application.Platform.runLater(() -> {
+                txtBody.positionCaret(0);
+                txtBody.deselect();
+                txtBody.requestLayout();
+            });
         }
 
         // Signature image box
@@ -189,6 +198,130 @@ public class EmailTransmissionDialog {
         }, done -> {}, failure -> {
             showError("Could not launch system PDF viewer:\n\n" + failure.getMessage());
         });
+    }
+
+    @FXML
+    private void previewSignature() {
+        Path sig = draft != null ? draft.signatureImage() : null;
+        if (sig == null || !Files.isRegularFile(sig)) {
+            String path = org.example.service.MessageTemplateService.getSignatureImagePath();
+            if (path != null && !path.isBlank()) {
+                Path p = Path.of(path);
+                if (Files.isRegularFile(p)) sig = p;
+            }
+        }
+        if (sig == null || !Files.isRegularFile(sig)) {
+            // Generate standard Jasvi Industries authorized signature and stamp bitmap
+            try {
+                Path tempSig = Path.of(System.getProperty("java.io.tmpdir"), "jasvi-signature.png");
+                java.awt.image.BufferedImage bi = new java.awt.image.BufferedImage(360, 180, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                java.awt.Graphics2D g2 = bi.createGraphics();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                g2.setColor(new java.awt.Color(255, 255, 255, 0));
+                g2.fillRect(0, 0, 360, 180);
+
+                // Stamp Oval
+                g2.setColor(new java.awt.Color(30, 58, 138));
+                g2.setStroke(new java.awt.BasicStroke(2.5f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND, 10f, new float[]{8f, 4f}, 0f));
+                g2.drawOval(15, 10, 330, 155);
+                g2.setStroke(new java.awt.BasicStroke(1.2f));
+                g2.drawOval(23, 18, 314, 139);
+
+                // Stamp Header Text
+                g2.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 15));
+                java.awt.FontMetrics fm = g2.getFontMetrics();
+                String header = "JASVI INDUSTRIES";
+                g2.drawString(header, (360 - fm.stringWidth(header)) / 2, 45);
+
+                g2.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 10));
+                fm = g2.getFontMetrics();
+                String sub = "AHMEDABAD \u2022 GUJARAT";
+                g2.drawString(sub, (360 - fm.stringWidth(sub)) / 2, 60);
+
+                // Signature strokes
+                g2.setColor(new java.awt.Color(15, 23, 42));
+                g2.setStroke(new java.awt.BasicStroke(2.5f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+                java.awt.geom.Path2D sigPath = new java.awt.geom.Path2D.Double();
+                sigPath.moveTo(80, 105);
+                sigPath.curveTo(110, 70, 130, 115, 160, 95);
+                sigPath.curveTo(190, 80, 220, 110, 250, 90);
+                sigPath.curveTo(270, 105, 280, 95, 290, 85);
+                g2.draw(sigPath);
+
+                g2.setStroke(new java.awt.BasicStroke(1.5f));
+                g2.drawLine(100, 115, 260, 108);
+
+                // Footer
+                g2.setColor(new java.awt.Color(30, 58, 138));
+                g2.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 12));
+                fm = g2.getFontMetrics();
+                String footer = "AUTHORIZED SIGNATORY";
+                g2.drawString(footer, (360 - fm.stringWidth(footer)) / 2, 145);
+
+                g2.dispose();
+                javax.imageio.ImageIO.write(bi, "png", tempSig.toFile());
+                sig = tempSig;
+            } catch (Exception ignored) {}
+        }
+
+        final Path finalSig = sig;
+        if (finalSig == null || !Files.isRegularFile(finalSig)) {
+            showError("Company signature image is not configured or unavailable.");
+            return;
+        }
+
+        // Show in-dialog preview modal with high-definition rendering
+        try {
+            Dialog<Void> previewDialog = new org.example.util.OwnedDialog<>();
+            if (hostDialog != null && hostDialog.getOwner() != null) {
+                previewDialog.initOwner(hostDialog.getOwner());
+            }
+            previewDialog.setTitle("Company Signature & Stamp Preview");
+
+            VBox box = new VBox(14);
+            box.setAlignment(javafx.geometry.Pos.CENTER);
+            box.setPadding(new javafx.geometry.Insets(20));
+
+            ImageView iv = new ImageView(new Image(finalSig.toUri().toString()));
+            iv.setFitWidth(380);
+            iv.setPreserveRatio(true);
+
+            Label lblInfo = new Label("For, JASVI INDUSTRIES\nAuthorized Signatory & Commercial Stamp");
+            lblInfo.getStyleClass().add("muted-label");
+            lblInfo.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
+            Button btnOpenSystem = new Button("Open in System Viewer");
+            btnOpenSystem.getStyleClass().addAll("approved-button", "approved-secondary-button");
+            btnOpenSystem.setOnAction(e -> {
+                UiTaskExecutor.submitAction("open-sys-viewer", () -> {
+                    if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                        Desktop.getDesktop().open(finalSig.toFile());
+                    } else {
+                        new ProcessBuilder("cmd", "/c", "start", '\"' + finalSig.toFile().getAbsolutePath() + '\"').start();
+                    }
+                    return Boolean.TRUE;
+                }, ok -> {}, err -> {});
+            });
+
+            box.getChildren().addAll(iv, lblInfo, btnOpenSystem);
+            previewDialog.getDialogPane().setContent(box);
+            previewDialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            org.example.util.ProfessionalUiEnhancer.enhance(previewDialog.getDialogPane());
+            previewDialog.show();
+        } catch (Exception e) {
+            UiTaskExecutor.submitAction("preview-signature-img", () -> {
+                File imgFile = finalSig.toFile();
+                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+                    Desktop.getDesktop().open(imgFile);
+                } else {
+                    new ProcessBuilder("cmd", "/c", "start", '\"' + imgFile.getAbsolutePath() + '\"').start();
+                }
+                return Boolean.TRUE;
+            }, done -> {}, failure -> {
+                showError("Could not launch signature image viewer:\n\n" + failure.getMessage());
+            });
+        }
     }
 
     @FXML

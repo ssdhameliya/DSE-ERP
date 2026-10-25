@@ -986,8 +986,17 @@
 .bank-recon-main-panel {
 -fx-padding: 0;
 }
-.bank-recon-table {
--fx-fixed-cell-size: 42px;
+.bank-recon-table .table-row-cell {
+    -fx-cell-size: -1;
+}
+.bank-table-wrapped-text {
+    -fx-fill: #1e293b;
+    -fx-font-size: 12px;
+}
+.bank-table-ref-text {
+    -fx-fill: #0284c7;
+    -fx-font-family: 'JetBrains Mono', 'Consolas', monospace;
+    -fx-font-weight: 700;
 }
 .bank-recon-table .column-header-background, .bank-recon-table .column-header, .bank-recon-table .filler {
 -fx-min-height: 36px;
@@ -1135,6 +1144,37 @@
 }
 .bank-recon-kpi.kpi-teal .bank-recon-kpi-icon {
 -fx-background-color: rgba(20,184,166,.15);
+}
+
+.bank-recon-kpi.kpi-blue .bank-recon-kpi-value,
+.finance-kpi-blue .finance-kpi-value,
+.kpi-blue .metric-value {
+    -fx-text-fill: #0284c7 !important;
+}
+.bank-recon-kpi.kpi-red .bank-recon-kpi-value,
+.finance-kpi-red .finance-kpi-value,
+.kpi-red .metric-value {
+    -fx-text-fill: #dc2626 !important;
+}
+.bank-recon-kpi.kpi-orange .bank-recon-kpi-value,
+.finance-kpi-orange .finance-kpi-value,
+.kpi-orange .metric-value {
+    -fx-text-fill: #d97706 !important;
+}
+.bank-recon-kpi.kpi-green .bank-recon-kpi-value,
+.finance-kpi-green .finance-kpi-value,
+.kpi-green .metric-value {
+    -fx-text-fill: #16a34a !important;
+}
+.bank-recon-kpi.kpi-purple .bank-recon-kpi-value,
+.finance-kpi-purple .finance-kpi-value,
+.kpi-purple .metric-value {
+    -fx-text-fill: #7c3aed !important;
+}
+.bank-recon-kpi.kpi-teal .bank-recon-kpi-value,
+.finance-kpi-teal .finance-kpi-value,
+.kpi-teal .metric-value {
+    -fx-text-fill: #0d9488 !important;
 }
 .bank-recon-status-guide {
 -fx-padding: 11px;
@@ -15564,16 +15604,22 @@
 .bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi {
     -fx-min-width: 0;
     -fx-max-width: Infinity;
-    -fx-padding: 9 10;
+    -fx-padding: 8 10;
+    -fx-min-height: 64px;
 }
 .bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi-caption {
-    -fx-font-size: 10px;
+    -fx-font-size: 11px !important;
+    -fx-font-weight: 800;
+    -fx-text-fill: #334155;
 }
 .bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi-value {
-    -fx-font-size: 16px;
+    -fx-font-size: 19px !important;
+    -fx-font-weight: 900;
 }
 .bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi-note {
-    -fx-font-size: 9px;
+    -fx-font-size: 10px !important;
+    -fx-opacity: 0.85;
+    -fx-text-fill: #64748b;
 }
 
 .table-view .table-cell .menu-button.table-action-menu,
