@@ -1,8 +1,8 @@
 # DSE ERP — MASTER ROLLBACK & MIGRATION PLAN
-## Pure Decoupled Architecture: Desktop `v11.0.0` & Web Platform `v11.0.0.01`
+## Pure Decoupled Architecture: Desktop `v11.0.1` (patch) & Web Platform `v11.0.0.01`
 
 > **Document Status:** 📋 OFFICIAL EXECUTION BLUEPRINT  
-> **Target Desktop / Server Release:** `v11.0.0` (Baseline: Git tag `v10.0.41` commit `5a758e05`)  
+> **Target Desktop / Server Release:** `v11.0.1` (Patch on `v11.0.0` — email signature & transmission dialog fix)  
 > **Target Web Platform Release:** `v11.0.0.01` (Tag: `web-v11.0.0.01`, Baseline: `v10.0.41.13` / `v10.0.41.14`)  
 > **Primary Objective:** Completely remove all Vaadin Flow code, dependencies, and proxy overrides; restore pure, rock-solid Spring Boot REST API backend + pure HTML5/JS/CSS client portal + JavaFX desktop application.
 

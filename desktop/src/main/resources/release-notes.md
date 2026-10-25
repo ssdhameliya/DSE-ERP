@@ -1,4 +1,4 @@
-# What's New in DSE ERP v11.0.0
+# What's New in DSE ERP v11.0.1
 
 ### Email Delivery & Signature Transmission
 - **Interactive Email Transmission Modal**: Added comprehensive email transmission modal with recipient, subject, fully editable message body, inline company signature/stamp thumbnail preview, and PDF attachment card with active **[Preview PDF]** launcher.
