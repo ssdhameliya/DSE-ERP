@@ -6,7 +6,7 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.EmailTransmissionDialog"
-            prefWidth="640" prefHeight="650" minWidth="580" minHeight="520"
+            prefWidth="720" prefHeight="760" minWidth="620" minHeight="560"
             styleClass="entity-dialog,premium-entity-dialog,approved-ui">
     <top>
         <HBox alignment="CENTER_LEFT" spacing="14" styleClass="entity-dialog-header,premium-dialog-header,approved-section-header">
@@ -43,13 +43,13 @@
                 </VBox>
 
                 <!-- Message Body -->
-                <VBox spacing="6">
+                <VBox spacing="6" VBox.vgrow="ALWAYS">
                     <HBox alignment="CENTER_LEFT" spacing="6">
                         <Label text="Message Body" styleClass="field-label,settings-form-label,email-transmission-field-bold"/>
                         <Region HBox.hgrow="ALWAYS"/>
                         <Label text="Fully rendered message &amp; signature" styleClass="page-subtitle,email-transmission-hint"/>
                     </HBox>
-                    <TextArea fx:id="txtBody" prefRowCount="8" minHeight="130" wrapText="true" styleClass="approved-input"/>
+                    <TextArea fx:id="txtBody" prefRowCount="12" minHeight="220" wrapText="true" styleClass="approved-input" VBox.vgrow="ALWAYS"/>
                 </VBox>
 
                 <!-- Signature / Stamp Image Card (if configured) -->

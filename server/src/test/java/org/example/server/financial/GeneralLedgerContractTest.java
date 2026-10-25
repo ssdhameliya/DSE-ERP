@@ -94,4 +94,13 @@ class GeneralLedgerContractTest {
         assertEquals("10000", String.format(java.util.Locale.ROOT, "%04d", 10000L));
         assertEquals("100000", String.format(java.util.Locale.ROOT, "%04d", 100000L));
     }
+
+    @Test
+    void testCustomReferenceFormatDateTokens() {
+        var date = java.time.LocalDate.of(2026, 10, 25);
+        assertTrue(org.example.shared.ReferenceFormatRules.matches("DD-YYYY-XXXX", "25-2026-0001", date));
+        assertTrue(org.example.shared.ReferenceFormatRules.matches("MM-YYYY-XXXX", "10-2026-0001", date));
+        assertTrue(org.example.shared.ReferenceFormatRules.matches("DDMMYYYY-XXXX", "25102026-0001", date));
+        assertTrue(org.example.shared.ReferenceFormatRules.matches("DD-MM-YYYY-XXXX", "25-10-2026-0001", date));
+    }
 }
