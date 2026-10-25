@@ -13,6 +13,8 @@ import java.util.Optional;
 
 public interface BankStatementImportRepository extends JpaRepository<BankStatementImportEntity,Long>{
  Optional<BankStatementImportEntity> findBySourceFingerprint(String fingerprint);
+ @Query("select b from BankStatementImportEntity b where b.bankAccount=:account and b.statementFrom=:from and b.statementTo=:to order by b.id desc")
+ java.util.List<BankStatementImportEntity> findByBankAccountAndPeriod(@Param("account") String account, @Param("from") String from, @Param("to") String to);
  @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select b from BankStatementImportEntity b where b.id=:id") Optional<BankStatementImportEntity> findByIdForUpdate(@Param("id") Long id);
  @Query("select b from BankStatementImportEntity b where " +
         "(:account='' or lower(coalesce(b.bankAccount,'')) like lower(concat('%',:account,'%')) or lower(coalesce(b.bankName,'')) like lower(concat('%',:account,'%'))) and " +

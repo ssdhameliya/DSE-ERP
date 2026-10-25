@@ -107,8 +107,21 @@ public class BankStatementController implements ScreenLifecycle {
         if(statementHistoryDrawer!=null){statementHistoryDrawer.setManaged(false);statementHistoryDrawer.setVisible(false);}
         cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
-        cmbPageSize.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
-        cmbBatch.valueProperty().addListener((o,a,b)->{ updateDeleteButtons(); if(b!=null){applyBatchPeriod();currentPage=0;loadBatch(b.id());} });
+        cmbBatch.valueProperty().addListener((o,a,b)->{
+            updateDeleteButtons();
+            if(b!=null){
+                applyBatchPeriod();
+                currentPage=0;
+                loadBatch(b.id());
+            } else {
+                table.getItems().clear();
+                clearMetrics();
+                lblShowing.setText("Showing 0 records");
+                if(lblBatchStatus!=null)lblBatchStatus.setText("NO STATEMENT");
+                if(reconciliationProgress!=null)reconciliationProgress.setProgress(0);
+                if(lblProgressText!=null)lblProgressText.setText("0 / 0 reconciled");
+            }
+        });
         RealtimeSearchSupport.installRemote(txtSearch, () -> { if(!suppressFilterReload) resetPageAndLoad(); });
         RealtimeSearchSupport.installRemote(txtHistorySearch, () -> { historyPage=0; loadStatementHistory(); });
         wireKpiCard(cardKpiTotal, "All Status");
@@ -201,10 +214,51 @@ public class BankStatementController implements ScreenLifecycle {
         chkSelectAll.indeterminateProperty().addListener((o,a,b)->headerSelection.setIndeterminate(b));
         colSelect.setText(null);
         colSelect.setGraphic(headerSelection);
+        colSelect.setMinWidth(42);
+        colSelect.setMaxWidth(46);
+        colSelect.setPrefWidth(44);
+        colSelect.setResizable(false);
         colSelect.getStyleClass().add("bank-select-column");
         colSelect.getProperties().put("erp-header-preserve",true);
         colDate.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatDate(v.getValue().date.get()))); colValueDate.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatDate(v.getValue().valueDate.get())));
-        colReference.setCellValueFactory(v->v.getValue().reference); colDescription.setCellValueFactory(v->v.getValue().description);
+        colReference.setCellValueFactory(v->v.getValue().reference);
+        colReference.setCellFactory(c -> new TableCell<Row, String>() {
+            private final javafx.scene.text.Text textNode = new javafx.scene.text.Text();
+            {
+                textNode.wrappingWidthProperty().bind(c.widthProperty().subtract(16));
+                textNode.getStyleClass().addAll("bank-table-wrapped-text", "bank-table-ref-text");
+            }
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    textNode.setText(item);
+                    setGraphic(textNode);
+                }
+            }
+        });
+        colDescription.setCellValueFactory(v->v.getValue().description);
+        colDescription.setCellFactory(c -> new TableCell<Row, String>() {
+            private final javafx.scene.text.Text textNode = new javafx.scene.text.Text();
+            {
+                textNode.wrappingWidthProperty().bind(c.widthProperty().subtract(18));
+                textNode.getStyleClass().add("bank-table-wrapped-text");
+            }
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    textNode.setText(item);
+                    setGraphic(textNode);
+                }
+            }
+        });
         colDebit.setCellValueFactory(v->v.getValue().debit); colCredit.setCellValueFactory(v->v.getValue().credit); colBalance.setCellValueFactory(v->v.getValue().balance);
         colStatus.setCellValueFactory(v->v.getValue().status); colMatch.setCellValueFactory(v->v.getValue().match);
         moneyCell(colDebit,true); moneyCell(colCredit,false); moneyCell(colBalance,false);
@@ -394,10 +448,19 @@ public class BankStatementController implements ScreenLifecycle {
             if(!"DELETE".equals(confirmation.get().trim())){info("Delete cancelled","Confirmation text did not match DELETE. The statement was not changed.");return;}
             String performedBy=user();
             UiTaskExecutor.submitSerial("bank-statement-delete-"+batch.id(),()->api.deleteBatch(batch.id(),"DELETE",performedBy),result->{
-                success("Bank Statement Deleted",result.message()+"\n\nTransactions removed: "+result.deletedTransactions()+"\nReconciliations reversed: "+result.reversedTransactions());
+                table.getItems().clear();
+                clearMetrics();
+                lblShowing.setText("Showing 0 records");
+                lblBatchStatus.setText("DELETED");
+                if(reconciliationProgress!=null)reconciliationProgress.setProgress(0);
+                if(lblProgressText!=null)lblProgressText.setText("0 / 0 reconciled");
+                if(cmbBatch!=null){
+                    cmbBatch.getItems().removeIf(b->Objects.equals(b.id(),batch.id()));
+                    cmbBatch.setValue(null);
+                }
                 if(isStatementHistoryOpen())loadStatementHistory();
-                if(cmbBatch!=null&&cmbBatch.getValue()!=null&&Objects.equals(cmbBatch.getValue().id(),batch.id()))cmbBatch.setValue(null);
                 loadBatches();
+                org.example.util.ToastManager.success(table,"Bank Statement Deleted",result.message()+"\n\nTransactions removed: "+result.deletedTransactions()+"\nReconciliations reversed: "+result.reversedTransactions());
             },this::error);
         },this::error);
     }
@@ -899,8 +962,8 @@ public class BankStatementController implements ScreenLifecycle {
     private void openLinkedTarget(String type,Integer id,String documentNo,String source,Row row){
         if("EXPENSE".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.EXPENSE,financeId);DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);return;}
         if("BANK_ENTRY".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.BANK,financeId);DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);return;}
-        if("SALE".equals(type)){if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Sale document not found","The linked Sale no longer has a usable invoice number.");return;}SalesScreenContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml");return;}
-        if("PURCHASE".equals(type)){if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Purchase document not found","The linked Purchase no longer has a usable invoice number.");return;}PurchaseScreenContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/PurchasePayment.fxml");return;}
+        if("SALE".equals(type)){if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Sale document not found","The linked Sale no longer has a usable invoice number.");return;}SalesScreenContext.select(documentNo);DashboardController.navigateFromChild("Sales Register","/fxml/pages/SalesList.fxml",null);return;}
+        if("PURCHASE".equals(type)){if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Purchase document not found","The linked Purchase no longer has a usable invoice number.");return;}PurchaseScreenContext.select(documentNo);DashboardController.navigateFromChild("Purchase Register","/fxml/pages/PurchaseList.fxml",null);return;}
         if("PURCHASE_RECON".equals(type)){if(id==null){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Purchase Recon not found","The linked Purchase Recon no longer has a usable record id.");return;}PurchaseReconScreenContext.select(id);DashboardController.navigateFromChild("Purchase Recon","/fxml/pages/PurchaseRecon.fxml",null);return;}
         if("SALES_RETURN".equals(type)||"PURCHASE_RETURN".equals(type)){if(documentNo.isBlank()){new OwnedAlert(Alert.AlertType.WARNING,"The linked Return record no longer has a document number.").showAndWait();return;}ReturnRefundContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");return;}
         if(row!=null)audit(row);else new OwnedAlert(Alert.AlertType.INFORMATION,"The linked record type is not available for direct navigation.").showAndWait();
@@ -1075,23 +1138,40 @@ public class BankStatementController implements ScreenLifecycle {
                 allTx = api.transactions(batch.id().longValue());
             }
             List<AutoMatchItem> items = new ArrayList<>();
-            for (var tx : allTx) {
+            List<BankStatementApiClient.TransactionDto> scanTargets = allTx.stream().filter(tx -> {
                 String st = tx.status() == null ? "" : tx.status().toUpperCase(Locale.ROOT);
-                if ("MATCHED".equals(st) || "EXPENSE".equals(st) || "IGNORED".equals(st)) continue;
-                try {
-                    List<BankStatementApiClient.CandidateDto> candidates = api.candidates(tx.id().longValue());
-                    if (candidates != null && !candidates.isEmpty()) {
-                        var top = candidates.getFirst();
-                        if (top.confidence() >= 70.0) {
-                            items.add(new AutoMatchItem(tx, top));
-                        }
-                    }
-                } catch (Exception ignored) { }
+                return !Set.of("MATCHED", "EXPENSE", "IGNORED").contains(st);
+            }).toList();
+
+            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(Math.min(8, Math.max(1, scanTargets.size())));
+            try {
+                List<java.util.concurrent.CompletableFuture<Void>> futures = new ArrayList<>();
+                for (var tx : scanTargets) {
+                    futures.add(java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        try {
+                            List<BankStatementApiClient.CandidateDto> candidates = api.candidates(tx.id().longValue());
+                            if (candidates != null && !candidates.isEmpty()) {
+                                var top = candidates.getFirst();
+                                double bankAmt = bankAmount(tx);
+                                double diff = Math.abs(top.outstanding() - bankAmt);
+                                if (top.confidence() >= 70.0 || diff <= 1.00 || (candidates.size() == 1 && top.confidence() >= 40.0)) {
+                                    synchronized (items) {
+                                        items.add(new AutoMatchItem(tx, top));
+                                    }
+                                }
+                            }
+                        } catch (Exception ignored) { }
+                    }, pool));
+                }
+                java.util.concurrent.CompletableFuture.allOf(futures.toArray(new java.util.concurrent.CompletableFuture[0])).join();
+            } finally {
+                pool.shutdown();
             }
+            items.sort((a, b) -> Double.compare(b.candidate.confidence(), a.candidate.confidence()));
             return items;
         }, items -> {
             if (items.isEmpty()) {
-                info("No Auto-Match Suggestions", "No high-confidence (>=70%) suggestions found for this statement batch.");
+                info("No Auto-Match Suggestions", "No eligible auto-match suggestions found for this statement batch.\nTry adjusting reconciliation filters or review unallocated bank entries.");
                 return;
             }
             showBulkAutoMatchDialog(items);

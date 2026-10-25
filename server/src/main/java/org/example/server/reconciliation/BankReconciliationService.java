@@ -29,6 +29,10 @@ public class BankReconciliationService {
   if(r==null||blank(r.bankAccount())||blank(r.sourceFingerprint()))throw new IllegalArgumentException("Bank account and source fingerprint are required.");
   var prior=imports.findBySourceFingerprint(r.sourceFingerprint());
   if(prior.isPresent()){BankStatementImportEntity existing=prior.get();return new BankReconciliationDtos.ImportResult(batch(existing),0,nv(existing.getTransactionCount()),true);}
+  if(!blank(r.bankAccount())&&!blank(r.statementFrom())&&!blank(r.statementTo())){
+   var periodDupes=imports.findByBankAccountAndPeriod(r.bankAccount().trim(),r.statementFrom().trim(),r.statementTo().trim());
+   if(!periodDupes.isEmpty()){BankStatementImportEntity existing=periodDupes.getFirst();return new BankReconciliationDtos.ImportResult(batch(existing),0,nv(existing.getTransactionCount()),true);}
+  }
   if(r.dryRun()){
    int ready=0,dupes=0;Set<String> seen=new HashSet<>();
    if(r.rows()!=null)for(var row:r.rows()){validateStatementRow(row);String fp=safe(row.transactionFingerprint()).trim();if(fp.isBlank()||!seen.add(fp)||txs.existsByTransactionFingerprint(fp)){dupes++;continue;}ready++;}

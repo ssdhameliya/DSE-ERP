@@ -986,8 +986,17 @@
 .bank-recon-main-panel {
 -fx-padding: 0;
 }
-.bank-recon-table {
--fx-fixed-cell-size: 42px;
+.bank-recon-table .table-row-cell {
+    -fx-cell-size: -1;
+}
+.bank-table-wrapped-text {
+    -fx-fill: #e2e8f0;
+    -fx-font-size: 12px;
+}
+.bank-table-ref-text {
+    -fx-fill: #38bdf8;
+    -fx-font-family: 'JetBrains Mono', 'Consolas', monospace;
+    -fx-font-weight: 700;
 }
 .bank-recon-table .column-header-background, .bank-recon-table .column-header, .bank-recon-table .filler {
 -fx-min-height: 36px;

@@ -62,6 +62,8 @@
                     <StackPane styleClass="email-transmission-sig-thumb-holder" minWidth="70" minHeight="36" prefWidth="80" prefHeight="38">
                         <ImageView fx:id="imgSignatureThumb" fitHeight="34" fitWidth="76" preserveRatio="true" smooth="true"/>
                     </StackPane>
+                    <Button fx:id="btnPreviewSignature" text="Preview Signature" onAction="#previewSignature"
+                            styleClass="email-transmission-preview-btn"/>
                     <Label text="SIGNATURE" styleClass="email-transmission-sig-badge"/>
                 </HBox>
 
