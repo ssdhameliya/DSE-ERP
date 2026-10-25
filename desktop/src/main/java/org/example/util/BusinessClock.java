@@ -117,6 +117,44 @@ public final class BusinessClock {
         return text;
     }
 
+    /**
+     * Parses ISO, Indian, UK, Excel and legacy date strings into a LocalDate, returning null if invalid.
+     */
+    public static LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) return null;
+        String text = value.trim();
+        String candidate = text.length() > 10 && (text.contains(" ") || text.contains("T")) ? text.substring(0, 10) : text;
+        List<DateTimeFormatter> parsers = new ArrayList<>();
+        try {
+            String dp = datePattern();
+            if (dp != null && !dp.isBlank()) {
+                parsers.add(DateTimeFormatter.ofPattern(dp, Locale.ENGLISH));
+            }
+        } catch (Exception ignored) {}
+        parsers.addAll(List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("d/M/uuuu"),
+                DateTimeFormatter.ofPattern("dd/MM/uuuu"),
+                DateTimeFormatter.ofPattern("dd-MM-uuuu"),
+                DateTimeFormatter.ofPattern("d-M-uuuu"),
+                DateTimeFormatter.ofPattern("MM/dd/uuuu"),
+                DateTimeFormatter.ofPattern("M/d/uuuu"),
+                DateTimeFormatter.ofPattern("uuuu/MM/dd"),
+                DateTimeFormatter.ofPattern("dd-MMM-uuuu", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("d-MMM-uuuu", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("dd MMM uuuu", Locale.ENGLISH),
+                DateTimeFormatter.ofPattern("d MMM uuuu", Locale.ENGLISH)));
+        for (DateTimeFormatter parser : parsers) {
+            try {
+                return LocalDate.parse(candidate, parser);
+            } catch (DateTimeParseException ignored) { }
+            try {
+                return LocalDate.parse(text, parser);
+            } catch (DateTimeParseException ignored) { }
+        }
+        return null;
+    }
+
     public static String timePattern() {
         String configured = ConfigManager.runtimeBusinessTimeFormat();
         if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.timeFormat", "hh:mm a");
@@ -196,33 +234,5 @@ public final class BusinessClock {
             } catch (DateTimeParseException ignored) { }
         }
         return text;
-    }
-
-    /** Parses text dates using the saved date format first, then safe compatibility formats. */
-    public static LocalDate parseDate(String value) {
-        if (value == null || value.isBlank()) return null;
-        String text = value.trim();
-        Set<String> patterns = new LinkedHashSet<>();
-        patterns.add(datePattern());
-        patterns.add("yyyy-MM-dd");
-        patterns.add("dd/MM/yyyy");
-        patterns.add("d/M/yyyy");
-        patterns.add("MM/dd/yyyy");
-        patterns.add("M/d/yyyy");
-        patterns.add("dd-MM-yyyy");
-        patterns.add("d-M-yyyy");
-        patterns.add("dd MMM yyyy");
-        patterns.add("d MMM yyyy");
-        patterns.add("dd-MMM-yyyy");
-        patterns.add("d-MMM-yyyy");
-        List<String> attempted = new ArrayList<>();
-        for (String pattern : patterns) {
-            try {
-                attempted.add(pattern);
-                return LocalDate.parse(text, DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH));
-            } catch (DateTimeParseException | IllegalArgumentException ignored) { }
-        }
-        try { return LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE); } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
-        throw new IllegalArgumentException("Invalid date: " + value + " (expected " + datePattern() + " or a supported Excel date format)");
     }
 }

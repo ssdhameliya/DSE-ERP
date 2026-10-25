@@ -6,22 +6,13 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.EmailTransmissionDialog"
-            prefWidth="720" prefHeight="760" minWidth="620" minHeight="560"
+            prefWidth="860" prefHeight="780" minWidth="760" minHeight="620"
             styleClass="entity-dialog,premium-entity-dialog,approved-ui">
-    <top>
-        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="entity-dialog-header,premium-dialog-header,approved-section-header">
-            <StackPane fx:id="headerIconHolder" minWidth="42" minHeight="42" prefWidth="42" prefHeight="42" styleClass="dialog-title-icon"/>
-            <VBox spacing="3" HBox.hgrow="ALWAYS">
-                <Label fx:id="lblTitle" text="Transmit Tax Invoice via Email" styleClass="entity-dialog-title,email-transmission-title"/>
-                <Label fx:id="lblSubtitle" text="Direct SMTP delivery to customer billing contact" styleClass="entity-dialog-subtitle"/>
-            </VBox>
-        </HBox>
-    </top>
     <center>
-        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="edge-to-edge,email-transmission-scroll">
+        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="edge-to-edge,email-transmission-scroll">
             <VBox spacing="14" styleClass="premium-dialog-content">
                 <padding>
-                    <Insets top="14" right="18" bottom="14" left="18"/>
+                    <Insets top="16" right="20" bottom="16" left="20"/>
                 </padding>
 
                 <!-- Recipient Email -->
@@ -49,7 +40,7 @@
                         <Region HBox.hgrow="ALWAYS"/>
                         <Label text="Fully rendered message &amp; signature" styleClass="page-subtitle,email-transmission-hint"/>
                     </HBox>
-                    <TextArea fx:id="txtBody" prefRowCount="12" minHeight="220" wrapText="true" styleClass="approved-input" VBox.vgrow="ALWAYS"/>
+                    <TextArea fx:id="txtBody" prefRowCount="10" minHeight="200" prefHeight="240" wrapText="true" styleClass="email-transmission-body-area" VBox.vgrow="ALWAYS"/>
                 </VBox>
 
                 <!-- Signature / Stamp Image Card (if configured) -->

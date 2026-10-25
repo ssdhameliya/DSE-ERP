@@ -513,3 +513,23 @@
     -fx-border-width: 1 0 0 0;
 }
 .email-transmission-send-btn { -fx-font-weight: bold; }
+.email-transmission-body-area {
+    -fx-font-family: 'Segoe UI', -apple-system, sans-serif;
+    -fx-font-size: 13px;
+    -fx-min-height: 200;
+    -fx-pref-height: 240;
+    -fx-background-color: #131a29;
+    -fx-border-color: #2a374d;
+    -fx-border-width: 1px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-text-fill: #f8fafc;
+    -fx-prompt-text-fill: #64748b;
+    -fx-padding: 10 12;
+}
+.email-transmission-body-area:focused {
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
+}

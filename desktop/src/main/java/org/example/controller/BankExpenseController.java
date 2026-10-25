@@ -22,6 +22,7 @@ import org.example.api.bank.BankStatementApiClient;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
+import org.example.util.ToastManager;
 import org.example.util.UiTaskExecutor;
 import org.example.util.RegisterDetailDrawer;
 
@@ -51,7 +52,7 @@ public class BankExpenseController implements ScreenLifecycle {
     }
 
     @FXML private Label lblTitle, lblSubtitle, formTitle, listTitle;
-    @FXML private Button btnBankMode, btnExpenseMode, btnBankRecon, saveButton, addButton, btnResetFilters, btnRefreshEntries;
+    @FXML private Button btnBankMode, btnExpenseMode, btnBankRecon, saveButton, addButton, btnResetFilters, btnRefreshEntries, btnExportExcel;
     @FXML private Label kpi1Icon,kpi1Label,kpi1Value,kpi1Note,kpi2Icon,kpi2Label,kpi2Value,kpi2Note,kpi3Icon,kpi3Label,kpi3Value,kpi3Note,kpi4Icon,kpi4Label,kpi4Value,kpi4Note;
     @FXML private DatePicker entryDate, filterFrom, filterTo;
     @FXML private VBox bankOnlyFields, expenseOnlyFields, billBox, entryFormPanel;
@@ -110,6 +111,7 @@ public class BankExpenseController implements ScreenLifecycle {
         if(financeSearchIcon!=null)financeSearchIcon.getChildren().setAll(IconFactory.compactIcon("search",14));
         if(btnResetFilters!=null)btnResetFilters.setGraphic(IconFactory.compactIcon("reset",14));
         if(btnRefreshEntries!=null)btnRefreshEntries.setGraphic(IconFactory.compactIcon("refresh",14));
+        if(btnExportExcel!=null)btnExportExcel.setGraphic(IconFactory.compactIcon("excel",14));
         LocalDate today=BusinessClock.today();
         org.example.util.RegisterUiSupport.setCurrentYearRange(filterFrom,filterTo,today);
         if(filterFrom!=null)filterFrom.valueProperty().addListener((o,a,b)->applyFilters());
@@ -383,6 +385,38 @@ public class BankExpenseController implements ScreenLifecycle {
         LocalDate today=BusinessClock.today();
         org.example.util.RegisterUiSupport.setCurrentYearRange(filterFrom,filterTo,today);
         currentPage=0;reloadRows();
+    }
+    @FXML private void exportExcel(){
+        if(table.getItems().isEmpty()){
+            ToastManager.info(table,"Export Excel","No entries to export.");
+            return;
+        }
+        FileChooser chooser=new FileChooser();
+        chooser.setInitialFileName((mode==Mode.BANK?"Bank_Entries":"Expense_Entries")+".xlsx");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files (*.xlsx)","*.xlsx"));
+        File file=chooser.showSaveDialog(table.getScene().getWindow());
+        if(file==null)return;
+        try(org.apache.poi.ss.usermodel.Workbook wb=new org.apache.poi.xssf.usermodel.XSSFWorkbook();java.io.FileOutputStream out=new java.io.FileOutputStream(file)){
+            org.apache.poi.ss.usermodel.Sheet sheet=wb.createSheet(mode==Mode.BANK?"Bank Entries":"Expense Entries");
+            String[] headers={"Date","Type / Category","Description","Account","Payment Mode","Amount","Reference","Match / Link"};
+            org.apache.poi.ss.usermodel.Row headerRow=sheet.createRow(0);
+            for(int i=0;i<headers.length;i++)headerRow.createCell(i).setCellValue(headers[i]);
+            int rowIdx=1;
+            for(EntryRow r:table.getItems()){
+                org.apache.poi.ss.usermodel.Row row=sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(BusinessClock.formatDate(r.date.get()));
+                row.createCell(1).setCellValue(r.type.get());
+                row.createCell(2).setCellValue(r.description.get());
+                row.createCell(3).setCellValue(r.account.get());
+                row.createCell(4).setCellValue(r.paymentMode.get());
+                row.createCell(5).setCellValue(r.amount.get());
+                row.createCell(6).setCellValue(r.reference.get());
+                row.createCell(7).setCellValue(r.match.get());
+            }
+            for(int i=0;i<headers.length;i++)sheet.autoSizeColumn(i);
+            wb.write(out);
+            ToastManager.success(table,"Export Completed","Exported "+table.getItems().size()+" entries to "+file.getName());
+        }catch(Exception ex){error(userMessage(ex));}
     }
     @FXML private void refreshWithFeedback(){
         explicitRefreshPending=true;

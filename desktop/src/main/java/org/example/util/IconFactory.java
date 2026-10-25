@@ -946,6 +946,8 @@ public final class IconFactory {
             case "transporter" -> "fas-truck-moving";
             case "vehicle" -> "fas-truck";
             case "ledger" -> "fas-book";
+            case "barcode" -> "fas-barcode";
+            case "wallet", "finance" -> "fas-wallet";
             case "automation" -> "fas-cogs";
             case "module" -> "fas-cubes";
             default -> "fas-question-circle";
@@ -960,10 +962,10 @@ public final class IconFactory {
             case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate", "approve", "publish" -> "green";
             case "export", "excel" -> "blue";
             case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "gstin", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle", "lock" -> "orange";
-            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "reset", "notes", "print", "application", "calendar", "audit", "archive", "duplicate" -> "purple";
+            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "reset", "notes", "print", "application", "calendar", "audit", "archive", "duplicate", "barcode" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit", "reject", "exit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email", "backup" -> "teal";
-            case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
+            case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron", "wallet", "finance" -> "blue";
             case "credit" -> "green";
             case "adjust", "bank", "delivery", "dispatch", "project", "update", "permission", "register", "draft", "restart", "workflow", "reconcile", "version" -> "purple";
             case "compatibility", "database-backup", "snapshot", "recovery" -> "blue";

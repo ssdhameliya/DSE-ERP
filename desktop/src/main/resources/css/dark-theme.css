@@ -806,8 +806,10 @@
     -fx-text-fill: white;
 }
 .finance-kpi-card {
--fx-spacing: 3px;
-    -fx-min-height: 86px;
+    -fx-spacing: 4px;
+    -fx-min-height: 98px;
+    -fx-pref-height: 104px;
+    -fx-padding: 10px 14px;
     -fx-border-width: 1px;
 }
 .finance-kpi-label {
@@ -5236,12 +5238,12 @@
 -fx-alignment: center-left;
 }
 .standard-kpi-card {
--fx-background-radius: 13px;
+    -fx-background-radius: 13px;
     -fx-border-radius: 13px;
     -fx-border-width: 1px;
-    -fx-min-height: 82px;
-    -fx-padding: 8 10;
-    -fx-pref-height: 84px;
+    -fx-min-height: 98px;
+    -fx-pref-height: 104px;
+    -fx-padding: 10px 14px;
 }
 .standard-kpi-card:hover {
 -fx-translate-y: -2px;
@@ -6178,9 +6180,9 @@
 -fx-padding: 8px;
 }
 .bank-recon-kpi {
--fx-min-height: 74px;
-    -fx-padding: 8px 10px;
-    -fx-pref-height: 78px;
+    -fx-min-height: 98px;
+    -fx-pref-height: 102px;
+    -fx-padding: 10px 12px;
 }
 .bank-recon-kpi-icon {
 -fx-min-height: 28px;
@@ -7876,15 +7878,15 @@
     -fx-effect: dropshadow(gaussian, rgba(59,130,246,.42), 12, .18, 0, 0);
 }
 .recon-register-page .recon-metric-row {
--fx-min-height: 82px;
-    -fx-pref-height: 82px;
+    -fx-min-height: 98px;
+    -fx-pref-height: 104px;
     -fx-spacing: 8px;
 }
 .recon-register-page .recon-metric-card {
--fx-min-width: 0;
-    -fx-min-height: 78px;
-    -fx-pref-height: 78px;
-    -fx-padding: 8px 10px;
+    -fx-min-width: 0;
+    -fx-min-height: 96px;
+    -fx-pref-height: 100px;
+    -fx-padding: 10px 12px;
     -fx-spacing: 8px;
     -fx-alignment: center-left;
 }
@@ -8169,12 +8171,15 @@
 -fx-max-width: 100%;
 }
 .bank-statement-history-popup-content {
--fx-padding: 14px;
-    -fx-min-width: 900px;
-    -fx-pref-width: 1040px;
-    -fx-max-width: 1180px;
-    -fx-min-height: 520px;
-    -fx-pref-height: 680px;
+    -fx-padding: 14;
+    -fx-min-width: 900;
+    -fx-pref-width: 1040;
+    -fx-max-width: 1180;
+    -fx-min-height: 520;
+    -fx-pref-height: 760;
+}
+.bank-statement-history-actions {
+    -fx-padding: 6 0 10 0;
 }
 .table-view .column-header .show-hide-columns-button {
 -fx-min-width: 34px;
@@ -17741,4 +17746,26 @@
     -fx-text-fill: #94a3b8;
     -fx-font-weight: 500;
 }
+
+.email-transmission-body-area {
+    -fx-font-family: 'Segoe UI', -apple-system, sans-serif;
+    -fx-font-size: 13px;
+    -fx-min-height: 200;
+    -fx-pref-height: 240;
+    -fx-background-color: #131a29;
+    -fx-border-color: #2a374d;
+    -fx-border-width: 1px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-text-fill: #f8fafc;
+    -fx-prompt-text-fill: #64748b;
+    -fx-padding: 10 12;
+}
+.email-transmission-body-area:focused {
+    -fx-border-color: #818cf8;
+    -fx-border-width: 2px;
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
+}
+
 

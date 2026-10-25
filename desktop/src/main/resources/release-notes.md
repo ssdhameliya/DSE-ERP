@@ -1,25 +1,23 @@
-# What's New in DSE ERP v11.0.4
+# What's New in DSE ERP v11.0.5
 
-### Auto-Match Suggestions Review & Fast Discovery
-- **Real-Time Live Discovery Dialog**: Clicking "Auto Match Suggestions" instantly launches the interactive review dialog with live progress, eliminating background delays.
-- **Enhanced Match Heuristics**: Expanded discovery rules to surface exact monetary matches alongside high-confidence candidates, ensuring no eligible reconciliation opportunity is missed.
+### Recon Supplier Records Drill-Down & Multi-Link Navigation
+- **Interactive Record Count Drill-Down**: Clicking the linked record count in the Recon Supplier table launches the comprehensive `ReconSupplierRecordsDialog` showing all matching `PurchaseRecon` records.
+- **Dynamic Popup Geometry & Formatting**: Adheres to centralized UI rules with themed column icons, right-aligned currency formatting, responsive column widths, and direct multi-link pills to navigate directly to linked Bank Statement or Bank Expense transactions.
+- **Dedicated Toolbar with Search & Excel Export**: Features a live filter search bar with search icon, instant Reset button, and one-click Excel (.xlsx) export.
 
-### Dynamic Table Layout & Full Text Wrapping
-- **Dynamic Narration & Reference Wrapping**: Table text cells dynamically wrap multi-line text instead of truncating with ellipses, enabling full visibility of extended bank narrations.
-- **Compact Selection Checkbox**: Streamlined the record selection column width across Bank Statement and Reconciliation tables, eliminating awkward whitespace.
+### Auto-Generated Supplier Reference
+- **Deterministic Read-Only Reference**: Creating a new Recon Supplier automatically fetches the next sequential supplier code (e.g. `RS-0001`, `RS-0002`) from the backend.
+- **Enforced Immutability**: The reference field is locked as read-only to prevent manual typos or conflicting references.
 
-### High-Contrast Themed KPI Cards
-- **Vibrant Accent Colors**: All metric cards in Bank Statement, Bank Entry, and Expense Entry now render in high-contrast thematic colors (Cyan, Emerald Green, Coral Red, Amber, and Purple).
-- **Responsive Sizing & Spacing**: Increased value font sizes to 19px with dedicated vertical spacing to eliminate overlapping notes and cramped captions.
+### Centralized Operational Standards Across Registers
+- **Recon Supplier Table Upgrades**: Integrated search icon, dedicated Reset button, Excel export button, and standard pagination footer with dynamic "Showing X to Y of Z entries" counter matching Bank Statement.
+- **Purchase Recon & Bank Expense Enhancements**: Added standard Reset filters and Excel workbook export across both registers.
 
-### Universal Navigation & Record Isolation
-- **Direct Register Routing**: Clicking linked document numbers in Bank Statement navigates directly to Sales Register, Purchase Register, or Reconciliation detail views.
-- **Isolated Target Record**: Pre-fills register filters and isolates solely the selected document in view rather than leaving hundreds of unrelated records on screen.
+### Bank Statement Auto-Match Tolerance & Scanning Improvements
+- **Auto-Match Tolerance Fix**: Resolved matching failures for amounts within configured decimal tolerance (e.g., ₹0.10 round-off differences) by allocating exact bank transaction amounts during auto-reconciliation.
+- **Animated Scanning Progress**: Embedded real-time scanning feedback within `LiveOperationDialog` with rotating progress and live transaction status counters.
+- **Browse Statements Dialog Optimization**: Resolved button clipping on the Bank Statement History popup by establishing adaptive screen bounds, dynamic table height flexibility, and bottom action button clearance.
 
-### Email Transmission Viewport & Signature Preview
-- **Instant Body Viewport Rendering**: Resolved JavaFX TextArea layout pass timing, ensuring email message bodies render immediately on dialog launch without requiring keypresses or clicks.
-- **Dedicated Signature Preview**: Added signature / stamp card preview dialog to inspect company stamps prior to client transmission.
-
-### Duplicate Statement Prevention & Cleanup
-- **Strict Duplicate Detection**: Server and client guard against duplicate statement imports for identical accounts and overlapping date periods.
-- **Instant Deletion UI Reset**: Deleting a statement immediately clears all visible transactions and metric counters from the screen.
+### Workspace & Dialog Layout Fixes
+- **Email Transmission Dialog**: Restored the Message Body field to a full-height multi-line `TextArea` by correcting JavaFX CSS dimension specifications, enabling `fitToHeight` expansion, and enforcing minimum bounds.
+- **Purchase Recon Records Dialog**: Eliminated horizontal clipping on right-side toolbar buttons (`Reset`, `Export Excel`) and table columns (`Linked Documents`, `Notes`) via `DynamicTableLayoutManager` installation and responsive column width compaction.

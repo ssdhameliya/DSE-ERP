@@ -31,10 +31,13 @@ public class PurchaseReconService {
 
     @Transactional(readOnly=true)
     public List<PurchaseReconDtos.SupplierDto> suppliers(){return searchSuppliers("",40);}
+    public String nextSupplierReference(){return nextReconSupplierReference();}
     @Transactional(readOnly=true)
     public List<PurchaseReconDtos.SupplierDto> searchSuppliers(String q,int limit){CurrentUser.requirePermission("RECON_SUPPLIER.VIEW","View Recon Suppliers");int safeLimit=Math.max(10,Math.min(limit,100));String query=safe(q).trim();Map<Integer,Long> counts=new HashMap<>();jdbc.query("SELECT recon_supplier_id,COUNT(*) FROM purchase_recon GROUP BY recon_supplier_id",r->{counts.put(r.getInt(1),r.getLong(2));});return suppliers.search(query,PageRequest.of(0,safeLimit)).stream().map(x->supplierDto(x,counts.getOrDefault(x.getId(),0L))).toList();}
     @Transactional(readOnly=true)
     public PurchaseReconDtos.SupplierDto supplier(Integer id){CurrentUser.requirePermission("RECON_SUPPLIER.VIEW","View Recon Suppliers");var entity=suppliers.findById(id).orElseThrow(()->new IllegalArgumentException("Recon Supplier not found."));return supplierDto(entity,recons.countByReconSupplier_Id(id));}
+    @Transactional(readOnly=true)
+    public List<PurchaseReconDtos.ReconDto> reconsForSupplier(Integer supplierId){CurrentUser.requirePermission("PURCHASE_RECON.VIEW","View Purchase Recon");if(supplierId==null)return List.of();return recons.findByReconSupplier_IdOrderByInvoiceDateDescIdDesc(supplierId).stream().map(this::reconDto).toList();}
     @Transactional
     public void deleteSupplier(Integer id){CurrentUser.requirePermission("RECON_SUPPLIER.DELETE","Delete Recon Supplier");var entity=suppliers.findById(id).orElseThrow(()->new IllegalArgumentException("Recon Supplier not found."));long used=recons.countByReconSupplier_Id(id);if(used>0)throw new IllegalStateException("This Recon Supplier is used by "+used+" Purchase Recon record(s) and cannot be deleted.");suppliers.delete(entity);audit.log("RECON_SUPPLIER",id,"DELETED",entity.getReconSupplierRef()+" • "+entity.getLegalName());}
 
