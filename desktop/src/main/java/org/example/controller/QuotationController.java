@@ -131,24 +131,47 @@ private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final
          },err->error(asException(err)));
  }
  private void sendEmail(QuoteRow q){
-  if(q.email.isBlank()){error(new IllegalStateException("Customer email is missing"));return;}
-  LiveOperationDialog.run(table,"Sending Quotation Email","email","Preparing quotation document...",reporter->{
-   reporter.stage(1,3,"Generating branded quotation PDF...");
-   Path pdf=quotePdf(q);
-   reporter.stage(2,3,"Connecting to SMTP and sending email to "+q.email+"...");
-   LocalDate qDate=null; try{if(q.date!=null&&!q.date.get().isBlank())qDate=LocalDate.parse(q.date.get());}catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
-   MessageTemplateService.FormattedMessage msg=MessageTemplateService.formatQuotationEmail(q.no.get(),q.customer.get(),qDate,q.amount.get());
-   EmailService.send(q.email,msg.subject(),msg.body(),pdf);
-   reporter.stage(3,3,"Recording communication history...");
-   quotationApi.markSent(q.id,"EMAIL",q.rowVersion);
-   comm(q,"EMAIL",q.email,"SENT",null);
-  },()->{
-   refresh();
-   org.example.util.ToastManager.success(table,"Quotation emailed","Quotation "+q.no.get()+" sent successfully to "+q.email+".");
-  },e->{
-   comm(q,"EMAIL",q.email,"FAILED",e.getMessage());
-   error(asException(e));
-  });
+  if(q == null) return;
+  UiTaskExecutor.submitAction("quotation-prepare-email-" + q.id, () -> {
+   Path pdf = quotePdf(q);
+   LocalDate qDate = null;
+   try {
+       if (q.date != null && !q.date.get().isBlank()) qDate = LocalDate.parse(q.date.get());
+   } catch (Exception ignored) { }
+   MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatQuotationEmail(q.no.get(), q.customer.get(), qDate, q.amount.get());
+   String sigImg = MessageTemplateService.getSignatureImagePath();
+   Path sigPath = (sigImg != null && !sigImg.isBlank()) ? Path.of(sigImg) : null;
+   return new EmailTransmissionDialog.EmailDraft(
+           "Transmit Quotation via Email",
+           "Direct SMTP delivery to customer contact",
+           "Quotation",
+           q.no.get(),
+           q.email == null ? "" : q.email.trim(),
+           msg.subject(),
+           msg.body(),
+           pdf,
+           sigPath
+   );
+  }, draft -> {
+   Optional<EmailTransmissionDialog.TransmissionResult> opt = EmailTransmissionDialog.show(table, draft);
+   if(opt.isEmpty()) return;
+   EmailTransmissionDialog.TransmissionResult result = opt.get();
+   LiveOperationDialog.run(table,"Sending Quotation Email","email","Connecting to SMTP server...",reporter->{
+    reporter.stage(1,3,"Connecting to SMTP and transmitting email to "+result.recipientEmail()+"...");
+    EmailService.send(result.recipientEmail(),result.subject(),result.body(),result.attachmentPdf(),result.signatureImage());
+    reporter.stage(2,3,"Recording communication history in audit register...");
+    quotationApi.markSent(q.id,"EMAIL",q.rowVersion);
+    comm(q,"EMAIL",result.recipientEmail(),"SENT",null);
+    reporter.stage(3,3,"Email delivery complete.");
+    reporter.log("Delivered quotation #"+q.no.get()+" to "+result.recipientEmail());
+   },()->{
+    refresh();
+    org.example.util.ToastManager.success(table,"Quotation emailed","Quotation "+q.no.get()+" sent successfully to "+result.recipientEmail()+".");
+   },e->{
+    comm(q,"EMAIL",result.recipientEmail(),"FAILED",e.getMessage());
+    error(asException(e));
+   });
+  }, failure -> error(asException(failure)));
  }
  @FXML private void attachSelected(){QuoteRow q=req();if(q==null)return;FileChooser chooser=new FileChooser();chooser.setTitle("Attach quotation document");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documents","*.pdf","*.png","*.jpg","*.jpeg","*.doc","*.docx","*.xls","*.xlsx","*.csv","*.txt"));File file=chooser.showOpenDialog(table.getScene().getWindow());if(file==null)return;Path path=file.toPath();UiTaskExecutor.submitAction("quotation-attachment-upload-"+q.id,()->supportApi.uploadDocumentAttachment("QUOTATION",q.id,path),attachment->{q.attachment=attachment;updateAttachmentActions(q);log(q.id,"ATTACHMENT","Quotation attachment added/replaced");success("Quotation attachment saved.");},failure->error(asException(failure)));}
  @FXML private void previewAttachmentSelected(){QuoteRow q=req();if(q==null)return;if(q.attachment==null||q.attachment.isBlank()){info("No quotation attachment is available.");updateAttachmentActions(q);return;}UiTaskExecutor.submitLatest("quotation-attachment-preview-"+q.id,()->materializeQuotationAttachment(supportApi.documentAttachment("QUOTATION",q.id)),target->{try{java.awt.Desktop.getDesktop().open(target.toFile());}catch(Exception e){error(e);}},failure->error(asException(failure)));}

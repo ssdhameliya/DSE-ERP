@@ -32,8 +32,11 @@ import org.example.util.SemanticTableCells;
 import org.example.util.RegisterPageState;
 import org.example.util.RegisterUiSupport;
 import org.example.util.ScreenRefreshPolicy;
+import org.example.service.MessageTemplateService;
+import org.example.util.LiveOperationDialog;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -283,13 +286,37 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("sales-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" cancelled.");org.example.util.ToastManager.success(table,"Return cancelled",row.no()+" was cancelled successfully.");load();},failure->error(asException(failure))); }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("sales-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");org.example.util.ToastManager.success(table,"Return deleted",row.no()+" was removed from the register; the audit record was retained.");load();},failure->error(asException(failure))); }
     private void email(Row row) {
-        if(row==null)return;
-        UiTaskExecutor.submitAction("sales-return-email-" + row.no(), () -> {
-            String recipient=partyEmail(row.no());
-            if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return.");
-            EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",ManagedInvoicePdfService.refund(row.no(),true));
-            return recipient;
-        }, recipient -> info("Sales return emailed to "+recipient+"."), failure -> error(asException(failure)));
+        if(row == null) return;
+        UiTaskExecutor.submitAction("sales-return-prepare-email-" + row.no(), () -> {
+            String recipient = partyEmail(row.no());
+            Path pdf = ManagedInvoicePdfService.refund(row.no(), true);
+            MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatSalesReturnEmail(row.no(), row.customer(), row.date(), row.amount());
+            String sigImg = MessageTemplateService.getSignatureImagePath();
+            Path sigPath = (sigImg != null && !sigImg.isBlank()) ? Path.of(sigImg) : null;
+            return new EmailTransmissionDialog.EmailDraft(
+                    "Transmit Sales Return via Email",
+                    "Direct SMTP delivery to customer billing contact",
+                    "Sales Return",
+                    row.no(),
+                    recipient == null ? "" : recipient.trim(),
+                    msg.subject(),
+                    msg.body(),
+                    pdf,
+                    sigPath
+            );
+        }, draft -> {
+            Optional<EmailTransmissionDialog.TransmissionResult> opt = EmailTransmissionDialog.show(table, draft);
+            if (opt.isEmpty()) return;
+            EmailTransmissionDialog.TransmissionResult result = opt.get();
+            LiveOperationDialog.run(table, "Sending Sales Return Email", "email", "Connecting to SMTP server...", reporter -> {
+                reporter.stage(1, 2, "Connecting to SMTP and transmitting email to " + result.recipientEmail() + "...");
+                EmailService.send(result.recipientEmail(), result.subject(), result.body(), result.attachmentPdf(), result.signatureImage());
+                reporter.stage(2, 2, "Email delivery complete.");
+                reporter.log("Delivered sales return note #" + row.no() + " to " + result.recipientEmail());
+            }, () -> {
+                info("Sales return #" + row.no() + " emailed successfully to " + result.recipientEmail() + ".");
+            }, failure -> error(new IllegalStateException("Email delivery failed:\n\n" + failure.getMessage(), failure)));
+        }, failure -> error(asException(failure)));
     }
     private Optional<String> input(String initial, String title, String prompt) {
         TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial == null ? "" : initial);

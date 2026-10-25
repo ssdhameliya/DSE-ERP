@@ -10,6 +10,7 @@ public final class SharedAssetBridge {
     public static final List<String> ASSET_KEYS = List.of(
             "company.logoPath",
             "company.signaturePath",
+            "email.signature.image",
             "payment.qrImagePath",
             "application.brandImagePath",
             "application.markImagePath"

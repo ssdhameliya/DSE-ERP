@@ -73,6 +73,7 @@ import java.io.File;
 import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
@@ -728,8 +729,10 @@ public class SettingsController implements ScreenLifecycle {
             var smtp = new org.example.api.authority.BusinessEmailClient().settings();
             return new EmailSettingsSnapshot(smtp.email(), "", smtp.host(), smtp.port() == null ? "587" : Integer.toString(smtp.port()), smtp.passwordConfigured(), true);
         }
-        return new EmailSettingsSnapshot(ConfigManager.getSmtpEmail(), ConfigManager.getSmtpPassword(),
-                ConfigManager.getSmtpHost(), ConfigManager.getSmtpPort(), false, true);
+        String pwd = ConfigManager.getSmtpPassword();
+        boolean hasPassword = pwd != null && !pwd.isBlank();
+        return new EmailSettingsSnapshot(ConfigManager.getSmtpEmail(), "",
+                ConfigManager.getSmtpHost(), ConfigManager.getSmtpPort(), hasPassword, true);
     }
 
     private void applySectionSnapshot(Section section, Object snapshot) {
@@ -2405,7 +2408,9 @@ private record AssetPreviewRequest(
             return;
         }
         putSetting("smtp.email", email);
-        putSetting("smtp.appPassword", password);
+        if (!password.isBlank()) {
+            putSetting("smtp.appPassword", password);
+        }
         putSetting("smtp.host", host);
         putSetting("smtp.port", Integer.toString(port));
     }
@@ -2557,7 +2562,17 @@ private record AssetPreviewRequest(
         Window owner = resolveAssetChooserOwner(imgSignaturePreview);
         File selected = chooser.showOpenDialog(owner);
         if (selected != null) {
-            selectedSignatureImagePath = selected.getAbsolutePath();
+            try {
+                Path assetsFolder = ConfigManager.getConfigurationFolder().resolve("assets");
+                Files.createDirectories(assetsFolder);
+                String name = selected.getName();
+                String ext = name.contains(".") ? name.substring(name.lastIndexOf(".")) : ".png";
+                Path dest = assetsFolder.resolve("email-signature" + ext);
+                Files.copy(selected.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
+                selectedSignatureImagePath = dest.toAbsolutePath().toString().replace('\\', '/');
+            } catch (Exception ex) {
+                selectedSignatureImagePath = selected.getAbsolutePath().replace('\\', '/');
+            }
             updateSignatureImagePreview(selectedSignatureImagePath);
         }
     }
@@ -2565,6 +2580,7 @@ private record AssetPreviewRequest(
     @FXML
     private void clearSignatureImage() {
         selectedSignatureImagePath = "";
+        putSetting("email.signature.image", "");
         updateSignatureImagePreview("");
     }
 

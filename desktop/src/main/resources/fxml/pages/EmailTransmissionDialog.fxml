@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.EmailTransmissionDialog"
+            prefWidth="640" prefHeight="650" minWidth="580" minHeight="520"
+            styleClass="entity-dialog,premium-entity-dialog,approved-ui">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="entity-dialog-header,premium-dialog-header,approved-section-header">
+            <StackPane fx:id="headerIconHolder" minWidth="42" minHeight="42" prefWidth="42" prefHeight="42" styleClass="dialog-title-icon"/>
+            <VBox spacing="3" HBox.hgrow="ALWAYS">
+                <Label fx:id="lblTitle" text="Transmit Tax Invoice via Email" styleClass="entity-dialog-title,email-transmission-title"/>
+                <Label fx:id="lblSubtitle" text="Direct SMTP delivery to customer billing contact" styleClass="entity-dialog-subtitle"/>
+            </VBox>
+        </HBox>
+    </top>
+    <center>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="edge-to-edge,email-transmission-scroll">
+            <VBox spacing="14" styleClass="premium-dialog-content">
+                <padding>
+                    <Insets top="14" right="18" bottom="14" left="18"/>
+                </padding>
+
+                <!-- Recipient Email -->
+                <VBox spacing="6">
+                    <HBox alignment="CENTER_LEFT" spacing="6">
+                        <Label text="Recipient Email Address *" styleClass="field-label,settings-form-label,email-transmission-field-bold"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="Direct delivery target" styleClass="page-subtitle,email-transmission-hint"/>
+                    </HBox>
+                    <TextField fx:id="txtRecipient" promptText="name@example.com" styleClass="approved-input"/>
+                    <Label fx:id="errRecipient" text="Valid recipient email address is required" visible="false" managed="false" styleClass="validation-message,email-transmission-error"/>
+                </VBox>
+
+                <!-- Subject -->
+                <VBox spacing="6">
+                    <Label text="Subject *" styleClass="field-label,settings-form-label,email-transmission-field-bold"/>
+                    <TextField fx:id="txtSubject" promptText="Enter email subject" styleClass="approved-input"/>
+                    <Label fx:id="errSubject" text="Email subject cannot be blank" visible="false" managed="false" styleClass="validation-message,email-transmission-error"/>
+                </VBox>
+
+                <!-- Message Body -->
+                <VBox spacing="6">
+                    <HBox alignment="CENTER_LEFT" spacing="6">
+                        <Label text="Message Body" styleClass="field-label,settings-form-label,email-transmission-field-bold"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="Fully rendered message &amp; signature" styleClass="page-subtitle,email-transmission-hint"/>
+                    </HBox>
+                    <TextArea fx:id="txtBody" prefRowCount="8" minHeight="130" wrapText="true" styleClass="approved-input"/>
+                </VBox>
+
+                <!-- Signature / Stamp Image Card (if configured) -->
+                <HBox fx:id="boxSignatureImage" alignment="CENTER_LEFT" spacing="12"
+                      styleClass="email-transmission-sig-box">
+                    <VBox spacing="3" HBox.hgrow="ALWAYS">
+                        <Label text="Company Signature / Stamp Attached" styleClass="email-transmission-sig-title"/>
+                        <Label fx:id="lblSignatureImageInfo" text="Appended automatically below message signature" styleClass="email-transmission-sig-info"/>
+                    </VBox>
+                    <StackPane styleClass="email-transmission-sig-thumb-holder" minWidth="70" minHeight="36" prefWidth="80" prefHeight="38">
+                        <ImageView fx:id="imgSignatureThumb" fitHeight="34" fitWidth="76" preserveRatio="true" smooth="true"/>
+                    </StackPane>
+                    <Label text="SIGNATURE" styleClass="email-transmission-sig-badge"/>
+                </HBox>
+
+                <!-- Document Attachment Box (Matching Web Parity) -->
+                <HBox fx:id="boxAttachment" alignment="CENTER_LEFT" spacing="12"
+                      styleClass="email-transmission-attach-box">
+                    <StackPane fx:id="attachIconHolder" minWidth="26" minHeight="26"/>
+                    <VBox spacing="2" HBox.hgrow="ALWAYS">
+                        <Label fx:id="lblAttachmentName" text="Tax_Invoice.pdf" styleClass="email-transmission-attach-name"/>
+                        <Label fx:id="lblAttachmentDesc" text="Official document PDF attached automatically" styleClass="email-transmission-attach-desc"/>
+                    </VBox>
+                    <Button fx:id="btnPreviewPdf" text="Preview PDF" onAction="#previewPdf"
+                            styleClass="email-transmission-preview-btn"/>
+                    <Label text="ATTACHED" styleClass="email-transmission-attached-badge"/>
+                </HBox>
+            </VBox>
+        </ScrollPane>
+    </center>
+    <bottom>
+        <HBox spacing="12" alignment="CENTER_RIGHT" styleClass="entity-dialog-actions,premium-dialog-actions,email-transmission-actions">
+            <Button fx:id="btnCancel" text="Cancel" onAction="#cancel" styleClass="secondary-button" cancelButton="true" prefHeight="36"/>
+            <Button fx:id="btnSend" text="Send Tax Invoice" onAction="#send" styleClass="primary-button,approved-primary-button,email-transmission-send-btn" defaultButton="true" prefHeight="36"/>
+        </HBox>
+    </bottom>
+</BorderPane>

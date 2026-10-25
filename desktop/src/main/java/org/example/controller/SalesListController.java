@@ -706,31 +706,46 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     }
     private void openExcel(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");Path excel=ExcelOutputService.sales(full);if(java.awt.Desktop.isDesktopSupported())java.awt.Desktop.getDesktop().open(excel.toFile());else info("Excel file created: "+excel);log("SALE",sale.getId(),"EXCEL_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
     private void sendEmail(Sales sale){
-        String recipient = sale.getCustomer() == null ? "" : safe(sale.getCustomer().getEmail()).trim();
-        LiveOperationDialog.run(tableSales, "Sending Sales Invoice Email", "email", "Loading sales invoice...", reporter -> {
-            reporter.stage(1, 4, "Loading sales invoice #" + sale.getInvoiceNo() + "...");
+        if (sale == null) return;
+        UiTaskExecutor.submitAction("sales-prepare-email-" + sale.getId(), () -> {
             Sales full = service.getByInvoice(sale.getInvoiceNo());
             if (full == null) throw new IllegalStateException("Sales invoice " + sale.getInvoiceNo() + " was not found. Refresh the register and try again.");
-            if (full.getCustomer() == null) throw new IllegalStateException("No customer is linked to " + full.getInvoiceNo() + ".");
-            String target = safe(full.getCustomer().getEmail()).trim();
-            if (target.isBlank()) throw new IllegalStateException("Customer email is missing for " + full.getCustomer().getName() + ". Update Customer Master and try again.");
-            reporter.stage(2, 4, "Generating invoice PDF...");
             Path pdf = ManagedInvoicePdfService.sales(full);
-            reporter.stage(3, 4, "Connecting to SMTP and sending email to " + target + "...");
             MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatSalesEmail(full);
-            EmailService.send(target, msg.subject(), msg.body(), pdf);
-            reporter.stage(4, 4, "Recording communication history...");
-            service.markEmailSent(full.getId());
-            communication("SALE", full.getId(), "EMAIL", target, msg.subject(), "SENT", null);
-            reporter.log("Email delivered to " + target);
-        }, () -> {
-            refresh();
-            info("Invoice emailed successfully to " + (recipient.isBlank() ? "customer" : recipient) + ".");
-        }, failure -> {
-            String target = sale.getCustomer() == null ? "" : safe(sale.getCustomer().getEmail());
-            communication("SALE", sale.getId(), "EMAIL", target, "Sales Invoice " + sale.getInvoiceNo(), "FAILED", "sending the email: " + rootMessage(failure));
-            error(new IllegalStateException("Email delivery failed:\n\n" + rootMessage(failure), failure));
-        });
+            String sigImg = MessageTemplateService.getSignatureImagePath();
+            Path sigPath = (sigImg != null && !sigImg.isBlank()) ? Path.of(sigImg) : null;
+            String target = full.getCustomer() == null ? "" : safe(full.getCustomer().getEmail()).trim();
+            return new EmailTransmissionDialog.EmailDraft(
+                    "Transmit Tax Invoice via Email",
+                    "Direct SMTP delivery to customer billing contact",
+                    "Tax Invoice",
+                    full.getInvoiceNo(),
+                    target,
+                    msg.subject(),
+                    msg.body(),
+                    pdf,
+                    sigPath
+            );
+        }, draft -> {
+            Optional<EmailTransmissionDialog.TransmissionResult> opt = EmailTransmissionDialog.show(tableSales, draft);
+            if (opt.isEmpty()) return;
+            EmailTransmissionDialog.TransmissionResult result = opt.get();
+            LiveOperationDialog.run(tableSales, "Sending Sales Invoice Email", "email", "Connecting to SMTP server...", reporter -> {
+                reporter.stage(1, 3, "Connecting to SMTP and transmitting email to " + result.recipientEmail() + "...");
+                EmailService.send(result.recipientEmail(), result.subject(), result.body(), result.attachmentPdf(), result.signatureImage());
+                reporter.stage(2, 3, "Recording communication status in audit register...");
+                service.markEmailSent(sale.getId());
+                communication("SALE", sale.getId(), "EMAIL", result.recipientEmail(), result.subject(), "SENT", null);
+                reporter.stage(3, 3, "Email delivery complete.");
+                reporter.log("Delivered tax invoice #" + sale.getInvoiceNo() + " to " + result.recipientEmail());
+            }, () -> {
+                refresh();
+                info("Invoice #" + sale.getInvoiceNo() + " emailed successfully to " + result.recipientEmail() + ".");
+            }, failure -> {
+                communication("SALE", sale.getId(), "EMAIL", result.recipientEmail(), result.subject(), "FAILED", "sending the email: " + rootMessage(failure));
+                error(new IllegalStateException("Email delivery failed:\n\n" + rootMessage(failure), failure));
+            });
+        }, failure -> error(new IllegalStateException("Failed to prepare email draft:\n\n" + rootMessage(failure), failure)));
     }
     private void sendWhatsapp(Sales sale){
         if(isApprovalLocked(sale)){warning("Admin approval is required before sharing this Sale document.");return;}
