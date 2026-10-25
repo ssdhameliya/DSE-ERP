@@ -414,3 +414,66 @@
     -fx-font-size: 11px;
     -fx-text-fill: #0f172a;
 }
+
+/* Email Transmission Dialog */
+.email-transmission-title { -fx-font-size: 16px; -fx-font-weight: bold; }
+.email-transmission-scroll { -fx-background-color: transparent; }
+.email-transmission-field-bold { -fx-font-weight: bold; }
+.email-transmission-hint { -fx-font-size: 11px; }
+.email-transmission-error { -fx-text-fill: #f87171; -fx-font-size: 11px; }
+.email-transmission-sig-box {
+    -fx-background-color: rgba(56, 189, 248, 0.08);
+    -fx-border-color: rgba(56, 189, 248, 0.25);
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 8 12;
+}
+.email-transmission-sig-title { -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #38bdf8; }
+.email-transmission-sig-info { -fx-font-size: 11px; -fx-text-fill: #94a3b8; }
+.email-transmission-sig-thumb-holder {
+    -fx-background-color: rgba(15, 23, 42, 0.6);
+    -fx-border-color: rgba(148, 163, 184, 0.2);
+    -fx-border-radius: 4;
+    -fx-padding: 2;
+}
+.email-transmission-sig-badge {
+    -fx-background-color: rgba(56, 189, 248, 0.2);
+    -fx-text-fill: #38bdf8;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 3 8;
+    -fx-background-radius: 4;
+}
+.email-transmission-attach-box {
+    -fx-background-color: rgba(56, 189, 248, 0.08);
+    -fx-border-color: rgba(56, 189, 248, 0.3);
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 10 14;
+}
+.email-transmission-attach-name { -fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: #38bdf8; }
+.email-transmission-attach-desc { -fx-font-size: 11px; -fx-text-fill: #94a3b8; }
+.email-transmission-preview-btn {
+    -fx-background-color: #6366f1;
+    -fx-text-fill: white;
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+    -fx-padding: 6 12;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+.email-transmission-preview-btn:hover { -fx-background-color: #4f46e5; }
+.email-transmission-attached-badge {
+    -fx-background-color: rgba(52, 211, 153, 0.2);
+    -fx-text-fill: #34d399;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 4 9;
+    -fx-background-radius: 4;
+}
+.email-transmission-actions {
+    -fx-padding: 14 18;
+    -fx-border-color: #1e293b;
+    -fx-border-width: 1 0 0 0;
+}
+.email-transmission-send-btn { -fx-font-weight: bold; }

@@ -32,6 +32,23 @@ public final class EmailService {
     }
 
     public static void send(String recipient, String subject, String body, Path attachment) {
+        send(recipient, subject, body, attachment, null);
+    }
+
+    public static void send(String recipient, String subject, String body, Path attachment, Path signatureImage) {
+        if (signatureImage == null) {
+            String configuredSig = MessageTemplateService.getSignatureImagePath();
+            if (configuredSig != null && !configuredSig.isBlank()) {
+                try {
+                    Path p = Path.of(configuredSig);
+                    if (Files.isRegularFile(p) && Files.isReadable(p)) {
+                        signatureImage = p;
+                    }
+                } catch (Exception ignored) {
+                    java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
+                }
+            }
+        }
         if (ConfigManager.isSharedClient()) {
             new org.example.api.authority.BusinessEmailClient().send(recipient, subject, body, attachment);
             return;
@@ -79,23 +96,78 @@ public final class EmailService {
             message.setFrom(new InternetAddress(sender));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient, true));
             message.setSubject(subject);
-            if (attachment == null) {
-                message.setText(body);
+
+            boolean hasSignatureImage = signatureImage != null && Files.isRegularFile(signatureImage) && Files.isReadable(signatureImage);
+            boolean hasAttachment = attachment != null && Files.isRegularFile(attachment) && Files.isReadable(attachment);
+
+            if (!hasSignatureImage && !hasAttachment) {
+                message.setContent(body == null ? "" : body, "text/plain; charset=UTF-8");
             } else {
-                var multipart = new jakarta.mail.internet.MimeMultipart();
-                var text = new jakarta.mail.internet.MimeBodyPart();
-                text.setText(body);
-                multipart.addBodyPart(text);
-                var file = new jakarta.mail.internet.MimeBodyPart();
-                file.attachFile(attachment.toFile());
-                multipart.addBodyPart(file);
-                message.setContent(multipart);
+                var rootMultipart = new jakarta.mail.internet.MimeMultipart("mixed");
+
+                if (hasSignatureImage) {
+                    var relatedMultipart = new jakarta.mail.internet.MimeMultipart("related");
+
+                    var htmlPart = new jakarta.mail.internet.MimeBodyPart();
+                    String htmlContent = formatHtmlEmailBody(body, true);
+                    htmlPart.setContent(htmlContent, "text/html; charset=UTF-8");
+                    relatedMultipart.addBodyPart(htmlPart);
+
+                    var imgPart = new jakarta.mail.internet.MimeBodyPart();
+                    imgPart.attachFile(signatureImage.toFile());
+                    imgPart.setContentID("<signatureImage>");
+                    imgPart.setHeader("Content-ID", "<signatureImage>");
+                    imgPart.setDisposition(jakarta.mail.Part.INLINE);
+                    String mimeType = Files.probeContentType(signatureImage);
+                    if (mimeType == null || mimeType.isBlank()) mimeType = "image/png";
+                    imgPart.setHeader("Content-Type", mimeType + "; name=\"" + signatureImage.getFileName() + "\"");
+                    relatedMultipart.addBodyPart(imgPart);
+
+                    var bodyWrapper = new jakarta.mail.internet.MimeBodyPart();
+                    bodyWrapper.setContent(relatedMultipart);
+                    rootMultipart.addBodyPart(bodyWrapper);
+                } else {
+                    var textPart = new jakarta.mail.internet.MimeBodyPart();
+                    textPart.setContent(body == null ? "" : body, "text/plain; charset=UTF-8");
+                    rootMultipart.addBodyPart(textPart);
+                }
+
+                if (hasAttachment) {
+                    var filePart = new jakarta.mail.internet.MimeBodyPart();
+                    filePart.attachFile(attachment.toFile());
+                    filePart.setFileName(attachment.getFileName().toString());
+                    filePart.setDisposition(jakarta.mail.Part.ATTACHMENT);
+                    rootMultipart.addBodyPart(filePart);
+                }
+
+                message.setContent(rootMultipart);
             }
             Transport.send(message);
         } catch (Exception e) {
             throw new RuntimeException(
                 "Email could not be sent using " + host + ".\n\n" + EmailFailureMessages.forAdministrator(e), e);
         }
+    }
+
+    public static String formatHtmlEmailBody(String plainText, boolean includeInlineSignatureImage) {
+        if (plainText == null) plainText = "";
+        String escaped = plainText
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\r\n", "\n")
+                .replace("\n", "<br/>\n");
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0; padding:12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b;\">");
+        sb.append("<div>").append(escaped).append("</div>");
+        if (includeInlineSignatureImage) {
+            sb.append("<div style=\"margin-top: 16px; margin-bottom: 8px;\">");
+            sb.append("<img src=\"cid:signatureImage\" alt=\"Signature / Stamp\" style=\"max-height: 90px; max-width: 260px; object-fit: contain; border: none; display: block;\" />");
+            sb.append("</div>");
+        }
+        sb.append("</body></html>");
+        return sb.toString();
     }
 
     private static String inferHost(String email) {

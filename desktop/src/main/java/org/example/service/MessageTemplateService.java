@@ -74,7 +74,17 @@ public final class MessageTemplateService {
     }
 
     public static String getSignatureImagePath() {
-        return ConfigManager.get("email.signature.image", "").trim();
+        String path = ConfigManager.get("email.signature.image", "").trim();
+        if (!path.isBlank()) {
+            java.io.File f = new java.io.File(path);
+            if (f.exists() && f.isFile()) return f.getAbsolutePath().replace('\\', '/');
+        }
+        String fallback = ConfigManager.get("company.signaturePath", "").trim();
+        if (!fallback.isBlank()) {
+            java.io.File f = new java.io.File(fallback);
+            if (f.exists() && f.isFile()) return f.getAbsolutePath().replace('\\', '/');
+        }
+        return path;
     }
 
     public static void setSignatureImagePath(String path) {
@@ -204,7 +214,12 @@ public final class MessageTemplateService {
             sale.getBalanceAmount()
         );
         String subject = format(getEmailSubject(DocumentType.SALES_INVOICE), tokens);
-        String body = format(getEmailBody(DocumentType.SALES_INVOICE), tokens);
+        String rawBody = getEmailBody(DocumentType.SALES_INVOICE);
+        String body = format(rawBody, tokens);
+        String signature = tokens.get("Signature");
+        if (signature != null && !signature.isBlank() && !rawBody.contains("{Signature}") && !body.contains(signature.trim())) {
+            body = body.stripTrailing() + "\n\n" + signature.trim();
+        }
         return new FormattedMessage(subject, body);
     }
 
@@ -218,7 +233,12 @@ public final class MessageTemplateService {
             purchase.getBalanceAmount()
         );
         String subject = format(getEmailSubject(DocumentType.PURCHASE_BILL), tokens);
-        String body = format(getEmailBody(DocumentType.PURCHASE_BILL), tokens);
+        String rawBody = getEmailBody(DocumentType.PURCHASE_BILL);
+        String body = format(rawBody, tokens);
+        String signature = tokens.get("Signature");
+        if (signature != null && !signature.isBlank() && !rawBody.contains("{Signature}") && !body.contains(signature.trim())) {
+            body = body.stripTrailing() + "\n\n" + signature.trim();
+        }
         return new FormattedMessage(subject, body);
     }
 
@@ -232,8 +252,40 @@ public final class MessageTemplateService {
             amount
         );
         String subject = format(getEmailSubject(DocumentType.QUOTATION), tokens);
-        String body = format(getEmailBody(DocumentType.QUOTATION), tokens);
+        String rawBody = getEmailBody(DocumentType.QUOTATION);
+        String body = format(rawBody, tokens);
+        String signature = tokens.get("Signature");
+        if (signature != null && !signature.isBlank() && !rawBody.contains("{Signature}") && !body.contains(signature.trim())) {
+            body = body.stripTrailing() + "\n\n" + signature.trim();
+        }
         return new FormattedMessage(subject, body);
+    }
+
+    public static FormattedMessage formatSalesReturnEmail(String returnNo, String partyName, LocalDate date, double amount) {
+        Map<String, String> tokens = buildTokens(
+            partyName == null || partyName.isBlank() ? "Customer" : partyName,
+            returnNo,
+            date,
+            amount,
+            0.0,
+            amount
+        );
+        String subject = format(getEmailSubject(DocumentType.SALES_RETURN), tokens);
+        String rawBody = getEmailBody(DocumentType.SALES_RETURN);
+        String body = format(rawBody, tokens);
+        String signature = tokens.get("Signature");
+        if (signature != null && !signature.isBlank() && !rawBody.contains("{Signature}") && !body.contains(signature.trim())) {
+            body = body.stripTrailing() + "\n\n" + signature.trim();
+        }
+        return new FormattedMessage(subject, body);
+    }
+
+    public static FormattedMessage formatSalesReturnEmail(String returnNo, String partyName, String dateStr, double amount) {
+        LocalDate parsed = null;
+        if (dateStr != null && !dateStr.isBlank()) {
+            try { parsed = LocalDate.parse(dateStr.trim()); } catch (Exception ignored) {}
+        }
+        return formatSalesReturnEmail(returnNo, partyName, parsed, amount);
     }
 
     public static String formatSalesWhatsapp(Sales sale) {

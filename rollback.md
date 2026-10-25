@@ -159,15 +159,30 @@ Once all local testing and builds are confirmed:
 ---
 
 ## 4. Rollback Verification Checklist
+ 
+- [x] Dev Workspace: Zero Vaadin classes in `server/src/main/java/org/example/server/webui/`.
+- [x] Dev Workspace: Zero Vaadin dependencies in `server/pom.xml`.
+- [x] Dev Workspace: `.mvn/maven.config` set to `-Drevision=11.0.0`.
+- [x] Maven: `.\mvnw.cmd test -pl server -am` passes with 0 failures (94 tests run, 0 failures).
+- [x] Maven: `.\mvnw.cmd package -DskipTests` produces valid `server.jar` and shaded desktop jar.
+- [x] Release Gates: `python scripts/audit-release-gates.py` reports `RELEASE_GATES_CURRENT_OK version=11.0.0` (all 32 gates passed).
+- [x] Web Client: `D:\ERP Website\admin\version.json` set to `11.0.0.01`.
+- [x] Web Client: Double-click `Preview Local Admin.bat` successfully launches HTML/JS admin portal.
+- [x] Protected Copies: `D:\JavaProject\DSE-ERP-Final` and `D:\GitHub\ReleaseSource` synced to `11.0.0`.
+- [x] Cloud Servers: Caddy restored to serve `/srv/dse-erp/web/admin` via `file_server` on both UAT and PROD.
+- [x] GitHub: PR #70 merged, tags `v11.0.0` and `web-v11.0.0.01` pushed.
+- [x] Live Deployments: Both UAT and Production web deployments succeeded 100%.
 
-- [ ] Dev Workspace: Zero Vaadin classes in `server/src/main/java/org/example/server/webui/`.
-- [ ] Dev Workspace: Zero Vaadin dependencies in `server/pom.xml`.
-- [ ] Dev Workspace: `.mvn/maven.config` set to `-Drevision=11.0.0`.
-- [ ] Maven: `.\mvnw.cmd test -pl server -am` passes with 0 failures.
-- [ ] Maven: `.\mvnw.cmd package -DskipTests` produces valid `server.jar` and shaded desktop jar.
-- [ ] Release Gates: `python scripts/audit-release-gates.py` reports `RELEASE_GATES_CURRENT_OK version=11.0.0`.
-- [ ] Web Client: `D:\ERP Website\admin\version.json` set to `11.0.0.01`.
-- [ ] Web Client: Double-click `Preview Local Admin.bat` successfully launches HTML/JS admin portal.
-- [ ] Protected Copies: `D:\JavaProject\DSE-ERP-Final` and `D:\GitHub\ReleaseSource` synced to `11.0.0`.
-- [ ] Cloud Servers: Caddy restored to serve `/srv/dse-erp/web/admin` via `file_server`.
-- [ ] GitHub: Tags `v11.0.0` and `web-v11.0.0.01` pushed.
+---
+
+## 5. Live Production & UAT Endpoints Verification
+
+| Service | Endpoint URL | Status | Details |
+|---|---|:---:|---|
+| **UAT Web Showcase** | `https://web-uat.jasviindustries.in` | **200 OK** | Global Digital Showcase Portal |
+| **UAT Admin Studio** | `https://erp-uat.jasviindustries.in` | **200 OK** | Jasvi Industries ERP — Centralized Enterprise Studio (`v11.0.0.01`) |
+| **UAT Backend REST API** | `https://erp-uat.jasviindustries.in/api/runtime/health` | **200 OK** | `{"service":"dse-erp-server","version":"11.0.0","ready":true,"environment":"UAT"}` |
+| **PROD Web Showcase** | `https://jasviindustries.in` | **200 OK** | Global Digital Showcase Portal |
+| **PROD Admin Studio** | `https://erp.jasviindustries.in` | **200 OK** | Jasvi Industries ERP — Centralized Enterprise Studio (`v11.0.0.01`) |
+| **PROD Backend REST API** | `https://erp.jasviindustries.in/api/runtime/health` | **200 OK** | `{"service":"dse-erp-server","version":"11.0.0","ready":true,"environment":"PROD"}` |
+

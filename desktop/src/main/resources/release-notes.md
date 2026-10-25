@@ -1,5 +1,11 @@
 # What's New in DSE ERP v11.0.0
 
+### Email Delivery & Signature Transmission
+- **Interactive Email Transmission Modal**: Added comprehensive email transmission modal with recipient, subject, fully editable message body, inline company signature/stamp thumbnail preview, and PDF attachment card with active **[Preview PDF]** launcher.
+- **SMTP Password Safeguard**: Fixed Settings save logic to preserve the configured SMTP App Password when editing signature blocks or uploading signature images.
+- **Inline Signature Image Support**: Upgraded `EmailService` with multipart/related inline CID image embedding and styled HTML bodies.
+- **Register Parity**: Integrated the transmission modal across Sales Invoices, Purchase Orders, Quotations, and Sales Returns.
+
 ### Pure Decoupled Architecture Rollback
 - **High-Performance REST Backend:** Restored clean Spring Boot backend architecture, eliminating embedded webui memory/CPU overhead.
 - **Unified Company Date Format:** Company Settings date format selections (such as `DD-MM-YYYY`, `YYYY-MM-DD`, `MM/DD/YYYY`, `DD MMM YYYY`) reliably apply across all generated PDFs (Sales Invoices, Quotations, Return Credit/Debit Notes, and Purchase Inward Bills).

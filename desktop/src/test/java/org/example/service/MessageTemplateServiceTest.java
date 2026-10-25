@@ -112,4 +112,33 @@ class MessageTemplateServiceTest {
         assertTrue(msg.body().contains("Hi Beta Co"));
         assertTrue(msg.body().contains("INV-CUSTOM-1"));
     }
+
+    @Test
+    void signatureBlockAppendedWhenNotExplicitInTemplate() {
+        MessageTemplateService.setEmailTemplate(
+            MessageTemplateService.DocumentType.SALES_INVOICE,
+            "Invoice {DocumentNo}",
+            "Dear {CustomerName},\nPlease find attached invoice."
+        );
+        ConfigManager.setWithoutSaving("email.signature", "Regards,\nBipin Patel\n+91 9999999999");
+        ConfigManager.save();
+
+        Sales sale = new Sales();
+        sale.setInvoiceNo("INV-SIG-TEST");
+        sale.setTotalAmount(500.0);
+        Party customer = new Party();
+        customer.setName("Gamma Traders");
+        sale.setCustomer(customer);
+
+        MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatSalesEmail(sale);
+        assertTrue(msg.body().contains("Regards,"));
+        assertTrue(msg.body().contains("Bipin Patel"));
+    }
+
+    @Test
+    void signatureImagePathRetrieval() {
+        ConfigManager.setWithoutSaving("email.signature.image", "assets/email-signature.png");
+        ConfigManager.save();
+        assertEquals("assets/email-signature.png", MessageTemplateService.getSignatureImagePath());
+    }
 }
