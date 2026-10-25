@@ -2,6 +2,7 @@ package org.example.controller;
 
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -22,11 +23,13 @@ import org.example.navigation.ScreenLifecycle;
 import org.example.service.SessionService;
 import org.example.service.LookupService;
 import org.example.service.PermissionService;
+import org.example.util.AppDialogRenderer;
 import org.example.util.BusinessClock;
 import org.example.util.DatePickerFormatter;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
+import org.example.util.LiveOperationDialog;
 import org.example.util.OwnedChoiceDialog;
 import org.example.util.OwnedTextInputDialog;
 import org.example.util.PopupTableWorkspace;
@@ -40,7 +43,8 @@ import java.util.*;
 
 public class BankStatementController implements ScreenLifecycle {
     @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon,historyIcon;
-    @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage,btnBrowseStatements,btnDeleteStatement,btnCloseHistory,btnHistoryPrev,btnHistoryNext,btnOpenStatement,btnHistoryDelete;
+    @FXML private VBox cardKpiTotal,cardKpiUnmatched,cardKpiSuggested,cardKpiMatched,cardKpiExpense;
+    @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage,btnBrowseStatements,btnDeleteStatement,btnCloseHistory,btnHistoryPrev,btnHistoryNext,btnOpenStatement,btnHistoryDelete,btnAutoMatch;
     @FXML private CheckBox chkSelectAll;
     @FXML private Button btnBulkReview,btnBulkIgnore,btnMoveExpense,btnMoveBankEntry;
     @FXML private ComboBox<BankStatementApiClient.BatchDto> cmbBatch;
@@ -106,7 +110,22 @@ public class BankStatementController implements ScreenLifecycle {
         cmbBatch.valueProperty().addListener((o,a,b)->{ updateDeleteButtons(); if(b!=null){applyBatchPeriod();currentPage=0;loadBatch(b.id());} });
         RealtimeSearchSupport.installRemote(txtSearch, () -> { if(!suppressFilterReload) resetPageAndLoad(); });
         RealtimeSearchSupport.installRemote(txtHistorySearch, () -> { historyPage=0; loadStatementHistory(); });
+        wireKpiCard(cardKpiTotal, "All Status");
+        wireKpiCard(cardKpiUnmatched, "UNMATCHED");
+        wireKpiCard(cardKpiSuggested, "SUGGESTED");
+        wireKpiCard(cardKpiMatched, "MATCHED");
+        wireKpiCard(cardKpiExpense, "EXPENSE");
         loadBatches();
+    }
+
+    private void wireKpiCard(VBox card, String statusValue) {
+        if (card == null) return;
+        card.setCursor(javafx.scene.Cursor.HAND);
+        card.setOnMouseClicked(e -> {
+            if (cmbStatus != null) {
+                cmbStatus.setValue(statusValue);
+            }
+        });
     }
 
     @Override public void onScreenShown(boolean reusedFromCache) {
@@ -128,10 +147,18 @@ public class BankStatementController implements ScreenLifecycle {
                 BankStatementApiClient.TransactionDto tx=(BankStatementApiClient.TransactionDto)result[0];
                 int index=(Integer)result[1];
                 suppressFilterReload=true;
-                try{cmbStatus.setValue("All Status");cmbDirection.setValue("All");txtSearch.clear();fromDate.setValue(null);toDate.setValue(null);currentPage=index/(cmbPageSize.getValue()==null?50:cmbPageSize.getValue());}
+                try{
+                    cmbStatus.setValue("All Status");
+                    cmbDirection.setValue("All");
+                    String ref = (tx.reference() != null && !tx.reference().isBlank()) ? tx.reference() : (target.documentNo() != null ? target.documentNo() : "");
+                    txtSearch.setText(ref);
+                    fromDate.setValue(null);
+                    toDate.setValue(null);
+                    currentPage=0;
+                }
                 finally{suppressFilterReload=false;}
                 loadBatches(tx.importId());
-                javafx.application.Platform.runLater(() -> {currentPage=index/(cmbPageSize.getValue()==null?50:cmbPageSize.getValue());loadBatch(tx.importId());});
+                javafx.application.Platform.runLater(() -> {currentPage=0;loadBatch(tx.importId());});
             },
             this::error);
     }
@@ -139,8 +166,10 @@ public class BankStatementController implements ScreenLifecycle {
     private void installIcons() {
         setIcon(pageIcon,"bank",24); setIcon(kpiTotalIcon,"document",18); setIcon(kpiUnmatchedIcon,"warning",18);
         setIcon(kpiSuggestedIcon,"link",18); setIcon(kpiMatchedIcon,"status",18); setIcon(kpiExpenseIcon,"payment",18);
-        setIcon(kpiCreditsIcon,"payment",18); setIcon(kpiDebitsIcon,"payment",18); setIcon(kpiReconciledIcon,"status",18);
+        setIcon(kpiCreditsIcon,"payment",18); setIcon(kpiDebitsIcon,"payment",18);
+        if(kpiReconciledIcon!=null) setIcon(kpiReconciledIcon,"status",18);
         setIcon(howIcon,"info",16); setIcon(historyIcon,"history",18);
+        if(btnAutoMatch!=null) btnAutoMatch.setGraphic(IconFactory.compactIcon("link",15));
         if(btnImport!=null) btnImport.setGraphic(IconFactory.compactIcon("import",16));
         if(btnBrowseStatements!=null) btnBrowseStatements.setGraphic(IconFactory.compactIcon("history",15));
         if(btnDeleteStatement!=null) btnDeleteStatement.setGraphic(IconFactory.compactIcon("delete",15));
@@ -456,7 +485,14 @@ public class BankStatementController implements ScreenLifecycle {
                 applyMetrics(loaded.metrics()); updatePageFooter();
                 if(pendingLinkedTransactionId!=null){
                     Row match=rows.stream().filter(r->Objects.equals(r.dto.id(),pendingLinkedTransactionId)).findFirst().orElse(null);
-                    if(match!=null){table.getSelectionModel().select(match);table.scrollTo(match);table.requestFocus();pendingLinkedTransactionId=null;org.example.navigation.DeepLinkSupport.pulse(table);}
+                    if(match!=null){
+                        table.getItems().setAll(match);
+                        table.getSelectionModel().select(match);
+                        table.scrollTo(match);
+                        table.requestFocus();
+                        pendingLinkedTransactionId=null;
+                        org.example.navigation.DeepLinkSupport.pulse(table);
+                    }
                 }
                 finishExplicitRefresh(true);
             },
@@ -473,7 +509,8 @@ public class BankStatementController implements ScreenLifecycle {
     private void applyMetrics(BankStatementApiClient.Metrics m){
         if(m==null){clearMetrics();return;}
         kpiTotal.setText(""+m.total());kpiUnmatched.setText(""+m.unmatched());kpiSuggested.setText(""+m.suggested());kpiMatched.setText(""+m.matched());kpiExpense.setText(""+m.expenses());
-        kpiCredits.setText(money(m.totalCredits()));kpiDebits.setText(money(m.totalDebits()));kpiReconciled.setText(String.format(Locale.ENGLISH,"%.1f%%",m.reconciledPercent()));
+        kpiCredits.setText(money(m.totalCredits()));kpiDebits.setText(money(m.totalDebits()));
+        if(kpiReconciled!=null) kpiReconciled.setText(String.format(Locale.ENGLISH,"%.1f%%",m.reconciledPercent()));
         lblProgressText.setText(m.reconciled()+" / "+m.total()+" reconciled");
         reconciliationProgress.setProgress(m.total()==0?0:m.reconciledPercent()/100d);
         lblBatchStatus.setText(m.batchStatus());
@@ -482,7 +519,8 @@ public class BankStatementController implements ScreenLifecycle {
 
     private void clearMetrics(){
         kpiTotal.setText("0");kpiUnmatched.setText("0");kpiSuggested.setText("0");kpiMatched.setText("0");kpiExpense.setText("0");
-        kpiCredits.setText("0.00");kpiDebits.setText("0.00");kpiReconciled.setText("0.0%");
+        kpiCredits.setText("0.00");kpiDebits.setText("0.00");
+        if(kpiReconciled!=null) kpiReconciled.setText("0.0%");
         lblProgressText.setText("0 / 0 reconciled");reconciliationProgress.setProgress(0);lblBatchStatus.setText("No statement selected");applyBatchStatusStyle("");
     }
 
@@ -1003,6 +1041,261 @@ public class BankStatementController implements ScreenLifecycle {
             total.set(dto.totalAmount());paid.set(dto.paidAmount());outstanding.set(dto.outstanding());this.allocation.set(allocation);selected.set(selectedInitially);
         }
     }
+    public static final class AutoMatchItem {
+        public final BooleanProperty selected = new SimpleBooleanProperty(true);
+        public final BankStatementApiClient.TransactionDto tx;
+        public final BankStatementApiClient.CandidateDto candidate;
+
+        public AutoMatchItem(BankStatementApiClient.TransactionDto tx, BankStatementApiClient.CandidateDto candidate) {
+            this.tx = tx;
+            this.candidate = candidate;
+        }
+
+        public double bankAmount() {
+            return tx.credit() > 0 ? tx.credit() : tx.debit();
+        }
+    }
+
+    @FXML private void openAutoMatchDialog() {
+        var batch = cmbBatch.getValue();
+        if (batch == null) {
+            info("Select Statement", "Please select a statement first to find auto-match suggestions.");
+            return;
+        }
+
+        List<Row> userSelected = table.getItems().stream().filter(r -> r.selected.get()).toList();
+        List<Long> targetTxIds = !userSelected.isEmpty() ? userSelected.stream().map(r -> r.dto.id()).toList() : null;
+
+        UiTaskExecutor.submitAction("bank-statement-auto-match-load", () -> {
+            List<BankStatementApiClient.TransactionDto> allTx;
+            if (targetTxIds != null) {
+                allTx = targetTxIds.stream().map(id -> api.transaction(id.longValue())).toList();
+            } else {
+                allTx = api.transactions(batch.id().longValue());
+            }
+            List<AutoMatchItem> items = new ArrayList<>();
+            for (var tx : allTx) {
+                String st = tx.status() == null ? "" : tx.status().toUpperCase(Locale.ROOT);
+                if ("MATCHED".equals(st) || "EXPENSE".equals(st) || "IGNORED".equals(st)) continue;
+                try {
+                    List<BankStatementApiClient.CandidateDto> candidates = api.candidates(tx.id().longValue());
+                    if (candidates != null && !candidates.isEmpty()) {
+                        var top = candidates.getFirst();
+                        if (top.confidence() >= 70.0) {
+                            items.add(new AutoMatchItem(tx, top));
+                        }
+                    }
+                } catch (Exception ignored) { }
+            }
+            return items;
+        }, items -> {
+            if (items.isEmpty()) {
+                info("No Auto-Match Suggestions", "No high-confidence (>=70%) suggestions found for this statement batch.");
+                return;
+            }
+            showBulkAutoMatchDialog(items);
+        }, this::error);
+    }
+
+    private void showBulkAutoMatchDialog(List<AutoMatchItem> items) {
+        Dialog<ButtonType> dialog = new OwnedDialog<>(table);
+        dialog.setTitle("Auto Match Suggestions");
+        dialog.setHeaderText("Review and approve high-confidence auto-matched bank transactions (" + items.size() + " suggestions)");
+        AppDialogRenderer.configureWorkspace(dialog, "report",
+                "Auto Match Suggestions",
+                "Review and approve high-confidence auto-matched bank transactions (" + items.size() + " suggestions)",
+                "", "");
+
+        ObservableList<AutoMatchItem> allItems = FXCollections.observableArrayList(items);
+        TableView<AutoMatchItem> autoTable = new TableView<>(allItems);
+        PopupTableWorkspace.prepareTable(autoTable, "erp-table-profile-dialog");
+        autoTable.getProperties().put("erp-keep-selection", true);
+
+        Label lblTotalSuggestions = PopupTableWorkspace.metricValue(String.valueOf(items.size()), "link");
+        Label lblSelectedToMatch = PopupTableWorkspace.metricValue(String.valueOf(items.size()), "complete");
+        double initialAmount = items.stream().mapToDouble(AutoMatchItem::bankAmount).sum();
+        Label lblTotalAmount = PopupTableWorkspace.metricValue("₹ " + money(initialAmount), "currency");
+        double avgConf = items.stream().mapToDouble(i -> i.candidate.confidence()).average().orElse(0.0);
+        Label lblAvgConfidence = PopupTableWorkspace.metricValue(String.format(Locale.ENGLISH, "%.0f%%", avgConf), "status");
+
+        HBox metrics = PopupTableWorkspace.metricStrip(
+                PopupTableWorkspace.metricCard("Suggestions", lblTotalSuggestions, "link"),
+                PopupTableWorkspace.metricCard("Selected", lblSelectedToMatch, "complete"),
+                PopupTableWorkspace.metricCard("Total Amount", lblTotalAmount, "currency"),
+                PopupTableWorkspace.metricCard("Avg Confidence", lblAvgConfidence, "status")
+        );
+
+        TextField txtFilter = new TextField();
+        txtFilter.setPromptText("Filter suggestions by party, reference, document...");
+        HBox.setHgrow(txtFilter, Priority.ALWAYS);
+
+        CheckBox chkSelectAllModal = new CheckBox("Select All");
+        chkSelectAllModal.setSelected(true);
+        chkSelectAllModal.setOnAction(e -> {
+            boolean sel = chkSelectAllModal.isSelected();
+            for (AutoMatchItem it : autoTable.getItems()) {
+                it.selected.set(sel);
+            }
+        });
+
+        HBox filterBar = new HBox(12, chkSelectAllModal, txtFilter);
+        filterBar.setAlignment(Pos.CENTER_LEFT);
+
+        TableColumn<AutoMatchItem, Boolean> colSel = new TableColumn<>("Select");
+        colSel.setCellValueFactory(v -> v.getValue().selected);
+        colSel.setCellFactory(CheckBoxTableCell.forTableColumn(colSel));
+        colSel.setEditable(true);
+        autoTable.setEditable(true);
+        IconFactory.applyTableHeaderIcon(colSel, "select");
+
+        TableColumn<AutoMatchItem, String> colDate = new TableColumn<>("Bank Date");
+        colDate.setCellValueFactory(v -> new SimpleStringProperty(BusinessClock.formatDate(v.getValue().tx.transactionDate())));
+        colDate.setCellFactory(c -> SemanticTableCells.dateString());
+        IconFactory.applyTableHeaderIcon(colDate, "calendar");
+
+        TableColumn<AutoMatchItem, String> colRef = new TableColumn<>("Reference / Cheque");
+        colRef.setCellValueFactory(v -> new SimpleStringProperty(safe(v.getValue().tx.reference())));
+        IconFactory.applyTableHeaderIcon(colRef, "reference");
+
+        TableColumn<AutoMatchItem, String> colDesc = new TableColumn<>("Description / Narration");
+        colDesc.setCellValueFactory(v -> new SimpleStringProperty(safe(v.getValue().tx.description())));
+        IconFactory.applyTableHeaderIcon(colDesc, "notes");
+
+        TableColumn<AutoMatchItem, String> colAmount = new TableColumn<>("Bank Amount");
+        colAmount.setCellValueFactory(v -> new SimpleStringProperty("₹ " + money(v.getValue().bankAmount())));
+        colAmount.setCellFactory(c -> SemanticTableCells.moneyString("green"));
+        IconFactory.applyTableHeaderIcon(colAmount, "payment");
+
+        TableColumn<AutoMatchItem, String> colDoc = new TableColumn<>("Matched Document");
+        colDoc.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().candidate.documentNo() + " (" + v.getValue().candidate.type() + ")"));
+        IconFactory.applyTableHeaderIcon(colDoc, "document");
+
+        TableColumn<AutoMatchItem, String> colParty = new TableColumn<>("Party / Account");
+        colParty.setCellValueFactory(v -> new SimpleStringProperty(safe(v.getValue().candidate.partyName())));
+        IconFactory.applyTableHeaderIcon(colParty, "customer");
+
+        TableColumn<AutoMatchItem, String> colDocDate = new TableColumn<>("Doc Date");
+        colDocDate.setCellValueFactory(v -> new SimpleStringProperty(BusinessClock.formatDate(v.getValue().candidate.documentDate())));
+        colDocDate.setCellFactory(c -> SemanticTableCells.dateString());
+        IconFactory.applyTableHeaderIcon(colDocDate, "calendar");
+
+        TableColumn<AutoMatchItem, String> colOuts = new TableColumn<>("Outstanding");
+        colOuts.setCellValueFactory(v -> new SimpleStringProperty("₹ " + money(v.getValue().candidate.outstanding())));
+        colOuts.setCellFactory(c -> SemanticTableCells.moneyString("blue"));
+        IconFactory.applyTableHeaderIcon(colOuts, "balance");
+
+        TableColumn<AutoMatchItem, String> colConf = new TableColumn<>("Confidence");
+        colConf.setCellValueFactory(v -> new SimpleStringProperty(String.format(Locale.ENGLISH, "%.0f%%", v.getValue().candidate.confidence())));
+        colConf.setCellFactory(c -> SemanticTableCells.status("complete"));
+        IconFactory.applyTableHeaderIcon(colConf, "status");
+
+        autoTable.getColumns().setAll(colSel, colDate, colRef, colDesc, colAmount, colDoc, colParty, colDocDate, colOuts, colConf);
+
+        Runnable updateModalMetrics = () -> {
+            long selCount = allItems.stream().filter(it -> it.selected.get()).count();
+            double selAmount = allItems.stream().filter(it -> it.selected.get()).mapToDouble(AutoMatchItem::bankAmount).sum();
+            lblSelectedToMatch.setText(String.valueOf(selCount));
+            lblTotalAmount.setText("₹ " + money(selAmount));
+        };
+        allItems.forEach(it -> it.selected.addListener((obs, oldV, newV) -> updateModalMetrics.run()));
+
+        txtFilter.textProperty().addListener((obs, oldV, q) -> {
+            if (q == null || q.isBlank()) {
+                autoTable.setItems(allItems);
+            } else {
+                String lq = q.toLowerCase(Locale.ROOT);
+                autoTable.setItems(allItems.filtered(it ->
+                        (it.candidate.partyName() != null && it.candidate.partyName().toLowerCase(Locale.ROOT).contains(lq)) ||
+                        (it.candidate.documentNo() != null && it.candidate.documentNo().toLowerCase(Locale.ROOT).contains(lq)) ||
+                        (it.tx.reference() != null && it.tx.reference().toLowerCase(Locale.ROOT).contains(lq)) ||
+                        (it.tx.description() != null && it.tx.description().toLowerCase(Locale.ROOT).contains(lq))
+                ));
+            }
+        });
+
+        Label footer = PopupTableWorkspace.footerText("Confirming matches will link bank transactions and create corresponding Bank Entries and payment allocations.");
+        VBox tableArea = new VBox(8, filterBar, autoTable);
+        VBox.setVgrow(autoTable, Priority.ALWAYS);
+        VBox.setVgrow(tableArea, Priority.ALWAYS);
+        VBox content = PopupTableWorkspace.content(metrics, tableArea, footer);
+
+        dialog.getDialogPane().setContent(content);
+        PopupTableWorkspace.prepareDialog(dialog, 1200);
+
+        ButtonType refreshType = new ButtonType("Refresh Suggestions", ButtonBar.ButtonData.OTHER);
+        ButtonType confirmType = new ButtonType("Confirm Match", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().setAll(refreshType, ButtonType.CANCEL, confirmType);
+
+        Button btnRefreshModal = (Button) dialog.getDialogPane().lookupButton(refreshType);
+        if (btnRefreshModal != null) {
+            btnRefreshModal.setGraphic(IconFactory.compactIcon("refresh", 15));
+            btnRefreshModal.addEventFilter(javafx.event.ActionEvent.ACTION, e -> {
+                e.consume();
+                dialog.close();
+                javafx.application.Platform.runLater(this::openAutoMatchDialog);
+            });
+        }
+
+        Button btnConfirmModal = (Button) dialog.getDialogPane().lookupButton(confirmType);
+        if (btnConfirmModal != null) {
+            btnConfirmModal.getStyleClass().addAll("approved-button", "approved-primary-button");
+            btnConfirmModal.setGraphic(IconFactory.compactIcon("complete", 15));
+        }
+
+        Optional<ButtonType> result = dialog.showAndWait();
+        if (result.isPresent() && result.get() == confirmType) {
+            List<AutoMatchItem> confirmed = allItems.stream().filter(it -> it.selected.get()).toList();
+            if (confirmed.isEmpty()) {
+                info("Auto Match", "No transactions were selected to match.");
+                return;
+            }
+            executeBulkAutoMatch(confirmed);
+        }
+    }
+
+    private void executeBulkAutoMatch(List<AutoMatchItem> items) {
+        String performedBy = user();
+        LiveOperationDialog.execute(
+                table,
+                "Auto Match Progress",
+                "process",
+                "Matching " + items.size() + " bank transactions…",
+                reporter -> {
+                    int succeeded = 0;
+                    int failed = 0;
+                    for (int i = 0; i < items.size(); i++) {
+                        if (reporter.isCancelled()) break;
+                        var it = items.get(i);
+                        String doc = it.candidate.documentNo();
+                        String party = it.candidate.partyName();
+                        reporter.stage(i + 1, items.size(), "Matching: " + doc + " (" + party + ")");
+                        reporter.progress((double) (i + 1) / items.size());
+                        try {
+                            double amount = Math.min(it.candidate.outstanding(), it.bankAmount());
+                            var alloc = new BankStatementApiClient.AllocationRequest(it.candidate.type(), it.candidate.id(), amount);
+                            var matchReq = new BankStatementApiClient.MatchRequest(performedBy, List.of(alloc));
+                            var res = api.match(it.tx.id().longValue(), matchReq);
+                            if (res.success()) {
+                                succeeded++;
+                            } else {
+                                failed++;
+                            }
+                        } catch (Exception ex) {
+                            failed++;
+                        }
+                    }
+                    return new int[]{succeeded, failed};
+                },
+                counts -> {
+                    int succ = counts[0];
+                    int fail = counts[1];
+                    success("Auto Match Completed", "Successfully matched " + succ + " bank transaction(s)." + (fail > 0 ? " " + fail + " failed." : ""));
+                    refresh();
+                },
+                this::error
+        );
+    }
+
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("bank-statement-");}
 
 }

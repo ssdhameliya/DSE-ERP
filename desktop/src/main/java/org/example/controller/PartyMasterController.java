@@ -411,6 +411,21 @@ public abstract class PartyMasterController implements ScreenLifecycle {
     }
 
     @Override
+    public void onScreenShown(boolean reusedFromCache) {
+        LinkedRecordContext.Target target = LinkedRecordContext.consume(partyType());
+        if (target == null && "CUSTOMER".equalsIgnoreCase(partyType())) {
+            target = LinkedRecordContext.consume("CUSTOMER");
+        }
+        if (target == null && "SUPPLIER".equalsIgnoreCase(partyType())) {
+            target = LinkedRecordContext.consume("SUPPLIER");
+        }
+        if (target != null && target.documentNo() != null && !target.documentNo().isBlank()) {
+            txtSearch.setText(target.documentNo().trim());
+            applyLocalFilter();
+        }
+    }
+
+    @Override
     public void onScreenHidden() {
         if (tableParties != null) {
             tableParties.getSelectionModel().clearSelection();

@@ -504,6 +504,8 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         Sales sale=allSales.stream().filter(x->(target.recordId()!=null&&x.getId()==target.recordId())||(!target.documentNo().isBlank()&&target.documentNo().equalsIgnoreCase(safe(x.getInvoiceNo())))).findFirst().orElse(null);
         if(sale!=null){
             LinkedRecordContext.consume("SALE");linkedRecordReloadInProgress=false;
+            txtInvoice.setText(sale.getInvoiceNo());
+            tableSales.getItems().setAll(sale);
             tableSales.getSelectionModel().select(sale);tableSales.scrollTo(sale);tableSales.requestFocus();
             org.example.navigation.DeepLinkSupport.pulse(tableSales);org.example.navigation.DeepLinkSupport.highlight(tableSales,sale);
             showDetails(sale);PerformanceMonitor.event("linked-navigation","SALE -> "+sale.getInvoiceNo()+" | exact-row-highlight | source="+target.source());return;
