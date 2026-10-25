@@ -130,6 +130,7 @@ public final class AppDialogRenderer {
         pane.setGraphic(null);
 
         if (!pane.getStyleClass().contains(PANE_CLASS)) pane.getStyleClass().add(PANE_CLASS);
+        if (!pane.getStyleClass().contains("erp-ui-standard")) pane.getStyleClass().add("erp-ui-standard");
         pane.getStyleClass().removeIf(style -> style.startsWith("dse-dialog-semantic-"));
         pane.getStyleClass().add("dse-dialog-semantic-" + semantic);
         if (workspace && !pane.getStyleClass().contains("dse-dialog-workspace")) pane.getStyleClass().add("dse-dialog-workspace");
@@ -214,7 +215,7 @@ public final class AppDialogRenderer {
         }
 
         VBox shell = new VBox(accent, header, body);
-        shell.getStyleClass().add("dse-dialog-shell");
+        shell.getStyleClass().addAll("dse-dialog-shell", "erp-ui-standard");
         if (workspace) {
             shell.getStyleClass().add("dse-dialog-shell-workspace");
             VBox.setVgrow(body, Priority.ALWAYS);
@@ -253,6 +254,8 @@ public final class AppDialogRenderer {
             if (workspace) WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
             else WindowUtilsFx.fitCompactDialogToOwnerScreen(stage, stage.getOwner());
         }
+        DynamicTableLayoutManager.requestLayoutIn(pane);
+        if (pane.getContent() != null) ProfessionalUiEnhancer.enhance(pane.getContent());
     }
 
     private static void styleActions(Dialog<?> dialog, DialogPane pane, String semantic, String title, String heading, String message) {
@@ -422,6 +425,9 @@ public final class AppDialogRenderer {
             case "info", "information" -> "notification";
             case "success" -> "complete";
             case "backup" -> "notification";
+            case "inspect", "drilldown", "drill-down" -> "inspect";
+            case "bank", "statement" -> "bank";
+            case "report", "financial" -> "report";
             case "confirmation", "notification", "warning", "error", "delete", "restore", "complete", "security", "unsaved", "mapping" -> value;
             default -> "notification";
         };
@@ -438,6 +444,9 @@ public final class AppDialogRenderer {
             case "security" -> "Security";
             case "confirmation" -> "Confirm action";
             case "mapping" -> "Mapping review";
+            case "inspect" -> "Ledger Inspection & Drill-Down";
+            case "bank" -> "Bank Statement & Reconciliation";
+            case "report" -> "Financial Report Inspection";
             default -> "Information";
         };
     }
@@ -466,6 +475,9 @@ public final class AppDialogRenderer {
             case "security" -> "lock";
             case "confirmation" -> "complete";
             case "mapping" -> "mapping";
+            case "inspect" -> "view";
+            case "bank" -> "bank";
+            case "report" -> "report";
             default -> "info";
         };
     }

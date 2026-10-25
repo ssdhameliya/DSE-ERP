@@ -221,6 +221,18 @@
 .dse-dialog-semantic-mapping .dse-dialog-kicker { -fx-text-fill: #4f46e5; }
 .dse-dialog-semantic-mapping .dse-dialog-icon-box { -fx-background-color: rgba(79,70,229,.14); }
 
+.dse-dialog-semantic-inspect .dse-dialog-accent { -fx-background-color: #0ea5e9; }
+.dse-dialog-semantic-inspect .dse-dialog-kicker { -fx-text-fill: #0ea5e9; }
+.dse-dialog-semantic-inspect .dse-dialog-icon-box { -fx-background-color: rgba(14,165,233,.14); }
+
+.dse-dialog-semantic-bank .dse-dialog-accent { -fx-background-color: #8b5cf6; }
+.dse-dialog-semantic-bank .dse-dialog-kicker { -fx-text-fill: #8b5cf6; }
+.dse-dialog-semantic-bank .dse-dialog-icon-box { -fx-background-color: rgba(139,92,246,.14); }
+
+.dse-dialog-semantic-report .dse-dialog-accent { -fx-background-color: #2563eb; }
+.dse-dialog-semantic-report .dse-dialog-kicker { -fx-text-fill: #2563eb; }
+.dse-dialog-semantic-report .dse-dialog-icon-box { -fx-background-color: rgba(37,99,235,.14); }
+
 .dse-dialog-semantic-error .dse-dialog-accent,
 .dse-dialog-semantic-delete .dse-dialog-accent { -fx-background-color: #dc2626; }
 .dse-dialog-semantic-error .dse-dialog-kicker,
@@ -231,6 +243,30 @@
 .dse-dialog-semantic-complete .dse-dialog-accent { -fx-background-color: #16a34a; }
 .dse-dialog-semantic-complete .dse-dialog-kicker { -fx-text-fill: #16a34a; }
 .dse-dialog-semantic-complete .dse-dialog-icon-box { -fx-background-color: rgba(22,163,74,.13); }
+
+/* Table header color authority in dialogs */
+.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-blue { -fx-text-fill: #73a9ff; }
+.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-green { -fx-text-fill: #4ade80; }
+.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-orange { -fx-text-fill: #fbbf24; }
+.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-purple { -fx-text-fill: #c4b5fd; }
+.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-pink { -fx-text-fill: #fb7185; }
+.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-teal { -fx-text-fill: #5eead4; }
+.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-indigo { -fx-text-fill: #a5b4fc; }
+
+.dse-theme-light.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-blue,
+.dse-theme-light .dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-blue { -fx-text-fill: #1d4ed8; }
+.dse-theme-light.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-green,
+.dse-theme-light .dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-green { -fx-text-fill: #15803d; }
+.dse-theme-light.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-orange,
+.dse-theme-light .dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-orange { -fx-text-fill: #b45309; }
+.dse-theme-light.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-purple,
+.dse-theme-light .dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-purple { -fx-text-fill: #6d28d9; }
+.dse-theme-light.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-pink,
+.dse-theme-light .dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-pink { -fx-text-fill: #be185d; }
+.dse-theme-light.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-teal,
+.dse-theme-light .dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-teal { -fx-text-fill: #0f766e; }
+.dse-theme-light.dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-indigo,
+.dse-theme-light .dse-dialog-pane .column-header .erp-table-header-label.erp-table-header-colour-indigo { -fx-text-fill: #4338ca; }
 
 .dse-dialog-pane .dse-dialog-action-primary {
     -fx-background-color: #2563eb;

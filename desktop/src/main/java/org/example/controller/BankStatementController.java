@@ -26,6 +26,7 @@ import org.example.service.PermissionService;
 import org.example.util.AppDialogRenderer;
 import org.example.util.BusinessClock;
 import org.example.util.DatePickerFormatter;
+import org.example.util.DynamicTableLayoutManager;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
@@ -1101,7 +1102,7 @@ public class BankStatementController implements ScreenLifecycle {
         Dialog<ButtonType> dialog = new OwnedDialog<>(table);
         dialog.setTitle("Auto Match Suggestions");
         dialog.setHeaderText("Review and approve high-confidence auto-matched bank transactions (" + items.size() + " suggestions)");
-        AppDialogRenderer.configureWorkspace(dialog, "report",
+        AppDialogRenderer.configureWorkspace(dialog, "bank",
                 "Auto Match Suggestions",
                 "Review and approve high-confidence auto-matched bank transactions (" + items.size() + " suggestions)",
                 "", "");
@@ -1162,8 +1163,32 @@ public class BankStatementController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(colDesc, "notes");
 
         TableColumn<AutoMatchItem, String> colAmount = new TableColumn<>("Bank Amount");
-        colAmount.setCellValueFactory(v -> new SimpleStringProperty("₹ " + money(v.getValue().bankAmount())));
-        colAmount.setCellFactory(c -> SemanticTableCells.moneyString("green"));
+        colAmount.setCellValueFactory(v -> {
+            boolean isCredit = v.getValue().tx.credit() > 0;
+            return new SimpleStringProperty((isCredit ? "+ ₹ " : "- ₹ ") + money(v.getValue().bankAmount()));
+        });
+        colAmount.setCellFactory(c -> new TableCell<AutoMatchItem, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                getStyleClass().removeAll("erp-table-value-colour-green", "erp-table-value-colour-orange");
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                setText(item);
+                if (getTableRow() != null && getTableRow().getItem() != null) {
+                    AutoMatchItem rowItem = getTableRow().getItem();
+                    if (rowItem.tx.credit() > 0) {
+                        getStyleClass().add("erp-table-value-colour-green");
+                    } else {
+                        getStyleClass().add("erp-table-value-colour-orange");
+                    }
+                }
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        });
         IconFactory.applyTableHeaderIcon(colAmount, "payment");
 
         TableColumn<AutoMatchItem, String> colDoc = new TableColumn<>("Matched Document");
@@ -1190,6 +1215,7 @@ public class BankStatementController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(colConf, "status");
 
         autoTable.getColumns().setAll(colSel, colDate, colRef, colDesc, colAmount, colDoc, colParty, colDocDate, colOuts, colConf);
+        DynamicTableLayoutManager.install(autoTable);
 
         Runnable updateModalMetrics = () -> {
             long selCount = allItems.stream().filter(it -> it.selected.get()).count();

@@ -99,6 +99,11 @@ public class FinancialStatementsController implements ScreenLifecycle {
         RealtimeSearchSupport.installLocal(txtSearchPnl, () -> filterTree(treeTblPnl, txtSearchPnl.getText()));
         RealtimeSearchSupport.installLocal(txtSearchBs, () -> filterTree(treeTblBs, txtSearchBs.getText()));
 
+        if (btnDrillDownPnl != null) btnDrillDownPnl.setGraphic(IconFactory.compactIcon("view", 14));
+        if (btnDrillDownBs != null) btnDrillDownBs.setGraphic(IconFactory.compactIcon("view", 14));
+        if (btnExpandAllPnl != null) btnExpandAllPnl.setGraphic(IconFactory.compactIcon("more", 14));
+        if (btnCollapseAllPnl != null) btnCollapseAllPnl.setGraphic(IconFactory.compactIcon("hide", 14));
+
         ContextMenu pnlContextMenu = new ContextMenu();
         MenuItem miPnlDrill = new MenuItem("Inspect / Drill-Down Line Item", IconFactory.compactIcon("view", 14));
         miPnlDrill.setOnAction(e -> drillDownSelectedPnl());
@@ -552,7 +557,7 @@ public class FinancialStatementsController implements ScreenLifecycle {
 
     private void showDrillDownModal(DrillDownResponse res, String category) {
         Dialog<Void> dialog = new OwnedDialog<>(treeTblPnl);
-        AppDialogRenderer.configureWorkspace(dialog, "report",
+        AppDialogRenderer.configureWorkspace(dialog, "inspect",
                 "Financial Drill-Down Inspection — " + category,
                 "Transaction-level ledger details backing " + category + " figures (" + (res.rows != null ? res.rows.size() : 0) + " transactions)",
                 "", "");
@@ -598,6 +603,7 @@ public class FinancialStatementsController implements ScreenLifecycle {
         table.getColumns().addAll(List.of(colDate, colVoucher, colParty, colDesc, colDebit, colCredit, colBal));
         ObservableList<DrillDownRow> allRows = FXCollections.observableArrayList(res.rows != null ? res.rows : List.of());
         table.setItems(allRows);
+        DynamicTableLayoutManager.install(table);
 
         HBox metrics = PopupTableWorkspace.metricStrip(
                 PopupTableWorkspace.metricCard("Category", category, "category"),
