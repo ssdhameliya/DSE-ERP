@@ -184,15 +184,31 @@ public class SmtpMailService {
         }
     }
 
+    public void sendBusiness(String recipient, String subject, String body) {
+        sendBusiness(recipient, subject, body, (String) null, null, null, null);
+    }
+
     public void sendBusiness(String recipient, String subject, String body, String attachmentName, byte[] attachment) {
+        sendBusiness(recipient, subject, body, attachmentName, attachment, null, null);
+    }
+
+    public void sendBusiness(String recipient, String subject, String body, String attachmentName, byte[] attachment, String signatureImageName, byte[] signatureImage) {
         List<Attachment> attachments = attachment == null || attachment.length == 0
                 ? List.of()
                 : List.of(new Attachment(attachmentName == null ? "document.pdf" : attachmentName,
                 "application/octet-stream", attachment));
-        sendBusiness(recipient, subject, body, attachments);
+        Attachment sigAttachment = signatureImage == null || signatureImage.length == 0
+                ? null
+                : new Attachment(signatureImageName == null ? "signature.png" : signatureImageName,
+                "image/png", signatureImage);
+        sendBusiness(recipient, subject, body, attachments, sigAttachment);
     }
 
     public void sendBusiness(String recipient, String subject, String body, List<Attachment> attachments) {
+        sendBusiness(recipient, subject, body, attachments, null);
+    }
+
+    public void sendBusiness(String recipient, String subject, String body, List<Attachment> attachments, Attachment signatureImage) {
         Settings settings = settings();
         if (settings.host().isBlank() || settings.email().isBlank() || settings.password().isBlank())
             throw new IllegalStateException("Server business email is not configured");
@@ -204,20 +220,47 @@ public class SmtpMailService {
             message.setSubject(subject == null ? companyName() + " document" : subject);
             List<Attachment> files = attachments == null ? List.of() : attachments.stream()
                     .filter(a -> a != null && a.data() != null && a.data().length > 0).toList();
-            if (files.isEmpty()) message.setText(body == null ? "" : body);
-            else {
-                var multipart = new jakarta.mail.internet.MimeMultipart();
-                var text = new jakarta.mail.internet.MimeBodyPart();
-                text.setText(body == null ? "" : body);
-                multipart.addBodyPart(text);
+            boolean hasSig = signatureImage != null && signatureImage.data() != null && signatureImage.data().length > 0;
+            if (files.isEmpty() && !hasSig) {
+                message.setText(body == null ? "" : body);
+            } else {
+                var rootMultipart = new jakarta.mail.internet.MimeMultipart("mixed");
+
+                if (hasSig) {
+                    var relatedMultipart = new jakarta.mail.internet.MimeMultipart("related");
+
+                    var htmlPart = new jakarta.mail.internet.MimeBodyPart();
+                    String htmlContent = formatHtmlEmailBody(body, true);
+                    htmlPart.setContent(htmlContent, "text/html; charset=UTF-8");
+                    relatedMultipart.addBodyPart(htmlPart);
+
+                    var imgPart = new jakarta.mail.internet.MimeBodyPart();
+                    String sigMime = signatureImage.contentType() == null || signatureImage.contentType().isBlank() ? "image/png" : signatureImage.contentType();
+                    imgPart.setDataHandler(new jakarta.activation.DataHandler(new jakarta.mail.util.ByteArrayDataSource(signatureImage.data(), sigMime)));
+                    imgPart.setContentID("<signatureImage>");
+                    imgPart.setHeader("Content-ID", "<signatureImage>");
+                    imgPart.setDisposition(jakarta.mail.Part.INLINE);
+                    imgPart.setHeader("Content-Type", sigMime + "; name=\"" + signatureImage.name() + "\"");
+                    relatedMultipart.addBodyPart(imgPart);
+
+                    var bodyWrapper = new jakarta.mail.internet.MimeBodyPart();
+                    bodyWrapper.setContent(relatedMultipart);
+                    rootMultipart.addBodyPart(bodyWrapper);
+                } else {
+                    var text = new jakarta.mail.internet.MimeBodyPart();
+                    text.setText(body == null ? "" : body);
+                    rootMultipart.addBodyPart(text);
+                }
+
                 for (Attachment attachment : files) {
                     var file = new jakarta.mail.internet.MimeBodyPart();
                     file.setFileName(attachment.name() == null || attachment.name().isBlank() ? "attachment" : attachment.name());
-                    file.setContent(attachment.data(), attachment.contentType() == null || attachment.contentType().isBlank()
-                            ? "application/octet-stream" : attachment.contentType());
-                    multipart.addBodyPart(file);
+                    String mime = attachment.contentType() == null || attachment.contentType().isBlank() ? "application/octet-stream" : attachment.contentType();
+                    file.setDataHandler(new jakarta.activation.DataHandler(new jakarta.mail.util.ByteArrayDataSource(attachment.data(), mime)));
+                    file.setDisposition(jakarta.mail.Part.ATTACHMENT);
+                    rootMultipart.addBodyPart(file);
                 }
-                message.setContent(multipart);
+                message.setContent(rootMultipart);
             }
             Transport.send(message);
         } catch (Exception e) {
@@ -225,6 +268,27 @@ public class SmtpMailService {
             LOG.warn("Business email delivery failed via {}:{} for sender {}: {}", settings.host(), settings.port(), masked(settings.email()), failure.adminMessage());
             throw failure;
         }
+    }
+
+    private static String formatHtmlEmailBody(String plainText, boolean includeInlineSignatureImage) {
+        if (plainText == null) plainText = "";
+        String escaped = plainText
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\r\n", "\n")
+                .replace("\n", "<br/>\n");
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0; padding:12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b;\">");
+        sb.append("<div>").append(escaped).append("</div>");
+        if (includeInlineSignatureImage) {
+            sb.append("<div style=\"margin-top: 16px; margin-bottom: 8px;\">");
+            sb.append("<img src=\"cid:signatureImage\" alt=\"Signature / Stamp\" style=\"max-height: 90px; max-width: 260px; object-fit: contain; border: none; display: block;\" />");
+            sb.append("</div>");
+        }
+        sb.append("</body></html>");
+        return sb.toString();
     }
 
     public void sendBusinessFiles(String recipient, String subject, String body, List<PathAttachment> attachments) {

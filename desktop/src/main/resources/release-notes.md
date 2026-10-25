@@ -1,15 +1,24 @@
-# What's New in DSE ERP v11.0.2
+# What's New in DSE ERP v11.0.3
 
-### Dynamic Reference Format Tokens
-- **Custom Token Combinations Supported**: User-defined reference lookup formats (e.g., `DD-YYYY-XXXX`, `MM-YYYY-XXXX`, `DDMMYYYY-XXXX`, `DD-MM-YYYY-XXXX`) now reliably resolve day (`DD`), month (`MM`), 4-digit year (`YYYY`), and 2-digit year (`YY`) alongside sequence counter `XXXX`.
-- **Eliminated Literal Token Artifacts**: Fixed reference format generator in `BusinessOperationsService` where individual `DD` and `MM` remained unparsed as literal text when not configured in legacy compound date strings.
-- **Auto-Expanding Sequence**: Zero-padded sequence numbers (e.g., `0001` to `9999`) automatically expand cleanly to 5 and 6 digits (`10000`, `100000`) without truncation.
+### Financial Drill-Down Inspection Modal Overhaul
+- **Centralized UI & Semantic Architecture**: The "Inspect / Drill-Down" modal in Financial Statements (Profit & Loss and Balance Sheet) has been rebuilt using `PopupTableWorkspace` and `DynamicTableLayoutManager`.
+- **Top Metric Strip**: Added live metric cards showing Category, Total Transactions, and Net Total with semantic icons and themed values.
+- **Colored Table Headers & Icons**: Table columns (`Date`, `Voucher / Ref`, `Party / Account`, `Description`, `Debit`, `Credit`, `Balance`) feature centralized semantic header icons and themed color labels.
+- **Configured Date Format Enforcement**: The date column and CSV export strictly follow the user-configured system business date format via `BusinessClock.formatDate`.
+- **Monetary Highlighting**: Debit, Credit, and Balance columns utilize semantic colored cell factories (`orange`, `green`, `blue`).
+- **Real-Time Search & CSV Export**: Instant table filtering across party, voucher, or narration with full ledger CSV export support.
 
-### Email Transmission Modal Expansion & Auto-Resize
-- **Expanded Dimensions & Resizability**: Increased default dialog size to 720x760 (min 620x560) and enabled window resizability so users can expand the modal freely.
-- **Unclipped Message Body**: Configured message body `TextArea` with `prefRowCount="12"`, `minHeight="220"`, and `VBox.vgrow="ALWAYS"`. Multi-line invoice summaries and signature blocks are fully visible with comfortable scrolling.
+### Bank Statement Bulk Auto-Match Suggestions
+- **Review Before Approval Dialog**: Added "Auto Match Suggestions" button to the bank reconciliation toolbar, opening an interactive review workspace for high-confidence suggestions before bulk confirmation.
+- **Complete Transaction Metadata**: Displays Checkbox, Bank Date (formatted to system setting), Reference / Cheque No., Description / Narration, Bank Amount, Matched ERP Document, Customer / Supplier, Document Date, Document Outstanding Amount, and Confidence Score.
+- **Top Metrics & Instant Search**: Live summary strip displaying Total Suggestions, Selected to Match, Total Amount, and Average Confidence, paired with instant search filtering.
+- **Live Progress & Allocation**: Confirming matches executes via `LiveOperationDialog`, creating corresponding Bank Entries and payment/refund allocations with live step-by-step progress.
+- **Interactive KPI Card Filters**: Removed redundant Reconciled card. `Total`, `Unmatched`, `Suggested`, `Matched`, and `Expense` cards are clickable filters with hand cursor, filtering the register instantly on click.
 
-### Purchase Return Email Transmission & Template Parity
-- **Interactive Pre-Send Dialog**: Clicking "Send Email" in the Purchase Returns register now presents the full `EmailTransmissionDialog` preview before sending, matching Sales Invoices, Purchase Bills, Quotations, and Sales Returns.
-- **Configurable Message Template**: Added `PURCHASE_RETURN` to `MessageTemplateService` and Settings → Email Delivery templates with live sample token previews, customizable subjects, and editable debit note bodies.
-- **Live Dispatch Progress**: Integrates with `LiveOperationDialog` to display real-time SMTP connection stages and status logs during transmission.
+### Universal Single-Record Navigation Isolation
+- **Focused Navigation**: Traveling from the global search bar, notification drawer, or cross-screen linked buttons (Bank Statement, Bank Expense, Sales, Purchase, Quotation, Item Master, Party Master) isolates and displays **only the targeted record**.
+- **Search Query Autofill**: Pre-fills the register search box with the document reference or party code, preventing visual clutter from unrelated rows.
+
+### Email Signature Inline Image Transmission
+- **MIME Multipart/Related Integration**: `SmtpMailService` now packages company signature and stamp images as inline CID attachments (`cid:signatureImage`), correctly rendering signatures inside the email body across standard email clients.
+- **Full Shared Client Support**: `BusinessEmailClient` and `BusinessEmailController` transport signature image payloads in client-server shared architecture.

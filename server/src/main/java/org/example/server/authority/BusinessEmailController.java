@@ -28,7 +28,9 @@ public class BusinessEmailController {
     private Result sendInternal(Request r, String message) {
         byte[] attachment = r.attachmentBase64() == null || r.attachmentBase64().isBlank()
                 ? null : Base64.getDecoder().decode(r.attachmentBase64());
-        mail.sendBusiness(r.recipient(), r.subject(), r.body(), r.attachmentName(), attachment);
+        byte[] signature = r.signatureImageBase64() == null || r.signatureImageBase64().isBlank()
+                ? null : Base64.getDecoder().decode(r.signatureImageBase64());
+        mail.sendBusiness(r.recipient(), r.subject(), r.body(), r.attachmentName(), attachment, r.signatureImageName(), signature);
         return new Result(true, message);
     }
 
@@ -52,7 +54,7 @@ public class BusinessEmailController {
         requireAdmin();
         String recipient = request == null ? null : request.recipient();
         try {
-            mail.sendBusiness(recipient, mail.companyName() + " email test", "Your " + mail.companyName() + " company-server email configuration is working correctly.", null, null);
+            mail.sendBusiness(recipient, mail.companyName() + " email test", "Your " + mail.companyName() + " company-server email configuration is working correctly.");
             return new Result(true, "Test email sent successfully");
         } catch (EmailDeliveryException failure) {
             throw new IllegalStateException(failure.adminMessage(), failure);
@@ -64,7 +66,7 @@ public class BusinessEmailController {
             throw new SecurityException("Company email settings require Administrator access");
     }
 
-    public record Request(String recipient, String subject, String body, String attachmentName, String attachmentBase64) {}
+    public record Request(String recipient, String subject, String body, String attachmentName, String attachmentBase64, String signatureImageName, String signatureImageBase64) {}
     public record Settings(String email, String appPassword, String host, Integer port, boolean passwordConfigured) {}
     public record TestRequest(String recipient) {}
     public record Result(boolean success, String message) {}

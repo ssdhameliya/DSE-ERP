@@ -605,6 +605,15 @@ public class ItemMasterController implements ScreenLifecycle {
         return current == null || current.getMessage() == null ? "Unexpected error." : current.getMessage();
     }
 
+    @Override
+    public void onScreenShown(boolean reusedFromCache) {
+        LinkedRecordContext.Target target = LinkedRecordContext.consume("ITEM");
+        if (target != null && target.documentNo() != null && !target.documentNo().isBlank()) {
+            txtSearch.setText(target.documentNo().trim());
+            applyLocalFilter();
+        }
+    }
+
     private void showError(String message) {
         Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message);
         alert.setHeaderText(null);

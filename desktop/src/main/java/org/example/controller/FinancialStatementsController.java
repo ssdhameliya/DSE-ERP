@@ -552,61 +552,85 @@ public class FinancialStatementsController implements ScreenLifecycle {
 
     private void showDrillDownModal(DrillDownResponse res, String category) {
         Dialog<Void> dialog = new OwnedDialog<>(treeTblPnl);
+        AppDialogRenderer.configureWorkspace(dialog, "report",
+                "Financial Drill-Down Inspection — " + category,
+                "Transaction-level ledger details backing " + category + " figures (" + (res.rows != null ? res.rows.size() : 0) + " transactions)",
+                "", "");
         dialog.setTitle("Financial Drill-Down Inspection — " + category);
         dialog.setHeaderText("Transaction-level ledger details backing " + category + " figures (" + (res.rows != null ? res.rows.size() : 0) + " transactions)");
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
-        VBox content = new VBox(10);
-        content.setPrefWidth(850);
-        content.setPrefHeight(450);
-        content.setPadding(new Insets(10));
+        TableView<DrillDownRow> table = new TableView<>();
+        PopupTableWorkspace.prepareTable(table, "erp-table-profile-dialog");
 
-        HBox topBar = new HBox(10);
-        topBar.setAlignment(Pos.CENTER_LEFT);
-        Label lblTotal = new Label("Net Total: " + currency.format(res.totalAmount != null ? res.totalAmount : BigDecimal.ZERO));
-        lblTotal.getStyleClass().add("bold-label");
+        TableColumn<DrillDownRow, String> colDate = new TableColumn<>("Date");
+        colDate.setCellValueFactory(r -> new SimpleStringProperty(BusinessClock.formatDate(r.getValue().date)));
+        colDate.setCellFactory(c -> SemanticTableCells.dateString());
+        IconFactory.applyTableHeaderIcon(colDate, "calendar");
+
+        TableColumn<DrillDownRow, String> colVoucher = new TableColumn<>("Voucher / Ref");
+        colVoucher.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().voucherNo));
+        IconFactory.applyTableHeaderIcon(colVoucher, "document");
+
+        TableColumn<DrillDownRow, String> colParty = new TableColumn<>("Party / Account");
+        colParty.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().partyOrAccount));
+        IconFactory.applyTableHeaderIcon(colParty, "customer");
+
+        TableColumn<DrillDownRow, String> colDesc = new TableColumn<>("Description");
+        colDesc.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().description));
+        IconFactory.applyTableHeaderIcon(colDesc, "notes");
+
+        TableColumn<DrillDownRow, String> colDebit = new TableColumn<>("Debit (₹)");
+        colDebit.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().debit != null ? currency.format(r.getValue().debit) : ""));
+        colDebit.setCellFactory(c -> SemanticTableCells.moneyString("orange"));
+        IconFactory.applyTableHeaderIcon(colDebit, "payment");
+
+        TableColumn<DrillDownRow, String> colCredit = new TableColumn<>("Credit (₹)");
+        colCredit.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().credit != null ? currency.format(r.getValue().credit) : ""));
+        colCredit.setCellFactory(c -> SemanticTableCells.moneyString("green"));
+        IconFactory.applyTableHeaderIcon(colCredit, "complete");
+
+        TableColumn<DrillDownRow, String> colBal = new TableColumn<>("Balance (₹)");
+        colBal.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().balance != null ? currency.format(r.getValue().balance) : ""));
+        colBal.setCellFactory(c -> SemanticTableCells.moneyString("blue"));
+        IconFactory.applyTableHeaderIcon(colBal, "balance");
+
+        table.getColumns().addAll(List.of(colDate, colVoucher, colParty, colDesc, colDebit, colCredit, colBal));
+        ObservableList<DrillDownRow> allRows = FXCollections.observableArrayList(res.rows != null ? res.rows : List.of());
+        table.setItems(allRows);
+
+        HBox metrics = PopupTableWorkspace.metricStrip(
+                PopupTableWorkspace.metricCard("Category", category, "category"),
+                PopupTableWorkspace.metricCard("Transactions", String.valueOf(allRows.size()), "document"),
+                PopupTableWorkspace.metricCard("Net Total", currency.format(res.totalAmount != null ? res.totalAmount : BigDecimal.ZERO), "currency")
+        );
+
         TextField txtSearch = new TextField();
         txtSearch.setPromptText("Filter transactions by party, voucher or note...");
         HBox.setHgrow(txtSearch, Priority.ALWAYS);
 
         Button btnExportCsv = new Button("Export CSV");
         btnExportCsv.getStyleClass().addAll("approved-button", "approved-secondary-button");
-        topBar.getChildren().addAll(lblTotal, txtSearch, btnExportCsv);
+        btnExportCsv.setGraphic(IconFactory.icon("export", 14));
 
-        TableView<DrillDownRow> table = new TableView<>();
-        table.getStyleClass().addAll("approved-table", "erp-table-profile-responsive");
-        VBox.setVgrow(table, Priority.ALWAYS);
+        HBox filterBar = new HBox(10, txtSearch, btnExportCsv);
+        filterBar.setAlignment(Pos.CENTER_LEFT);
 
-        TableColumn<DrillDownRow, String> colDate = new TableColumn<>("Date");
-        colDate.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().date));
-        TableColumn<DrillDownRow, String> colVoucher = new TableColumn<>("Voucher / Ref");
-        colVoucher.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().voucherNo));
-        TableColumn<DrillDownRow, String> colParty = new TableColumn<>("Party / Account");
-        colParty.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().partyOrAccount));
-        TableColumn<DrillDownRow, String> colDesc = new TableColumn<>("Description");
-        colDesc.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().description));
-        TableColumn<DrillDownRow, String> colDebit = new TableColumn<>("Debit (₹)");
-        colDebit.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().debit != null ? currency.format(r.getValue().debit) : ""));
-        TableColumn<DrillDownRow, String> colCredit = new TableColumn<>("Credit (₹)");
-        colCredit.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().credit != null ? currency.format(r.getValue().credit) : ""));
-        TableColumn<DrillDownRow, String> colBal = new TableColumn<>("Balance (₹)");
-        colBal.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().balance != null ? currency.format(r.getValue().balance) : ""));
-
-        table.getColumns().addAll(List.of(colDate, colVoucher, colParty, colDesc, colDebit, colCredit, colBal));
-        ObservableList<DrillDownRow> allRows = FXCollections.observableArrayList(res.rows != null ? res.rows : List.of());
-        table.setItems(allRows);
-        DynamicTableLayoutManager.install(table);
+        Label footer = PopupTableWorkspace.footerText("Showing " + allRows.size() + " ledger transaction(s) backing " + category);
 
         txtSearch.textProperty().addListener((obs, oldV, q) -> {
             if (q == null || q.isBlank()) {
                 table.setItems(allRows);
+                footer.setText("Showing " + allRows.size() + " ledger transaction(s) backing " + category);
             } else {
                 String lq = q.toLowerCase(Locale.ROOT);
-                table.setItems(allRows.filtered(r ->
+                ObservableList<DrillDownRow> filtered = allRows.filtered(r ->
                         (r.partyOrAccount != null && r.partyOrAccount.toLowerCase(Locale.ROOT).contains(lq)) ||
                         (r.voucherNo != null && r.voucherNo.toLowerCase(Locale.ROOT).contains(lq)) ||
                         (r.description != null && r.description.toLowerCase(Locale.ROOT).contains(lq))
-                ));
+                );
+                table.setItems(filtered);
+                footer.setText("Filtered to " + filtered.size() + " of " + allRows.size() + " ledger transaction(s)");
             }
         });
 
@@ -621,7 +645,7 @@ public class FinancialStatementsController implements ScreenLifecycle {
                     pw.println("Date,Voucher No,Party / Account,Description,Debit,Credit,Balance");
                     for (DrillDownRow r : table.getItems()) {
                         pw.printf("\"%s\",\"%s\",\"%s\",\"%s\",%.2f,%.2f,%.2f%n",
-                                r.date != null ? r.date : "",
+                                r.date != null ? BusinessClock.formatDate(r.date) : "",
                                 r.voucherNo != null ? r.voucherNo : "",
                                 r.partyOrAccount != null ? r.partyOrAccount.replace("\"", "\"\"") : "",
                                 r.description != null ? r.description.replace("\"", "\"\"") : "",
@@ -636,8 +660,13 @@ public class FinancialStatementsController implements ScreenLifecycle {
             }
         });
 
-        content.getChildren().addAll(topBar, table);
+        VBox tableArea = new VBox(8, filterBar, table);
+        VBox.setVgrow(table, Priority.ALWAYS);
+        VBox.setVgrow(tableArea, Priority.ALWAYS);
+
+        VBox content = PopupTableWorkspace.content(metrics, tableArea, footer);
         dialog.getDialogPane().setContent(content);
+        PopupTableWorkspace.prepareDialog(dialog, 980);
         dialog.showAndWait();
     }
 

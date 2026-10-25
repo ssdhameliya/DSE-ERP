@@ -23,12 +23,29 @@ public final class EmailService {
     }
 
     public static void resend(String recipient, String subject, String body, Path attachment) {
+        resend(recipient, subject, body, attachment, null);
+    }
+
+    public static void resend(String recipient, String subject, String body, Path attachment, Path signatureImage) {
         org.example.service.PermissionService.require("COMMUNICATION.RESEND", "re-send a communication");
+        if (signatureImage == null) {
+            String configuredSig = MessageTemplateService.getSignatureImagePath();
+            if (configuredSig != null && !configuredSig.isBlank()) {
+                try {
+                    Path p = Path.of(configuredSig);
+                    if (Files.isRegularFile(p) && Files.isReadable(p)) {
+                        signatureImage = p;
+                    }
+                } catch (Exception ignored) {
+                    java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
+                }
+            }
+        }
         if (ConfigManager.isSharedClient()) {
-            new org.example.api.authority.BusinessEmailClient().resend(recipient, subject, body, attachment);
+            new org.example.api.authority.BusinessEmailClient().resend(recipient, subject, body, attachment, signatureImage);
             return;
         }
-        send(recipient, subject, body, attachment);
+        send(recipient, subject, body, attachment, signatureImage);
     }
 
     public static void send(String recipient, String subject, String body, Path attachment) {
@@ -50,7 +67,7 @@ public final class EmailService {
             }
         }
         if (ConfigManager.isSharedClient()) {
-            new org.example.api.authority.BusinessEmailClient().send(recipient, subject, body, attachment);
+            new org.example.api.authority.BusinessEmailClient().send(recipient, subject, body, attachment, signatureImage);
             return;
         }
         String sender = ConfigManager.get("smtp.email", "").trim();

@@ -34,19 +34,47 @@ public final class DeepLinkSupport {
     private static void attempt(Node root) {
         LinkedRecordContext.Target target = LinkedRecordContext.peek();
         if (target == null) return;
+        javafx.scene.control.TextField searchField = findSearchField(root);
+        if (searchField != null && target.documentNo() != null && !target.documentNo().isBlank()) {
+            String current = searchField.getText() == null ? "" : searchField.getText().trim();
+            if (!current.equalsIgnoreCase(target.documentNo().trim())) {
+                searchField.setText(target.documentNo().trim());
+                searchField.fireEvent(new javafx.event.ActionEvent());
+            }
+        }
         for (TableView<?> table : tables(root)) {
             Object match = findMatch(table, target);
             if (match == null) continue;
             @SuppressWarnings("unchecked") TableView<Object> typed = (TableView<Object>) table;
+            typed.getItems().setAll(match);
             typed.getSelectionModel().select(match);
             typed.scrollTo(match);
             typed.requestFocus();
             pulse(typed);
             highlight(typed, match);
             LinkedRecordContext.consumeAny();
-            PerformanceMonitor.event("linked-navigation", target.module()+" -> "+target.documentNo()+" | generic-table-focus | source="+target.source());
+            PerformanceMonitor.event("linked-navigation", target.module()+" -> "+target.documentNo()+" | isolated-single-record | source="+target.source());
             return;
         }
+    }
+
+    private static javafx.scene.control.TextField findSearchField(Node root) {
+        if (root == null) return null;
+        if (root instanceof javafx.scene.control.TextField tf) {
+            String id = tf.getId() == null ? "" : tf.getId().toLowerCase(Locale.ROOT);
+            String prompt = tf.getPromptText() == null ? "" : tf.getPromptText().toLowerCase(Locale.ROOT);
+            if (id.contains("search") || id.contains("filter") || id.contains("query") || id.contains("invoice") ||
+                prompt.contains("search") || prompt.contains("filter")) {
+                return tf;
+            }
+        }
+        if (root instanceof Parent p) {
+            for (Node child : p.getChildrenUnmodifiable()) {
+                javafx.scene.control.TextField found = findSearchField(child);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
 
