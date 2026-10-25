@@ -2423,6 +2423,7 @@ private record AssetPreviewRequest(
             "Purchase Bill (Email)",
             "Payment Receipt (Email)",
             "Sales Return (Email)",
+            "Purchase Return (Email)",
             "Sales Invoice (WhatsApp)",
             "Quotation (WhatsApp)"
         ));
@@ -2499,6 +2500,7 @@ private record AssetPreviewRequest(
             "Purchase Bill (Email)",
             "Payment Receipt (Email)",
             "Sales Return (Email)",
+            "Purchase Return (Email)",
             "Sales Invoice (WhatsApp)",
             "Quotation (WhatsApp)"
         )) {
@@ -2520,6 +2522,7 @@ private record AssetPreviewRequest(
         if (option == null) return MessageTemplateService.DocumentType.SALES_INVOICE;
         if (option.contains("Sales Invoice")) return MessageTemplateService.DocumentType.SALES_INVOICE;
         if (option.contains("Quotation")) return MessageTemplateService.DocumentType.QUOTATION;
+        if (option.contains("Purchase Return")) return MessageTemplateService.DocumentType.PURCHASE_RETURN;
         if (option.contains("Purchase")) return MessageTemplateService.DocumentType.PURCHASE_BILL;
         if (option.contains("Payment")) return MessageTemplateService.DocumentType.PAYMENT_RECEIPT;
         if (option.contains("Return")) return MessageTemplateService.DocumentType.SALES_RETURN;

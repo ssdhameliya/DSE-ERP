@@ -255,6 +255,7 @@ public class EmailTransmissionDialog {
             if (owner != null) dialog.initOwner(owner);
 
             dialog.setTitle(draft.title() != null ? draft.title() : "Transmit Email");
+            dialog.setResizable(true);
             pane.setContent(content);
             pane.getButtonTypes().add(ButtonType.CLOSE);
             Node closeBtn = pane.lookupButton(ButtonType.CLOSE);

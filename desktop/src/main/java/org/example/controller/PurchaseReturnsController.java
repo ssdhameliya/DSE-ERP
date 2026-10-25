@@ -21,10 +21,12 @@ import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
 import org.example.service.EmailService;
 import org.example.service.ManagedInvoicePdfService;
+import org.example.service.MessageTemplateService;
 import org.example.service.NotificationService;
 import org.example.service.PermissionService;
 import org.example.service.ReturnWorkflowService;
 import org.example.util.IconFactory;
+import org.example.util.LiveOperationDialog;
 import org.example.util.UiTaskExecutor;
 import org.example.util.TableSelectionSupport;
 import org.example.util.SemanticTableCells;
@@ -34,6 +36,7 @@ import org.example.util.ScreenRefreshPolicy;
 
 import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
@@ -218,13 +221,37 @@ public class PurchaseReturnsController implements ScreenLifecycle {
                 failure -> error(asException(failure)));
     }
     private void email(Row row) {
-        if(row==null)return;
-        UiTaskExecutor.submitAction("purchase-return-email-" + row.no(), () -> {
-            String recipient=partyEmail(row.no());
-            if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return.");
-            EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",ManagedInvoicePdfService.refund(row.no(),false));
-            return recipient;
-        }, recipient -> info("Purchase return emailed to "+recipient+"."), failure -> error(asException(failure)));
+        if (row == null) return;
+        UiTaskExecutor.submitAction("purchase-return-prepare-email-" + row.no(), () -> {
+            String recipient = partyEmail(row.no());
+            Path pdf = ManagedInvoicePdfService.refund(row.no(), false);
+            MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatPurchaseReturnEmail(row.no(), row.supplier(), row.date(), row.total());
+            String sigImg = MessageTemplateService.getSignatureImagePath();
+            Path sigPath = (sigImg != null && !sigImg.isBlank()) ? Path.of(sigImg) : null;
+            return new EmailTransmissionDialog.EmailDraft(
+                    "Transmit Purchase Return via Email",
+                    "Direct SMTP delivery to supplier billing contact",
+                    "Purchase Return",
+                    row.no(),
+                    recipient == null ? "" : recipient.trim(),
+                    msg.subject(),
+                    msg.body(),
+                    pdf,
+                    sigPath
+            );
+        }, draft -> {
+            Optional<EmailTransmissionDialog.TransmissionResult> opt = EmailTransmissionDialog.show(table, draft);
+            if (opt.isEmpty()) return;
+            EmailTransmissionDialog.TransmissionResult result = opt.get();
+            LiveOperationDialog.run(table, "Sending Purchase Return Email", "email", "Connecting to SMTP server...", reporter -> {
+                reporter.stage(1, 2, "Connecting to SMTP and transmitting email to " + result.recipientEmail() + "...");
+                EmailService.send(result.recipientEmail(), result.subject(), result.body(), result.attachmentPdf(), result.signatureImage());
+                reporter.stage(2, 2, "Email delivery complete.");
+                reporter.log("Delivered purchase return note #" + row.no() + " to " + result.recipientEmail());
+            }, () -> {
+                info("Purchase return #" + row.no() + " emailed successfully to " + result.recipientEmail() + ".");
+            }, failure -> error(new IllegalStateException("Email delivery failed:\n\n" + failure.getMessage(), failure)));
+        }, failure -> error(asException(failure)));
     }
     private Optional<String> input(String title, String prompt) {
         return input("", title, prompt);

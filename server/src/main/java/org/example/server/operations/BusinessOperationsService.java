@@ -759,7 +759,7 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
   }
   return fmt;
  }
- private String datedReferenceFormat(String fmt){LocalDate t=BusinessClock.today();return fmt.replace("DD-MM-YYYY",t.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).replace("DD/MM/YYYY",t.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).replace("YYYY-MM-DD",t.toString()).replace("YYYY",String.valueOf(t.getYear())).replace("YY",String.format(Locale.ROOT,"%02d",t.getYear()%100));}
+ private String datedReferenceFormat(String fmt){if(fmt==null||fmt.isBlank())return fmt;LocalDate t=BusinessClock.today();return fmt.replace("DD-MM-YYYY",t.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).replace("DD/MM/YYYY",t.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).replace("YYYY-MM-DD",t.toString()).replace("YYYY",String.valueOf(t.getYear())).replace("YY",String.format(Locale.ROOT,"%02d",t.getYear()%100)).replace("MM",String.format(Locale.ROOT,"%02d",t.getMonthValue())).replace("DD",String.format(Locale.ROOT,"%02d",t.getDayOfMonth()));}
  private static String idCsv(Collection<Integer> ids){if(ids==null||ids.isEmpty())return "";return ids.stream().filter(Objects::nonNull).map(String::valueOf).collect(java.util.stream.Collectors.joining(","));}
  private static String sqlDate(String column){return "dse_safe_date("+column+")";}
  private static String trim(String v){return v==null?"":v.trim();}

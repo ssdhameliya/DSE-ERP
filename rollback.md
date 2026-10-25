@@ -1,5 +1,5 @@
 # DSE ERP — MASTER ROLLBACK & MIGRATION PLAN
-## Pure Decoupled Architecture: Desktop `v11.0.1` (patch) & Web Platform `v11.0.0.01`
+## Pure Decoupled Architecture: Desktop `v11.0.2` (patch) & Web Platform `v11.0.0.01`
 
 > **Document Status:** 📋 OFFICIAL EXECUTION BLUEPRINT  
 > **Target Desktop / Server Release:** `v11.0.0` (Baseline: Git tag `v10.0.41` commit `5a758e05`)  

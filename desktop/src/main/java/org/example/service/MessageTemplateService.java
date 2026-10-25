@@ -21,7 +21,8 @@ public final class MessageTemplateService {
         QUOTATION("quote", "Quotation"),
         PURCHASE_BILL("purchase", "Purchase Bill"),
         PAYMENT_RECEIPT("payment", "Payment Receipt"),
-        SALES_RETURN("sales_return", "Sales Return");
+        SALES_RETURN("sales_return", "Sales Return"),
+        PURCHASE_RETURN("purchase_return", "Purchase Return");
 
         private final String key;
         private final String displayName;
@@ -134,6 +135,7 @@ public final class MessageTemplateService {
             case PURCHASE_BILL -> "Purchase Order {DocumentNo} from {CompanyName}";
             case PAYMENT_RECEIPT -> "Payment Receipt for {DocumentNo} from {CompanyName}";
             case SALES_RETURN -> "Sales Return Note {DocumentNo} from {CompanyName}";
+            case PURCHASE_RETURN -> "Purchase Return Note {DocumentNo} from {CompanyName}";
         };
     }
 
@@ -191,6 +193,14 @@ public final class MessageTemplateService {
                 • Total Credit: {TotalAmount}
 
                 {Signature}""";
+            case PURCHASE_RETURN -> """
+                Dear {CustomerName},
+
+                Please find attached purchase return / debit note {DocumentNo} dated {DocumentDate}.
+
+                • Total Amount: {TotalAmount}
+
+                {Signature}""";
         };
     }
 
@@ -201,6 +211,7 @@ public final class MessageTemplateService {
             case PURCHASE_BILL -> "Hello *{CustomerName}*,\n\nPlease find attached purchase order *{DocumentNo}* dated *{DocumentDate}*.\n\nRegards,\n*{CompanyName}*";
             case PAYMENT_RECEIPT -> "Hello *{CustomerName}*,\n\nWe have received payment of *{PaidAmount}* against *{DocumentNo}* (Balance: *{BalanceAmount}*).\n\nThank you!\n\n*{CompanyName}*";
             case SALES_RETURN -> "Hello *{CustomerName}*,\n\nPlease find attached sales return note *{DocumentNo}* for amount *{TotalAmount}*.\n\n*{CompanyName}*";
+            case PURCHASE_RETURN -> "Hello *{CustomerName}*,\n\nPlease find attached purchase return note *{DocumentNo}* for amount *{TotalAmount}*.\n\n*{CompanyName}*";
         };
     }
 
@@ -286,6 +297,33 @@ public final class MessageTemplateService {
             try { parsed = LocalDate.parse(dateStr.trim()); } catch (Exception ignored) {}
         }
         return formatSalesReturnEmail(returnNo, partyName, parsed, amount);
+    }
+
+    public static FormattedMessage formatPurchaseReturnEmail(String returnNo, String partyName, LocalDate date, double amount) {
+        Map<String, String> tokens = buildTokens(
+            partyName == null || partyName.isBlank() ? "Supplier" : partyName,
+            returnNo,
+            date,
+            amount,
+            0.0,
+            amount
+        );
+        String subject = format(getEmailSubject(DocumentType.PURCHASE_RETURN), tokens);
+        String rawBody = getEmailBody(DocumentType.PURCHASE_RETURN);
+        String body = format(rawBody, tokens);
+        String signature = tokens.get("Signature");
+        if (signature != null && !signature.isBlank() && !rawBody.contains("{Signature}") && !body.contains(signature.trim())) {
+            body = body.stripTrailing() + "\n\n" + signature.trim();
+        }
+        return new FormattedMessage(subject, body);
+    }
+
+    public static FormattedMessage formatPurchaseReturnEmail(String returnNo, String partyName, String dateStr, double amount) {
+        LocalDate parsed = null;
+        if (dateStr != null && !dateStr.isBlank()) {
+            try { parsed = LocalDate.parse(dateStr.trim()); } catch (Exception ignored) {}
+        }
+        return formatPurchaseReturnEmail(returnNo, partyName, parsed, amount);
     }
 
     public static String formatSalesWhatsapp(Sales sale) {
