@@ -11,6 +11,7 @@ public class PurchaseReconController{
  @DeleteMapping("/suppliers/{id}") public void deleteSupplier(@PathVariable Integer id){service.deleteSupplier(id);}
  @PutMapping("/suppliers/{id}") public PurchaseReconDtos.SupplierDto updateSupplier(@PathVariable Integer id,@RequestBody PurchaseReconDtos.SupplierSaveRequest r){return service.saveSupplier(new PurchaseReconDtos.SupplierSaveRequest(id,r.legalName(),r.gstin(),r.pan(),r.contactPerson(),r.phone(),r.email(),r.notes(),r.status(),r.rowVersion()));}
  @GetMapping("/records") public List<PurchaseReconDtos.ReconDto> records(){return service.recons();}
+ @GetMapping("/records/next-reference") public Map<String,String> nextRecordReference(){return Map.of("reference",service.previewNextPurchaseReconReference());}
  @GetMapping("/records/page") public PurchaseReconDtos.Page recordsPage(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="25") int size,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="") String status){return service.page(page,size,q,status);}
  @GetMapping("/records/{id}") public PurchaseReconDtos.ReconDto record(@PathVariable Integer id){return service.recon(id);}
  @PostMapping("/records") public PurchaseReconDtos.ReconDto create(@RequestBody PurchaseReconDtos.ReconSaveRequest r){return service.saveRecon(r);}

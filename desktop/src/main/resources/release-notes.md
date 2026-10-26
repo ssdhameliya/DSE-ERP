@@ -1,23 +1,19 @@
-# What's New in DSE ERP v11.0.5
+# What's New in DSE ERP v11.0.6
 
-### Recon Supplier Records Drill-Down & Multi-Link Navigation
-- **Interactive Record Count Drill-Down**: Clicking the linked record count in the Recon Supplier table launches the comprehensive `ReconSupplierRecordsDialog` showing all matching `PurchaseRecon` records.
-- **Dynamic Popup Geometry & Formatting**: Adheres to centralized UI rules with themed column icons, right-aligned currency formatting, responsive column widths, and direct multi-link pills to navigate directly to linked Bank Statement or Bank Expense transactions.
-- **Dedicated Toolbar with Search & Excel Export**: Features a live filter search bar with search icon, instant Reset button, and one-click Excel (.xlsx) export.
+### Centralized Bank Reference Master (12 Formats Resolution)
+- **Standardized Multi-Module References**: Standardized reference codes across all 12 bank-related formats (9 core + 3 fallback/legacy) for unified cross-module lookups between Bank Statements, Bank Entries, and Expense Entries.
+- **Automated Database Sequence Registry**: Initialized reference format sequence tracking via `V10_0_35__bank_reference_format_master.sql`.
 
-### Auto-Generated Supplier Reference
-- **Deterministic Read-Only Reference**: Creating a new Recon Supplier automatically fetches the next sequential supplier code (e.g. `RS-0001`, `RS-0002`) from the backend.
-- **Enforced Immutability**: The reference field is locked as read-only to prevent manual typos or conflicting references.
+### Multi-Target Allocation Chooser Dialog
+- **Interactive Multi-Target Inspection**: Reconciled bank transactions linked to multiple ERP invoices or recons now open a dedicated 980px dialog displaying summary KPI metrics.
+- **Direct Workspace Navigation**: A 6-column table with individual `👁️ View` buttons enables seamless travel to the target document's workspace.
 
-### Centralized Operational Standards Across Registers
-- **Recon Supplier Table Upgrades**: Integrated search icon, dedicated Reset button, Excel export button, and standard pagination footer with dynamic "Showing X to Y of Z entries" counter matching Bank Statement.
-- **Purchase Recon & Bank Expense Enhancements**: Added standard Reset filters and Excel workbook export across both registers.
+### Side Drawer Suppression on Linked Navigation
+- **Workspace Focus**: Auto-opening of side drawers in Bank Entry and Expense Entry is suppressed when navigating to an isolated transaction, keeping the focused row unobstructed.
 
-### Bank Statement Auto-Match Tolerance & Scanning Improvements
-- **Auto-Match Tolerance Fix**: Resolved matching failures for amounts within configured decimal tolerance (e.g., ₹0.10 round-off differences) by allocating exact bank transaction amounts during auto-reconciliation.
-- **Animated Scanning Progress**: Embedded real-time scanning feedback within `LiveOperationDialog` with rotating progress and live transaction status counters.
-- **Browse Statements Dialog Optimization**: Resolved button clipping on the Bank Statement History popup by establishing adaptive screen bounds, dynamic table height flexibility, and bottom action button clearance.
+### Non-Clipped Table Headers & Expanded Column Widths
+- **Expanded Column Geometry**: Match/Link headers widened across `BankStatement.fxml`, `BankExpense.fxml`, and `PurchaseRecon.fxml`.
+- **Colorful Theme Badges**: Added vibrant badges (`pill-purple`, `pill-cyan`, `pill-teal`, `pill-blue`, `pill-orange`) eliminating text clipping.
 
-### Workspace & Dialog Layout Fixes
-- **Email Transmission Dialog**: Restored the Message Body field to a full-height multi-line `TextArea` by correcting JavaFX CSS dimension specifications, enabling `fitToHeight` expansion, and enforcing minimum bounds.
-- **Purchase Recon Records Dialog**: Eliminated horizontal clipping on right-side toolbar buttons (`Reset`, `Export Excel`) and table columns (`Linked Documents`, `Notes`) via `DynamicTableLayoutManager` installation and responsive column width compaction.
+### Universal Excel Workbook Export
+- **One-Click Export**: Standardized full-table `.xlsx` export across all 5 registers under the Bank & Expense menu.

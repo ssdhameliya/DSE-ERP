@@ -534,12 +534,9 @@
     -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
 
-/* Ensure text-areas never collapse down to single-line 36px inputs */
-.text-area.approved-input,
-.text-area.erp-control-input,
-.erp-ui-standard .text-area.approved-input,
-.erp-ui-standard .text-area.erp-control-input,
-.dse-dialog-pane .text-area {
+/* Ensure email body and large template areas have sufficient height without distorting compact textareas */
+.email-transmission-body-area,
+.settings-template-body {
     -fx-min-height: 140px;
 }
 

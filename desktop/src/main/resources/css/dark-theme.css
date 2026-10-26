@@ -1087,6 +1087,12 @@
     -fx-padding: 0;
     -fx-background-color: transparent;
 }
+.bank-erp-doc-link {
+    -fx-text-fill: #60a5fa;
+}
+.bank-voucher-link {
+    -fx-text-fill: #a78bfa;
+}
 .bank-row-action {
 -fx-font-weight: 900;
 }
@@ -2524,7 +2530,7 @@
 }
 .text-area.approved-input,
 .text-area.erp-control-input {
-    -fx-min-height: 140;
+    -fx-min-height: 40;
 }
 .payment-input {
 -fx-border-width: 1;

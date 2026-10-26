@@ -33,6 +33,8 @@ public class PurchaseReconService {
     public List<PurchaseReconDtos.SupplierDto> suppliers(){return searchSuppliers("",40);}
     public String nextSupplierReference(){return nextReconSupplierReference();}
     @Transactional(readOnly=true)
+    public String previewNextPurchaseReconReference(){return operations.previewConfiguredReference("REF_PURCHASE_RECON","PRC-YYYY-XXXXX",()->recons.findAll().stream().map(PurchaseReconEntity::getReconRef).filter(Objects::nonNull).toList());}
+    @Transactional(readOnly=true)
     public List<PurchaseReconDtos.SupplierDto> searchSuppliers(String q,int limit){CurrentUser.requirePermission("RECON_SUPPLIER.VIEW","View Recon Suppliers");int safeLimit=Math.max(10,Math.min(limit,100));String query=safe(q).trim();Map<Integer,Long> counts=new HashMap<>();jdbc.query("SELECT recon_supplier_id,COUNT(*) FROM purchase_recon GROUP BY recon_supplier_id",r->{counts.put(r.getInt(1),r.getLong(2));});return suppliers.search(query,PageRequest.of(0,safeLimit)).stream().map(x->supplierDto(x,counts.getOrDefault(x.getId(),0L))).toList();}
     @Transactional(readOnly=true)
     public PurchaseReconDtos.SupplierDto supplier(Integer id){CurrentUser.requirePermission("RECON_SUPPLIER.VIEW","View Recon Suppliers");var entity=suppliers.findById(id).orElseThrow(()->new IllegalArgumentException("Recon Supplier not found."));return supplierDto(entity,recons.countByReconSupplier_Id(id));}

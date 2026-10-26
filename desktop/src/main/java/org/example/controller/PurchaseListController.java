@@ -151,7 +151,7 @@ public class PurchaseListController implements ScreenLifecycle{
    String status = s(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
    boolean cancelled = "CANCELLED".equals(status), deleted = "DELETED".equals(status), inactive = cancelled || deleted;
    boolean locked = isFinanciallyLocked(current);
-   editActionItem.setDisable(inactive);
+   editActionItem.setDisable(inactive || locked);
    paymentActionItem.setDisable(inactive || "DRAFT".equals(status) || isApprovalLocked(current));
    returnActionItem.setDisable(!isReturnEligible(current));
    cancelActionItem.setDisable(locked || inactive);
@@ -261,7 +261,15 @@ public class PurchaseListController implements ScreenLifecycle{
  private LocalDate parseDate(String d){try{return d==null||d.isBlank()?null:LocalDate.parse(d);}catch(Exception ignored){return null;}}
  @FXML private void toggleAdvanced(){advancedFilters.setManaged(btnAdvanced.isSelected());advancedFilters.setVisible(btnAdvanced.isSelected());}@FXML private void resetFilters(){batchFilterUpdate(()->{txtSearch.clear();cmbSupplier.setValue("All Suppliers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");cmbDocumentStatus.setValue("All");cmbReturnStatus.setValue("All");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());});searchDebouncer.cancel();filter();}
  @FXML private void newPurchase(){NavigationManager.navigateOrReport("/fxml/pages/Purchase.fxml");}
- private void edit(Purchase p){openPurchaseEditor(p,false);}
+ private void edit(Purchase p){
+  if(p==null)return;
+  if(isFinanciallyLocked(p)){
+   info("This purchase invoice is paid, partially paid, or settled and cannot be edited directly.\n\nOpening in View mode instead.");
+   view(p);
+   return;
+  }
+  openPurchaseEditor(p,false);
+ }
  private void view(Purchase p){openPurchaseEditor(p,true);}
  private void openPurchaseEditor(Purchase p,boolean viewOnly){
   try{

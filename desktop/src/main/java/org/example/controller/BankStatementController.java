@@ -267,6 +267,7 @@ public class BankStatementController implements ScreenLifecycle {
         });
         colDebit.setCellValueFactory(v->v.getValue().debit); colCredit.setCellValueFactory(v->v.getValue().credit); colBalance.setCellValueFactory(v->v.getValue().balance);
         colStatus.setCellValueFactory(v->v.getValue().status); colMatch.setCellValueFactory(v->v.getValue().match);
+        colMatch.setMinWidth(220);
         moneyCell(colDebit,true); moneyCell(colCredit,false); moneyCell(colBalance,false);
         colStatus.setCellFactory(c->SemanticTableCells.status("bank"));
         colMatch.setCellFactory(c->new TableCell<>(){
@@ -274,7 +275,28 @@ public class BankStatementController implements ScreenLifecycle {
                 super.updateItem(text,empty); setText(null); setGraphic(null);
                 if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()||text==null||text.isBlank())return;
                 Row row=getTableView().getItems().get(getIndex());
-                Hyperlink link=new Hyperlink(text); link.getStyleClass().add("bank-match-link"); link.setOnAction(e->openLinked(row)); setGraphic(link);
+                String voucher=row.dto==null?null:safe(row.dto.financeVoucherNo());
+                if(voucher!=null&&!voucher.isBlank()&&!voucher.equalsIgnoreCase(text.trim())&&!text.startsWith("Suggested")){
+                    HBox box=new HBox(6);
+                    box.setAlignment(Pos.CENTER_LEFT);
+                    Hyperlink docLink=new Hyperlink(text);
+                    docLink.getStyleClass().addAll("bank-match-link","bank-erp-doc-link");
+                    docLink.setGraphic(IconFactory.compactIcon("link",12));
+                    docLink.setTooltip(new Tooltip("Open ERP Document: "+text));
+                    docLink.setOnAction(e->openLinked(row));
+                    Hyperlink voucherLink=new Hyperlink(voucher);
+                    voucherLink.getStyleClass().addAll("bank-match-link","bank-voucher-link");
+                    voucherLink.setGraphic(IconFactory.compactIcon("bank",12));
+                    voucherLink.setTooltip(new Tooltip("Open Bank Entry Voucher: "+voucher));
+                    voucherLink.setOnAction(e->openFinance(row,BankExpenseController.Mode.BANK));
+                    box.getChildren().addAll(docLink,voucherLink);
+                    setGraphic(box);
+                } else {
+                    Hyperlink link=new Hyperlink(text);
+                    link.getStyleClass().add("bank-match-link");
+                    link.setOnAction(e->openLinked(row));
+                    setGraphic(link);
+                }
             }
         });
         colAction.setCellFactory(c->new TableCell<>(){
@@ -315,7 +337,7 @@ public class BankStatementController implements ScreenLifecycle {
         } else if("MATCHED".equals(s)){
             section(m,"RECONCILIATION");
             add(m,"View Match / Linked Record","link",()->openLinked(row));
-            if("BANK_ENTRY".equals(up(row.dto.linkedTargetType())))
+            if(row.dto.financeEntryId()!=null||"BANK_ENTRY".equals(up(row.dto.linkedTargetType())))
                 add(m,"View Bank Entry","bank",()->openFinance(row,BankExpenseController.Mode.BANK));
             section(m,"REVERSAL");
             add(m,"Unmatch / Reverse","return",()->reverse(row));
@@ -1072,37 +1094,51 @@ public class BankStatementController implements ScreenLifecycle {
         candidatesTable.getProperties().put("erp-keep-selection", true);
         PopupTableWorkspace.prepareTable(candidatesTable,"erp-table-profile-dialog");
         candidatesTable.setEditable(true);
-        candidatesTable.setPrefSize(1100,430);
+        candidatesTable.setPrefSize(1280,460);
         TableColumn<CandidateRow,Boolean> selected=new TableColumn<>("Select");
         selected.setCellValueFactory(v->v.getValue().selected);
         selected.setCellFactory(CheckBoxTableCell.forTableColumn(selected));
+        selected.setMinWidth(45); selected.setPrefWidth(45);
 
         TableColumn<CandidateRow,Number> score=new TableColumn<>("Score");
         score.setCellValueFactory(v->v.getValue().confidence);
+        score.setMinWidth(65); score.setPrefWidth(70);
 
         TableColumn<CandidateRow,String> type=new TableColumn<>("Type");
         type.setCellValueFactory(v->v.getValue().type);
+        type.setMinWidth(110); type.setPrefWidth(125);
+
         TableColumn<CandidateRow,String> document=new TableColumn<>("Document");
         document.setCellValueFactory(v->v.getValue().document);
+        document.setMinWidth(160); document.setPrefWidth(180);
 
         TableColumn<CandidateRow,String> party=new TableColumn<>("Customer / Supplier");
         party.setCellValueFactory(v->v.getValue().party);
+        party.setMinWidth(220); party.setPrefWidth(260);
 
         TableColumn<CandidateRow,String> date=new TableColumn<>("Date");
         date.setCellValueFactory(v->v.getValue().date);
+        date.setMinWidth(100); date.setPrefWidth(110);
+
         TableColumn<CandidateRow,Number> total=new TableColumn<>("Document Total");
         total.setCellValueFactory(v->v.getValue().total);
+        total.setMinWidth(130); total.setPrefWidth(140);
 
         TableColumn<CandidateRow,Number> paid=new TableColumn<>("Paid / Refunded");
         paid.setCellValueFactory(v->v.getValue().paid);
+        paid.setMinWidth(130); paid.setPrefWidth(140);
 
         TableColumn<CandidateRow,Number> outstanding=new TableColumn<>("Outstanding");
         outstanding.setCellValueFactory(v->v.getValue().outstanding);
+        outstanding.setMinWidth(130); outstanding.setPrefWidth(140);
+
+        for(var c:List.of(total,paid,outstanding))c.setCellFactory(x->new TableCell<>(){@Override protected void updateItem(Number n,boolean empty){super.updateItem(n,empty);setText(empty||n==null?null:"₹ "+money(n.doubleValue()));}});
 
         TableColumn<CandidateRow,Double> allocation=new TableColumn<>("Allocation");
         allocation.setCellValueFactory(v->v.getValue().allocation.asObject());
         allocation.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         allocation.setOnEditCommit(e->{double value=e.getNewValue()==null?0:e.getNewValue();e.getRowValue().allocation.set(value);e.getRowValue().selected.set(value>.0001);});
+        allocation.setMinWidth(130); allocation.setPrefWidth(140);
 
         candidatesTable.getColumns().setAll(selected,score,type,document,party,date,total,paid,outstanding,allocation);
         CheckBox selectAllCandidates=new CheckBox();
@@ -1162,7 +1198,7 @@ public class BankStatementController implements ScreenLifecycle {
         help.setWrapText(true);help.getStyleClass().add("bank-dialog-help");
         VBox tableArea=new VBox(7,bank,help,candidatesTable);VBox.setVgrow(candidatesTable,Priority.ALWAYS);
         VBox content=PopupTableWorkspace.content(metrics,tableArea,selectedStatus);
-        Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Match Transaction");dialog.setHeaderText("Review possible matches and allocate the complete bank transaction.");dialog.getDialogPane().setContent(content);PopupTableWorkspace.prepareDialog(dialog,1180);
+        Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Match Transaction");dialog.setHeaderText("Review possible matches and allocate the complete bank transaction.");dialog.getDialogPane().setContent(content);PopupTableWorkspace.prepareDialog(dialog,1320);
         ButtonType refreshType=new ButtonType("Refresh Suggestions",ButtonBar.ButtonData.OTHER);ButtonType confirm=new ButtonType("Confirm Match",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(refreshType,ButtonType.CANCEL,confirm);
         Button refreshButton=(Button)dialog.getDialogPane().lookupButton(refreshType);refreshButton.setGraphic(IconFactory.compactIcon("refresh",15));refreshButton.addEventFilter(javafx.event.ActionEvent.ACTION,e->{e.consume();dialog.close();javafx.application.Platform.runLater(()->match(bankRow));});
         dialog.showAndWait().filter(confirm::equals).ifPresent(x->{
@@ -1219,58 +1255,264 @@ public class BankStatementController implements ScreenLifecycle {
         if(financeId!=null)BankExpenseController.requestLinkedEntry(mode,financeId);else BankExpenseController.requestMode(mode);
         DashboardController.navigateFromChild(mode==BankExpenseController.Mode.BANK?"Bank Entry":"Expense Entry","/fxml/pages/BankExpense.fxml",mode);
     }
-    private void openLinked(Row row){
-        var t=row.dto;
-        List<BankStatementApiClient.AllocationDto> linked=t.linkedAllocations()==null?List.of():t.linkedAllocations();
-        if(linked.size()>1){showLinkedAllocations(row,linked);return;}
-        if(linked.size()==1){openAllocation(linked.getFirst(),"Bank Statement #"+t.id());return;}
-        String type=up(t.linkedTargetType()); Integer id=t.linkedTargetId(); String no=safe(t.linkedDocumentNo());
-        if(type.isBlank()&&t.suggestedMatchType()!=null){type=up(t.suggestedMatchType());id=t.suggestedMatchId();}
-        openLinkedTarget(type,id,no,"Bank Statement #"+t.id(),row);
-    }
-    private void showLinkedAllocations(Row row,List<BankStatementApiClient.AllocationDto> linked){
-        Dialog<ButtonType> dialog=new OwnedDialog<>(table);dialog.setTitle("Linked Transactions");dialog.setHeaderText("View all ERP transactions linked to this bank entry.");
-        TableView<BankStatementApiClient.AllocationDto> linkedTable=new TableView<>(FXCollections.observableArrayList(linked));
-        PopupTableWorkspace.prepareTable(linkedTable,"erp-table-profile-dialog");
-        linkedTable.setPrefHeight(Math.min(360,80+linked.size()*42));
-        TableColumn<BankStatementApiClient.AllocationDto,String> document=new TableColumn<>("Document No");
-        document.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().documentNo()).isBlank()?up(v.getValue().targetType())+" #"+v.getValue().targetId():v.getValue().documentNo()));
+    public static final class LinkedTargetItem {
+        final String role;
+        final String documentNo;
+        final String type;
+        final String typeLabel;
+        final double amount;
+        final double roundOff;
+        final String iconName;
+        final String chipClass;
+        final Runnable onNavigate;
 
-        TableColumn<BankStatementApiClient.AllocationDto,String> type=new TableColumn<>("Transaction Type");
-        type.setCellValueFactory(v->new SimpleStringProperty(up(v.getValue().targetType()).replace('_',' ')));
-        TableColumn<BankStatementApiClient.AllocationDto,Number> amount=new TableColumn<>("Bank Amount");
-        amount.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().allocatedAmount()));
-        amount.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);getStyleClass().remove("erp-quantity-positive");setText(empty||value==null?null:"₹ "+money(value.doubleValue()));if(!empty)getStyleClass().add("erp-quantity-positive");}});
-        TableColumn<BankStatementApiClient.AllocationDto,Number> roundOff=new TableColumn<>("Round-off");
-        roundOff.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().roundingAdjustment()));
-        roundOff.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);setText(empty||value==null?null:signedMoney(value.doubleValue()));}});
-        TableColumn<BankStatementApiClient.AllocationDto,Void> action=new TableColumn<>("Action");
-        action.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Void value,boolean empty){super.updateItem(value,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}var allocation=getTableView().getItems().get(getIndex());Button view=new Button(linkActionLabel(allocation.targetType()));view.getStyleClass().addAll("approved-button","approved-primary-button");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});setGraphic(view);}});
-        IconFactory.applyTableHeaderIcon(document,"document");IconFactory.applyTableHeaderIcon(type,"category");IconFactory.applyTableHeaderIcon(amount,"currency");IconFactory.applyTableHeaderIcon(roundOff,"warning");IconFactory.applyTableHeaderIcon(action,"actions");
-        linkedTable.getColumns().setAll(document,type,amount,roundOff,action);
-        double linkedTotal=linked.stream().mapToDouble(BankStatementApiClient.AllocationDto::allocatedAmount).sum();
-        double roundOffTotal=linked.stream().mapToDouble(BankStatementApiClient.AllocationDto::roundingAdjustment).sum();
-        double difference=bankAmount(row.dto)-linkedTotal;
-        String bankReference=safe(row.dto.reference()).isBlank()?"Bank #"+row.dto.id():row.dto.reference();
-        HBox metrics=PopupTableWorkspace.metricStrip(
-            PopupTableWorkspace.metricCard("Bank Ref",bankReference,"bank"),
-            PopupTableWorkspace.metricCard("Linked Count",String.valueOf(linked.size()),"link"),
-            PopupTableWorkspace.metricCard("Bank Linked","₹ "+money(linkedTotal),"currency"),
-            PopupTableWorkspace.metricCard("Round-off",signedMoney(roundOffTotal),"warning"),
-            PopupTableWorkspace.metricCard("Difference","₹ "+money(difference),Math.abs(difference)<=.01?"complete":"warning")
-        );
-        Label footer=PopupTableWorkspace.footerText(linked.size()+" linked transaction"+(linked.size()==1?"":"s")+" • Use View to open the existing linked workflow.");
-        VBox content=PopupTableWorkspace.content(metrics,linkedTable,footer);
-        dialog.getDialogPane().setContent(content);PopupTableWorkspace.prepareDialog(dialog,900);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
+        LinkedTargetItem(String role, String documentNo, String type, String typeLabel, double amount, double roundOff, String iconName, String chipClass, Runnable onNavigate) {
+            this.role = role;
+            this.documentNo = documentNo;
+            this.type = type;
+            this.typeLabel = typeLabel;
+            this.amount = amount;
+            this.roundOff = roundOff;
+            this.iconName = iconName;
+            this.chipClass = chipClass;
+            this.onNavigate = onNavigate;
+        }
     }
+
+    private List<LinkedTargetItem> collectLinkedTargets(Row row) {
+        if (row == null || row.dto == null) return List.of();
+        var t = row.dto;
+        List<LinkedTargetItem> list = new ArrayList<>();
+        List<BankStatementApiClient.AllocationDto> linked = t.linkedAllocations() == null ? List.of() : t.linkedAllocations();
+        for (var a : linked) {
+            String type = up(a.targetType());
+            if ("EXPENSE".equals(type) || "BANK_ENTRY".equals(type)) continue;
+            String docNo = safe(a.documentNo()).isBlank() ? (type + " #" + a.targetId()) : a.documentNo();
+            String role = "ERP Document";
+            String typeLabel = formatTypeLabel(type);
+            String chipClass = chipClassFor(type);
+            double amt = a.allocatedAmount();
+            double roundOff = a.roundingAdjustment();
+            list.add(new LinkedTargetItem(role, docNo, type, typeLabel, amt, roundOff, "link", chipClass, () -> openAllocation(a, "Bank Statement #" + t.id())));
+        }
+        if (list.isEmpty() && t.linkedTargetType() != null && !t.linkedTargetType().isBlank()) {
+            String type = up(t.linkedTargetType());
+            if (!"EXPENSE".equals(type) && !"BANK_ENTRY".equals(type) && !"MULTIPLE".equals(type)) {
+                String docNo = safe(t.linkedDocumentNo()).isBlank() ? (type + " #" + t.linkedTargetId()) : t.linkedDocumentNo();
+                String role = "ERP Document";
+                String typeLabel = formatTypeLabel(type);
+                String chipClass = chipClassFor(type);
+                double amt = bankAmount(t);
+                list.add(new LinkedTargetItem(role, docNo, type, typeLabel, amt, 0.0, "link", chipClass, () -> openLinkedTarget(type, t.linkedTargetId(), docNo, "Bank Statement #" + t.id(), row)));
+            }
+        }
+        if (t.financeEntryId() != null || "BANK_ENTRY".equals(up(t.linkedTargetType()))) {
+            Integer fid = t.financeEntryId() != null ? t.financeEntryId() : t.linkedTargetId();
+            String vNo = !safe(t.financeVoucherNo()).isBlank() ? t.financeVoucherNo() : ("Bank Entry #" + fid);
+            boolean isCredit = t.credit() > 0;
+            String typeLabel = isCredit ? "Bank Deposit" : "Bank Withdrawal";
+            String chipClass = isCredit ? "finance-chip-green" : "finance-chip-red";
+            double amt = bankAmount(t);
+            list.add(new LinkedTargetItem("Bank Voucher", vNo, "BANK_ENTRY", typeLabel, amt, 0.0, "bank", chipClass, () -> openFinance(row, BankExpenseController.Mode.BANK)));
+        } else if ("EXPENSE".equals(up(t.status())) || "EXPENSE".equals(up(t.linkedTargetType()))) {
+            Integer fid = t.financeEntryId() != null ? t.financeEntryId() : t.linkedTargetId();
+            String vNo = !safe(t.financeVoucherNo()).isBlank() ? t.financeVoucherNo() : ("Expense #" + fid);
+            double amt = t.debit() > 0 ? t.debit() : bankAmount(t);
+            list.add(new LinkedTargetItem("Expense Voucher", vNo, "EXPENSE", "Bank Expense", amt, 0.0, "payment", "finance-chip-orange", () -> openFinance(row, BankExpenseController.Mode.EXPENSE)));
+        }
+        return list;
+    }
+
+    private static String chipClassFor(String type) {
+        String t = up(type);
+        if ("SALE".equals(t)) return "finance-chip-green";
+        if ("PURCHASE".equals(t)) return "finance-chip-orange";
+        if ("PURCHASE_RECON".equals(t)) return "finance-chip-blue";
+        if ("SALES_RETURN".equals(t) || "PURCHASE_RETURN".equals(t)) return "finance-chip-red";
+        if ("EXPENSE".equals(t)) return "finance-chip-orange";
+        if ("BANK_ENTRY".equals(t)) return "finance-chip-teal";
+        return "finance-chip-purple";
+    }
+
+    private static String formatTypeLabel(String type) {
+        String t = up(type);
+        if ("SALE".equals(t)) return "Sales Invoice";
+        if ("PURCHASE".equals(t)) return "Purchase Bill";
+        if ("PURCHASE_RECON".equals(t)) return "Purchase Recon";
+        if ("SALES_RETURN".equals(t)) return "Sales Return";
+        if ("PURCHASE_RETURN".equals(t)) return "Purchase Return";
+        if ("EXPENSE".equals(t)) return "Expense Entry";
+        if ("BANK_ENTRY".equals(t)) return "Bank Entry";
+        return t.replace('_', ' ');
+    }
+
+    private void openLinked(Row row){
+        List<LinkedTargetItem> targets = collectLinkedTargets(row);
+        if(targets.isEmpty()){
+            var t = row.dto;
+            String type = up(t.linkedTargetType()); Integer id = t.linkedTargetId(); String no = safe(t.linkedDocumentNo());
+            if(type.isBlank() && t.suggestedMatchType() != null){ type = up(t.suggestedMatchType()); id = t.suggestedMatchId(); }
+            if(!type.isBlank()){
+                openLinkedTarget(type, id, no, "Bank Statement #" + t.id(), row);
+                return;
+            }
+            new OwnedAlert(Alert.AlertType.INFORMATION, "No linked ERP or Finance document is available for this transaction.").showAndWait();
+            return;
+        }
+        if(targets.size() == 1){
+            targets.getFirst().onNavigate.run();
+            return;
+        }
+        showLinkedTargetsDialog(row, targets);
+    }
+
+    private void showLinkedTargetsDialog(Row row, List<LinkedTargetItem> targets){
+        Dialog<ButtonType> dialog = new OwnedDialog<>(table);
+        dialog.setTitle("Linked Transactions");
+        dialog.setHeaderText("View and navigate to all ERP & Finance records linked to this bank entry.");
+        TableView<LinkedTargetItem> linkedTable = new TableView<>(FXCollections.observableArrayList(targets));
+        PopupTableWorkspace.prepareTable(linkedTable, "erp-table-profile-dialog");
+        linkedTable.setPrefHeight(Math.max(180, Math.min(420, 75 + targets.size() * 48)));
+
+        TableColumn<LinkedTargetItem, String> colRole = new TableColumn<>("Category");
+        colRole.setMinWidth(140);
+        colRole.setPrefWidth(150);
+        colRole.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().role));
+        colRole.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(String s, boolean empty) {
+                super.updateItem(s, empty);
+                setText(null); setGraphic(null);
+                if (empty || s == null) return;
+                LinkedTargetItem item = getTableView().getItems().get(getIndex());
+                Label chip = new Label(s);
+                chip.getStyleClass().addAll("finance-chip", "ERP Document".equals(s) ? "finance-chip-purple" : "finance-chip-teal");
+                chip.setGraphic(IconFactory.compactIcon(item.iconName, 13));
+                chip.setGraphicTextGap(6);
+                setGraphic(chip);
+            }
+        });
+
+        TableColumn<LinkedTargetItem, String> colDoc = new TableColumn<>("Document / Voucher No");
+        colDoc.setMinWidth(190);
+        colDoc.setPrefWidth(210);
+        colDoc.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().documentNo));
+        colDoc.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(String s, boolean empty) {
+                super.updateItem(s, empty);
+                setText(null); setGraphic(null);
+                if (empty || s == null) return;
+                Label lbl = new Label(s);
+                lbl.getStyleClass().add("erp-primary-label");
+                lbl.setStyle("-fx-font-weight: 700;");
+                lbl.setTooltip(new Tooltip(s));
+                setGraphic(lbl);
+            }
+        });
+
+        TableColumn<LinkedTargetItem, String> colType = new TableColumn<>("Transaction Type");
+        colType.setMinWidth(160);
+        colType.setPrefWidth(170);
+        colType.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().typeLabel));
+        colType.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(String s, boolean empty) {
+                super.updateItem(s, empty);
+                setText(null); setGraphic(null);
+                if (empty || s == null) return;
+                LinkedTargetItem item = getTableView().getItems().get(getIndex());
+                Label chip = new Label(s);
+                chip.getStyleClass().addAll("finance-chip", item.chipClass);
+                String semantic = "SALE".equals(item.type) ? "credit" : "PURCHASE".equals(item.type) ? "debit" : "BANK_ENTRY".equals(item.type) ? "bank" : "category";
+                chip.setGraphic(IconFactory.compactIcon(semantic, 13));
+                chip.setGraphicTextGap(5);
+                setGraphic(chip);
+            }
+        });
+
+        TableColumn<LinkedTargetItem, Number> colAmount = new TableColumn<>("Allocated Amount");
+        colAmount.setMinWidth(140);
+        colAmount.setPrefWidth(150);
+        colAmount.setCellValueFactory(v -> new SimpleDoubleProperty(v.getValue().amount));
+        colAmount.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(Number value, boolean empty) {
+                super.updateItem(value, empty);
+                getStyleClass().remove("erp-quantity-positive");
+                setText(empty || value == null ? null : "₹ " + money(value.doubleValue()));
+                if (!empty) getStyleClass().add("erp-quantity-positive");
+            }
+        });
+
+        TableColumn<LinkedTargetItem, Number> colRoundOff = new TableColumn<>("Round-off");
+        colRoundOff.setMinWidth(110);
+        colRoundOff.setPrefWidth(120);
+        colRoundOff.setCellValueFactory(v -> new SimpleDoubleProperty(v.getValue().roundOff));
+        colRoundOff.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(Number value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty || value == null ? null : (Math.abs(value.doubleValue()) < 0.0001 ? "—" : signedMoney(value.doubleValue())));
+            }
+        });
+
+        TableColumn<LinkedTargetItem, Void> colAction = new TableColumn<>("Action");
+        colAction.setMinWidth(140);
+        colAction.setPrefWidth(150);
+        colAction.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(Void value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                    setGraphic(null);
+                    return;
+                }
+                var item = getTableView().getItems().get(getIndex());
+                Button view = new Button(linkActionLabel(item.type));
+                view.getStyleClass().addAll("approved-button", "approved-primary-button");
+                view.setGraphic(IconFactory.compactIcon("view", 14));
+                view.setOnAction(e -> {
+                    dialog.close();
+                    item.onNavigate.run();
+                });
+                setGraphic(view);
+            }
+        });
+
+        IconFactory.applyTableHeaderIcon(colRole, "category");
+        IconFactory.applyTableHeaderIcon(colDoc, "document");
+        IconFactory.applyTableHeaderIcon(colType, "reference");
+        IconFactory.applyTableHeaderIcon(colAmount, "currency");
+        IconFactory.applyTableHeaderIcon(colRoundOff, "warning");
+        IconFactory.applyTableHeaderIcon(colAction, "actions");
+        linkedTable.getColumns().setAll(colRole, colDoc, colType, colAmount, colRoundOff, colAction);
+
+        double totalAllocated = targets.stream().mapToDouble(x -> x.amount).sum();
+        double roundOffTotal = targets.stream().mapToDouble(x -> x.roundOff).sum();
+        double difference = bankAmount(row.dto) - totalAllocated;
+        String bankReference = safe(row.dto.reference()).isBlank() ? "Bank #" + row.dto.id() : row.dto.reference();
+        HBox metrics = PopupTableWorkspace.metricStrip(
+            PopupTableWorkspace.metricCard("Bank Ref", bankReference, "bank"),
+            PopupTableWorkspace.metricCard("Linked Count", String.valueOf(targets.size()), "link"),
+            PopupTableWorkspace.metricCard("Allocated Total", "₹ " + money(totalAllocated), "currency"),
+            PopupTableWorkspace.metricCard("Round-off", signedMoney(roundOffTotal), "warning"),
+            PopupTableWorkspace.metricCard("Difference", "₹ " + money(difference), Math.abs(difference) <= .01 ? "complete" : "warning")
+        );
+        Label footer = PopupTableWorkspace.footerText(targets.size() + " linked records found • Click View on any record to navigate directly to its workspace.");
+        VBox content = PopupTableWorkspace.content(metrics, linkedTable, footer);
+        dialog.getDialogPane().setContent(content);
+        PopupTableWorkspace.prepareDialog(dialog, 980);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.showAndWait();
+    }
+
     private String linkActionLabel(String type){
         String t=up(type);
         if("SALE".equals(t)) return "View Sale";
         if("PURCHASE".equals(t)) return "View Purchase";
+        if("PURCHASE_RECON".equals(t)) return "View Recon";
         if("SALES_RETURN".equals(t)) return "View Sales Return";
         if("PURCHASE_RETURN".equals(t)) return "View Purchase Return";
+        if("BANK_ENTRY".equals(t)) return "View Bank Entry";
+        if("EXPENSE".equals(t)) return "View Expense";
         return "View";
     }
+
     private void openAllocation(BankStatementApiClient.AllocationDto allocation,String source){if(allocation==null)return;String type=up(allocation.targetType());Integer id=("EXPENSE".equals(type)||"BANK_ENTRY".equals(type))&&allocation.financeEntryId()!=null?allocation.financeEntryId():allocation.targetId();openLinkedTarget(type,id,safe(allocation.documentNo()),source,null);}
     private void openLinkedTarget(String type,Integer id,String documentNo,String source,Row row){
         if("EXPENSE".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.EXPENSE,financeId);DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);return;}
