@@ -2549,9 +2549,13 @@
     -fx-padding: 9;
 }
 .approved-input {
--fx-border-radius: 8;
+    -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-min-height: 36;
+}
+.text-area.approved-input,
+.text-area.erp-control-input {
+    -fx-min-height: 140;
 }
 .payment-input {
 -fx-border-width: 1;

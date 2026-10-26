@@ -2729,19 +2729,22 @@ private record AssetPreviewRequest(
         txtRenderedBody.setEditable(false);
         txtRenderedBody.setWrapText(true);
         txtRenderedBody.setPrefRowCount(10);
+        txtRenderedBody.setMinHeight(200);
+        txtRenderedBody.setPrefHeight(260);
         txtRenderedBody.getStyleClass().add("approved-input");
         VBox.setVgrow(txtRenderedBody, Priority.ALWAYS);
+        VBox.setVgrow(bodyBox, Priority.ALWAYS);
+        root.setMinHeight(520);
         bodyBox.getChildren().addAll(lblBodyTitle, txtRenderedBody);
 
         // Signature & Image Card
         VBox signatureCard = new VBox(8);
-        signatureCard.getStyleClass().addAll("settings-subcard", "settings-signature-preview-card");
-        signatureCard.setStyle("-fx-background-color: rgba(30, 41, 59, 0.4); -fx-border-color: rgba(148, 163, 184, 0.18); -fx-border-radius: 6; -fx-padding: 10;");
+        signatureCard.getStyleClass().addAll("settings-subcard", "settings-signature-preview-card", "settings-preview-sig-card");
 
         HBox sigHeader = new HBox(8);
         sigHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         Label lblSigTitle = new Label("Email Signature & Attached Image Status");
-        lblSigTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #93c5fd;");
+        lblSigTitle.getStyleClass().add("settings-preview-sig-title");
         Region sigSpacer = new Region();
         HBox.setHgrow(sigSpacer, Priority.ALWAYS);
         Label lblSigStatusBadge = new Label();
@@ -2759,14 +2762,14 @@ private record AssetPreviewRequest(
 
         StackPane imgWrapper = new StackPane(imgSigThumb);
         imgWrapper.setPrefSize(104, 52);
-        imgWrapper.setStyle("-fx-background-color: rgba(15, 23, 42, 0.6); -fx-border-color: rgba(148, 163, 184, 0.2); -fx-border-radius: 4; -fx-alignment: center;");
+        imgWrapper.getStyleClass().add("settings-preview-img-wrapper");
 
         VBox sigDetails = new VBox(3);
         HBox.setHgrow(sigDetails, Priority.ALWAYS);
         Label lblSigPath = new Label();
-        lblSigPath.setStyle("-fx-font-weight: 600; -fx-text-fill: #e2e8f0;");
+        lblSigPath.getStyleClass().add("settings-preview-sig-path");
         Label lblSigNote = new Label("Appended inline automatically to all outgoing emails when {Signature} is evaluated.");
-        lblSigNote.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
+        lblSigNote.getStyleClass().add("settings-preview-sig-note");
         lblSigNote.setWrapText(true);
         sigDetails.getChildren().addAll(lblSigPath, lblSigNote);
 
@@ -2806,6 +2809,7 @@ private record AssetPreviewRequest(
             String sigImgPath = selectedSignatureImagePath != null && !selectedSignatureImagePath.isBlank()
                     ? selectedSignatureImagePath
                     : MessageTemplateService.getSignatureImagePath();
+            lblSigStatusBadge.getStyleClass().removeAll("settings-preview-badge-success", "settings-preview-badge-neutral", "settings-preview-badge-error");
             if (sigImgPath != null && !sigImgPath.isBlank()) {
                 File sigFile = new File(sigImgPath);
                 if (sigFile.exists() && sigFile.isFile()) {
@@ -2815,13 +2819,14 @@ private record AssetPreviewRequest(
                         imgWrapper.setManaged(true);
                         lblSigPath.setText(sigFile.getName());
                         lblSigStatusBadge.setText("IMAGE ATTACHED (" + (sigFile.length() / 1024) + " KB)");
-                        lblSigStatusBadge.setStyle("-fx-text-fill: #34d399; -fx-font-weight: bold;");
+                        lblSigStatusBadge.getStyleClass().add("settings-preview-badge-success");
                     } catch (Exception ex) {
                         imgSigThumb.setImage(null);
                         imgWrapper.setVisible(false);
                         imgWrapper.setManaged(false);
                         lblSigPath.setText("Image unreadable: " + sigFile.getName());
                         lblSigStatusBadge.setText("ERROR");
+                        lblSigStatusBadge.getStyleClass().add("settings-preview-badge-error");
                     }
                 } else {
                     imgSigThumb.setImage(null);
@@ -2829,6 +2834,7 @@ private record AssetPreviewRequest(
                     imgWrapper.setManaged(false);
                     lblSigPath.setText("File not found on disk");
                     lblSigStatusBadge.setText("MISSING");
+                    lblSigStatusBadge.getStyleClass().add("settings-preview-badge-error");
                 }
             } else {
                 imgSigThumb.setImage(null);
@@ -2836,7 +2842,7 @@ private record AssetPreviewRequest(
                 imgWrapper.setManaged(false);
                 lblSigPath.setText("No signature image attached");
                 lblSigStatusBadge.setText("NO IMAGE");
-                lblSigStatusBadge.setStyle("-fx-text-fill: #94a3b8;");
+                lblSigStatusBadge.getStyleClass().add("settings-preview-badge-neutral");
             }
         };
 

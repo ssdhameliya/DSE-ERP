@@ -42,8 +42,11 @@ import org.example.util.SemanticTableCells;
 import org.example.util.UiTaskExecutor;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.LocalDate;
 import java.util.*;
+import org.example.util.ToastManager;
 
 public class BankStatementController implements ScreenLifecycle {
     @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon,historyIcon;
@@ -509,24 +512,295 @@ public class BankStatementController implements ScreenLifecycle {
     private static String formatBatchLabel(BankStatementApiClient.BatchDto b){return batchBankLabel(b)+" • "+safe(b.statementFrom())+" to "+safe(b.statementTo())+" • "+safe(b.status());}
     private static String batchStatusSemantic(String status){String state=up(status);return state.contains("FULL")||state.equals("RECONCILED")?"complete":state.contains("PARTIAL")?"warning":"document";}
 
+    record ImportAuditItem(
+        int lineNo,
+        int sourceIndex,
+        String date,
+        String valueDate,
+        String description,
+        String reference,
+        double debit,
+        double credit,
+        double balance,
+        String status,
+        String remarks
+    ) {}
+
+    record ImportAuditSummary(
+        String bankName,
+        String accountNumber,
+        String statementFrom,
+        String statementTo,
+        String fileName,
+        int totalRows,
+        int importedRows,
+        int duplicateRows,
+        int errorRows,
+        BankStatementApiClient.BatchDto batch,
+        boolean alreadyImported,
+        List<ImportAuditItem> items
+    ) {}
+
     @FXML private void importStatement(){
         configureBankAccountMaster();
-        FileChooser f=new FileChooser();f.setTitle("Import Bank Statement CSV");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV","*.csv"));
-        File file=f.showOpenDialog(table.getScene().getWindow()); if(file==null)return;
-        String importedBy=user();
-        UiTaskExecutor.submitLatest("bank-statement-parse",()->parser.parse(file.toPath()),parsed->{
-            BankAccountOption account=resolveBankAccount(parsed.bankName(),parsed.accountNumber());
-            if(account==null)return;
-            BankStatementApiClient.ImportRequest request=new BankStatementApiClient.ImportRequest(
-                safe(account.bankName()).isBlank()?parsed.bankName():account.bankName(),account.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,false,parsed.rows());
-            UiTaskExecutor.submitSerial("bank-statement-import",()->api.importStatement(request),this::handleImportResult,this::error);
-        },this::error);
+        FileChooser f = new FileChooser();
+        f.setTitle("Import Bank Statement CSV");
+        f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV", "*.csv"));
+        File file = f.showOpenDialog(table.getScene().getWindow());
+        if (file == null) return;
+        String importedBy = user();
+
+        LiveOperationDialog.execute(
+            table,
+            "Importing Bank Statement",
+            "document",
+            "Reading & analyzing CSV statement...",
+            reporter -> {
+                reporter.stage(1, 4, "Reading & analyzing CSV statement file...");
+                reporter.progress(0.15);
+                var audit = parser.parseWithAudit(file.toPath());
+                reporter.progress(0.40);
+
+                if (audit.statement() == null && audit.errorCount() > 0) {
+                    List<ImportAuditItem> items = audit.auditRows().stream()
+                            .map(r -> new ImportAuditItem(r.lineNo(), r.sourceIndex(), r.date(), r.valueDate(), r.description(), r.reference(), r.debit(), r.credit(), r.balance(), "INVALID_ERROR", r.error()))
+                            .toList();
+                    return new ImportAuditSummary("Unknown Bank", "", "", "", file.getName(), audit.totalRows(), 0, 0, audit.errorCount(), null, false, items);
+                }
+
+                var parsed = audit.statement();
+                reporter.stage(2, 4, "Validating Master Data account (" + parsed.rows().size() + " rows)...");
+                reporter.progress(0.60);
+
+                BankAccountOption account = resolveBankAccountAuto(parsed.bankName(), parsed.accountNumber());
+                String bankNameToUse = (account != null && !safe(account.bankName()).isBlank()) ? account.bankName() : parsed.bankName();
+                String accountNumToUse = account != null ? account.accountNumber() : parsed.accountNumber();
+
+                reporter.stage(3, 4, "Uploading transactions & checking duplicate fingerprints...");
+                reporter.progress(0.85);
+
+                BankStatementApiClient.ImportRequest request = new BankStatementApiClient.ImportRequest(
+                    bankNameToUse, accountNumToUse, parsed.accountHolder(), parsed.statementFrom(), parsed.statementTo(),
+                    parsed.currency(), parsed.openingBalance(), parsed.closingBalance(), parsed.sourceFingerprint(),
+                    parsed.sourceFileName(), parsed.sourceCsv(), importedBy, false, parsed.rows());
+
+                BankStatementApiClient.ImportResult result = api.importStatement(request);
+
+                reporter.stage(4, 4, "Compiling statement import audit report...");
+                reporter.progress(1.0);
+
+                List<ImportAuditItem> items = new ArrayList<>();
+                int importedCount = result.importedRows();
+                int dupCount = result.duplicateRows();
+
+                for (int i = 0; i < audit.auditRows().size(); i++) {
+                    var ar = audit.auditRows().get(i);
+                    if ("INVALID_ERROR".equals(ar.status())) {
+                        items.add(new ImportAuditItem(ar.lineNo(), ar.sourceIndex(), ar.date(), ar.valueDate(), ar.description(), ar.reference(), ar.debit(), ar.credit(), ar.balance(), "INVALID_ERROR", ar.error()));
+                    } else if (result.alreadyImported()) {
+                        items.add(new ImportAuditItem(ar.lineNo(), ar.sourceIndex(), ar.date(), ar.valueDate(), ar.description(), ar.reference(), ar.debit(), ar.credit(), ar.balance(), "DUPLICATE_SKIPPED", "Statement already imported previously"));
+                    } else {
+                        boolean isDup = i >= importedCount && dupCount > 0;
+                        items.add(new ImportAuditItem(ar.lineNo(), ar.sourceIndex(), ar.date(), ar.valueDate(), ar.description(), ar.reference(), ar.debit(), ar.credit(), ar.balance(), isDup ? "DUPLICATE_SKIPPED" : "IMPORTED", isDup ? "Duplicate fingerprint matched in database" : "Successfully recorded in batch"));
+                    }
+                }
+
+                return new ImportAuditSummary(
+                    bankNameToUse, accountNumToUse, parsed.statementFrom(), parsed.statementTo(), file.getName(),
+                    audit.totalRows(), result.importedRows(), result.duplicateRows(), audit.errorCount(), result.batch(), result.alreadyImported(), items);
+            },
+            this::openImportSummaryDialog,
+            this::error
+        );
     }
-    private void handleImportResult(BankStatementApiClient.ImportResult result){
-        if(result.alreadyImported()&&result.batch()!=null){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"This exact bank statement was already imported on "+BusinessClock.formatTimestamp(result.batch().importedAt())+".\n\n"+formatBatchLabel(result.batch())+"\n\nOpen the existing statement instead?",ButtonType.YES,ButtonType.NO);a.setHeaderText("Bank Statement Already Imported");if(a.showAndWait().orElse(ButtonType.NO)==ButtonType.YES)loadBatches(result.batch().id());}
-        else if(result.batch()!=null){success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows());loadBatches(result.batch().id());}
-        else info("No new transactions","All transactions in this statement were already present, so no new statement batch was created.");
+
+    private void openImportSummaryDialog(ImportAuditSummary summary) {
+        if (summary == null) return;
+
+        if (reconciliationProgress != null) {
+            reconciliationProgress.setProgress(summary.totalRows() == 0 ? 0 : (double) summary.importedRows() / summary.totalRows());
+        }
+        if (lblProgressText != null) {
+            lblProgressText.setText(summary.importedRows() + " / " + summary.totalRows() + " imported");
+        }
+
+        Dialog<ButtonType> dialog = new OwnedDialog<>(table);
+        dialog.setTitle("Bank Statement Import Summary");
+        AppDialogRenderer.configureWorkspace(dialog, summary.errorRows() > 0 ? "warning" : "info",
+                "Bank Statement Import Summary",
+                "Import Summary: " + summary.fileName(),
+                summary.bankName() + " • " + summary.accountNumber() + (summary.statementFrom().isBlank() ? "" : " • " + summary.statementFrom() + " to " + summary.statementTo()),
+                "");
+
+        VBox root = new VBox(14);
+        root.setPrefWidth(640);
+        root.setMinHeight(300);
+
+        HBox metricsRow = new HBox(10);
+        metricsRow.setAlignment(Pos.CENTER);
+
+        VBox tileTotal = createMetricTile("Total Rows", String.valueOf(summary.totalRows()), "bank-import-metric-total");
+        VBox tileImported = createMetricTile("Imported", String.valueOf(summary.importedRows()), "bank-import-metric-imported");
+        VBox tileSkipped = createMetricTile("Duplicates Skipped", String.valueOf(summary.duplicateRows()), "bank-import-metric-skipped");
+        VBox tileErrors = createMetricTile("Parse Errors", String.valueOf(summary.errorRows()), "bank-import-metric-error");
+
+        HBox.setHgrow(tileTotal, Priority.ALWAYS);
+        HBox.setHgrow(tileImported, Priority.ALWAYS);
+        HBox.setHgrow(tileSkipped, Priority.ALWAYS);
+        HBox.setHgrow(tileErrors, Priority.ALWAYS);
+        metricsRow.getChildren().addAll(tileTotal, tileImported, tileSkipped, tileErrors);
+
+        Label lblStatusMsg = new Label();
+        lblStatusMsg.setWrapText(true);
+        if (summary.alreadyImported()) {
+            lblStatusMsg.setText("Notice: This exact bank statement was already imported previously. No duplicate records were re-created.");
+        } else if (summary.errorRows() > 0) {
+            lblStatusMsg.setText("Warning: Found " + summary.errorRows() + " transaction row(s) with formatting or validation errors. Download the audit report below to review individual line issues.");
+        } else if (summary.importedRows() > 0) {
+            lblStatusMsg.setText("Success: Statement imported successfully. " + summary.importedRows() + " new transactions added to reconciliation workspace.");
+        } else {
+            lblStatusMsg.setText("All transactions in this statement were already present in ERP records.");
+        }
+        lblStatusMsg.getStyleClass().add("settings-form-label");
+
+        HBox actionBox = new HBox(10);
+        actionBox.setAlignment(Pos.CENTER_RIGHT);
+
+        Button btnDownload = new Button("Download Import Report (Excel / CSV)");
+        btnDownload.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnDownload.setOnAction(e -> exportImportAuditExcel(summary));
+
+        Button btnOpen = new Button("Open Statement");
+        btnOpen.getStyleClass().addAll("approved-button", "approved-primary-button");
+        btnOpen.setDisable(summary.batch() == null);
+        btnOpen.setOnAction(e -> {
+            dialog.setResult(ButtonType.OK);
+            dialog.close();
+            if (summary.batch() != null) {
+                loadBatches(summary.batch().id());
+            }
+        });
+
+        Button btnClose = new Button("Close");
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> {
+            dialog.setResult(ButtonType.CLOSE);
+            dialog.close();
+            if (summary.batch() != null && !summary.alreadyImported() && summary.importedRows() > 0) {
+                loadBatches(summary.batch().id());
+            }
+        });
+
+        actionBox.getChildren().addAll(btnDownload, btnOpen, btnClose);
+        root.getChildren().addAll(metricsRow, lblStatusMsg, actionBox);
+
+        dialog.getDialogPane().setContent(root);
+        dialog.showAndWait();
     }
+
+    private static VBox createMetricTile(String label, String value, String colorClass) {
+        VBox box = new VBox(2);
+        box.getStyleClass().add("bank-import-metric-tile");
+        Label lblVal = new Label(value);
+        lblVal.getStyleClass().addAll("bank-import-metric-num", colorClass);
+        Label lblCap = new Label(label);
+        lblCap.getStyleClass().add("bank-import-metric-label");
+        box.getChildren().addAll(lblVal, lblCap);
+        return box;
+    }
+
+    private void exportImportAuditExcel(ImportAuditSummary summary) {
+        if (summary == null || summary.items().isEmpty()) {
+            ToastManager.info(table, "Nothing to Export", "No audit transactions available to export.");
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save Bank Statement Import Report");
+        String safeName = (summary.fileName() != null ? summary.fileName() : "Statement").replaceAll("[^A-Za-z0-9._-]", "_");
+        chooser.setInitialFileName("Import_Report_" + safeName + "_" + System.currentTimeMillis() + ".xlsx");
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Excel Workbook (*.xlsx)", "*.xlsx"),
+                new FileChooser.ExtensionFilter("CSV File (*.csv)", "*.csv")
+        );
+        File target = chooser.showSaveDialog(table.getScene().getWindow());
+        if (target == null) return;
+
+        try {
+            if (target.getName().toLowerCase(Locale.ROOT).endsWith(".csv")) {
+                exportImportAuditCsv(target, summary);
+            } else {
+                exportImportAuditXlsx(target, summary);
+            }
+            ToastManager.success(table, "Report Exported", "Saved import audit report to " + target.getName());
+        } catch (Exception ex) {
+            error(ex);
+        }
+    }
+
+    private void exportImportAuditXlsx(File file, ImportAuditSummary summary) throws Exception {
+        try (org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+             java.io.FileOutputStream out = new java.io.FileOutputStream(file)) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Import Audit");
+            String[] headers = {
+                "Line #", "Tx #", "Date", "Value Date", "Description / Narration",
+                "Reference / Cheque", "Debit (INR)", "Credit (INR)", "Balance (INR)",
+                "Import Status", "Audit Remarks"
+            };
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                headerRow.createCell(i).setCellValue(headers[i]);
+            }
+            int r = 1;
+            for (ImportAuditItem item : summary.items()) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
+                row.createCell(0).setCellValue(item.lineNo());
+                row.createCell(1).setCellValue(item.sourceIndex());
+                row.createCell(2).setCellValue(safe(item.date()));
+                row.createCell(3).setCellValue(safe(item.valueDate()));
+                row.createCell(4).setCellValue(safe(item.description()));
+                row.createCell(5).setCellValue(safe(item.reference()));
+                row.createCell(6).setCellValue(item.debit());
+                row.createCell(7).setCellValue(item.credit());
+                row.createCell(8).setCellValue(item.balance());
+                row.createCell(9).setCellValue(safe(item.status()));
+                row.createCell(10).setCellValue(safe(item.remarks()));
+            }
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            wb.write(out);
+        }
+    }
+
+    private void exportImportAuditCsv(File file, ImportAuditSummary summary) throws Exception {
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8))) {
+            pw.println("Line #,Tx #,Date,Value Date,Description,Reference,Debit,Credit,Balance,Status,Remarks");
+            for (ImportAuditItem item : summary.items()) {
+                pw.printf(Locale.ROOT, "%d,%d,\"%s\",\"%s\",\"%s\",\"%s\",%.2f,%.2f,%.2f,\"%s\",\"%s\"%n",
+                        item.lineNo(), item.sourceIndex(),
+                        escapeCsv(item.date()), escapeCsv(item.valueDate()),
+                        escapeCsv(item.description()), escapeCsv(item.reference()),
+                        item.debit(), item.credit(), item.balance(),
+                        escapeCsv(item.status()), escapeCsv(item.remarks()));
+            }
+        }
+    }
+
+    private static String escapeCsv(String val) {
+        return val == null ? "" : val.replace("\"", "\"\"");
+    }
+
+    private BankAccountOption resolveBankAccountAuto(String parsedBank, String parsedAccount) {
+        if (bankAccountOptions.isEmpty()) configureBankAccountMaster();
+        String incoming = compactAccount(parsedAccount);
+        if (!incoming.isBlank()) {
+            for (BankAccountOption option : bankAccountOptions) {
+                if (compactAccount(option.accountNumber()).equals(incoming)) return option;
+            }
+        }
+        return bankAccountOptions.isEmpty() ? null : bankAccountOptions.getFirst();
+    }
+
     private BankAccountOption resolveBankAccount(String parsedBank,String parsedAccount){
         if(bankAccountOptions.isEmpty())configureBankAccountMaster();
         if(bankAccountOptions.isEmpty()){info("Bank Account required","Configure at least one active BANK ACCOUNT in Master Data before importing a statement.");return null;}

@@ -533,3 +533,90 @@
     -fx-background-color: #1e293b;
     -fx-effect: dropshadow(gaussian, rgba(129, 140, 248, 0.45), 8, 0.3, 0, 0);
 }
+
+/* Ensure text-areas never collapse down to single-line 36px inputs */
+.text-area.approved-input,
+.text-area.erp-control-input,
+.erp-ui-standard .text-area.approved-input,
+.erp-ui-standard .text-area.erp-control-input,
+.dse-dialog-pane .text-area {
+    -fx-min-height: 140px;
+}
+
+/* Settings Live Message Preview Dialog Styles */
+.settings-preview-sig-card {
+    -fx-background-color: rgba(30, 41, 59, 0.4);
+    -fx-border-color: rgba(148, 163, 184, 0.18);
+    -fx-border-radius: 6;
+    -fx-padding: 10;
+}
+
+.settings-preview-sig-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #93c5fd;
+}
+
+.settings-preview-img-wrapper {
+    -fx-background-color: rgba(15, 23, 42, 0.6);
+    -fx-border-color: rgba(148, 163, 184, 0.2);
+    -fx-border-radius: 4;
+    -fx-alignment: center;
+}
+
+.settings-preview-sig-path {
+    -fx-font-weight: 600;
+    -fx-text-fill: #e2e8f0;
+}
+
+.settings-preview-sig-note {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 11px;
+}
+
+.settings-preview-badge-success {
+    -fx-text-fill: #34d399;
+    -fx-font-weight: bold;
+}
+
+.settings-preview-badge-neutral {
+    -fx-text-fill: #94a3b8;
+}
+
+.settings-preview-badge-error {
+    -fx-text-fill: #f87171;
+    -fx-font-weight: bold;
+}
+
+/* Bank Statement Import Summary Dialog Styles */
+.bank-import-summary-card {
+    -fx-background-color: rgba(15, 23, 42, 0.6);
+    -fx-border-color: rgba(148, 163, 184, 0.2);
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 12 16;
+}
+
+.bank-import-metric-tile {
+    -fx-background-color: rgba(30, 41, 59, 0.5);
+    -fx-border-color: rgba(148, 163, 184, 0.15);
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 10 14;
+    -fx-alignment: center-left;
+}
+
+.bank-import-metric-num {
+    -fx-font-size: 20px;
+    -fx-font-weight: 800;
+}
+
+.bank-import-metric-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #94a3b8;
+}
+
+.bank-import-metric-total { -fx-text-fill: #38bdf8; }
+.bank-import-metric-imported { -fx-text-fill: #34d399; }
+.bank-import-metric-skipped { -fx-text-fill: #fbbf24; }
+.bank-import-metric-error { -fx-text-fill: #f87171; }
+

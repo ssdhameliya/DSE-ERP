@@ -22,15 +22,6 @@
       </HBox>
 
       <GridPane hgap="10" vgap="0" styleClass="bank-recon-kpi-panel,erp-kpi-section,erp-kpi-single-row">
-        <columnConstraints>
-          <ColumnConstraints percentWidth="14.28" hgrow="ALWAYS"/>
-          <ColumnConstraints percentWidth="14.28" hgrow="ALWAYS"/>
-          <ColumnConstraints percentWidth="14.28" hgrow="ALWAYS"/>
-          <ColumnConstraints percentWidth="14.28" hgrow="ALWAYS"/>
-          <ColumnConstraints percentWidth="14.28" hgrow="ALWAYS"/>
-          <ColumnConstraints percentWidth="14.28" hgrow="ALWAYS"/>
-          <ColumnConstraints percentWidth="14.32" hgrow="ALWAYS"/>
-        </columnConstraints>
         <VBox fx:id="cardKpiTotal" spacing="4" styleClass="bank-recon-kpi,kpi-blue" GridPane.columnIndex="0"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiTotalIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Transactions" styleClass="bank-recon-kpi-caption"/></HBox><VBox spacing="1"><Label fx:id="kpiTotal" text="0" styleClass="bank-recon-kpi-value"/><Label text="Imported rows" styleClass="bank-recon-kpi-note"/></VBox></VBox>
         <VBox fx:id="cardKpiUnmatched" spacing="4" styleClass="bank-recon-kpi,kpi-red" GridPane.columnIndex="1"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiUnmatchedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Unmatched" styleClass="bank-recon-kpi-caption"/></HBox><VBox spacing="1"><Label fx:id="kpiUnmatched" text="0" styleClass="bank-recon-kpi-value"/><Label text="Needs reconciliation" styleClass="bank-recon-kpi-note"/></VBox></VBox>
         <VBox fx:id="cardKpiSuggested" spacing="4" styleClass="bank-recon-kpi,kpi-orange" GridPane.columnIndex="2"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiSuggestedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Suggested" styleClass="bank-recon-kpi-caption"/></HBox><VBox spacing="1"><Label fx:id="kpiSuggested" text="0" styleClass="bank-recon-kpi-value"/><Label text="System suggestions" styleClass="bank-recon-kpi-note"/></VBox></VBox>
