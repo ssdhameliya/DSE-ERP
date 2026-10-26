@@ -35,7 +35,18 @@ public interface BankStatementTransactionRepository extends JpaRepository<BankSt
                or lower(coalesce(t.original_reference,'')) like concat('%', lower(:queryText), '%')
                or lower(coalesce(t.status,'')) like concat('%', lower(:queryText), '%')
                or cast(coalesce(t.debit_amount,0) as text) like concat('%', :queryText, '%')
-               or cast(coalesce(t.credit_amount,0) as text) like concat('%', :queryText, '%'))
+               or cast(coalesce(t.credit_amount,0) as text) like concat('%', :queryText, '%')
+               or exists (
+                   select 1 from bank_reconciliation_allocation a
+                   where a.statement_transaction_id = t.id
+                     and a.reversed_at is null
+                     and (
+                         (a.target_type = 'SALE' and exists (select 1 from sales_header s where s.id = a.target_id and lower(s.invoice_no) like concat('%', lower(:queryText), '%')))
+                         or (a.target_type = 'PURCHASE' and exists (select 1 from purchase_header p where p.id = a.target_id and lower(p.invoice_no) like concat('%', lower(:queryText), '%')))
+                         or (a.target_type = 'PURCHASE_RECON' and exists (select 1 from purchase_recon pr where pr.id = a.target_id and (lower(pr.recon_ref) like concat('%', lower(:queryText), '%') or lower(pr.supplier_invoice_no) like concat('%', lower(:queryText), '%'))))
+                         or exists (select 1 from finance_register f where f.id = a.finance_entry_id and lower(f.voucher_no) like concat('%', lower(:queryText), '%'))
+                     )
+               ))
         order by t.transaction_timestamp asc nulls last, t.id asc
         """, countQuery = """
         select count(*) from bank_statement_transaction t
@@ -51,7 +62,18 @@ public interface BankStatementTransactionRepository extends JpaRepository<BankSt
                or lower(coalesce(t.original_reference,'')) like concat('%', lower(:queryText), '%')
                or lower(coalesce(t.status,'')) like concat('%', lower(:queryText), '%')
                or cast(coalesce(t.debit_amount,0) as text) like concat('%', :queryText, '%')
-               or cast(coalesce(t.credit_amount,0) as text) like concat('%', :queryText, '%'))
+               or cast(coalesce(t.credit_amount,0) as text) like concat('%', :queryText, '%')
+               or exists (
+                   select 1 from bank_reconciliation_allocation a
+                   where a.statement_transaction_id = t.id
+                     and a.reversed_at is null
+                     and (
+                         (a.target_type = 'SALE' and exists (select 1 from sales_header s where s.id = a.target_id and lower(s.invoice_no) like concat('%', lower(:queryText), '%')))
+                         or (a.target_type = 'PURCHASE' and exists (select 1 from purchase_header p where p.id = a.target_id and lower(p.invoice_no) like concat('%', lower(:queryText), '%')))
+                         or (a.target_type = 'PURCHASE_RECON' and exists (select 1 from purchase_recon pr where pr.id = a.target_id and (lower(pr.recon_ref) like concat('%', lower(:queryText), '%') or lower(pr.supplier_invoice_no) like concat('%', lower(:queryText), '%'))))
+                         or exists (select 1 from finance_register f where f.id = a.finance_entry_id and lower(f.voucher_no) like concat('%', lower(:queryText), '%'))
+                     )
+               ))
         """, nativeQuery = true)
     Page<BankStatementTransactionEntity> searchPage(@Param("importId") Long importId,
             @Param("status") String status, @Param("direction") String direction,

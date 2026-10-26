@@ -9,4 +9,5 @@ public interface PurchaseReconRepository extends JpaRepository<PurchaseReconEnti
  @Query("select r from PurchaseReconEntity r where (:q='' or lower(r.reconRef) like lower(concat('%',:q,'%')) or lower(r.supplierNameSnapshot) like lower(concat('%',:q,'%')) or lower(coalesce(r.supplierGstinSnapshot,'')) like lower(concat('%',:q,'%')) or lower(r.supplierInvoiceNo) like lower(concat('%',:q,'%'))) and (:status='' or upper(coalesce(r.status,''))=upper(:status))") Page<PurchaseReconEntity> searchPage(@Param("q") String q,@Param("status") String status,Pageable pageable);
  @Query("select r from PurchaseReconEntity r where (coalesce(r.invoiceValue,0)-coalesce(r.linkedAmount,0)) > 0.009 and upper(coalesce(r.status,'')) in ('OPEN','PARTIAL','NEEDS REVIEW') order by abs((coalesce(r.invoiceValue,0)-coalesce(r.linkedAmount,0))-:amount) asc,r.invoiceDate desc,r.id desc") List<PurchaseReconEntity> findOpenForBankMatching(@Param("amount") double amount,Pageable pageable);
  long countByReconSupplier_Id(Integer supplierId);
+ List<PurchaseReconEntity> findByReconSupplier_IdOrderByInvoiceDateDescIdDesc(Integer supplierId);
 }

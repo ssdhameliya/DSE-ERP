@@ -442,7 +442,11 @@ public class GstComplianceController implements ScreenLifecycle {
         TextArea txtNotice = new TextArea(noticeMessage);
         txtNotice.setWrapText(true);
         txtNotice.setPrefRowCount(10);
+        txtNotice.setMinHeight(220);
+        txtNotice.setPrefHeight(260);
         txtNotice.setEditable(false);
+        VBox.setVgrow(txtNotice, Priority.ALWAYS);
+        box.setMinHeight(420);
 
         HBox btnRow = new HBox(10);
         btnRow.setAlignment(Pos.CENTER_RIGHT);

@@ -11,6 +11,9 @@ import org.example.util.DatePickerFormatter;
 import org.example.navigation.ScreenLifecycle;
 
 import org.example.util.OwnedAlert;
+import org.example.util.OwnedDialog;
+import org.example.util.AppDialogRenderer;
+import org.example.service.BrandingService;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -21,8 +24,12 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
@@ -2397,7 +2404,10 @@ private record AssetPreviewRequest(
             putSetting("email.signature", txtEmailSignature.getText() == null ? "" : txtEmailSignature.getText().trim());
         }
         if (selectedSignatureImagePath != null) {
-            putSetting("email.signature.image", selectedSignatureImagePath.trim());
+            String cleanPath = selectedSignatureImagePath.trim();
+            putSetting("email.signature.image", cleanPath);
+            ConfigManager.setWithoutSaving("email.signature.image", cleanPath);
+            MessageTemplateService.setSignatureImagePath(cleanPath);
         }
         saveActiveMessageTemplate();
         saveAllDraftMessageTemplates();
@@ -2576,7 +2586,11 @@ private record AssetPreviewRequest(
             } catch (Exception ex) {
                 selectedSignatureImagePath = selected.getAbsolutePath().replace('\\', '/');
             }
+            putSetting("email.signature.image", selectedSignatureImagePath);
+            ConfigManager.setWithoutSaving("email.signature.image", selectedSignatureImagePath);
+            MessageTemplateService.setSignatureImagePath(selectedSignatureImagePath);
             updateSignatureImagePreview(selectedSignatureImagePath);
+            updateTemplatePreview();
         }
     }
 
@@ -2584,7 +2598,10 @@ private record AssetPreviewRequest(
     private void clearSignatureImage() {
         selectedSignatureImagePath = "";
         putSetting("email.signature.image", "");
+        ConfigManager.setWithoutSaving("email.signature.image", "");
+        MessageTemplateService.setSignatureImagePath("");
         updateSignatureImagePreview("");
+        updateTemplatePreview();
     }
 
     private void updateSignatureImagePreview(String path) {
@@ -2638,22 +2655,260 @@ private record AssetPreviewRequest(
 
     @FXML
     private void showLivePreviewDialog() {
+        saveActiveMessageTemplate();
         updateTemplatePreview();
-        Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Live Template Preview");
-        String selected = cmbMessageTemplateDoc == null ? "Document Template" : cmbMessageTemplateDoc.getValue();
-        alert.setHeaderText("Preview: " + selected);
 
-        TextArea previewArea = new TextArea(currentPreviewText);
-        previewArea.setEditable(false);
-        previewArea.setWrapText(true);
-        previewArea.setPrefRowCount(14);
-        previewArea.setPrefColumnCount(45);
-        previewArea.getStyleClass().add("approved-input");
+        String selectedDoc = cmbMessageTemplateDoc == null ? "Sales Invoice (Email)" : cmbMessageTemplateDoc.getValue();
+        if (selectedDoc == null) selectedDoc = "Sales Invoice (Email)";
+        boolean isWhatsapp = selectedDoc.contains("WhatsApp");
+        MessageTemplateService.DocumentType docType = resolveDocType(selectedDoc);
+        org.example.documentstudio.model.DocumentType studioType = resolveStudioDocType(docType);
 
-        VBox content = new VBox(8, previewArea);
-        alert.getDialogPane().setContent(content);
-        alert.showAndWait();
+        Dialog<ButtonType> dialog = new OwnedDialog<>();
+        dialog.setTitle("Live Output Preview");
+        DialogPane pane = dialog.getDialogPane();
+        pane.getButtonTypes().setAll(ButtonType.CLOSE);
+        AppDialogRenderer.configureWorkspace(dialog, "info", "Live Output Preview",
+                "Live Message & Output Preview: " + selectedDoc,
+                "Preview real token substitution and attached signature image with live ERP records", "");
+
+        VBox root = new VBox(14);
+        root.setPrefWidth(680);
+        root.getStyleClass().add("settings-preview-dialog");
+
+        // Top bar: Record selector
+        HBox selectorRow = new HBox(10);
+        selectorRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        Label lblRecord = new Label("Select ERP Record:");
+        lblRecord.getStyleClass().add("settings-form-label");
+
+        record DocumentChoice(String id, String label) {
+            @Override public String toString() { return label; }
+        }
+
+        ComboBox<DocumentChoice> cmbRecords = new ComboBox<>();
+        cmbRecords.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(cmbRecords, Priority.ALWAYS);
+        cmbRecords.getStyleClass().add("approved-combo");
+
+        List<DocumentChoice> choices = new ArrayList<>();
+        choices.add(new DocumentChoice(null, "• Default Sample Record (Sample Tokens)"));
+
+        try {
+            List<org.example.documentstudio.model.DocumentSample> samples = org.example.documentstudio.service.DocumentDataService.listSamples(studioType);
+            if (samples != null) {
+                for (var s : samples) {
+                    choices.add(new DocumentChoice(s.id(), s.label()));
+                }
+            }
+        } catch (Exception ignored) {}
+
+        cmbRecords.setItems(FXCollections.observableArrayList(choices));
+        cmbRecords.getSelectionModel().selectFirst();
+
+        selectorRow.getChildren().addAll(lblRecord, cmbRecords);
+
+        // Subject box (if email)
+        VBox subjectBox = new VBox(5);
+        Label lblSubjectTitle = new Label("Rendered Email Subject:");
+        lblSubjectTitle.getStyleClass().add("settings-form-label");
+        TextField txtRenderedSubject = new TextField();
+        txtRenderedSubject.setEditable(false);
+        txtRenderedSubject.getStyleClass().add("approved-input");
+        subjectBox.getChildren().addAll(lblSubjectTitle, txtRenderedSubject);
+        if (isWhatsapp) {
+            subjectBox.setVisible(false);
+            subjectBox.setManaged(false);
+        }
+
+        // Body box
+        VBox bodyBox = new VBox(5);
+        Label lblBodyTitle = new Label("Rendered Message Body:");
+        lblBodyTitle.getStyleClass().add("settings-form-label");
+        TextArea txtRenderedBody = new TextArea();
+        txtRenderedBody.setEditable(false);
+        txtRenderedBody.setWrapText(true);
+        txtRenderedBody.setPrefRowCount(10);
+        txtRenderedBody.setMinHeight(200);
+        txtRenderedBody.setPrefHeight(260);
+        txtRenderedBody.getStyleClass().add("approved-input");
+        VBox.setVgrow(txtRenderedBody, Priority.ALWAYS);
+        VBox.setVgrow(bodyBox, Priority.ALWAYS);
+        root.setMinHeight(520);
+        bodyBox.getChildren().addAll(lblBodyTitle, txtRenderedBody);
+
+        // Signature & Image Card
+        VBox signatureCard = new VBox(8);
+        signatureCard.getStyleClass().addAll("settings-subcard", "settings-signature-preview-card", "settings-preview-sig-card");
+
+        HBox sigHeader = new HBox(8);
+        sigHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        Label lblSigTitle = new Label("Email Signature & Attached Image Status");
+        lblSigTitle.getStyleClass().add("settings-preview-sig-title");
+        Region sigSpacer = new Region();
+        HBox.setHgrow(sigSpacer, Priority.ALWAYS);
+        Label lblSigStatusBadge = new Label();
+        lblSigStatusBadge.getStyleClass().add("page-subtitle");
+        sigHeader.getChildren().addAll(lblSigTitle, sigSpacer, lblSigStatusBadge);
+
+        HBox sigContent = new HBox(12);
+        sigContent.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        ImageView imgSigThumb = new ImageView();
+        imgSigThumb.setFitHeight(48);
+        imgSigThumb.setFitWidth(100);
+        imgSigThumb.setPreserveRatio(true);
+        imgSigThumb.setSmooth(true);
+
+        StackPane imgWrapper = new StackPane(imgSigThumb);
+        imgWrapper.setPrefSize(104, 52);
+        imgWrapper.getStyleClass().add("settings-preview-img-wrapper");
+
+        VBox sigDetails = new VBox(3);
+        HBox.setHgrow(sigDetails, Priority.ALWAYS);
+        Label lblSigPath = new Label();
+        lblSigPath.getStyleClass().add("settings-preview-sig-path");
+        Label lblSigNote = new Label("Appended inline automatically to all outgoing emails when {Signature} is evaluated.");
+        lblSigNote.getStyleClass().add("settings-preview-sig-note");
+        lblSigNote.setWrapText(true);
+        sigDetails.getChildren().addAll(lblSigPath, lblSigNote);
+
+        sigContent.getChildren().addAll(imgWrapper, sigDetails);
+        signatureCard.getChildren().addAll(sigHeader, sigContent);
+
+        final String activeSubjTpl = txtMessageTemplateSubject != null ? txtMessageTemplateSubject.getText() : "";
+        final String activeBodyTpl = txtMessageTemplateBody != null ? txtMessageTemplateBody.getText() : "";
+        final String activeSignatureText = txtEmailSignature != null ? txtEmailSignature.getText() : MessageTemplateService.getSignature();
+
+        Runnable refreshPreview = () -> {
+            DocumentChoice selected = cmbRecords.getValue();
+            Map<String, String> tokens;
+            if (selected == null || selected.id() == null) {
+                tokens = MessageTemplateService.sampleTokens();
+                if (activeSignatureText != null && !activeSignatureText.isBlank()) {
+                    tokens.put("Signature", activeSignatureText.trim());
+                }
+            } else {
+                try {
+                    org.example.documentstudio.model.TemplateData data = org.example.documentstudio.service.DocumentDataService.load(studioType, selected.id());
+                    tokens = extractPreviewTokens(data, activeSignatureText);
+                } catch (Exception ex) {
+                    tokens = MessageTemplateService.sampleTokens();
+                    if (activeSignatureText != null && !activeSignatureText.isBlank()) {
+                        tokens.put("Signature", activeSignatureText.trim());
+                    }
+                }
+            }
+
+            if (!isWhatsapp) {
+                txtRenderedSubject.setText(MessageTemplateService.format(activeSubjTpl, tokens));
+            }
+            txtRenderedBody.setText(MessageTemplateService.format(activeBodyTpl, tokens));
+
+            // Refresh signature image display
+            String sigImgPath = selectedSignatureImagePath != null && !selectedSignatureImagePath.isBlank()
+                    ? selectedSignatureImagePath
+                    : MessageTemplateService.getSignatureImagePath();
+            lblSigStatusBadge.getStyleClass().removeAll("settings-preview-badge-success", "settings-preview-badge-neutral", "settings-preview-badge-error");
+            if (sigImgPath != null && !sigImgPath.isBlank()) {
+                File sigFile = new File(sigImgPath);
+                if (sigFile.exists() && sigFile.isFile()) {
+                    try {
+                        imgSigThumb.setImage(new Image(sigFile.toURI().toString()));
+                        imgWrapper.setVisible(true);
+                        imgWrapper.setManaged(true);
+                        lblSigPath.setText(sigFile.getName());
+                        lblSigStatusBadge.setText("IMAGE ATTACHED (" + (sigFile.length() / 1024) + " KB)");
+                        lblSigStatusBadge.getStyleClass().add("settings-preview-badge-success");
+                    } catch (Exception ex) {
+                        imgSigThumb.setImage(null);
+                        imgWrapper.setVisible(false);
+                        imgWrapper.setManaged(false);
+                        lblSigPath.setText("Image unreadable: " + sigFile.getName());
+                        lblSigStatusBadge.setText("ERROR");
+                        lblSigStatusBadge.getStyleClass().add("settings-preview-badge-error");
+                    }
+                } else {
+                    imgSigThumb.setImage(null);
+                    imgWrapper.setVisible(false);
+                    imgWrapper.setManaged(false);
+                    lblSigPath.setText("File not found on disk");
+                    lblSigStatusBadge.setText("MISSING");
+                    lblSigStatusBadge.getStyleClass().add("settings-preview-badge-error");
+                }
+            } else {
+                imgSigThumb.setImage(null);
+                imgWrapper.setVisible(false);
+                imgWrapper.setManaged(false);
+                lblSigPath.setText("No signature image attached");
+                lblSigStatusBadge.setText("NO IMAGE");
+                lblSigStatusBadge.getStyleClass().add("settings-preview-badge-neutral");
+            }
+        };
+
+        cmbRecords.valueProperty().addListener((obs, oldV, newV) -> refreshPreview.run());
+        refreshPreview.run();
+
+        root.getChildren().addAll(selectorRow, subjectBox, bodyBox, signatureCard);
+        pane.setContent(root);
+        dialog.showAndWait();
+    }
+
+    private static org.example.documentstudio.model.DocumentType resolveStudioDocType(MessageTemplateService.DocumentType docType) {
+        if (docType == null) return org.example.documentstudio.model.DocumentType.SALES_INVOICE;
+        return switch (docType) {
+            case SALES_INVOICE -> org.example.documentstudio.model.DocumentType.SALES_INVOICE;
+            case QUOTATION -> org.example.documentstudio.model.DocumentType.QUOTATION;
+            case PURCHASE_BILL -> org.example.documentstudio.model.DocumentType.PURCHASE_INVOICE;
+            case SALES_RETURN -> org.example.documentstudio.model.DocumentType.SALES_RETURN;
+            case PURCHASE_RETURN -> org.example.documentstudio.model.DocumentType.PURCHASE_RETURN;
+            case PAYMENT_RECEIPT -> org.example.documentstudio.model.DocumentType.SALES_INVOICE;
+        };
+    }
+
+    private Map<String, String> extractPreviewTokens(org.example.documentstudio.model.TemplateData data, String signatureText) {
+        if (data == null) return MessageTemplateService.sampleTokens();
+        Map<String, String> tokens = new HashMap<>();
+        String company = BrandingService.companyName();
+        String phone = ConfigManager.get("company.phone", "").trim();
+        String email = ConfigManager.get("company.email", "").trim();
+        String sig = signatureText != null && !signatureText.isBlank() ? signatureText : MessageTemplateService.getSignature();
+        sig = sig.replace("{CompanyName}", company)
+                 .replace("{CompanyPhone}", phone)
+                 .replace("{CompanyEmail}", email);
+
+        String partyName = data.value("customer.name");
+        if (partyName.isBlank()) partyName = data.value("supplier.name");
+        if (partyName.isBlank()) partyName = data.value("party.name");
+        if (partyName.isBlank()) partyName = "Customer";
+
+        String docNo = data.value("sales.number");
+        if (docNo.isBlank()) docNo = data.value("purchase.number");
+        if (docNo.isBlank()) docNo = data.value("quotation.number");
+        if (docNo.isBlank()) docNo = data.value("return.number");
+        if (docNo.isBlank()) docNo = data.value("document.number");
+
+        String docDate = data.value("sales.date");
+        if (docDate.isBlank()) docDate = data.value("purchase.date");
+        if (docDate.isBlank()) docDate = data.value("quotation.date");
+        if (docDate.isBlank()) docDate = data.value("return.date");
+
+        String total = data.value("totals.grandTotal");
+        String paid = data.value("totals.paidAmount");
+        String balance = data.value("totals.balanceAmount");
+
+        tokens.put("CustomerName", partyName);
+        tokens.put("PartyName", partyName);
+        tokens.put("DocumentNo", docNo);
+        tokens.put("DocumentDate", docDate);
+        tokens.put("TotalAmount", total.isBlank() ? "₹0.00" : total);
+        tokens.put("PaidAmount", paid.isBlank() ? "₹0.00" : paid);
+        tokens.put("BalanceAmount", balance.isBlank() ? "₹0.00" : balance);
+        tokens.put("CompanyName", company);
+        tokens.put("CompanyPhone", phone);
+        tokens.put("CompanyEmail", email);
+        tokens.put("Signature", sig);
+        return tokens;
     }
 
     private void insertToken(String token) {

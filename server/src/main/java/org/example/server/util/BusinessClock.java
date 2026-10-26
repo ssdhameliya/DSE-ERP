@@ -105,6 +105,33 @@ public final class BusinessClock {
         return text;
     }
 
+    /**
+     * Parses ISO, Indian, UK and legacy date strings into a LocalDate, returning null if invalid.
+     */
+    public static LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) return null;
+        String text = value.trim();
+        String candidate = text.length() > 10 && (text.contains(" ") || text.contains("T")) ? text.substring(0, 10) : text;
+        for (DateTimeFormatter parser : List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("d/M/uuuu"),
+                DateTimeFormatter.ofPattern("dd/MM/uuuu"),
+                DateTimeFormatter.ofPattern("dd-MM-uuuu"),
+                DateTimeFormatter.ofPattern("d-M-uuuu"),
+                DateTimeFormatter.ofPattern("MM/dd/uuuu"),
+                DateTimeFormatter.ofPattern("M/d/uuuu"),
+                DateTimeFormatter.ofPattern("uuuu/MM/dd"),
+                DateTimeFormatter.ofPattern("dd-MMM-uuuu", java.util.Locale.ENGLISH))) {
+            try {
+                return LocalDate.parse(candidate, parser);
+            } catch (DateTimeParseException ignored) { }
+            try {
+                return LocalDate.parse(text, parser);
+            } catch (DateTimeParseException ignored) { }
+        }
+        return null;
+    }
+
     public static String timePattern() {
         String configured = org.example.config.ConfigManager.get("company.timeFormat", "");
         if (configured == null || configured.isBlank()) configured = readConfigured("company.timeFormat");

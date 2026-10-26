@@ -100,6 +100,10 @@ public class EmailTransmissionDialog {
                 }
             });
         }
+        if (txtBody != null) {
+            txtBody.setMinHeight(200);
+            txtBody.setPrefHeight(240);
+        }
         if (txtSubject != null) {
             txtSubject.textProperty().addListener((obs, old, val) -> {
                 if (errSubject != null) {
@@ -388,14 +392,28 @@ public class EmailTransmissionDialog {
             if (owner != null) dialog.initOwner(owner);
 
             dialog.setTitle(draft.title() != null ? draft.title() : "Transmit Email");
+            org.example.util.AppDialogRenderer.configureWorkspace(dialog, "info",
+                    draft.title() != null ? draft.title() : "Transmit Email",
+                    draft.title() != null ? draft.title() : "Transmit Tax Invoice via Email",
+                    draft.subtitle() != null ? draft.subtitle() : "Direct SMTP delivery to customer billing contact",
+                    "");
             dialog.setResizable(true);
             pane.setContent(content);
+            pane.setPrefSize(860, 780);
+            pane.setMinSize(760, 620);
             pane.getButtonTypes().add(ButtonType.CLOSE);
             Node closeBtn = pane.lookupButton(ButtonType.CLOSE);
             if (closeBtn != null) {
                 closeBtn.setVisible(false);
                 closeBtn.setManaged(false);
             }
+            javafx.application.Platform.runLater(() -> {
+                Node btnBar = pane.lookup(".button-bar");
+                if (btnBar != null) {
+                    btnBar.setVisible(false);
+                    btnBar.setManaged(false);
+                }
+            });
 
             dialog.setDialogPane(pane);
             dialog.setResultConverter(buttonType -> controller.result);

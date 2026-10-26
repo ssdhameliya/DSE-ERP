@@ -14,6 +14,8 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
+import javafx.stage.Screen;
+import javafx.stage.Window;
 import javafx.util.converter.DoubleStringConverter;
 import org.example.api.bank.BankStatementApiClient;
 import org.example.config.ConfigManager;
@@ -24,6 +26,7 @@ import org.example.service.SessionService;
 import org.example.service.LookupService;
 import org.example.service.PermissionService;
 import org.example.util.AppDialogRenderer;
+import org.example.util.AppDialogService;
 import org.example.util.BusinessClock;
 import org.example.util.DatePickerFormatter;
 import org.example.util.DynamicTableLayoutManager;
@@ -39,8 +42,11 @@ import org.example.util.SemanticTableCells;
 import org.example.util.UiTaskExecutor;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.LocalDate;
 import java.util.*;
+import org.example.util.ToastManager;
 
 public class BankStatementController implements ScreenLifecycle {
     @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon,historyIcon;
@@ -368,6 +374,7 @@ public class BankStatementController implements ScreenLifecycle {
     private void configureBankAccountMaster(){applyBankAccountMaster(readBankAccountMaster());}
     private void configureHistoryTable(){
         if(tableHistory==null)return;
+        DynamicTableLayoutManager.install(tableHistory);
         colHistoryImported.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatTimestamp(v.getValue().importedAt())));
         colHistoryBank.setCellValueFactory(v->new SimpleStringProperty(batchBankLabel(v.getValue())));
         colHistoryPeriod.setCellValueFactory(v->new SimpleStringProperty(
@@ -397,11 +404,29 @@ public class BankStatementController implements ScreenLifecycle {
         statementHistoryDialog=new OwnedDialog<>(statementWorkspace);
         statementHistoryDialog.setTitle("Bank Statement History");
         statementHistoryDialog.setHeaderText(null);
+        statementHistoryDialog.setResizable(true);
         statementHistoryDialog.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-statement-history-dialog");
         statementHistoryDialog.getDialogPane().setContent(statementHistoryDrawer);
-        statementHistoryDialog.getDialogPane().setPrefSize(1080,720);
-        statementHistoryDialog.getDialogPane().setMinSize(900,580);
+
+        Screen screen = Screen.getPrimary();
+        if (statementWorkspace.getScene() != null && statementWorkspace.getScene().getWindow() != null) {
+            Window owner = statementWorkspace.getScene().getWindow();
+            screen = Screen.getScreensForRectangle(owner.getX(), owner.getY(), Math.max(1, owner.getWidth()), Math.max(1, owner.getHeight()))
+                    .stream().findFirst().orElse(Screen.getPrimary());
+        }
+        double usableHeight = Math.max(560, screen.getVisualBounds().getHeight() - 60);
+        double targetHeight = Math.min(780, usableHeight);
+        double usableWidth = Math.max(800, screen.getVisualBounds().getWidth() - 60);
+        double targetWidth = Math.min(1080, usableWidth);
+        statementHistoryDialog.getDialogPane().setPrefSize(targetWidth, targetHeight);
+        statementHistoryDialog.getDialogPane().setMinSize(Math.min(900, targetWidth), Math.min(560, targetHeight));
         statementHistoryDialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        javafx.application.Platform.runLater(() -> {
+            Node closeBtn = statementHistoryDialog.getDialogPane().lookupButton(ButtonType.CLOSE);
+            if (closeBtn != null) { closeBtn.setVisible(false); closeBtn.setManaged(false); }
+            Node bar = statementHistoryDialog.getDialogPane().lookup(".button-bar");
+            if (bar != null) { bar.setVisible(false); bar.setManaged(false); }
+        });
         statementHistoryDialog.setOnCloseRequest(e->restoreStatementHistoryDrawer());
         statementHistoryDialog.setResultConverter(button->null);
         historyPage=0;
@@ -437,7 +462,17 @@ public class BankStatementController implements ScreenLifecycle {
         if(batch==null)return;
         if(!PermissionService.allowed("BANK_EXPENSE.DELETE")){info("Delete Bank Statement","You do not have permission to delete Bank Statement imports.");return;}
         UiTaskExecutor.submitLatest("bank-statement-delete-preview-"+batch.id(),()->api.metrics(batch.id()),metrics->{
-            String impact="Transactions: "+metrics.total()+"\nMatched / linked: "+metrics.matched()+"\nExpense entries: "+metrics.expenses()+"\nIgnored: "+metrics.ignored()+"\n\nAny linked reconciliation or generated Bank / Expense entry will be reversed first. If any reversal fails, nothing will be deleted.";
+            if (metrics.matched() > 0 || metrics.reconciled() > 0) {
+                int count = Math.max(metrics.matched(), metrics.reconciled());
+                AppDialogService.warning(
+                    table,
+                    "Statement Deletion Blocked",
+                    "Statement contains reconciled transactions",
+                    "This Bank Statement cannot be deleted because " + count + " transaction" + (count == 1 ? " is" : "s are") + " already matched and reconciled with ERP records.\n\nPlease reverse or unmatch all reconciled transactions individually before deleting the statement."
+                );
+                return;
+            }
+            String impact="Transactions: "+metrics.total()+"\nExpense entries: "+metrics.expenses()+"\nIgnored: "+metrics.ignored()+"\n\nAny generated Bank / Expense entry will be reversed first. If any reversal fails, nothing will be deleted.";
             Alert first=new OwnedAlert(Alert.AlertType.CONFIRMATION,formatBatchLabel(batch)+"\n\n"+impact,ButtonType.CANCEL,new ButtonType("Continue",ButtonBar.ButtonData.OK_DONE));
             first.setHeaderText("Delete Bank Statement?");
             Optional<ButtonType> stepOne=first.showAndWait();
@@ -477,24 +512,295 @@ public class BankStatementController implements ScreenLifecycle {
     private static String formatBatchLabel(BankStatementApiClient.BatchDto b){return batchBankLabel(b)+" • "+safe(b.statementFrom())+" to "+safe(b.statementTo())+" • "+safe(b.status());}
     private static String batchStatusSemantic(String status){String state=up(status);return state.contains("FULL")||state.equals("RECONCILED")?"complete":state.contains("PARTIAL")?"warning":"document";}
 
+    record ImportAuditItem(
+        int lineNo,
+        int sourceIndex,
+        String date,
+        String valueDate,
+        String description,
+        String reference,
+        double debit,
+        double credit,
+        double balance,
+        String status,
+        String remarks
+    ) {}
+
+    record ImportAuditSummary(
+        String bankName,
+        String accountNumber,
+        String statementFrom,
+        String statementTo,
+        String fileName,
+        int totalRows,
+        int importedRows,
+        int duplicateRows,
+        int errorRows,
+        BankStatementApiClient.BatchDto batch,
+        boolean alreadyImported,
+        List<ImportAuditItem> items
+    ) {}
+
     @FXML private void importStatement(){
         configureBankAccountMaster();
-        FileChooser f=new FileChooser();f.setTitle("Import Bank Statement CSV");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV","*.csv"));
-        File file=f.showOpenDialog(table.getScene().getWindow()); if(file==null)return;
-        String importedBy=user();
-        UiTaskExecutor.submitLatest("bank-statement-parse",()->parser.parse(file.toPath()),parsed->{
-            BankAccountOption account=resolveBankAccount(parsed.bankName(),parsed.accountNumber());
-            if(account==null)return;
-            BankStatementApiClient.ImportRequest request=new BankStatementApiClient.ImportRequest(
-                safe(account.bankName()).isBlank()?parsed.bankName():account.bankName(),account.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,false,parsed.rows());
-            UiTaskExecutor.submitSerial("bank-statement-import",()->api.importStatement(request),this::handleImportResult,this::error);
-        },this::error);
+        FileChooser f = new FileChooser();
+        f.setTitle("Import Bank Statement CSV");
+        f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV", "*.csv"));
+        File file = f.showOpenDialog(table.getScene().getWindow());
+        if (file == null) return;
+        String importedBy = user();
+
+        LiveOperationDialog.execute(
+            table,
+            "Importing Bank Statement",
+            "document",
+            "Reading & analyzing CSV statement...",
+            reporter -> {
+                reporter.stage(1, 4, "Reading & analyzing CSV statement file...");
+                reporter.progress(0.15);
+                var audit = parser.parseWithAudit(file.toPath());
+                reporter.progress(0.40);
+
+                if (audit.statement() == null && audit.errorCount() > 0) {
+                    List<ImportAuditItem> items = audit.auditRows().stream()
+                            .map(r -> new ImportAuditItem(r.lineNo(), r.sourceIndex(), r.date(), r.valueDate(), r.description(), r.reference(), r.debit(), r.credit(), r.balance(), "INVALID_ERROR", r.error()))
+                            .toList();
+                    return new ImportAuditSummary("Unknown Bank", "", "", "", file.getName(), audit.totalRows(), 0, 0, audit.errorCount(), null, false, items);
+                }
+
+                var parsed = audit.statement();
+                reporter.stage(2, 4, "Validating Master Data account (" + parsed.rows().size() + " rows)...");
+                reporter.progress(0.60);
+
+                BankAccountOption account = resolveBankAccountAuto(parsed.bankName(), parsed.accountNumber());
+                String bankNameToUse = (account != null && !safe(account.bankName()).isBlank()) ? account.bankName() : parsed.bankName();
+                String accountNumToUse = account != null ? account.accountNumber() : parsed.accountNumber();
+
+                reporter.stage(3, 4, "Uploading transactions & checking duplicate fingerprints...");
+                reporter.progress(0.85);
+
+                BankStatementApiClient.ImportRequest request = new BankStatementApiClient.ImportRequest(
+                    bankNameToUse, accountNumToUse, parsed.accountHolder(), parsed.statementFrom(), parsed.statementTo(),
+                    parsed.currency(), parsed.openingBalance(), parsed.closingBalance(), parsed.sourceFingerprint(),
+                    parsed.sourceFileName(), parsed.sourceCsv(), importedBy, false, parsed.rows());
+
+                BankStatementApiClient.ImportResult result = api.importStatement(request);
+
+                reporter.stage(4, 4, "Compiling statement import audit report...");
+                reporter.progress(1.0);
+
+                List<ImportAuditItem> items = new ArrayList<>();
+                int importedCount = result.importedRows();
+                int dupCount = result.duplicateRows();
+
+                for (int i = 0; i < audit.auditRows().size(); i++) {
+                    var ar = audit.auditRows().get(i);
+                    if ("INVALID_ERROR".equals(ar.status())) {
+                        items.add(new ImportAuditItem(ar.lineNo(), ar.sourceIndex(), ar.date(), ar.valueDate(), ar.description(), ar.reference(), ar.debit(), ar.credit(), ar.balance(), "INVALID_ERROR", ar.error()));
+                    } else if (result.alreadyImported()) {
+                        items.add(new ImportAuditItem(ar.lineNo(), ar.sourceIndex(), ar.date(), ar.valueDate(), ar.description(), ar.reference(), ar.debit(), ar.credit(), ar.balance(), "DUPLICATE_SKIPPED", "Statement already imported previously"));
+                    } else {
+                        boolean isDup = i >= importedCount && dupCount > 0;
+                        items.add(new ImportAuditItem(ar.lineNo(), ar.sourceIndex(), ar.date(), ar.valueDate(), ar.description(), ar.reference(), ar.debit(), ar.credit(), ar.balance(), isDup ? "DUPLICATE_SKIPPED" : "IMPORTED", isDup ? "Duplicate fingerprint matched in database" : "Successfully recorded in batch"));
+                    }
+                }
+
+                return new ImportAuditSummary(
+                    bankNameToUse, accountNumToUse, parsed.statementFrom(), parsed.statementTo(), file.getName(),
+                    audit.totalRows(), result.importedRows(), result.duplicateRows(), audit.errorCount(), result.batch(), result.alreadyImported(), items);
+            },
+            this::openImportSummaryDialog,
+            this::error
+        );
     }
-    private void handleImportResult(BankStatementApiClient.ImportResult result){
-        if(result.alreadyImported()&&result.batch()!=null){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"This exact bank statement was already imported on "+BusinessClock.formatTimestamp(result.batch().importedAt())+".\n\n"+formatBatchLabel(result.batch())+"\n\nOpen the existing statement instead?",ButtonType.YES,ButtonType.NO);a.setHeaderText("Bank Statement Already Imported");if(a.showAndWait().orElse(ButtonType.NO)==ButtonType.YES)loadBatches(result.batch().id());}
-        else if(result.batch()!=null){success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows());loadBatches(result.batch().id());}
-        else info("No new transactions","All transactions in this statement were already present, so no new statement batch was created.");
+
+    private void openImportSummaryDialog(ImportAuditSummary summary) {
+        if (summary == null) return;
+
+        if (reconciliationProgress != null) {
+            reconciliationProgress.setProgress(summary.totalRows() == 0 ? 0 : (double) summary.importedRows() / summary.totalRows());
+        }
+        if (lblProgressText != null) {
+            lblProgressText.setText(summary.importedRows() + " / " + summary.totalRows() + " imported");
+        }
+
+        Dialog<ButtonType> dialog = new OwnedDialog<>(table);
+        dialog.setTitle("Bank Statement Import Summary");
+        AppDialogRenderer.configureWorkspace(dialog, summary.errorRows() > 0 ? "warning" : "info",
+                "Bank Statement Import Summary",
+                "Import Summary: " + summary.fileName(),
+                summary.bankName() + " • " + summary.accountNumber() + (summary.statementFrom().isBlank() ? "" : " • " + summary.statementFrom() + " to " + summary.statementTo()),
+                "");
+
+        VBox root = new VBox(14);
+        root.setPrefWidth(640);
+        root.setMinHeight(300);
+
+        HBox metricsRow = new HBox(10);
+        metricsRow.setAlignment(Pos.CENTER);
+
+        VBox tileTotal = createMetricTile("Total Rows", String.valueOf(summary.totalRows()), "bank-import-metric-total");
+        VBox tileImported = createMetricTile("Imported", String.valueOf(summary.importedRows()), "bank-import-metric-imported");
+        VBox tileSkipped = createMetricTile("Duplicates Skipped", String.valueOf(summary.duplicateRows()), "bank-import-metric-skipped");
+        VBox tileErrors = createMetricTile("Parse Errors", String.valueOf(summary.errorRows()), "bank-import-metric-error");
+
+        HBox.setHgrow(tileTotal, Priority.ALWAYS);
+        HBox.setHgrow(tileImported, Priority.ALWAYS);
+        HBox.setHgrow(tileSkipped, Priority.ALWAYS);
+        HBox.setHgrow(tileErrors, Priority.ALWAYS);
+        metricsRow.getChildren().addAll(tileTotal, tileImported, tileSkipped, tileErrors);
+
+        Label lblStatusMsg = new Label();
+        lblStatusMsg.setWrapText(true);
+        if (summary.alreadyImported()) {
+            lblStatusMsg.setText("Notice: This exact bank statement was already imported previously. No duplicate records were re-created.");
+        } else if (summary.errorRows() > 0) {
+            lblStatusMsg.setText("Warning: Found " + summary.errorRows() + " transaction row(s) with formatting or validation errors. Download the audit report below to review individual line issues.");
+        } else if (summary.importedRows() > 0) {
+            lblStatusMsg.setText("Success: Statement imported successfully. " + summary.importedRows() + " new transactions added to reconciliation workspace.");
+        } else {
+            lblStatusMsg.setText("All transactions in this statement were already present in ERP records.");
+        }
+        lblStatusMsg.getStyleClass().add("settings-form-label");
+
+        HBox actionBox = new HBox(10);
+        actionBox.setAlignment(Pos.CENTER_RIGHT);
+
+        Button btnDownload = new Button("Download Import Report (Excel / CSV)");
+        btnDownload.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnDownload.setOnAction(e -> exportImportAuditExcel(summary));
+
+        Button btnOpen = new Button("Open Statement");
+        btnOpen.getStyleClass().addAll("approved-button", "approved-primary-button");
+        btnOpen.setDisable(summary.batch() == null);
+        btnOpen.setOnAction(e -> {
+            dialog.setResult(ButtonType.OK);
+            dialog.close();
+            if (summary.batch() != null) {
+                loadBatches(summary.batch().id());
+            }
+        });
+
+        Button btnClose = new Button("Close");
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> {
+            dialog.setResult(ButtonType.CLOSE);
+            dialog.close();
+            if (summary.batch() != null && !summary.alreadyImported() && summary.importedRows() > 0) {
+                loadBatches(summary.batch().id());
+            }
+        });
+
+        actionBox.getChildren().addAll(btnDownload, btnOpen, btnClose);
+        root.getChildren().addAll(metricsRow, lblStatusMsg, actionBox);
+
+        dialog.getDialogPane().setContent(root);
+        dialog.showAndWait();
     }
+
+    private static VBox createMetricTile(String label, String value, String colorClass) {
+        VBox box = new VBox(2);
+        box.getStyleClass().add("bank-import-metric-tile");
+        Label lblVal = new Label(value);
+        lblVal.getStyleClass().addAll("bank-import-metric-num", colorClass);
+        Label lblCap = new Label(label);
+        lblCap.getStyleClass().add("bank-import-metric-label");
+        box.getChildren().addAll(lblVal, lblCap);
+        return box;
+    }
+
+    private void exportImportAuditExcel(ImportAuditSummary summary) {
+        if (summary == null || summary.items().isEmpty()) {
+            ToastManager.info(table, "Nothing to Export", "No audit transactions available to export.");
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save Bank Statement Import Report");
+        String safeName = (summary.fileName() != null ? summary.fileName() : "Statement").replaceAll("[^A-Za-z0-9._-]", "_");
+        chooser.setInitialFileName("Import_Report_" + safeName + "_" + System.currentTimeMillis() + ".xlsx");
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Excel Workbook (*.xlsx)", "*.xlsx"),
+                new FileChooser.ExtensionFilter("CSV File (*.csv)", "*.csv")
+        );
+        File target = chooser.showSaveDialog(table.getScene().getWindow());
+        if (target == null) return;
+
+        try {
+            if (target.getName().toLowerCase(Locale.ROOT).endsWith(".csv")) {
+                exportImportAuditCsv(target, summary);
+            } else {
+                exportImportAuditXlsx(target, summary);
+            }
+            ToastManager.success(table, "Report Exported", "Saved import audit report to " + target.getName());
+        } catch (Exception ex) {
+            error(ex);
+        }
+    }
+
+    private void exportImportAuditXlsx(File file, ImportAuditSummary summary) throws Exception {
+        try (org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+             java.io.FileOutputStream out = new java.io.FileOutputStream(file)) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Import Audit");
+            String[] headers = {
+                "Line #", "Tx #", "Date", "Value Date", "Description / Narration",
+                "Reference / Cheque", "Debit (INR)", "Credit (INR)", "Balance (INR)",
+                "Import Status", "Audit Remarks"
+            };
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                headerRow.createCell(i).setCellValue(headers[i]);
+            }
+            int r = 1;
+            for (ImportAuditItem item : summary.items()) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
+                row.createCell(0).setCellValue(item.lineNo());
+                row.createCell(1).setCellValue(item.sourceIndex());
+                row.createCell(2).setCellValue(safe(item.date()));
+                row.createCell(3).setCellValue(safe(item.valueDate()));
+                row.createCell(4).setCellValue(safe(item.description()));
+                row.createCell(5).setCellValue(safe(item.reference()));
+                row.createCell(6).setCellValue(item.debit());
+                row.createCell(7).setCellValue(item.credit());
+                row.createCell(8).setCellValue(item.balance());
+                row.createCell(9).setCellValue(safe(item.status()));
+                row.createCell(10).setCellValue(safe(item.remarks()));
+            }
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            wb.write(out);
+        }
+    }
+
+    private void exportImportAuditCsv(File file, ImportAuditSummary summary) throws Exception {
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8))) {
+            pw.println("Line #,Tx #,Date,Value Date,Description,Reference,Debit,Credit,Balance,Status,Remarks");
+            for (ImportAuditItem item : summary.items()) {
+                pw.printf(Locale.ROOT, "%d,%d,\"%s\",\"%s\",\"%s\",\"%s\",%.2f,%.2f,%.2f,\"%s\",\"%s\"%n",
+                        item.lineNo(), item.sourceIndex(),
+                        escapeCsv(item.date()), escapeCsv(item.valueDate()),
+                        escapeCsv(item.description()), escapeCsv(item.reference()),
+                        item.debit(), item.credit(), item.balance(),
+                        escapeCsv(item.status()), escapeCsv(item.remarks()));
+            }
+        }
+    }
+
+    private static String escapeCsv(String val) {
+        return val == null ? "" : val.replace("\"", "\"\"");
+    }
+
+    private BankAccountOption resolveBankAccountAuto(String parsedBank, String parsedAccount) {
+        if (bankAccountOptions.isEmpty()) configureBankAccountMaster();
+        String incoming = compactAccount(parsedAccount);
+        if (!incoming.isBlank()) {
+            for (BankAccountOption option : bankAccountOptions) {
+                if (compactAccount(option.accountNumber()).equals(incoming)) return option;
+            }
+        }
+        return bankAccountOptions.isEmpty() ? null : bankAccountOptions.getFirst();
+    }
+
     private BankAccountOption resolveBankAccount(String parsedBank,String parsedAccount){
         if(bankAccountOptions.isEmpty())configureBankAccountMaster();
         if(bankAccountOptions.isEmpty()){info("Bank Account required","Configure at least one active BANK ACCOUNT in Master Data before importing a statement.");return null;}
@@ -957,15 +1263,48 @@ public class BankStatementController implements ScreenLifecycle {
         VBox content=PopupTableWorkspace.content(metrics,linkedTable,footer);
         dialog.getDialogPane().setContent(content);PopupTableWorkspace.prepareDialog(dialog,900);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
     }
-    private String linkActionLabel(String type){String t=up(type);if("SALE".equals(t)||"PURCHASE".equals(t))return "View Payment";if(t.endsWith("RETURN"))return "View Refund";return "View";}
+    private String linkActionLabel(String type){
+        String t=up(type);
+        if("SALE".equals(t)) return "View Sale";
+        if("PURCHASE".equals(t)) return "View Purchase";
+        if("SALES_RETURN".equals(t)) return "View Sales Return";
+        if("PURCHASE_RETURN".equals(t)) return "View Purchase Return";
+        return "View";
+    }
     private void openAllocation(BankStatementApiClient.AllocationDto allocation,String source){if(allocation==null)return;String type=up(allocation.targetType());Integer id=("EXPENSE".equals(type)||"BANK_ENTRY".equals(type))&&allocation.financeEntryId()!=null?allocation.financeEntryId():allocation.targetId();openLinkedTarget(type,id,safe(allocation.documentNo()),source,null);}
     private void openLinkedTarget(String type,Integer id,String documentNo,String source,Row row){
         if("EXPENSE".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.EXPENSE,financeId);DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);return;}
         if("BANK_ENTRY".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.BANK,financeId);DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);return;}
-        if("SALE".equals(type)){if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Sale document not found","The linked Sale no longer has a usable invoice number.");return;}SalesScreenContext.select(documentNo);DashboardController.navigateFromChild("Sales Register","/fxml/pages/SalesList.fxml",null);return;}
-        if("PURCHASE".equals(type)){if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Purchase document not found","The linked Purchase no longer has a usable invoice number.");return;}PurchaseScreenContext.select(documentNo);DashboardController.navigateFromChild("Purchase Register","/fxml/pages/PurchaseList.fxml",null);return;}
-        if("PURCHASE_RECON".equals(type)){if(id==null){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Purchase Recon not found","The linked Purchase Recon no longer has a usable record id.");return;}PurchaseReconScreenContext.select(id);DashboardController.navigateFromChild("Purchase Recon","/fxml/pages/PurchaseRecon.fxml",null);return;}
-        if("SALES_RETURN".equals(type)||"PURCHASE_RETURN".equals(type)){if(documentNo.isBlank()){new OwnedAlert(Alert.AlertType.WARNING,"The linked Return record no longer has a document number.").showAndWait();return;}ReturnRefundContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");return;}
+        if("SALE".equals(type)){
+            if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Sale document not found","The linked Sale no longer has a usable invoice number.");return;}
+            LinkedRecordContext.open("SALE", id, documentNo, "VIEW", "Bank Statement");
+            DashboardController.navigateFromChild("Sales Register","/fxml/pages/SalesList.fxml",null);
+            return;
+        }
+        if("PURCHASE".equals(type)){
+            if(documentNo.isBlank()){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Purchase document not found","The linked Purchase no longer has a usable invoice number.");return;}
+            LinkedRecordContext.open("PURCHASE", id, documentNo, "VIEW", "Bank Statement");
+            DashboardController.navigateFromChild("Purchase Register","/fxml/pages/PurchaseList.fxml",null);
+            return;
+        }
+        if("PURCHASE_RECON".equals(type)){
+            if(id==null){org.example.util.AppDialogService.warning(table,"Linked record unavailable","Purchase Recon not found","The linked Purchase Recon no longer has a usable record id.");return;}
+            PurchaseReconScreenContext.select(id);
+            DashboardController.navigateFromChild("Purchase Recon","/fxml/pages/PurchaseRecon.fxml",null);
+            return;
+        }
+        if("SALES_RETURN".equals(type)){
+            if(documentNo.isBlank()){new OwnedAlert(Alert.AlertType.WARNING,"The linked Sales Return record no longer has a document number.").showAndWait();return;}
+            LinkedRecordContext.open("SALES_RETURN", id, documentNo, "VIEW", "Bank Statement");
+            DashboardController.navigateFromChild("Sales Returns","/fxml/pages/SalesReturns.fxml",null);
+            return;
+        }
+        if("PURCHASE_RETURN".equals(type)){
+            if(documentNo.isBlank()){new OwnedAlert(Alert.AlertType.WARNING,"The linked Purchase Return record no longer has a document number.").showAndWait();return;}
+            LinkedRecordContext.open("PURCHASE_RETURN", id, documentNo, "VIEW", "Bank Statement");
+            DashboardController.navigateFromChild("Purchase Returns","/fxml/pages/PurchaseReturns.fxml",null);
+            return;
+        }
         if(row!=null)audit(row);else new OwnedAlert(Alert.AlertType.INFORMATION,"The linked record type is not available for direct navigation.").showAndWait();
     }
 
@@ -1080,7 +1419,7 @@ public class BankStatementController implements ScreenLifecycle {
     private static String user(){var u=SessionService.current();return u==null?"User":safe(u.getFullName());}
     private static double bankAmount(BankStatementApiClient.TransactionDto t){return t.credit()>0?t.credit():t.debit();}
     private static String money(double v){return String.format(Locale.ENGLISH,"%,.2f",v);} private static String safe(String s){return s==null?"":s;}
-    private static String up(String s){return s==null?"":s.trim().toUpperCase(Locale.ROOT);} private static LocalDate parseDate(String s){try{return LocalDate.parse(s);}catch(Exception e){return null;}}
+    private static String up(String s){return s==null?"":s.trim().toUpperCase(Locale.ROOT);} private static LocalDate parseDate(String s){return BusinessClock.parseDate(s);}
     private void info(String h,String t){Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,t);a.setHeaderText(h);a.showAndWait();}
     private void success(String h,String t){org.example.util.ToastManager.success(table,h,t);}
     private void error(Throwable e){Alert a=new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?e.toString():e.getMessage());a.setHeaderText("Bank Statement operation failed");a.showAndWait();}
@@ -1130,24 +1469,29 @@ public class BankStatementController implements ScreenLifecycle {
         List<Row> userSelected = table.getItems().stream().filter(r -> r.selected.get()).toList();
         List<Long> targetTxIds = !userSelected.isEmpty() ? userSelected.stream().map(r -> r.dto.id()).toList() : null;
 
-        UiTaskExecutor.submitAction("bank-statement-auto-match-load", () -> {
-            List<BankStatementApiClient.TransactionDto> allTx;
-            if (targetTxIds != null) {
-                allTx = targetTxIds.stream().map(id -> api.transaction(id.longValue())).toList();
-            } else {
-                allTx = api.transactions(batch.id().longValue());
-            }
-            List<AutoMatchItem> items = new ArrayList<>();
-            List<BankStatementApiClient.TransactionDto> scanTargets = allTx.stream().filter(tx -> {
-                String st = tx.status() == null ? "" : tx.status().toUpperCase(Locale.ROOT);
-                return !Set.of("MATCHED", "EXPENSE", "IGNORED").contains(st);
-            }).toList();
+        LiveOperationDialog.execute(
+                table,
+                "Scanning Suggestions",
+                "reconcile",
+                "Analyzing bank transactions for suggestions…",
+                reporter -> {
+                    List<BankStatementApiClient.TransactionDto> allTx;
+                    if (targetTxIds != null) {
+                        allTx = targetTxIds.stream().map(id -> api.transaction(id.longValue())).toList();
+                    } else {
+                        allTx = api.transactions(batch.id().longValue());
+                    }
+                    List<AutoMatchItem> items = new ArrayList<>();
+                    List<BankStatementApiClient.TransactionDto> scanTargets = allTx.stream().filter(tx -> {
+                        String st = tx.status() == null ? "" : tx.status().toUpperCase(Locale.ROOT);
+                        return !Set.of("MATCHED", "EXPENSE", "IGNORED").contains(st);
+                    }).toList();
 
-            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(Math.min(8, Math.max(1, scanTargets.size())));
-            try {
-                List<java.util.concurrent.CompletableFuture<Void>> futures = new ArrayList<>();
-                for (var tx : scanTargets) {
-                    futures.add(java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    for (int i = 0; i < scanTargets.size(); i++) {
+                        if (reporter.isCancelled()) break;
+                        var tx = scanTargets.get(i);
+                        reporter.stage(i + 1, scanTargets.size(), "Scanning: " + safe(tx.reference()));
+                        reporter.progress((double) (i + 1) / Math.max(1, scanTargets.size()));
                         try {
                             List<BankStatementApiClient.CandidateDto> candidates = api.candidates(tx.id().longValue());
                             if (candidates != null && !candidates.isEmpty()) {
@@ -1155,27 +1499,23 @@ public class BankStatementController implements ScreenLifecycle {
                                 double bankAmt = bankAmount(tx);
                                 double diff = Math.abs(top.outstanding() - bankAmt);
                                 if (top.confidence() >= 70.0 || diff <= 1.00 || (candidates.size() == 1 && top.confidence() >= 40.0)) {
-                                    synchronized (items) {
-                                        items.add(new AutoMatchItem(tx, top));
-                                    }
+                                    items.add(new AutoMatchItem(tx, top));
                                 }
                             }
                         } catch (Exception ignored) { }
-                    }, pool));
-                }
-                java.util.concurrent.CompletableFuture.allOf(futures.toArray(new java.util.concurrent.CompletableFuture[0])).join();
-            } finally {
-                pool.shutdown();
-            }
-            items.sort((a, b) -> Double.compare(b.candidate.confidence(), a.candidate.confidence()));
-            return items;
-        }, items -> {
-            if (items.isEmpty()) {
-                info("No Auto-Match Suggestions", "No eligible auto-match suggestions found for this statement batch.\nTry adjusting reconciliation filters or review unallocated bank entries.");
-                return;
-            }
-            showBulkAutoMatchDialog(items);
-        }, this::error);
+                    }
+                    items.sort((a, b) -> Double.compare(b.candidate.confidence(), a.candidate.confidence()));
+                    return items;
+                },
+                items -> {
+                    if (items.isEmpty()) {
+                        info("No Auto-Match Suggestions", "No eligible auto-match suggestions found for this statement batch.\nTry adjusting reconciliation filters or review unallocated bank entries.");
+                        return;
+                    }
+                    showBulkAutoMatchDialog(items);
+                },
+                this::error
+        );
     }
 
     private void showBulkAutoMatchDialog(List<AutoMatchItem> items) {
@@ -1273,6 +1613,28 @@ public class BankStatementController implements ScreenLifecycle {
 
         TableColumn<AutoMatchItem, String> colDoc = new TableColumn<>("Matched Document");
         colDoc.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().candidate.documentNo() + " (" + v.getValue().candidate.type() + ")"));
+        colDoc.setCellFactory(tc -> new TableCell<>() {
+            private final Hyperlink link = new Hyperlink();
+            {
+                link.getStyleClass().add("table-link");
+                link.setOnAction(e -> {
+                    AutoMatchItem it = getTableView().getItems().get(getIndex());
+                    if (it != null && it.candidate != null) {
+                        openLinkedTarget(it.candidate.type(), it.candidate.id(), it.candidate.documentNo(), "Auto Match", null);
+                    }
+                });
+            }
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setGraphic(null);
+                } else {
+                    link.setText(val);
+                    setGraphic(link);
+                }
+            }
+        });
         IconFactory.applyTableHeaderIcon(colDoc, "document");
 
         TableColumn<AutoMatchItem, String> colParty = new TableColumn<>("Party / Account");
@@ -1361,6 +1723,7 @@ public class BankStatementController implements ScreenLifecycle {
 
     private void executeBulkAutoMatch(List<AutoMatchItem> items) {
         String performedBy = user();
+        List<String> failures = new ArrayList<>();
         LiveOperationDialog.execute(
                 table,
                 "Auto Match Progress",
@@ -1377,7 +1740,9 @@ public class BankStatementController implements ScreenLifecycle {
                         reporter.stage(i + 1, items.size(), "Matching: " + doc + " (" + party + ")");
                         reporter.progress((double) (i + 1) / items.size());
                         try {
-                            double amount = Math.min(it.candidate.outstanding(), it.bankAmount());
+                            // Allocate full bank amount so server validation (allocatedSum == bankTxAmount) succeeds
+                            // and server applies round-off tolerance logic to settle document within tolerance!
+                            double amount = it.bankAmount();
                             var alloc = new BankStatementApiClient.AllocationRequest(it.candidate.type(), it.candidate.id(), amount);
                             var matchReq = new BankStatementApiClient.MatchRequest(performedBy, List.of(alloc));
                             var res = api.match(it.tx.id().longValue(), matchReq);
@@ -1385,9 +1750,11 @@ public class BankStatementController implements ScreenLifecycle {
                                 succeeded++;
                             } else {
                                 failed++;
+                                failures.add(doc + " (" + party + "): " + res.message());
                             }
                         } catch (Exception ex) {
                             failed++;
+                            failures.add(doc + " (" + party + "): " + (ex.getMessage() == null ? ex.toString() : ex.getMessage()));
                         }
                     }
                     return new int[]{succeeded, failed};
@@ -1395,7 +1762,14 @@ public class BankStatementController implements ScreenLifecycle {
                 counts -> {
                     int succ = counts[0];
                     int fail = counts[1];
-                    success("Auto Match Completed", "Successfully matched " + succ + " bank transaction(s)." + (fail > 0 ? " " + fail + " failed." : ""));
+                    if (fail == 0) {
+                        success("Auto Match Completed", "Successfully matched " + succ + " bank transaction(s).");
+                    } else {
+                        String msg = "Successfully matched: " + succ + "\nFailed to match: " + fail + "\n\nFailure Details:\n" + String.join("\n", failures);
+                        Alert alert = new OwnedAlert(Alert.AlertType.WARNING, msg);
+                        alert.setHeaderText("Auto Match Completed with Issues");
+                        alert.showAndWait();
+                    }
                     refresh();
                 },
                 this::error

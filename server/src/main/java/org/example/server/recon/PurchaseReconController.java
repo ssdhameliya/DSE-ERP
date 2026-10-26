@@ -4,7 +4,9 @@ import org.springframework.web.bind.annotation.*;import java.util.*;
 public class PurchaseReconController{
  private final PurchaseReconService service;public PurchaseReconController(PurchaseReconService service){this.service=service;}
  @GetMapping("/suppliers") public List<PurchaseReconDtos.SupplierDto> suppliers(@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="40") int limit){return service.searchSuppliers(q,limit);}
+ @GetMapping("/suppliers/next-reference") public Map<String,String> nextSupplierReference(){return Map.of("reference",service.nextSupplierReference());}
  @GetMapping("/suppliers/{id}") public PurchaseReconDtos.SupplierDto supplier(@PathVariable Integer id){return service.supplier(id);}
+ @GetMapping("/suppliers/{id}/records") public List<PurchaseReconDtos.ReconDto> supplierRecords(@PathVariable Integer id){return service.reconsForSupplier(id);}
  @PostMapping("/suppliers") public PurchaseReconDtos.SupplierDto createSupplier(@RequestBody PurchaseReconDtos.SupplierSaveRequest r){return service.saveSupplier(r);}
  @DeleteMapping("/suppliers/{id}") public void deleteSupplier(@PathVariable Integer id){service.deleteSupplier(id);}
  @PutMapping("/suppliers/{id}") public PurchaseReconDtos.SupplierDto updateSupplier(@PathVariable Integer id,@RequestBody PurchaseReconDtos.SupplierSaveRequest r){return service.saveSupplier(new PurchaseReconDtos.SupplierSaveRequest(id,r.legalName(),r.gstin(),r.pan(),r.contactPerson(),r.phone(),r.email(),r.notes(),r.status(),r.rowVersion()));}

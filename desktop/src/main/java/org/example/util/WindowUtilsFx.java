@@ -82,6 +82,7 @@ public final class WindowUtilsFx {
                 if (content != null && !(content instanceof javafx.scene.control.ScrollPane)) {
                     javafx.scene.control.ScrollPane sp = new javafx.scene.control.ScrollPane(content);
                     sp.setFitToWidth(true);
+                    sp.setFitToHeight(true);
                     sp.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
                     sp.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
                     sp.setStyle("-fx-background-color: transparent; -fx-background: transparent;");

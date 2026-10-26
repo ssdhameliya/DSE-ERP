@@ -79,11 +79,19 @@ public final class MessageTemplateService {
         if (!path.isBlank()) {
             java.io.File f = new java.io.File(path);
             if (f.exists() && f.isFile()) return f.getAbsolutePath().replace('\\', '/');
+            try {
+                java.nio.file.Path p = ConfigManager.getConfigurationFolder().resolve(path);
+                if (java.nio.file.Files.isRegularFile(p)) return p.toAbsolutePath().toString().replace('\\', '/');
+            } catch (Exception ignored) {}
         }
         String fallback = ConfigManager.get("company.signaturePath", "").trim();
         if (!fallback.isBlank()) {
             java.io.File f = new java.io.File(fallback);
             if (f.exists() && f.isFile()) return f.getAbsolutePath().replace('\\', '/');
+            try {
+                java.nio.file.Path p = ConfigManager.getConfigurationFolder().resolve(fallback);
+                if (java.nio.file.Files.isRegularFile(p)) return p.toAbsolutePath().toString().replace('\\', '/');
+            } catch (Exception ignored) {}
         }
         return path;
     }

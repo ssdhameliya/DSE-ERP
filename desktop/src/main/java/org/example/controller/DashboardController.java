@@ -357,8 +357,14 @@ public class DashboardController implements ScreenLifecycle {
         UiActionIcons.apply(btnSettingsSecurity,"security","Security & Session");
         UiActionIcons.apply(btnSafeRollback,"rollback","Safe Rollback");
         UiActionIcons.apply(btnBackup,"backup","Backup & Restore");
+        if (btnFinance != null) UiActionIcons.apply(btnFinance, "finance", "Finance & Accounts");
+        if (btnGst != null) UiActionIcons.apply(btnGst, "tax", "GST & Compliance");
+        if (btnBarcodeStudio != null) UiActionIcons.apply(btnBarcodeStudio, "barcode", "Barcode Studio");
         if (btnGeneralLedger != null) UiActionIcons.apply(btnGeneralLedger, "ledger", "General Ledger");
+        if (btnFinancialStatements != null) UiActionIcons.apply(btnFinancialStatements, "report", "Financial Statements");
+        if (btnAgingAnalysis != null) UiActionIcons.apply(btnAgingAnalysis, "wallet", "Aging Analysis");
         if (btnGstCompliance != null) UiActionIcons.apply(btnGstCompliance, "tax", "GST Compliance");
+        if (btnEWayBill != null) UiActionIcons.apply(btnEWayBill, "delivery", "E-Way Bill & E-Invoice");
         if (btnAutomationCenter != null) UiActionIcons.apply(btnAutomationCenter, "automation", "Automation Center");
         if (btnSettingsModules != null) UiActionIcons.apply(btnSettingsModules, "module", "Module Activation");
     }
@@ -490,11 +496,9 @@ public class DashboardController implements ScreenLifecycle {
         protect(btnAuditTrail, "AUDIT.GLOBAL"); protect(btnBackup, "BACKUP.VIEW");
         protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "SAFE_ROLLBACK.VIEW");
         protect(btnDocumentStudio, "DOCUMENT_STUDIO.VIEW"); protect(btnImport, "IMPORT.VIEW");
-        protect(btnFinance, "GENERAL_LEDGER.VIEW");
         protect(btnGeneralLedger, "GENERAL_LEDGER.VIEW");
         protect(btnFinancialStatements, "FINANCIAL_STATEMENTS.VIEW");
         protect(btnAgingAnalysis, "AGING_ANALYSIS.VIEW");
-        protect(btnGst, "GST_COMPLIANCE.VIEW");
         protect(btnGstCompliance, "GST_COMPLIANCE.VIEW");
         protect(btnEWayBill, "EWAY_BILL.VIEW");
         protect(btnAutomationCenter, "AUTOMATION.VIEW");
@@ -531,20 +535,21 @@ public class DashboardController implements ScreenLifecycle {
         if (btnPurchaseRecon != null) btnPurchaseRecon.setDisable(!purchaseReconAllowed);
         if (btnReconSupplier != null) btnReconSupplier.setDisable(!reconSupplierAllowed);
 
-        // Finance & Accounts accordion
-        boolean glEnabled = ConfigManager.getBoolean("module.gl.enabled", ConfigManager.getBoolean("accounting.gl.enabled", true));
-        boolean glAllowed = PermissionService.allowed("GENERAL_LEDGER.VIEW") && glEnabled;
-        boolean finAllowed = PermissionService.allowed("FINANCIAL_STATEMENTS.VIEW") && glEnabled;
-        boolean agingAllowed = PermissionService.allowed("AGING_ANALYSIS.VIEW") && glEnabled;
+        // Finance & Accounts accordion: Admin has full access. For other roles, keep available if GL, Financial Statements, or Aging Analysis is permitted.
+        boolean isAdmin = SessionService.isAdmin();
+        boolean glEnabled = isAdmin || ConfigManager.getBoolean("module.gl.enabled", ConfigManager.getBoolean("accounting.gl.enabled", true));
+        boolean glAllowed = isAdmin || (PermissionService.allowed("GENERAL_LEDGER.VIEW") && glEnabled);
+        boolean finAllowed = isAdmin || PermissionService.allowed("FINANCIAL_STATEMENTS.VIEW");
+        boolean agingAllowed = isAdmin || PermissionService.allowed("AGING_ANALYSIS.VIEW");
         if (btnFinance != null) btnFinance.setDisable(!(glAllowed || finAllowed || agingAllowed));
         if (btnGeneralLedger != null) btnGeneralLedger.setDisable(!glAllowed);
         if (btnFinancialStatements != null) btnFinancialStatements.setDisable(!finAllowed);
         if (btnAgingAnalysis != null) btnAgingAnalysis.setDisable(!agingAllowed);
 
-        // GST & Compliance accordion
-        boolean gstEnabled = ConfigManager.getBoolean("module.gst.enabled", ConfigManager.getBoolean("compliance.gst.enabled", true));
-        boolean gstAllowed = PermissionService.allowed("GST_COMPLIANCE.VIEW") && gstEnabled;
-        boolean ewayAllowed = PermissionService.allowed("EWAY_BILL.VIEW") && gstEnabled;
+        // GST & Compliance accordion: Admin has full access. For other roles, keep available if GST or E-Way Bill is permitted.
+        boolean gstEnabled = isAdmin || ConfigManager.getBoolean("module.gst.enabled", ConfigManager.getBoolean("compliance.gst.enabled", true));
+        boolean gstAllowed = isAdmin || (PermissionService.allowed("GST_COMPLIANCE.VIEW") && gstEnabled);
+        boolean ewayAllowed = isAdmin || PermissionService.allowed("EWAY_BILL.VIEW");
         if (btnGst != null) btnGst.setDisable(!(gstAllowed || ewayAllowed));
         if (btnGstCompliance != null) btnGstCompliance.setDisable(!gstAllowed);
         if (btnEWayBill != null) btnEWayBill.setDisable(!ewayAllowed);
