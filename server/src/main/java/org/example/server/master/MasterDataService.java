@@ -65,6 +65,8 @@ public class MasterDataService {
         ensureReferenceFormat("REF_CUSTOMER","CUSXXX","Customer reference",70);
         ensureReferenceFormat("REF_SUPPLIER","SUPXXX","Supplier reference",80);
         ensureReferenceFormat("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX","Finance voucher reference",90);
+        ensureReferenceFormat("REF_BANK_ENTRY","BE/DD-MM-YYYY/XXXX","Bank Entry voucher reference",92);
+        ensureReferenceFormat("REF_BANK_EXPENSE","EXP-YYYY-XXXXX","Bank Expense voucher reference",93);
         ensureReferenceFormat("REF_JOURNAL","JV-YYYYMMDD-XXXX","Journal voucher reference",95);
         ensureReferenceFormat("REF_RECON_SUPPLIER","RSP-YYYY-XXXXX","Recon Supplier reference",100);
         ensureReferenceFormat("REF_PURCHASE_RECON","PRC-YYYY-XXXXX","Purchase Recon reference",110);

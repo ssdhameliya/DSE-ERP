@@ -411,7 +411,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
             String status=missing?"":safe(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
             boolean inactive=missing||"CANCELLED".equals(status)||"DELETED".equals(status);
             boolean locked=!missing&&isFinanciallyLocked(current);
-            edit.setDisable(inactive);
+            edit.setDisable(inactive||locked);
             payment.setDisable(inactive||(!missing&&isApprovalLocked(current)));
             createReturn.setDisable(missing||!isReturnEligible(current));
             cancel.setDisable(missing||locked||inactive);
@@ -693,7 +693,15 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     private static void selectSaved(ComboBox<String> box,String raw,String fallback){if(box==null)return;String value=raw==null||raw.isBlank()?fallback:raw.trim();String match=box.getItems().stream().filter(v->v!=null&&v.equalsIgnoreCase(value)).findFirst().orElse(null);if(match==null&&!value.equalsIgnoreCase(fallback)){box.getItems().add(value);match=value;}box.setValue(match!=null?match:fallback);}
 
     @FXML private void newSale(){NavigationManager.navigateOrReport("/fxml/pages/Sale.fxml");}
-    private void edit(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}}
+    private void edit(Sales sale){
+        if(sale==null)return;
+        if(isFinanciallyLocked(sale)){
+            warning("This sale invoice is paid, partially paid, or settled and cannot be edited directly.\n\nOpening in View mode instead.");
+            viewSale(sale);
+            return;
+        }
+        try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}
+    }
     private void viewSale(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));controller.setViewMode(true);NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}}
     private void openPdf(Sales sale){
         if(sale==null)return;

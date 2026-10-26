@@ -34,8 +34,9 @@ public interface BankStatementTransactionRepository extends JpaRepository<BankSt
                or lower(coalesce(t.original_description,'')) like concat('%', lower(:queryText), '%')
                or lower(coalesce(t.original_reference,'')) like concat('%', lower(:queryText), '%')
                or lower(coalesce(t.status,'')) like concat('%', lower(:queryText), '%')
-               or cast(coalesce(t.debit_amount,0) as text) like concat('%', :queryText, '%')
-               or cast(coalesce(t.credit_amount,0) as text) like concat('%', :queryText, '%')
+               or cast(coalesce(t.debit_amount,0) as text) like concat('%', replace(replace(:queryText, ',', ''), '₹', ''), '%')
+               or cast(coalesce(t.credit_amount,0) as text) like concat('%', replace(replace(:queryText, ',', ''), '₹', ''), '%')
+               or cast(coalesce(t.balance,0) as text) like concat('%', replace(replace(:queryText, ',', ''), '₹', ''), '%')
                or exists (
                    select 1 from bank_reconciliation_allocation a
                    where a.statement_transaction_id = t.id
