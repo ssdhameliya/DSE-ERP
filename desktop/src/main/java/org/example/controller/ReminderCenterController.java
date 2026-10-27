@@ -14,11 +14,15 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -110,12 +114,12 @@ public class ReminderCenterController implements ScreenLifecycle {
 
             row.setOnMouseClicked(event -> {
                 if (row.isEmpty() || event.getButton() != MouseButton.PRIMARY || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
+                ReminderRow clicked = row.getItem();
+                table.getSelectionModel().select(clicked);
                 if (event.getClickCount() == 1) {
-                    ReminderRow clicked = row.getItem();
-                    if (reminderDetailPanel.isVisible() && detailRow == clicked) closeDetails();
-                    else { table.getSelectionModel().select(clicked); showDetails(clicked); }
-                    event.consume();
+                    showReminderInspectionDialog(clicked);
                 }
+                event.consume();
             });
 
             ContextMenu contextMenu = buildRowContextMenu(row);
@@ -197,6 +201,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         ContextMenu menu = new ContextMenu();
         menu.getStyleClass().add("reminder-action-menu");
 
+        MenuItem view = menuItem("View Details", "view", event -> showReminderInspectionDialog(row.getItem()));
         MenuItem edit = menuItem("Edit Reminder", "edit", event -> edit(row.getItem()));
         MenuItem complete = menuItem("Mark Complete", "complete", event -> complete(row.getItem()));
         MenuItem snooze = menuItem("Snooze", "snooze", event -> snooze(row.getItem()));
@@ -209,6 +214,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         ));
 
         menu.getItems().addAll(
+                view,
                 edit,
                 complete,
                 snooze,
@@ -481,6 +487,7 @@ public class ReminderCenterController implements ScreenLifecycle {
                     return;
                 }
 
+                MenuItem view = menuItem("View Details", "view", event -> showReminderInspectionDialog(row));
                 MenuItem edit = menuItem("Edit", "edit", event -> edit(row));
                 MenuItem complete = menuItem("Mark Complete", "complete", event -> complete(row));
                 MenuItem snooze = menuItem("Snooze", "snooze", event -> snooze(row));
@@ -491,6 +498,7 @@ public class ReminderCenterController implements ScreenLifecycle {
                 updateActionAvailability(row, complete, snooze, reopen, delete);
 
                 actions.getItems().setAll(
+                        view,
                         edit,
                         complete,
                         snooze,
@@ -677,32 +685,38 @@ public class ReminderCenterController implements ScreenLifecycle {
 
         if (row == null) {
             setDetailVisible(false);
-            lblDetailTitle.setText("Select a reminder");
-            lblDetailReference.setText("—");
-            lblDetailDue.setText("—");
-            lblDetailPriority.setText("—");
-            lblDetailStatus.setText("—");
-            lblDetailNotes.setText("Select a row to review its notes and available actions.");
+            if (lblDetailTitle != null) lblDetailTitle.setText("Select a reminder");
+            if (lblDetailReference != null) lblDetailReference.setText("—");
+            if (lblDetailDue != null) lblDetailDue.setText("—");
+            if (lblDetailPriority != null) lblDetailPriority.setText("—");
+            if (lblDetailStatus != null) lblDetailStatus.setText("—");
+            if (lblDetailNotes != null) lblDetailNotes.setText("Select a row to review its notes and available actions.");
             if (detailMoreActions != null) rebuildDetailActionMenu();
             return;
         }
 
-        setDetailVisible(true);
+        setDetailVisible(false);
         if (detailMoreActions != null) rebuildDetailActionMenu();
 
-        lblDetailTitle.setText(row.title.get());
-        lblDetailReference.setText(blank(row.reference.get(), "No reference"));
-        lblDetailDue.setText(formatDate(row.due.get()));
-        lblDetailPriority.setText(toDisplayText(row.priority.get()));
-        lblDetailStatus.setText(toDisplayText(row.status.get()));
-        lblDetailNotes.setText(blank(row.notes, "No notes"));
+        if (lblDetailTitle != null) lblDetailTitle.setText(row.title.get());
+        if (lblDetailReference != null) lblDetailReference.setText(blank(row.reference.get(), "No reference"));
+        if (lblDetailDue != null) lblDetailDue.setText(formatDate(row.due.get()));
+        if (lblDetailPriority != null) lblDetailPriority.setText(toDisplayText(row.priority.get()));
+        if (lblDetailStatus != null) lblDetailStatus.setText(toDisplayText(row.status.get()));
+        if (lblDetailNotes != null) lblDetailNotes.setText(blank(row.notes, "No notes"));
 
-        lblDetailPriority.getStyleClass().add(
-                "priority-" + row.priority.get().toLowerCase(Locale.ROOT)
-        );
-        lblDetailStatus.getStyleClass().add(
-                "status-" + row.status.get().toLowerCase(Locale.ROOT)
-        );
+        if (lblDetailPriority != null) {
+            lblDetailPriority.getStyleClass().add(
+                    "priority-" + row.priority.get().toLowerCase(Locale.ROOT)
+            );
+        }
+        if (lblDetailStatus != null) {
+            lblDetailStatus.getStyleClass().add(
+                    "status-" + row.status.get().toLowerCase(Locale.ROOT)
+            );
+        }
+
+        showReminderInspectionDialog(row);
     }
 
     @FXML
@@ -713,11 +727,143 @@ public class ReminderCenterController implements ScreenLifecycle {
 
     private void setDetailVisible(boolean visible) {
         if (reminderDetailPanel == null) return;
-        if (visible) {
-            RegisterUiSupport.showDrawer(reminderDetailPanel, reminderWorkspace, 0.64);
-        } else {
-            RegisterUiSupport.hideDrawer(reminderDetailPanel, reminderWorkspace, table);
-        }
+        RegisterUiSupport.hideDrawer(reminderDetailPanel, reminderWorkspace, table);
+    }
+
+    public void showReminderInspectionDialog(ReminderRow row) {
+        if (row == null) return;
+
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>(table);
+        dialog.setTitle("Reminder Inspection — " + row.title.get());
+        dialog.setHeaderText(null);
+        dialog.setResizable(true);
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.getStyleClass().addAll("erp-document-inspection-dialog", "approved-ui");
+        org.example.util.PopupTableWorkspace.applyInspectionSizing(dialog, table);
+
+        Label iconLabel = new Label();
+        iconLabel.setGraphic(IconFactory.icon("reminder", 32));
+        iconLabel.getStyleClass().add("inspection-hero-icon");
+
+        Label kicker = new Label("ACTIONABLE BUSINESS REMINDER");
+        kicker.getStyleClass().add("inspection-kicker");
+
+        Label title = new Label(row.title.get());
+        title.getStyleClass().addAll("inspection-hero-title", "sales-detail-invoice");
+
+        Label sub = new Label("Reference: " + blank(row.reference.get(), "None") + "  •  Due: " + formatDate(row.due.get()));
+        sub.getStyleClass().add("inspection-subtitle");
+
+        VBox titleBox = new VBox(2, kicker, title, sub);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Region spacerHero = new Region();
+        HBox.setHgrow(spacerHero, Priority.ALWAYS);
+
+        Label priorityPill = new Label(toDisplayText(row.priority.get()));
+        priorityPill.getStyleClass().addAll("status-pill", "priority-" + row.priority.get().toLowerCase(Locale.ROOT));
+
+        Label statusPill = new Label(toDisplayText(row.status.get()));
+        statusPill.getStyleClass().addAll("status-pill", "status-" + row.status.get().toLowerCase(Locale.ROOT));
+
+        HBox hero = new HBox(14, iconLabel, titleBox, spacerHero, priorityPill, statusPill);
+        hero.setAlignment(Pos.CENTER_LEFT);
+        hero.setPadding(new Insets(4, 8, 8, 8));
+
+        // Details Grid
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(14));
+        grid.getStyleClass().addAll("inspection-detail-grid", "erp-detail-drawer-card");
+
+        int r = 0;
+        addReminderDetailRow(grid, r++, "Reminder Title", row.title.get(), "reminder");
+        addReminderDetailRow(grid, r++, "Module / Doc Reference", blank(row.reference.get(), "None recorded"), "document");
+        addReminderDetailRow(grid, r++, "Target Due Date", formatDate(row.due.get()), "calendar");
+        addReminderDetailRow(grid, r++, "Urgency / Priority", toDisplayText(row.priority.get()), "warning");
+        addReminderDetailRow(grid, r++, "Workflow Status", toDisplayText(row.status.get()), "status");
+        addReminderDetailRow(grid, r++, "Assigned / Created By", blank(row.createdBy.get(), "System"), "user");
+        addReminderDetailRow(grid, r++, "Notes & Action Items", blank(row.notes, "No specific notes provided"), "document");
+
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        // Action Dock
+        HBox dock = new HBox(8);
+        dock.setAlignment(Pos.CENTER_LEFT);
+        dock.setPadding(new Insets(10, 0, 0, 0));
+
+        boolean completed = "COMPLETED".equals(row.status.get());
+
+        Button btnEdit = new Button("Edit");
+        btnEdit.setGraphic(IconFactory.compactIcon("edit", 14));
+        btnEdit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnEdit.setOnAction(e -> {
+            dialog.close();
+            edit(row);
+        });
+
+        Button btnComplete = new Button(completed ? "Reopen" : "Mark Complete");
+        btnComplete.setGraphic(IconFactory.compactIcon(completed ? "reopen" : "complete", 14));
+        btnComplete.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnComplete.setOnAction(e -> {
+            dialog.close();
+            if (completed) reopen(row); else complete(row);
+        });
+
+        Button btnSnooze = new Button("Snooze");
+        btnSnooze.setGraphic(IconFactory.compactIcon("snooze", 14));
+        btnSnooze.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnSnooze.setDisable(completed);
+        btnSnooze.setOnAction(e -> {
+            dialog.close();
+            snooze(row);
+        });
+
+        Button btnDelete = new Button("Delete");
+        btnDelete.setGraphic(IconFactory.compactIcon("delete", 14));
+        btnDelete.getStyleClass().addAll("approved-button", "approved-secondary-button", "reminder-danger-menu-item");
+        btnDelete.setOnAction(e -> {
+            dialog.close();
+            delete(row);
+        });
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Button btnClose = new Button("Close");
+        btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dock.getChildren().addAll(btnEdit, btnComplete, btnSnooze, btnDelete, sp, btnClose);
+
+        VBox contentBox = new VBox(12, hero, scroll, dock);
+        contentBox.setPadding(new Insets(16, 20, 16, 20));
+        pane.setContent(contentBox);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+        Node bb = pane.lookup(".button-bar");
+        if (bb != null) { bb.setVisible(false); bb.setManaged(false); }
+
+        dialog.showAndWait();
+    }
+
+    private static void addReminderDetailRow(GridPane grid, int row, String caption, String value, String semantic) {
+        Label capLbl = new Label(caption);
+        capLbl.setGraphic(IconFactory.compactIcon(semantic, 14));
+        capLbl.setGraphicTextGap(6);
+        capLbl.getStyleClass().addAll("inspection-card-caption", "erp-drawer-caption");
+        capLbl.setMinWidth(180);
+
+        Label valLbl = new Label(value != null ? value : "-");
+        valLbl.getStyleClass().addAll("inspection-card-value", "erp-drawer-value");
+        valLbl.setWrapText(true);
+
+        grid.add(capLbl, 0, row);
+        grid.add(valLbl, 1, row);
     }
 
     private void clearDetailBadgeClasses() {

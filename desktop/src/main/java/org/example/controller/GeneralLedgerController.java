@@ -4,11 +4,17 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.example.model.Item;
@@ -246,15 +252,13 @@ public class GeneralLedgerController implements ScreenLifecycle {
             tblJournals.setRowFactory(tv -> {
                 TableRow<JournalRow> row = new TableRow<>();
                 row.setOnMouseClicked(event -> {
-                    if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 1 || row.isEmpty()
+                    if (event.getButton() != MouseButton.PRIMARY || row.isEmpty()
                             || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) {
                         return;
                     }
                     JournalRow clicked = row.getItem();
-                    if (journalDetailDrawer != null && journalDetailDrawer.isVisible() && selectedJournal == clicked) {
-                        closeJournalDetails();
-                    } else {
-                        tblJournals.getSelectionModel().select(clicked);
+                    tblJournals.getSelectionModel().select(clicked);
+                    if (event.getClickCount() == 1) {
                         showJournalDetails(clicked);
                     }
                     event.consume();
@@ -279,7 +283,123 @@ public class GeneralLedgerController implements ScreenLifecycle {
         if (lblDrawerCrHead != null) lblDrawerCrHead.setText("Cr. " + row.crHead() + ":");
         if (lblDrawerCrAmount != null) lblDrawerCrAmount.setText(row.crAmount());
 
-        RegisterUiSupport.showDrawer(journalDetailDrawer, journalSplit, 0.72);
+        // Centered floating modal inspection pop-up
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>(tblJournals);
+        dialog.setTitle("Journal Voucher Inspection — " + row.entryNumber());
+        dialog.setHeaderText(null);
+        dialog.setResizable(true);
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.getStyleClass().addAll("erp-document-inspection-dialog", "approved-ui");
+        PopupTableWorkspace.applyInspectionSizing(dialog, tblJournals);
+
+        Label iconLabel = new Label();
+        iconLabel.setGraphic(IconFactory.icon("finance", 32));
+        iconLabel.getStyleClass().add("inspection-hero-icon");
+
+        Label kicker = new Label("DOUBLE-ENTRY GENERAL LEDGER VOUCHER");
+        kicker.getStyleClass().add("inspection-kicker");
+
+        Label title = new Label(row.entryNumber() + "  •  " + (row.referenceNo() != null && !row.referenceNo().isBlank() ? "Ref: " + row.referenceNo() : "Journal Voucher"));
+        title.getStyleClass().addAll("inspection-hero-title", "sales-detail-invoice");
+
+        Label sub = new Label("Posting Date: " + row.entryDate() + "  •  Type: " + row.entryType());
+        sub.getStyleClass().add("inspection-subtitle");
+
+        VBox titleBox = new VBox(2, kicker, title, sub);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Region spacerHero = new Region();
+        HBox.setHgrow(spacerHero, Priority.ALWAYS);
+
+        Label statusPill = new Label(row.status() != null ? row.status() : "POSTED");
+        statusPill.getStyleClass().addAll("status-pill", "POSTED".equalsIgnoreCase(row.status()) ? "pill-success" : "pill-neutral");
+
+        HBox hero = new HBox(14, iconLabel, titleBox, spacerHero, statusPill);
+        hero.setAlignment(Pos.CENTER_LEFT);
+        hero.setPadding(new Insets(4, 8, 8, 8));
+
+        // Details Grid
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(14));
+        grid.getStyleClass().addAll("inspection-detail-grid", "erp-detail-drawer-card");
+
+        int r = 0;
+        addJournalDetailRow(grid, r++, "Voucher Number", row.entryNumber(), "document");
+        addJournalDetailRow(grid, r++, "Posting Date", row.entryDate(), "calendar");
+        addJournalDetailRow(grid, r++, "Voucher Type", row.entryType(), "status");
+        addJournalDetailRow(grid, r++, "Reference / Source Doc", row.referenceNo() != null && !row.referenceNo().isBlank() ? row.referenceNo() : "Direct Journal (None)", "open");
+        addJournalDetailRow(grid, r++, "Voucher Status", row.status() != null ? row.status() : "POSTED", "complete");
+        addJournalDetailRow(grid, r++, "Debit Account (Dr.)", row.drHead() != null ? row.drHead() : "-", "finance");
+        addJournalDetailRow(grid, r++, "Debit Amount", row.drAmount() != null ? row.drAmount() : "-", "currency");
+        addJournalDetailRow(grid, r++, "Credit Account (Cr.)", row.crHead() != null ? row.crHead() : "-", "finance");
+        addJournalDetailRow(grid, r++, "Credit Amount", row.crAmount() != null ? row.crAmount() : "-", "currency");
+        addJournalDetailRow(grid, r++, "Narration / Remarks", row.narration() != null && !row.narration().isBlank() ? row.narration() : "—", "document");
+
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        // Action Dock
+        HBox dock = new HBox(8);
+        dock.setAlignment(Pos.CENTER_LEFT);
+        dock.setPadding(new Insets(10, 0, 0, 0));
+
+        Button btnOpenDoc = new Button("Open Linked Document");
+        btnOpenDoc.setGraphic(IconFactory.compactIcon("open", 14));
+        btnOpenDoc.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        boolean hasRef = row.referenceNo() != null && !row.referenceNo().isBlank();
+        btnOpenDoc.setDisable(!hasRef);
+        btnOpenDoc.setOnAction(e -> {
+            dialog.close();
+            openDocument(row);
+        });
+
+        Button btnAudit = new Button("Audit Trail");
+        btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
+        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.setOnAction(e -> showJournalAudit(row));
+
+        Button btnCopy = new Button("Copy Voucher #");
+        btnCopy.setGraphic(IconFactory.compactIcon("copy", 14));
+        btnCopy.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnCopy.setOnAction(e -> copyVoucher(row));
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Button btnClose = new Button("Close");
+        btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dock.getChildren().addAll(btnOpenDoc, btnAudit, btnCopy, sp, btnClose);
+
+        VBox contentBox = new VBox(12, hero, scroll, dock);
+        contentBox.setPadding(new Insets(16, 20, 16, 20));
+        pane.setContent(contentBox);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+        Node bb = pane.lookup(".button-bar");
+        if (bb != null) { bb.setVisible(false); bb.setManaged(false); }
+
+        dialog.showAndWait();
+    }
+
+    private static void addJournalDetailRow(GridPane grid, int row, String caption, String value, String semantic) {
+        Label capLbl = new Label(caption);
+        capLbl.setGraphic(IconFactory.compactIcon(semantic, 14));
+        capLbl.setGraphicTextGap(6);
+        capLbl.getStyleClass().addAll("inspection-card-caption", "erp-drawer-caption");
+        capLbl.setMinWidth(180);
+
+        Label valLbl = new Label(value != null ? value : "-");
+        valLbl.getStyleClass().addAll("inspection-card-value", "erp-drawer-value");
+        valLbl.setWrapText(true);
+
+        grid.add(capLbl, 0, row);
+        grid.add(valLbl, 1, row);
     }
 
     @FXML

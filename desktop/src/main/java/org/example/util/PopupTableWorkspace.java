@@ -1,9 +1,11 @@
 package org.example.util;
 
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogEvent;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.HBox;
@@ -133,6 +135,55 @@ public final class PopupTableWorkspace {
                 dialog.getDialogPane().setPrefWidth(target);
                 dialog.getDialogPane().setMaxWidth(usable);
                 dialog.getDialogPane().setMinWidth(Math.min(720, target));
+            });
+        }
+    }
+
+    /**
+     * Sizes core document inspection dialogs (Sale, Purchase, Returns, Quotation)
+     * to 88% of screen width and 88% of screen height, ensuring no clipping or margin waste.
+     */
+    public static void applyInspectionSizing(Dialog<?> dialog, Node ownerNode) {
+        if (dialog == null) return;
+        Screen screen = Screen.getPrimary();
+        if (ownerNode != null && ownerNode.getScene() != null && ownerNode.getScene().getWindow() != null) {
+            Window w = ownerNode.getScene().getWindow();
+            var screens = Screen.getScreensForRectangle(w.getX(), w.getY(), Math.max(1, w.getWidth()), Math.max(1, w.getHeight()));
+            if (!screens.isEmpty()) screen = screens.get(0);
+        }
+        Rectangle2D bounds = screen.getVisualBounds();
+        double targetW = Math.max(1180, Math.min(1760, bounds.getWidth() * 0.88));
+        double targetH = Math.max(720, Math.min(980, bounds.getHeight() * 0.88));
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.setPrefSize(targetW, targetH);
+        pane.setMaxWidth(bounds.getWidth() - 32);
+        pane.setMaxHeight(bounds.getHeight() - 32);
+        pane.setMinWidth(Math.min(1080, targetW));
+        pane.setMinHeight(Math.min(680, targetH));
+        if (!pane.getStyleClass().contains("erp-table-workspace-dialog")) {
+            pane.getStyleClass().add("erp-table-workspace-dialog");
+        }
+        if (!pane.getStyleClass().contains("erp-ui-standard")) {
+            pane.getStyleClass().add("erp-ui-standard");
+        }
+        dialog.setResizable(true);
+        if (!Boolean.TRUE.equals(pane.getProperties().get("erp-popup-responsive-width"))) {
+            pane.getProperties().put("erp-popup-responsive-width", true);
+            dialog.addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
+                Window owner = dialog.getOwner();
+                Screen currentScreen = owner == null
+                        ? Screen.getPrimary()
+                        : Screen.getScreensForRectangle(owner.getX(), owner.getY(), Math.max(1, owner.getWidth()), Math.max(1, owner.getHeight()))
+                                .stream().findFirst().orElse(Screen.getPrimary());
+                Rectangle2D currentBounds = currentScreen.getVisualBounds();
+                double w = Math.max(1180, Math.min(1760, currentBounds.getWidth() * 0.88));
+                double h = Math.max(720, Math.min(980, currentBounds.getHeight() * 0.88));
+                pane.setPrefSize(w, h);
+                pane.setMaxWidth(currentBounds.getWidth() - 32);
+                pane.setMaxHeight(currentBounds.getHeight() - 32);
+                pane.setMinWidth(Math.min(1080, w));
+                pane.setMinHeight(Math.min(680, h));
             });
         }
     }

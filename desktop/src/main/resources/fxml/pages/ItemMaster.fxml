@@ -22,6 +22,7 @@
         <TextField fx:id="txtSearch" promptText="Search item code, name, category or brand..." HBox.hgrow="ALWAYS" styleClass="entity-search"/>
         <Button text="Edit" onAction="#editItem" styleClass="secondary-button"/>
         <Button text="Delete Item" onAction="#deleteItem" styleClass="danger-button"/>
+        <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/>
         <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
         <Separator orientation="VERTICAL" prefHeight="28"/>
         <Button fx:id="btnImportExcel" text="Import Excel" onAction="#importItems" styleClass="secondary-button"/>

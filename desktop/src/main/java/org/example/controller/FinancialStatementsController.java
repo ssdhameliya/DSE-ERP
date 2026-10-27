@@ -91,6 +91,7 @@ public class FinancialStatementsController implements ScreenLifecycle {
         int fyStartYear = now.getMonthValue() >= 4 ? now.getYear() : now.getYear() - 1;
         dpFromDate.setValue(LocalDate.of(fyStartYear, 4, 1));
         dpToDate.setValue(now);
+        DatePickerFormatter.attachAll(dpFromDate, dpToDate);
 
         configurePnlColumns();
         configureBsColumns();

@@ -41,11 +41,24 @@ public final class AppDialogRenderer {
         if (Boolean.TRUE.equals(pane.getProperties().get(INSTALLED))) return;
         pane.getProperties().put(INSTALLED, true);
         pane.sceneProperty().addListener((obs, oldScene, scene) -> {
-            if (scene != null) applyTheme(dialog, scene);
+            if (scene != null) {
+                if (!PlatformUiSupport.isMac()) scene.setFill(Color.TRANSPARENT);
+                applyTheme(dialog, scene);
+            }
         });
         dialog.addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
-            if (pane.getScene() != null) applyTheme(dialog, pane.getScene());
+            Scene scene = pane.getScene();
+            if (scene != null) {
+                if (!PlatformUiSupport.isMac()) scene.setFill(Color.TRANSPARENT);
+                applyTheme(dialog, scene);
+            }
             render(dialog);
+            if (scene != null && scene.getWindow() instanceof Stage stage) {
+                boolean workspace = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE))
+                        || pane.getStyleClass().contains("dse-dialog-workspace");
+                if (workspace) WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
+                else WindowUtilsFx.fitCompactDialogToOwnerScreen(stage, stage.getOwner());
+            }
         });
         dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> finish(dialog)));
     }

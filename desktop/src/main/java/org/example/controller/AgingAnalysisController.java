@@ -5,10 +5,15 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.example.api.ApiRuntime;
@@ -84,7 +89,10 @@ public class AgingAnalysisController implements ScreenLifecycle {
             TableRow<AgingBucketRow> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getButton() == MouseButton.PRIMARY && !row.isEmpty()) {
-                    showDetails(row.getItem());
+                    tblAging.getSelectionModel().select(row.getItem());
+                    if (event.getClickCount() == 1) {
+                        showDetails(row.getItem());
+                    }
                 }
             });
             return row;
@@ -135,13 +143,45 @@ public class AgingAnalysisController implements ScreenLifecycle {
         colRisk.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().riskLevel));
 
         colActions.setCellFactory(col -> new TableCell<>() {
-            private final Button btnAction = new Button("Reminder");
+            private final MenuButton actionsBtn = new MenuButton("Actions");
             {
-                btnAction.getStyleClass().addAll("approved-button", "approved-secondary-button", "btn-sm");
-                btnAction.setOnAction(e -> {
+                actionsBtn.getStyleClass().addAll("table-action-menu", "approved-row-action");
+                actionsBtn.setGraphic(IconFactory.compactIcon("actions", 14));
+                actionsBtn.setContentDisplay(ContentDisplay.LEFT);
+                actionsBtn.setGraphicTextGap(6);
+
+                MenuItem viewItem = new MenuItem("View Details");
+                viewItem.setGraphic(IconFactory.compactIcon("view", 13));
+                viewItem.setOnAction(e -> {
+                    AgingBucketRow row = getTableRow().getItem();
+                    if (row != null) {
+                        tblAging.getSelectionModel().select(row);
+                        showDetails(row);
+                    }
+                });
+
+                MenuItem remindItem = new MenuItem();
+                remindItem.setGraphic(IconFactory.compactIcon("reminder", 13));
+                remindItem.setOnAction(e -> {
                     AgingBucketRow row = getTableRow().getItem();
                     if (row != null) sendReminderForRow(row);
                 });
+
+                MenuItem auditItem = new MenuItem("Audit Trail");
+                auditItem.setGraphic(IconFactory.compactIcon("history", 13));
+                auditItem.setOnAction(e -> {
+                    AgingBucketRow row = getTableRow().getItem();
+                    if (row != null) {
+                        org.example.util.ActivityTimelineDialog.show(tblAging, isDebtorMode ? "CUSTOMER" : "SUPPLIER", 1, row.partyName);
+                    }
+                });
+
+                actionsBtn.setOnShowing(ev -> {
+                    remindItem.setText(isDebtorMode ? "Send Overdue Notice" : "Record Supplier Payment");
+                });
+
+                actionsBtn.getItems().addAll(viewItem, remindItem, auditItem);
+                IconFactory.decorateActionMenu(actionsBtn);
             }
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -149,10 +189,8 @@ public class AgingAnalysisController implements ScreenLifecycle {
                 if (empty || getTableRow() == null || getTableRow().getItem() == null) {
                     setGraphic(null);
                 } else {
-                    btnAction.setText(isDebtorMode ? "Remind" : "Schedule");
-                    HBox box = new HBox(btnAction);
-                    box.setAlignment(Pos.CENTER);
-                    setGraphic(box);
+                    setGraphic(actionsBtn);
+                    setAlignment(Pos.CENTER);
                 }
             }
         });
@@ -220,19 +258,131 @@ public class AgingAnalysisController implements ScreenLifecycle {
     private void showDetails(AgingBucketRow row) {
         if (row == null) return;
         this.selectedRow = row;
-        lblDetailPartyName.setText(row.partyName);
-        lblDetailGroup.setText(isDebtorMode ? "Sundry Debtors" : "Sundry Creditors");
-        lblDetailPhone.setText(row.phone != null ? row.phone : "Not recorded");
+        if (lblDetailPartyName != null) lblDetailPartyName.setText(row.partyName);
+        if (lblDetailGroup != null) lblDetailGroup.setText(isDebtorMode ? "Sundry Debtors" : "Sundry Creditors");
+        if (lblDetailPhone != null) lblDetailPhone.setText(row.phone != null ? row.phone : "Not recorded");
 
-        lblDetailCurrent.setText(currency.format(row.bucket0To30));
-        lblDetail31To60.setText(currency.format(row.bucket31To60));
-        lblDetail61To90.setText(currency.format(row.bucket61To90));
-        lblDetailOver90.setText(currency.format(row.bucket90Plus));
-        lblDetailTotal.setText(currency.format(row.totalOutstanding));
+        if (lblDetailCurrent != null) lblDetailCurrent.setText(currency.format(row.bucket0To30));
+        if (lblDetail31To60 != null) lblDetail31To60.setText(currency.format(row.bucket31To60));
+        if (lblDetail61To90 != null) lblDetail61To90.setText(currency.format(row.bucket61To90));
+        if (lblDetailOver90 != null) lblDetailOver90.setText(currency.format(row.bucket90Plus));
+        if (lblDetailTotal != null) lblDetailTotal.setText(currency.format(row.totalOutstanding));
 
-        btnSendIndividualReminder.setText(isDebtorMode ? "Send Overdue Notice" : "Record Supplier Payment");
+        if (btnSendIndividualReminder != null) btnSendIndividualReminder.setText(isDebtorMode ? "Send Overdue Notice" : "Record Supplier Payment");
 
-        RegisterUiSupport.showDrawer(detailDrawer, mainSplit, 0.68);
+        // Centered modal inspection popup
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>(tblAging);
+        dialog.setTitle("Aging Profile Inspection — " + row.partyName);
+        dialog.setHeaderText(null);
+        dialog.setResizable(true);
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.getStyleClass().addAll("erp-document-inspection-dialog", "approved-ui");
+        PopupTableWorkspace.applyInspectionSizing(dialog, tblAging);
+
+        Label iconLabel = new Label();
+        iconLabel.setGraphic(IconFactory.icon("finance", 32));
+        iconLabel.getStyleClass().add("inspection-hero-icon");
+
+        Label kicker = new Label(isDebtorMode ? "ACCOUNTS RECEIVABLE AGING PROFILE" : "ACCOUNTS PAYABLE AGING PROFILE");
+        kicker.getStyleClass().add("inspection-kicker");
+
+        Label title = new Label(row.partyName);
+        title.getStyleClass().addAll("inspection-hero-title", "sales-detail-invoice");
+
+        Label sub = new Label((isDebtorMode ? "Customer Ledger Group: Sundry Debtors" : "Supplier Ledger Group: Sundry Creditors")
+                + "  •  Phone: " + (row.phone != null ? row.phone : "Not recorded"));
+        sub.getStyleClass().add("inspection-subtitle");
+
+        VBox titleBox = new VBox(2, kicker, title, sub);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Region spacerHero = new Region();
+        HBox.setHgrow(spacerHero, Priority.ALWAYS);
+
+        Label statusPill = new Label(row.riskLevel != null ? row.riskLevel + " Risk" : "Normal Risk");
+        String risk = row.riskLevel != null ? row.riskLevel.toUpperCase(Locale.ROOT) : "LOW";
+        statusPill.getStyleClass().addAll("status-pill", "CRITICAL".equals(risk) || "HIGH".equals(risk) ? "pill-danger" : "MEDIUM".equals(risk) ? "pill-warning" : "pill-success");
+
+        HBox hero = new HBox(14, iconLabel, titleBox, spacerHero, statusPill);
+        hero.setAlignment(Pos.CENTER_LEFT);
+        hero.setPadding(new Insets(4, 8, 8, 8));
+
+        // Details Grid
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(14));
+        grid.getStyleClass().addAll("inspection-detail-grid", "erp-detail-drawer-card");
+
+        int r = 0;
+        addAgingDetailRow(grid, r++, "Party / Trade Name", row.partyName, isDebtorMode ? "customer" : "supplier");
+        addAgingDetailRow(grid, r++, "Ledger Group", isDebtorMode ? "Sundry Debtors (AR)" : "Sundry Creditors (AP)", "finance");
+        addAgingDetailRow(grid, r++, "Contact Phone", row.phone != null ? row.phone : "Not recorded", "user");
+        addAgingDetailRow(grid, r++, "Risk Level", row.riskLevel != null ? row.riskLevel : "Low", "status");
+        addAgingDetailRow(grid, r++, "Current (0–30 Days)", currency.format(row.bucket0To30 != null ? row.bucket0To30 : BigDecimal.ZERO), "currency");
+        addAgingDetailRow(grid, r++, "Overdue (31–60 Days)", currency.format(row.bucket31To60 != null ? row.bucket31To60 : BigDecimal.ZERO), "calendar");
+        addAgingDetailRow(grid, r++, "High Risk (61–90 Days)", currency.format(row.bucket61To90 != null ? row.bucket61To90 : BigDecimal.ZERO), "warning");
+        addAgingDetailRow(grid, r++, "Critical (>90 Days)", currency.format(row.bucket90Plus != null ? row.bucket90Plus : BigDecimal.ZERO), "danger");
+        addAgingDetailRow(grid, r++, "Total Outstanding Balance", currency.format(row.totalOutstanding != null ? row.totalOutstanding : BigDecimal.ZERO), "currency");
+
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        // Action Dock
+        HBox dock = new HBox(8);
+        dock.setAlignment(Pos.CENTER_LEFT);
+        dock.setPadding(new Insets(10, 0, 0, 0));
+
+        Button btnAction = new Button(isDebtorMode ? "Send Overdue Notice" : "Record Supplier Payment");
+        btnAction.setGraphic(IconFactory.compactIcon(isDebtorMode ? "reminder" : "payment", 14));
+        btnAction.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAction.setOnAction(e -> {
+            dialog.close();
+            sendReminderForRow(row);
+        });
+
+        Button btnAudit = new Button("Audit Trail");
+        btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
+        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.setOnAction(e -> {
+            org.example.util.ActivityTimelineDialog.show(tblAging, isDebtorMode ? "CUSTOMER" : "SUPPLIER", 1, row.partyName);
+        });
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Button btnClose = new Button("Close");
+        btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dock.getChildren().addAll(btnAction, btnAudit, sp, btnClose);
+
+        VBox contentBox = new VBox(12, hero, scroll, dock);
+        contentBox.setPadding(new Insets(16, 20, 16, 20));
+        pane.setContent(contentBox);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+        Node bb = pane.lookup(".button-bar");
+        if (bb != null) { bb.setVisible(false); bb.setManaged(false); }
+
+        dialog.showAndWait();
+    }
+
+    private static void addAgingDetailRow(GridPane grid, int row, String caption, String value, String semantic) {
+        Label capLbl = new Label(caption);
+        capLbl.setGraphic(IconFactory.compactIcon(semantic, 14));
+        capLbl.setGraphicTextGap(6);
+        capLbl.getStyleClass().addAll("inspection-card-caption", "erp-drawer-caption");
+        capLbl.setMinWidth(180);
+
+        Label valLbl = new Label(value != null ? value : "-");
+        valLbl.getStyleClass().addAll("inspection-card-value", "erp-drawer-value");
+        valLbl.setWrapText(true);
+
+        grid.add(capLbl, 0, row);
+        grid.add(valLbl, 1, row);
     }
 
     @FXML

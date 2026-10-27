@@ -1256,17 +1256,17 @@ public class BankStatementController implements ScreenLifecycle {
         DashboardController.navigateFromChild(mode==BankExpenseController.Mode.BANK?"Bank Entry":"Expense Entry","/fxml/pages/BankExpense.fxml",mode);
     }
     public static final class LinkedTargetItem {
-        final String role;
-        final String documentNo;
-        final String type;
-        final String typeLabel;
-        final double amount;
-        final double roundOff;
-        final String iconName;
-        final String chipClass;
-        final Runnable onNavigate;
+        public final String role;
+        public final String documentNo;
+        public final String type;
+        public final String typeLabel;
+        public final double amount;
+        public final double roundOff;
+        public final String iconName;
+        public final String chipClass;
+        public final Runnable onNavigate;
 
-        LinkedTargetItem(String role, String documentNo, String type, String typeLabel, double amount, double roundOff, String iconName, String chipClass, Runnable onNavigate) {
+        public LinkedTargetItem(String role, String documentNo, String type, String typeLabel, double amount, double roundOff, String iconName, String chipClass, Runnable onNavigate) {
             this.role = role;
             this.documentNo = documentNo;
             this.type = type;

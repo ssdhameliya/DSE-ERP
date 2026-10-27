@@ -163,9 +163,7 @@ public abstract class PartyMasterController implements ScreenLifecycle {
             row.setOnMouseClicked(event -> {
                 if (row.isEmpty() || event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 1
                         || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
-                Party clicked = row.getItem();
-                if (detailDrawer != null && detailDrawer.isOpen() && detailParty == clicked) closeDetails();
-                else { selectRow(row); showDetails(clicked); }
+                selectRow(row);
                 event.consume();
             });
             return row;

@@ -14,8 +14,10 @@
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
         <HBox spacing="8" alignment="CENTER_LEFT">
-          <Label text="Return Period:" styleClass="field-caption"/>
-          <ComboBox fx:id="cmbReturnPeriod" prefWidth="170" minWidth="150" promptText="Select Period"/>
+          <Label text="From:" styleClass="field-caption"/>
+          <DatePicker fx:id="dpFromDate" prefWidth="160" minWidth="145"/>
+          <Label text="To:" styleClass="field-caption"/>
+          <DatePicker fx:id="dpToDate" prefWidth="160" minWidth="145"/>
         </HBox>
         <Button fx:id="btnImportGstr2b" text="Import GSTR-2B JSON" onAction="#import2bJson" styleClass="primary-action,approved-button,approved-primary-button"/>
         <Button fx:id="btnExportGstr1" text="Export GSTR-1 JSON" onAction="#exportGstr1Json" styleClass="approved-button,approved-secondary-button"/>

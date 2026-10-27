@@ -10,10 +10,13 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -49,7 +52,8 @@ public class GstComplianceController implements ScreenLifecycle {
     @FXML private StackPane pageIcon;
     @FXML private StackPane kpiEligibleIcon, kpiItcAtRiskIcon, kpiValueDiffIcon, kpiMissingBooksIcon, kpiNetCashDueIcon;
     @FXML private Label kpiEligibleItc, kpiItcAtRisk, kpiValueDiffCount, kpiMissingBooksCount, kpiNetCashDue;
-    @FXML private ComboBox<String> cmbReturnPeriod, cmbMatchFilter;
+    @FXML private ComboBox<String> cmbMatchFilter;
+    @FXML private DatePicker dpFromDate, dpToDate;
     @FXML private TextField txtSearch, txtSearchGstr1;
     @FXML private Button btnImportGstr2b, btnExportGstr1, btnApply2bFilter, btnRefresh2b, btnRefreshGstr1, btnOpenLinkedBill, btnNotifySupplier;
 
@@ -109,7 +113,7 @@ public class GstComplianceController implements ScreenLifecycle {
     @FXML
     public void initialize() {
         configureIcons();
-        configureReturnPeriods();
+        configureDatePickers();
         setupTableColumns();
         installDynamicLayouts();
         configureTableInteractions();
@@ -152,18 +156,15 @@ public class GstComplianceController implements ScreenLifecycle {
         UiActionIcons.apply(btnTabExportGstr1Excel, "excel", "Export GSTR-1 Excel");
     }
 
-    private void configureReturnPeriods() {
-        if (cmbReturnPeriod == null) return;
+    private void configureDatePickers() {
+        if (dpFromDate == null || dpToDate == null) return;
         LocalDate now = BusinessClock.today();
-        List<String> periods = new ArrayList<>();
-        periods.add("All Periods");
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM-yyyy");
-        for (int i = 0; i < 12; i++) {
-            periods.add(now.minusMonths(i).format(fmt));
-        }
-        cmbReturnPeriod.setItems(FXCollections.observableArrayList(periods));
-        cmbReturnPeriod.setValue("All Periods");
-        cmbReturnPeriod.valueProperty().addListener((obs, oldVal, newVal) -> loadGstDataAsync());
+        int fyStartYear = now.getMonthValue() >= 4 ? now.getYear() : now.getYear() - 1;
+        dpFromDate.setValue(LocalDate.of(fyStartYear, 4, 1));
+        dpToDate.setValue(now);
+        DatePickerFormatter.attachAll(dpFromDate, dpToDate);
+        dpFromDate.valueProperty().addListener((obs, oldVal, newVal) -> loadGstDataAsync());
+        dpToDate.valueProperty().addListener((obs, oldVal, newVal) -> loadGstDataAsync());
     }
 
     private void installDynamicLayouts() {
@@ -355,12 +356,7 @@ public class GstComplianceController implements ScreenLifecycle {
                     return;
                 }
                 Gstr2bRow clicked = row.getItem();
-                if (detailDrawer != null && detailDrawer.isVisible() && selectedRow == clicked) {
-                    closeDetails();
-                } else {
-                    tblReconciliation.getSelectionModel().select(clicked);
-                    showDetails(clicked);
-                }
+                tblReconciliation.getSelectionModel().select(clicked);
                 event.consume();
             });
             return row;
@@ -370,18 +366,119 @@ public class GstComplianceController implements ScreenLifecycle {
     private void showDetails(Gstr2bRow row) {
         if (row == null) return;
         selectedRow = row;
-        RegisterUiSupport.showDrawer(detailDrawer, mainSplit, 0.72);
-        if (lblDetailInvoice != null) lblDetailInvoice.setText(row.invoiceNo());
-        if (lblDetailDate != null) lblDetailDate.setText(row.invoiceDate());
-        if (lblDetailSupplier != null) lblDetailSupplier.setText(row.tradeName());
-        if (lblDetailGstin != null) lblDetailGstin.setText(row.gstin().isBlank() ? "Not Registered / Unverified" : row.gstin());
-        if (lblDetailTaxable != null) lblDetailTaxable.setText(row.taxable());
-        if (lblDetailCgst != null) lblDetailCgst.setText(row.cgst());
-        if (lblDetailSgst != null) lblDetailSgst.setText(row.sgst());
-        if (lblDetailIgst != null) lblDetailIgst.setText(row.igst());
-        if (lblDetailTotalTax != null) lblDetailTotalTax.setText(fmt(row.totalTaxAmount()));
-        if (lblDetailStatus != null) lblDetailStatus.setText(row.status());
-        if (lblDetailEligibility != null) lblDetailEligibility.setText("MATCHED".equalsIgnoreCase(row.status()) ? "Eligible (100% Claimable)" : "Pending Verification");
+
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>(tblReconciliation);
+        dialog.setTitle("GSTR-2B Inward Supply Inspection — " + row.invoiceNo());
+        dialog.setHeaderText(null);
+        dialog.setResizable(true);
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.getStyleClass().addAll("erp-document-inspection-dialog", "approved-ui");
+        PopupTableWorkspace.applyInspectionSizing(dialog, tblReconciliation);
+
+        Label iconLabel = new Label();
+        iconLabel.setGraphic(IconFactory.icon("tax", 32));
+        iconLabel.getStyleClass().add("inspection-hero-icon");
+
+        Label kicker = new Label("GSTR-2B INWARD SUPPLY & ITC RECONCILIATION");
+        kicker.getStyleClass().add("inspection-kicker");
+
+        Label title = new Label(row.invoiceNo() + "  •  " + row.tradeName());
+        title.getStyleClass().addAll("inspection-hero-title", "sales-detail-invoice");
+
+        Label sub = new Label("Supplier GSTIN: " + (row.gstin().isBlank() ? "Unregistered / Consumer" : row.gstin()) + "  •  Date: " + row.invoiceDate());
+        sub.getStyleClass().add("inspection-subtitle");
+
+        VBox titleBox = new VBox(2, kicker, title, sub);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Region spacerHero = new Region();
+        HBox.setHgrow(spacerHero, Priority.ALWAYS);
+
+        Label statusPill = new Label(row.status());
+        statusPill.getStyleClass().addAll("status-pill", "MATCHED".equalsIgnoreCase(row.status()) ? "pill-success" : "pill-warning");
+
+        HBox hero = new HBox(14, iconLabel, titleBox, spacerHero, statusPill);
+        hero.setAlignment(Pos.CENTER_LEFT);
+        hero.setPadding(new Insets(4, 8, 8, 8));
+
+        // Details Grid
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(14));
+        grid.getStyleClass().addAll("inspection-detail-grid", "erp-detail-drawer-card");
+
+        int r = 0;
+        addGstDetailRow(grid, r++, "Invoice Number", row.invoiceNo(), "document");
+        addGstDetailRow(grid, r++, "Invoice Date", row.invoiceDate(), "calendar");
+        addGstDetailRow(grid, r++, "Supplier Trade Name", row.tradeName(), "supplier");
+        addGstDetailRow(grid, r++, "Supplier GSTIN", row.gstin().isBlank() ? "Not Registered / Unverified" : row.gstin(), "tax");
+        addGstDetailRow(grid, r++, "Taxable Value", row.taxable(), "currency");
+        addGstDetailRow(grid, r++, "CGST Amount", row.cgst(), "currency");
+        addGstDetailRow(grid, r++, "SGST Amount", row.sgst(), "currency");
+        addGstDetailRow(grid, r++, "IGST Amount", row.igst(), "currency");
+        addGstDetailRow(grid, r++, "Total GST / ITC", fmt(row.totalTaxAmount()), "tax");
+        addGstDetailRow(grid, r++, "Reconciliation Status", row.status(), "status");
+        addGstDetailRow(grid, r++, "ITC Eligibility", "MATCHED".equalsIgnoreCase(row.status()) ? "Eligible (100% Claimable)" : "Pending Verification", "complete");
+
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        // Action Dock
+        HBox dock = new HBox(8);
+        dock.setAlignment(Pos.CENTER_LEFT);
+        dock.setPadding(new Insets(10, 0, 0, 0));
+
+        Button btnNotice = new Button("Notice to Supplier (Rule 36(4))");
+        btnNotice.setGraphic(IconFactory.compactIcon("email", 14));
+        btnNotice.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnNotice.setOnAction(e -> {
+            dialog.close();
+            openSupplierNoticeDialog(row);
+        });
+
+        Button btnAudit = new Button("Audit Trail");
+        btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
+        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.setOnAction(e -> {
+            ActivityTimelineDialog.show(tblReconciliation, "GSTR2B", 0, row.invoiceNo());
+        });
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Button btnClose = new Button("Close");
+        btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dock.getChildren().addAll(btnNotice, btnAudit, sp, btnClose);
+
+        VBox contentBox = new VBox(12, hero, scroll, dock);
+        contentBox.setPadding(new Insets(16, 20, 16, 20));
+        pane.setContent(contentBox);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+        Node bb = pane.lookup(".button-bar");
+        if (bb != null) { bb.setVisible(false); bb.setManaged(false); }
+
+        dialog.showAndWait();
+    }
+
+    private static void addGstDetailRow(GridPane grid, int row, String caption, String value, String semantic) {
+        Label capLbl = new Label(caption);
+        capLbl.setGraphic(IconFactory.compactIcon(semantic, 14));
+        capLbl.setGraphicTextGap(6);
+        capLbl.getStyleClass().addAll("inspection-card-caption", "erp-drawer-caption");
+        capLbl.setMinWidth(180);
+
+        Label valLbl = new Label(value != null ? value : "-");
+        valLbl.getStyleClass().addAll("inspection-card-value", "erp-drawer-value");
+        valLbl.setWrapText(true);
+
+        grid.add(capLbl, 0, row);
+        grid.add(valLbl, 1, row);
     }
 
     @FXML
@@ -510,16 +607,8 @@ public class GstComplianceController implements ScreenLifecycle {
                     List<Purchase> purchases = purchaseService.getAll();
                     List<Sales> sales = salesService.getAll();
 
-                    String period = cmbReturnPeriod != null && cmbReturnPeriod.getValue() != null ? cmbReturnPeriod.getValue() : "All Periods";
-                    Integer selMonth = null;
-                    Integer selYear = null;
-                    if (!"All Periods".equalsIgnoreCase(period) && period.contains("-")) {
-                        try {
-                            String[] pParts = period.split("-");
-                            selMonth = Integer.parseInt(pParts[0].trim());
-                            selYear = Integer.parseInt(pParts[1].trim());
-                        } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
-                    }
+                    LocalDate fromDate = dpFromDate != null ? dpFromDate.getValue() : null;
+                    LocalDate toDate = dpToDate != null ? dpToDate.getValue() : null;
 
                     double totalEligibleItc = 0.0;
                     double totalItcAtRisk = 0.0;
@@ -539,10 +628,9 @@ public class GstComplianceController implements ScreenLifecycle {
 
                     for (Sales s : sales) {
                         if (s.getDocumentStatus() != null && (s.getDocumentStatus().contains("CANCEL") || s.getDocumentStatus().contains("DELETE"))) continue;
-                        if (selMonth != null && selYear != null && s.getInvoiceDate() != null) {
-                            if (s.getInvoiceDate().getMonthValue() != selMonth || s.getInvoiceDate().getYear() != selYear) {
-                                continue;
-                            }
+                        if (s.getInvoiceDate() != null) {
+                            if (fromDate != null && s.getInvoiceDate().isBefore(fromDate)) continue;
+                            if (toDate != null && s.getInvoiceDate().isAfter(toDate)) continue;
                         }
                         validSalesCount++;
                         String invNo = s.getInvoiceNo();
@@ -660,10 +748,9 @@ public class GstComplianceController implements ScreenLifecycle {
 
                     for (Purchase p : purchases) {
                         if (p.getDocumentStatus() != null && (p.getDocumentStatus().contains("CANCEL") || p.getDocumentStatus().contains("DELETE"))) continue;
-                        if (selMonth != null && selYear != null && p.getInvoiceDate() != null) {
-                            if (p.getInvoiceDate().getMonthValue() != selMonth || p.getInvoiceDate().getYear() != selYear) {
-                                continue;
-                            }
+                        if (p.getInvoiceDate() != null) {
+                            if (fromDate != null && p.getInvoiceDate().isBefore(fromDate)) continue;
+                            if (toDate != null && p.getInvoiceDate().isAfter(toDate)) continue;
                         }
                         Party party = p.getSupplier();
                         String gstin = party != null && party.getGstin() != null ? party.getGstin().trim() : "";
@@ -954,9 +1041,8 @@ public class GstComplianceController implements ScreenLifecycle {
     public void exportGstr1Json() {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Save Government GSTR-1 Offline Tool JSON");
-        String period = cmbReturnPeriod != null && cmbReturnPeriod.getValue() != null && !cmbReturnPeriod.getValue().contains("All")
-                ? cmbReturnPeriod.getValue().replaceAll("[^0-9]", "")
-                : BusinessClock.today().format(DateTimeFormatter.ofPattern("MMyyyy"));
+        LocalDate to = dpToDate != null && dpToDate.getValue() != null ? dpToDate.getValue() : BusinessClock.today();
+        String period = to.format(DateTimeFormatter.ofPattern("MMyyyy"));
         chooser.setInitialFileName("GSTR1_" + period + ".json");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files (*.json)", "*.json"));
 
@@ -981,25 +1067,17 @@ public class GstComplianceController implements ScreenLifecycle {
             Map<String, List<Sales>> b2bByGstin = new LinkedHashMap<>();
             List<Sales> b2csList = new ArrayList<>();
 
-            Integer selMonth = null, selYear = null;
-            String curPeriod = cmbReturnPeriod != null ? cmbReturnPeriod.getValue() : "All Periods";
-            if (curPeriod != null && !"All Periods".equalsIgnoreCase(curPeriod) && curPeriod.contains("-")) {
-                try {
-                    String[] pParts = curPeriod.split("-");
-                    selMonth = Integer.parseInt(pParts[0].trim());
-                    selYear = Integer.parseInt(pParts[1].trim());
-                } catch (Exception ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
-            }
+            LocalDate fromDate = dpFromDate != null ? dpFromDate.getValue() : null;
+            LocalDate toDate = dpToDate != null ? dpToDate.getValue() : null;
 
             String minInv = null, maxInv = null;
             int count = 0;
 
             for (Sales s : sales) {
                 if (s.getDocumentStatus() != null && (s.getDocumentStatus().contains("CANCEL") || s.getDocumentStatus().contains("DELETE"))) continue;
-                if (selMonth != null && selYear != null && s.getInvoiceDate() != null) {
-                    if (s.getInvoiceDate().getMonthValue() != selMonth || s.getInvoiceDate().getYear() != selYear) {
-                        continue;
-                    }
+                if (s.getInvoiceDate() != null) {
+                    if (fromDate != null && s.getInvoiceDate().isBefore(fromDate)) continue;
+                    if (toDate != null && s.getInvoiceDate().isAfter(toDate)) continue;
                 }
                 count++;
                 String inum = s.getInvoiceNo();
@@ -1129,9 +1207,8 @@ public class GstComplianceController implements ScreenLifecycle {
     public void exportGstr1Excel() {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Save Government GSTR-1 Offline Tool Excel");
-        String period = cmbReturnPeriod != null && cmbReturnPeriod.getValue() != null && !cmbReturnPeriod.getValue().contains("All")
-                ? cmbReturnPeriod.getValue().replaceAll("[^0-9]", "")
-                : BusinessClock.today().format(DateTimeFormatter.ofPattern("MMyyyy"));
+        LocalDate to = dpToDate != null && dpToDate.getValue() != null ? dpToDate.getValue() : BusinessClock.today();
+        String period = to.format(DateTimeFormatter.ofPattern("MMyyyy"));
         chooser.setInitialFileName("GSTR1_Offline_Return_" + period + ".xlsx");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook (*.xlsx)", "*.xlsx"));
 

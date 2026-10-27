@@ -44,7 +44,7 @@ public class ItemMasterController implements ScreenLifecycle {
     @FXML private TextField txtSearch;
     @FXML private TableView<Item> tableItems;
     @FXML private Label lblRecordCount,lblKpiTotal,lblKpiCategories,lblKpiLowStock,lblKpiValue,lblSelectedCount;
-    @FXML private Button btnDeleteSelected,btnImportExcel,btnExportExcel;
+    @FXML private Button btnReset,btnDeleteSelected,btnImportExcel,btnExportExcel;
     @FXML private StackPane itemPageIcon,itemTotalIcon,itemCategoryIcon,itemLowIcon,itemValueIcon;
 
 
@@ -77,6 +77,11 @@ public class ItemMasterController implements ScreenLifecycle {
     private Item detailItem;
 
     private void installToolbarIcons() {
+        if (btnReset != null) {
+            btnReset.setGraphic(IconFactory.compactIcon("reset", 15));
+            btnReset.setGraphicTextGap(7);
+            btnReset.getProperties().put("erp-icon-preserve", true);
+        }
         if (btnImportExcel != null) {
             btnImportExcel.setGraphic(IconFactory.compactIcon("import", 15));
             btnImportExcel.setGraphicTextGap(7);
@@ -222,8 +227,7 @@ public class ItemMasterController implements ScreenLifecycle {
                 if (row.isEmpty() || event.getButton() != javafx.scene.input.MouseButton.PRIMARY || event.getClickCount() != 1
                         || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
                 Item clicked = row.getItem();
-                if (detailDrawer != null && detailDrawer.isOpen() && detailItem == clicked) closeDetails();
-                else { tableItems.getSelectionModel().select(clicked); showDetails(clicked); }
+                tableItems.getSelectionModel().select(clicked);
                 event.consume();
             });
             MenuItem add = new MenuItem("Add Item", IconFactory.icon("add"));
@@ -373,6 +377,13 @@ public class ItemMasterController implements ScreenLifecycle {
     private void deleteItem() { // keep compatibility with FXML onAction
         Item selected = tableItems.getSelectionModel().getSelectedItem();
         deleteItem(selected);
+    }
+
+    @FXML
+    private void resetFilters() {
+        if (txtSearch != null) txtSearch.clear();
+        tableItems.getSelectionModel().clearSelection();
+        loadItems();
     }
 
     @FXML

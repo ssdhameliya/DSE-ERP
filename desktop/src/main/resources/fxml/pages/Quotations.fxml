@@ -140,7 +140,7 @@
                     </VBox>
                 </VBox>
 
-                <VBox fx:id="detailDrawer" spacing="11" prefWidth="410" minWidth="390" maxWidth="440" styleClass="detail-drawer,erp-detail-drawer-card,quotation-detail-drawer" minHeight="0">
+                <VBox fx:id="detailDrawer" spacing="11" prefWidth="410" minWidth="390" maxWidth="440" styleClass="detail-drawer,erp-detail-drawer-card,quotation-detail-drawer" minHeight="0" visible="false" managed="false">
                     <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Quotation Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Audit Trail" onAction="#auditSelected" styleClass="approved-button,approved-secondary-button"/><Button text="Close" onAction="#closeDetails" styleClass="quotation-detail-close-button,approved-button,approved-danger-button"/></HBox>
                     <Label fx:id="lblDetailNo" styleClass="drawer-document"/>
                     <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>

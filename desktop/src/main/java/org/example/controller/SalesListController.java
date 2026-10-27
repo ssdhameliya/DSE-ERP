@@ -2,6 +2,7 @@ package org.example.controller;
 
 import org.example.util.BusinessClock;
 import org.example.util.DatePickerFormatter;
+import org.example.util.SalesDocumentInspectionDialog;
 import org.example.documentstudio.service.ExcelOutputService;
 
 import org.example.util.OwnedDialog;
@@ -112,18 +113,17 @@ public class SalesListController implements ScreenLifecycle {
         DatePickerFormatter.attachAll(dpFrom, dpTo);
         configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();org.example.util.RegisterColumnPreferences.install(tableSales,"SALES_REGISTER");
         RegisterUiSupport.configureHeaderSearch(txtSearch,salesHeaderSearchIcon,"Search invoice, customer, mobile or GSTIN...");
-        simplifyFilters();
-        RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);
-        org.example.util.OperationalUiSupport.installEscapeClose(mainSplit, () -> detailDrawer != null && detailDrawer.isVisible(), this::closeDetails);
-        // One shared drawer interaction: first click opens, clicking the same row again closes,
-        // and clicking a different row replaces the drawer contents immediately.
+        if (detailDrawer != null) {
+            RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);
+            org.example.util.OperationalUiSupport.installEscapeClose(mainSplit, () -> detailDrawer.isVisible(), this::closeDetails);
+        }
         tableSales.setRowFactory(view -> {
             TableRow<Sales> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getButton() != javafx.scene.input.MouseButton.PRIMARY || event.getClickCount() != 1 || row.isEmpty() || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
                 Sales clicked = row.getItem();
-                if (detailDrawer.isVisible() && selected != null && selected.getId() == clicked.getId()) closeDetails();
-                else { tableSales.getSelectionModel().select(clicked); showDetails(clicked); }
+                tableSales.getSelectionModel().select(clicked);
+                SalesDocumentInspectionDialog.show(tableSales, clicked, support, this::refresh);
                 event.consume();
             });
             return row;
@@ -577,55 +577,12 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("sales-");filterDebouncer.cancel();}
 
     private void showDetails(Sales sale){
-        selected=sale;
-        RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.76);
-        lblDetailInvoice.setText(sale.getInvoiceNo());
-        lblDetailDate.setText(sale.getInvoiceDate().format(BusinessClock.dateFormatter()));
-        lblDetailStatus.setText(documentStatus(sale));
-        lblDetailCustomer.setText(sale.getCustomer()==null?"Unknown Customer":safe(sale.getCustomer().getName()));
-        lblDetailContact.setText(sale.getCustomer()==null?"":safe(sale.getCustomer().getPhone())+"\n"+safe(sale.getCustomer().getEmail())+"\n"+safe(sale.getCustomer().getGstin()));
-        lblDetailAmount.setText(money(sale.getTotalAmount()));
-        lblDetailPaid.setText(money(sale.getPaidAmount()));
-        lblDetailBalance.setText(money(sale.getBalanceAmount()));
-        lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(BusinessClock.dateFormatter())+" • "+dueLabel(sale));
-        if (lblDetailGstAmount != null) lblDetailGstAmount.setText(money(sale.getGstAmount()));
-        if (lblDetailTotalCharges != null) lblDetailTotalCharges.setText(money(sale.getChargesAmount()));
-        if (lblDetailChargeTax != null) lblDetailChargeTax.setText(money(sale.getChargesTaxAmount()));
-        if (lblDetailCharges != null) {
-            var charges = sale.getCharges();
-            lblDetailCharges.setText(charges.isEmpty() ? "Not Applicable" : charges.stream()
-                    .map(charge -> charge.getChargeType() + " • " + money(charge.getAmount())
-                            + (charge.isTaxable() ? " (GST " + String.format(java.util.Locale.ROOT,"%.2f%%",charge.getGstPercent()) + ")" : ""))
-                    .collect(java.util.stream.Collectors.joining("\n")));
-        }
-        if (lblDetailGstType != null) lblDetailGstType.setText(safe(sale.getGstType()).isBlank() ? "Not Applicable" : sale.getGstType());
-        if (lblDetailGstin != null) lblDetailGstin.setText(safe(sale.getGstin()).isBlank() ? "Not Applicable" : sale.getGstin());
-        if (lblDetailBillingAddress != null) {
-            String billing = safe(sale.getBillingAddress());
-            if (billing.isBlank() && sale.getCustomer() != null) billing = safe(sale.getCustomer().getAddress());
-            lblDetailBillingAddress.setText(billing.isBlank() ? "Not set" : billing);
-        }
-        if (lblDetailDeliveryAddress != null) {
-            String delivery = safe(sale.getDeliveryAddress());
-            if (delivery.isBlank() && sale.isSameAsBilling()) {
-                delivery = safe(sale.getBillingAddress());
-                if (delivery.isBlank() && sale.getCustomer() != null) delivery = safe(sale.getCustomer().getAddress());
-            }
-            lblDetailDeliveryAddress.setText(delivery.isBlank() ? "Not set" : delivery);
-        }
-        if (lblDetailTransporter != null) lblDetailTransporter.setText(safe(sale.getTransporter()).isBlank() ? "Not Applicable" : sale.getTransporter());
-        if (lblDetailDoorDelivery != null) lblDetailDoorDelivery.setText(safe(sale.getDoorDelivery()).isBlank() ? "Not Applicable" : sale.getDoorDelivery());
-        if (lblDetailVehicle != null) lblDetailVehicle.setText(safe(sale.getVehicleNumber()).isBlank() ? "Not Applicable" : sale.getVehicleNumber());
-        if (lblDetailContactPerson != null) lblDetailContactPerson.setText(safe(sale.getContactPerson()).isBlank() ? "Not Applicable" : sale.getContactPerson());
-        if (lblDetailContactMobile != null) lblDetailContactMobile.setText(safe(sale.getContactPersonMobile()).isBlank() ? "Not Applicable" : sale.getContactPersonMobile());
-        boolean pendingApproval="PENDING APPROVAL".equalsIgnoreCase(safe(sale.getDocumentStatus()));
-        boolean admin=SessionService.isAdmin();
-        if(approvalActionBox!=null){approvalActionBox.setManaged(pendingApproval&&admin);approvalActionBox.setVisible(pendingApproval&&admin);}
-        if(btnApproveSale!=null)btnApproveSale.setDisable(!pendingApproval||!admin);
-        if(btnRejectSale!=null)btnRejectSale.setDisable(!pendingApproval||!admin);
+        if (sale == null) return;
+        selected = sale;
+        SalesDocumentInspectionDialog.show(tableSales, sale, support, this::refresh);
     }
     @FXML private void auditSelected(){if(selected!=null)org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",selected.getId(),selected.getInvoiceNo());}
-    @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);}
+    @FXML private void closeDetails(){selected=null;if(detailDrawer!=null)RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);}
     private Sales requireSelected(){if(selected==null){warning("Select an invoice first.");return null;}return selected;}
     @FXML private void emailSelected(){Sales s=requireSelected();if(s!=null)sendEmail(s);}@FXML private void whatsappSelected(){Sales s=requireSelected();if(s!=null)sendWhatsapp(s);}@FXML private void editSelectedSale(){Sales s=requireSelected();if(s!=null)edit(s);}@FXML private void recordSelectedPayment(){Sales s=requireSelected();if(s!=null)openPayment(s);}@FXML private void excelSelected(){Sales s=requireSelected();if(s!=null)openExcel(s);}
     @FXML private void printDispatchBarcodeSelected(){Sales s=requireSelected();if(s!=null)printDispatchBarcode(s);}
@@ -702,7 +659,10 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         }
         try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}
     }
-    private void viewSale(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));controller.setViewMode(true);NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}}
+    private void viewSale(Sales sale){
+        if (sale == null) return;
+        SalesDocumentInspectionDialog.show(tableSales, sale, support, this::refresh);
+    }
     private void openPdf(Sales sale){
         if(sale==null)return;
         UiTaskExecutor.submitAction("sales-tax-invoice-pdf-"+sale.getId(),()->{

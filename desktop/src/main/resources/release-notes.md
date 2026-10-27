@@ -1,19 +1,12 @@
-# What's New in DSE ERP v11.0.6
+# What's New in DSE ERP v11.0.7
 
-### Centralized Bank Reference Master (12 Formats Resolution)
-- **Standardized Multi-Module References**: Standardized reference codes across all 12 bank-related formats (9 core + 3 fallback/legacy) for unified cross-module lookups between Bank Statements, Bank Entries, and Expense Entries.
-- **Automated Database Sequence Registry**: Initialized reference format sequence tracking via `V10_0_35__bank_reference_format_master.sql`.
+### Responsive 88% Screen Pop-up Inspection Modals
+- **Dynamic Display Coverage**: Document inspection dialogs (Purchase Invoice, Sales Invoice, Sales Return, Purchase Return, Quotation) now dynamically scale to 88% of screen width and 88% of screen height, replacing the previous static 1080px window.
+- **Multi-Monitor Awareness**: Automatically centers and adapts to the active monitor's visual bounds (excluding OS taskbars).
 
-### Multi-Target Allocation Chooser Dialog
-- **Interactive Multi-Target Inspection**: Reconciled bank transactions linked to multiple ERP invoices or recons now open a dedicated 980px dialog displaying summary KPI metrics.
-- **Direct Workspace Navigation**: A 6-column table with individual `👁️ View` buttons enables seamless travel to the target document's workspace.
+### Line-Item Column Geometry & Header Protection
+- **No Text Clipping**: Expanded available table viewport from ~1020px to ~1600px on 1080p displays, allowing all 11 columns ample room without compression.
+- **Guaranteed Header Readability**: Enhanced layout rules guarantee column headers like "Quantity" and "Discount" remain unclipped across all viewports.
 
-### Side Drawer Suppression on Linked Navigation
-- **Workspace Focus**: Auto-opening of side drawers in Bank Entry and Expense Entry is suppressed when navigating to an isolated transaction, keeping the focused row unobstructed.
-
-### Non-Clipped Table Headers & Expanded Column Widths
-- **Expanded Column Geometry**: Match/Link headers widened across `BankStatement.fxml`, `BankExpense.fxml`, and `PurchaseRecon.fxml`.
-- **Colorful Theme Badges**: Added vibrant badges (`pill-purple`, `pill-cyan`, `pill-teal`, `pill-blue`, `pill-orange`) eliminating text clipping.
-
-### Universal Excel Workbook Export
-- **One-Click Export**: Standardized full-table `.xlsx` export across all 5 registers under the Bank & Expense menu.
+### Return & Quotation Workspace Parity
+- **Consistent Document Inspection**: Return Editor and Quotation inspection now utilize the identical 88% responsive window framework.

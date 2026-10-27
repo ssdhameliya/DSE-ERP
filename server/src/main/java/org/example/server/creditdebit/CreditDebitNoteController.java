@@ -56,4 +56,30 @@ public class CreditDebitNoteController {
     public boolean cancelDebitNote(@PathVariable Long id, @RequestParam(required = false) String user) {
         return service.cancelDebitNote(id, user);
     }
+
+    @PutMapping("/credit-notes/{id}")
+    public boolean updateCreditNote(@PathVariable Long id,
+                                    @RequestParam(required = false) String notes,
+                                    @RequestParam(required = false) String reasonCode,
+                                    @RequestParam(required = false) String user) {
+        return service.updateCreditNote(id, notes, reasonCode, user);
+    }
+
+    @PutMapping("/debit-notes/{id}")
+    public boolean updateDebitNote(@PathVariable Long id,
+                                   @RequestParam(required = false) String notes,
+                                   @RequestParam(required = false) String reasonCode,
+                                   @RequestParam(required = false) String user) {
+        return service.updateDebitNote(id, notes, reasonCode, user);
+    }
+
+    @DeleteMapping("/credit-notes/{id}")
+    public boolean deleteCreditNote(@PathVariable Long id, @RequestParam(required = false) String user) {
+        return service.deleteCreditNote(id, user);
+    }
+
+    @DeleteMapping("/debit-notes/{id}")
+    public boolean deleteDebitNote(@PathVariable Long id, @RequestParam(required = false) String user) {
+        return service.deleteDebitNote(id, user);
+    }
 }

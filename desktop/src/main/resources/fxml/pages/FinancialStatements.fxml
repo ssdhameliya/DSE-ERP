@@ -17,9 +17,9 @@
           <Label text="Mode:" styleClass="field-caption"/>
           <ComboBox fx:id="cmbEngineMode" prefWidth="210" minWidth="190"/>
           <Label text="Period:" styleClass="field-caption"/>
-          <DatePicker fx:id="dpFromDate" prefWidth="135" minWidth="130"/>
+          <DatePicker fx:id="dpFromDate" prefWidth="170" minWidth="150"/>
           <Label text="to" styleClass="field-caption"/>
-          <DatePicker fx:id="dpToDate" prefWidth="135" minWidth="130"/>
+          <DatePicker fx:id="dpToDate" prefWidth="170" minWidth="150"/>
           <Button fx:id="btnApplyDate" text="Apply" onAction="#refreshStatements" styleClass="primary-action,approved-button,approved-primary-button"/>
           <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportPdf" styleClass="approved-button,approved-secondary-button"/>
           <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportExcel" styleClass="approved-button,approved-secondary-button"/>

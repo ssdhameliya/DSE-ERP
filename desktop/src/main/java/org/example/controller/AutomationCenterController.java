@@ -4,9 +4,15 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.example.config.ConfigManager;
@@ -299,15 +305,13 @@ public class AutomationCenterController implements ScreenLifecycle {
             tblMatchLogs.setRowFactory(tv -> {
                 TableRow<MatchRow> row = new TableRow<>();
                 row.setOnMouseClicked(event -> {
-                    if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 1 || row.isEmpty()
+                    if (event.getButton() != MouseButton.PRIMARY || row.isEmpty()
                             || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) {
                         return;
                     }
                     MatchRow clicked = row.getItem();
-                    if (matchDetailDrawer != null && matchDetailDrawer.isVisible() && selectedMatchRow == clicked) {
-                        closeMatchDetails();
-                    } else {
-                        tblMatchLogs.getSelectionModel().select(clicked);
+                    tblMatchLogs.getSelectionModel().select(clicked);
+                    if (event.getClickCount() == 1) {
                         showMatchDetails(clicked);
                     }
                     event.consume();
@@ -320,15 +324,13 @@ public class AutomationCenterController implements ScreenLifecycle {
             tblReorderSuggestions.setRowFactory(tv -> {
                 TableRow<ReorderRow> row = new TableRow<>();
                 row.setOnMouseClicked(event -> {
-                    if (event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 1 || row.isEmpty()
+                    if (event.getButton() != MouseButton.PRIMARY || row.isEmpty()
                             || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) {
                         return;
                     }
                     ReorderRow clicked = row.getItem();
-                    if (reorderDetailDrawer != null && reorderDetailDrawer.isVisible() && selectedReorderRow == clicked) {
-                        closeReorderDetails();
-                    } else {
-                        tblReorderSuggestions.getSelectionModel().select(clicked);
+                    tblReorderSuggestions.getSelectionModel().select(clicked);
+                    if (event.getClickCount() == 1) {
                         showReorderDetails(clicked);
                     }
                     event.consume();
@@ -349,7 +351,103 @@ public class AutomationCenterController implements ScreenLifecycle {
         if (lblDetailBillAmt != null) lblDetailBillAmt.setText(row.billAmt());
         if (lblDetailVariance != null) lblDetailVariance.setText(row.variance());
         if (lblDetailMatchStatus != null) lblDetailMatchStatus.setText(row.status());
-        RegisterUiSupport.showDrawer(matchDetailDrawer, matchSplit, 0.72);
+
+        // Centered modal inspection popup
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>(tblMatchLogs);
+        dialog.setTitle("3-Way Purchase Reconciliation Inspection — " + row.billNo());
+        dialog.setHeaderText(null);
+        dialog.setResizable(true);
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.getStyleClass().addAll("erp-document-inspection-dialog", "approved-ui");
+        PopupTableWorkspace.applyInspectionSizing(dialog, tblMatchLogs);
+
+        Label iconLabel = new Label();
+        iconLabel.setGraphic(IconFactory.icon("purchase", 32));
+        iconLabel.getStyleClass().add("inspection-hero-icon");
+
+        Label kicker = new Label("SMART 3-WAY MATCH INSPECTION (PO / GRN / BILL)");
+        kicker.getStyleClass().add("inspection-kicker");
+
+        Label title = new Label(row.billNo() + "  •  " + row.supplier());
+        title.getStyleClass().addAll("inspection-hero-title", "sales-detail-invoice");
+
+        Label sub = new Label("Purchase Order: " + row.poNo() + "  •  Matched At: " + row.matchedAt());
+        sub.getStyleClass().add("inspection-subtitle");
+
+        VBox titleBox = new VBox(2, kicker, title, sub);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Region spacerHero = new Region();
+        HBox.setHgrow(spacerHero, Priority.ALWAYS);
+
+        Label statusPill = new Label(row.status() != null ? row.status() : "MATCHED");
+        statusPill.getStyleClass().addAll("status-pill", "MATCHED".equalsIgnoreCase(row.status()) ? "pill-success" : "REVIEW_REQUIRED".equalsIgnoreCase(row.status()) ? "pill-warning" : "pill-danger");
+
+        HBox hero = new HBox(14, iconLabel, titleBox, spacerHero, statusPill);
+        hero.setAlignment(Pos.CENTER_LEFT);
+        hero.setPadding(new Insets(4, 8, 8, 8));
+
+        // Details Grid
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(14));
+        grid.getStyleClass().addAll("inspection-detail-grid", "erp-detail-drawer-card");
+
+        int r = 0;
+        addAutoDetailRow(grid, r++, "Purchase Bill No", row.billNo(), "document");
+        addAutoDetailRow(grid, r++, "Supplier / Vendor", row.supplier(), "supplier");
+        addAutoDetailRow(grid, r++, "Purchase Order Ref", row.poNo(), "purchase");
+        addAutoDetailRow(grid, r++, "PO Approved Amount", row.poAmt(), "currency");
+        addAutoDetailRow(grid, r++, "Goods Receipt (GRN) Value", row.grnAmt(), "inventory");
+        addAutoDetailRow(grid, r++, "Vendor Billed Amount", row.billAmt(), "currency");
+        addAutoDetailRow(grid, r++, "Price / Qty Variance", row.variance(), "tax");
+        addAutoDetailRow(grid, r++, "Automated Match Status", row.status(), "status");
+        addAutoDetailRow(grid, r++, "Verification Time", row.matchedAt(), "calendar");
+
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        // Action Dock
+        HBox dock = new HBox(8);
+        dock.setAlignment(Pos.CENTER_LEFT);
+        dock.setPadding(new Insets(10, 0, 0, 0));
+
+        Button btnOpenBill = new Button("Open Purchase Bill");
+        btnOpenBill.setGraphic(IconFactory.compactIcon("open", 14));
+        btnOpenBill.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnOpenBill.setOnAction(e -> {
+            dialog.close();
+            openBill(row.billNo());
+        });
+
+        Button btnAudit = new Button("Audit Trail");
+        btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
+        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.setOnAction(e -> {
+            ActivityTimelineDialog.show(tblMatchLogs, "PURCHASE", 1, row.billNo());
+        });
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Button btnClose = new Button("Close");
+        btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dock.getChildren().addAll(btnOpenBill, btnAudit, sp, btnClose);
+
+        VBox contentBox = new VBox(12, hero, scroll, dock);
+        contentBox.setPadding(new Insets(16, 20, 16, 20));
+        pane.setContent(contentBox);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+        Node bb = pane.lookup(".button-bar");
+        if (bb != null) { bb.setVisible(false); bb.setManaged(false); }
+
+        dialog.showAndWait();
     }
 
     @FXML
@@ -375,7 +473,118 @@ public class AutomationCenterController implements ScreenLifecycle {
         if (lblReorderMinStock != null) lblReorderMinStock.setText(row.rol());
         if (lblReorderSuggested != null) lblReorderSuggested.setText(row.suggestedQty());
         if (lblReorderEstCost != null) lblReorderEstCost.setText(row.cost());
-        RegisterUiSupport.showDrawer(reorderDetailDrawer, reorderSplit, 0.72);
+
+        // Centered modal inspection popup
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>(tblReorderSuggestions);
+        dialog.setTitle("Inventory Replenishment Inspection — " + row.code());
+        dialog.setHeaderText(null);
+        dialog.setResizable(true);
+
+        DialogPane pane = dialog.getDialogPane();
+        pane.getStyleClass().addAll("erp-document-inspection-dialog", "approved-ui");
+        PopupTableWorkspace.applyInspectionSizing(dialog, tblReorderSuggestions);
+
+        Label iconLabel = new Label();
+        iconLabel.setGraphic(IconFactory.icon("inventory", 32));
+        iconLabel.getStyleClass().add("inspection-hero-icon");
+
+        Label kicker = new Label("AUTOMATED INVENTORY REORDER SUGGESTION");
+        kicker.getStyleClass().add("inspection-kicker");
+
+        Label title = new Label(row.code() + "  •  " + row.name());
+        title.getStyleClass().addAll("inspection-hero-title", "sales-detail-invoice");
+
+        Label sub = new Label("Primary Unit: " + row.unit() + "  •  Replenishment Cost: " + row.cost());
+        sub.getStyleClass().add("inspection-subtitle");
+
+        VBox titleBox = new VBox(2, kicker, title, sub);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Region spacerHero = new Region();
+        HBox.setHgrow(spacerHero, Priority.ALWAYS);
+
+        Label statusPill = new Label(row.status() != null ? row.status().replace('_', ' ') : "REORDER REQUIRED");
+        String st = row.status() != null ? row.status().toUpperCase(Locale.ROOT) : "";
+        statusPill.getStyleClass().addAll("status-pill", "OUT_OF_STOCK".equals(st) ? "pill-danger" : "LOW_STOCK".equals(st) ? "pill-warning" : "pill-success");
+
+        HBox hero = new HBox(14, iconLabel, titleBox, spacerHero, statusPill);
+        hero.setAlignment(Pos.CENTER_LEFT);
+        hero.setPadding(new Insets(4, 8, 8, 8));
+
+        // Details Grid
+        GridPane grid = new GridPane();
+        grid.setHgap(16);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(14));
+        grid.getStyleClass().addAll("inspection-detail-grid", "erp-detail-drawer-card");
+
+        int r = 0;
+        addAutoDetailRow(grid, r++, "Item SKU Code", row.code(), "document");
+        addAutoDetailRow(grid, r++, "Product / Material Name", row.name(), "inventory");
+        addAutoDetailRow(grid, r++, "Unit of Measure (UOM)", row.unit(), "package");
+        addAutoDetailRow(grid, r++, "Current Stock On-Hand", row.stock(), "inventory");
+        addAutoDetailRow(grid, r++, "Reorder Level (ROL)", row.rol(), "warning");
+        addAutoDetailRow(grid, r++, "Suggested Reorder Qty", row.suggestedQty(), "add");
+        addAutoDetailRow(grid, r++, "Estimated Replenishment Cost", row.cost(), "currency");
+        addAutoDetailRow(grid, r++, "Stock Health Status", row.status(), "status");
+
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        // Action Dock
+        HBox dock = new HBox(8);
+        dock.setAlignment(Pos.CENTER_LEFT);
+        dock.setPadding(new Insets(10, 0, 0, 0));
+
+        Button btnCreatePo = new Button("Create Purchase Order");
+        btnCreatePo.setGraphic(IconFactory.compactIcon("add", 14));
+        btnCreatePo.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnCreatePo.setOnAction(e -> {
+            dialog.close();
+            createPurchaseOrderForItem(row);
+        });
+
+        Button btnAudit = new Button("Audit Trail");
+        btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
+        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.setOnAction(e -> {
+            ActivityTimelineDialog.show(tblReorderSuggestions, "ITEM", 1, row.code());
+        });
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Button btnClose = new Button("Close");
+        btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
+        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.setOnAction(e -> dialog.close());
+
+        dock.getChildren().addAll(btnCreatePo, btnAudit, sp, btnClose);
+
+        VBox contentBox = new VBox(12, hero, scroll, dock);
+        contentBox.setPadding(new Insets(16, 20, 16, 20));
+        pane.setContent(contentBox);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+        Node bb = pane.lookup(".button-bar");
+        if (bb != null) { bb.setVisible(false); bb.setManaged(false); }
+
+        dialog.showAndWait();
+    }
+
+    private static void addAutoDetailRow(GridPane grid, int row, String caption, String value, String semantic) {
+        Label capLbl = new Label(caption);
+        capLbl.setGraphic(IconFactory.compactIcon(semantic, 14));
+        capLbl.setGraphicTextGap(6);
+        capLbl.getStyleClass().addAll("inspection-card-caption", "erp-drawer-caption");
+        capLbl.setMinWidth(180);
+
+        Label valLbl = new Label(value != null ? value : "-");
+        valLbl.getStyleClass().addAll("inspection-card-value", "erp-drawer-value");
+        valLbl.setWrapText(true);
+
+        grid.add(capLbl, 0, row);
+        grid.add(valLbl, 1, row);
     }
 
     @FXML
