@@ -1,12 +1,10 @@
-# What's New in DSE ERP v11.0.7
+# What's New in DSE ERP v11.0.8
 
-### Responsive 88% Screen Pop-up Inspection Modals
-- **Dynamic Display Coverage**: Document inspection dialogs (Purchase Invoice, Sales Invoice, Sales Return, Purchase Return, Quotation) now dynamically scale to 88% of screen width and 88% of screen height, replacing the previous static 1080px window.
-- **Multi-Monitor Awareness**: Automatically centers and adapts to the active monitor's visual bounds (excluding OS taskbars).
+### Bidirectional Business Image Synchronization (All 6 Assets)
+- **Real-Time Image Sync**: All 6 company assets (Invoice Logo, Authorized Signature, Email Signature Image, UPI Payment QR, Application Wallpaper Banner, and Application Splash Mark) synchronize seamlessly between Desktop and Web in real time.
+- **Alias Key Mirroring**: Updates to canonical desktop keys automatically synchronize with Web alias keys (`invoice.header.logo`, `invoice.digital.seal`, `payment.upi.qr`, `application.banner`, `application.mark`).
+- **Deletion Parity**: Removing an image on Web immediately clears the local desktop asset and deletes cached files without zombie re-uploads.
 
-### Line-Item Column Geometry & Header Protection
-- **No Text Clipping**: Expanded available table viewport from ~1020px to ~1600px on 1080p displays, allowing all 11 columns ample room without compression.
-- **Guaranteed Header Readability**: Enhanced layout rules guarantee column headers like "Quantity" and "Discount" remain unclipped across all viewports.
-
-### Return & Quotation Workspace Parity
-- **Consistent Document Inspection**: Return Editor and Quotation inspection now utilize the identical 88% responsive window framework.
+### Dedicated Company Email Signature Preview
+- **Full Image Preview**: Added a dedicated "Preview Image" button in Desktop Settings alongside "Browse Image" and "Clear Image".
+- **Asset Key Isolation**: Isolated `email.signature.image` from `company.signaturePath`, preventing cross-overwriting or accidental clearing of authorized document seals.

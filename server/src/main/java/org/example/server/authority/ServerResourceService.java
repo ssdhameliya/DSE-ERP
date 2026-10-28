@@ -63,6 +63,7 @@ public class ServerResourceService {
         String[] keys = {
             "company.logoPath",
             "company.signaturePath",
+            "email.signature.image",
             "payment.qrImagePath",
             "application.brandImagePath",
             "application.markImagePath"

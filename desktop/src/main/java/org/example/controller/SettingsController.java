@@ -254,6 +254,7 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private Label lblSignatureImageStatus;
     @FXML private ImageView imgSignaturePreview;
     @FXML private Button btnBrowseSignatureImage;
+    @FXML private Button btnPreviewSignatureImage;
     @FXML private Button btnClearSignatureImage;
     @FXML private Button btnEmailSecurityInfo;
     @FXML private Button btnLivePreview;
@@ -1125,7 +1126,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private List<AssetPreviewResult> loadAssetPreviews(List<AssetPreviewRequest> requests) {
-        if (ConfigManager.isSharedClient() && org.example.api.ApiSession.isEstablished()) {
+        if (org.example.api.ApiSession.isEstablished()) {
             try {
                 org.example.config.SharedAssetBridge.syncAll();
             } catch (Exception ignored) {
@@ -2591,6 +2592,23 @@ private record AssetPreviewRequest(
             MessageTemplateService.setSignatureImagePath(selectedSignatureImagePath);
             updateSignatureImagePreview(selectedSignatureImagePath);
             updateTemplatePreview();
+        }
+    }
+
+    @FXML
+    private void previewSignatureImage() {
+        try {
+            if (selectedSignatureImagePath != null && !selectedSignatureImagePath.isBlank()) {
+                File f = new File(selectedSignatureImagePath);
+                if (f.exists()) {
+                    if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Preview is not supported on this computer.");
+                    Desktop.getDesktop().open(f);
+                    return;
+                }
+            }
+            SettingsAssetService.openConfigured("email.signature.image", "company email signature image");
+        } catch (Exception error) {
+            showError(safeMessage(error));
         }
     }
 
