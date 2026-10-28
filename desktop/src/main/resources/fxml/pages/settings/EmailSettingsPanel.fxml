@@ -59,6 +59,7 @@
                 <ImageView fx:id="imgSignaturePreview" preserveRatio="true" smooth="true" fitHeight="36" fitWidth="80"/>
             </StackPane>
             <Button fx:id="btnBrowseSignatureImage" text="Browse Image" onAction="#browseSignatureImage" styleClass="secondary-button"/>
+            <Button fx:id="btnPreviewSignatureImage" text="Preview Image" onAction="#previewSignatureImage" styleClass="secondary-button"/>
             <Button fx:id="btnClearSignatureImage" text="Clear Image" onAction="#clearSignatureImage" styleClass="secondary-button"/>
         </HBox>
     </VBox>

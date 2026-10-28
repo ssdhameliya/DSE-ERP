@@ -22,21 +22,44 @@ public final class SharedAssetBridge {
         return ASSET_KEYS.contains(k);
     }
 
+    private static String getAliasKey(String canonicalKey) {
+        return switch (canonicalKey) {
+            case "company.logoPath" -> "invoice.header.logo";
+            case "company.signaturePath" -> "invoice.digital.seal";
+            case "payment.qrImagePath" -> "payment.upi.qr";
+            case "application.brandImagePath" -> "application.banner";
+            case "application.markImagePath" -> "application.mark";
+            default -> null;
+        };
+    }
+
     public static String publish(String key, String value) {
         try {
             var api = new ServerResourceClient();
+            String alias = getAliasKey(key);
             if (value == null || value.isBlank()) {
                 try {
                     api.delete("BUSINESS_ASSET", key);
                 } catch (Exception ignored) {
                     java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored);
                 }
+                if (alias != null) {
+                    try {
+                        new org.example.api.support.SupportApiClient().setSetting(alias, "");
+                    } catch (Exception ignored) {}
+                }
                 return "";
             }
             Path p = Path.of(value);
             if (!Files.isRegularFile(p)) return "";
             api.put("BUSINESS_ASSET", key, p.getFileName().toString(), Files.readAllBytes(p));
-            return PREFIX + key;
+            String pointer = PREFIX + key;
+            if (alias != null) {
+                try {
+                    new org.example.api.support.SupportApiClient().setSetting(alias, pointer);
+                } catch (Exception ignored) {}
+            }
+            return pointer;
         } catch (IOException e) {
             throw new IllegalStateException("Business asset could not be uploaded to the company server", e);
         }
@@ -61,7 +84,7 @@ public final class SharedAssetBridge {
     }
 
     public static void syncAllAsync() {
-        if (!ConfigManager.isSharedClient() || !org.example.api.ApiSession.isEstablished()) return;
+        if (!org.example.api.ApiSession.isEstablished()) return;
         org.example.util.UiTaskExecutor.submitAction(
                 "sync-business-assets",
                 () -> { syncAll(); return Boolean.TRUE; },
@@ -71,27 +94,32 @@ public final class SharedAssetBridge {
     }
 
     public static void syncAll() {
-        if (!ConfigManager.isSharedClient() || !org.example.api.ApiSession.isEstablished()) return;
+        if (!org.example.api.ApiSession.isEstablished()) return;
         var support = new org.example.api.support.SupportApiClient();
         for (String key : ASSET_KEYS) {
             try {
                 String remote = support.setting(key, "");
+                if (remote == null || remote.isBlank()) {
+                    String alias = getAliasKey(key);
+                    if (alias != null) {
+                        String aliasVal = support.setting(alias, "");
+                        if (aliasVal != null && aliasVal.startsWith(PREFIX)) {
+                            remote = aliasVal;
+                        }
+                    }
+                }
                 if (remote != null && remote.startsWith(PREFIX)) {
                     String localPath = resolve(key, remote);
                     if (localPath != null && !localPath.isBlank()) {
-                        ConfigManager.setWithoutSaving(key, localPath.replace('\\', '/'));
+                        ConfigManager.setLocalProperty(key, localPath.replace('\\', '/'));
                     }
                 } else {
-                    String localConfigured = ConfigManager.get(key, "");
-                    if (localConfigured != null && !localConfigured.isBlank()) {
-                        Path p = Path.of(localConfigured);
-                        if (Files.isRegularFile(p)) {
-                            String published = publish(key, localConfigured);
-                            if (!published.isBlank()) {
-                                support.setSetting(key, published);
-                            }
-                        }
-                    }
+                    ConfigManager.setLocalProperty(key, "");
+                    try {
+                        Path folder = ConfigManager.getConfigurationFolder().resolve("assets");
+                        Path target = folder.resolve(key.replaceAll("[^A-Za-z0-9._-]", "_") + ".png");
+                        Files.deleteIfExists(target);
+                    } catch (Exception ignored) {}
                 }
             } catch (Exception ex) {
                 java.lang.System.getLogger("org.example.config").log(java.lang.System.Logger.Level.DEBUG, "Sync asset error for " + key + ": " + ex.getMessage());
@@ -100,4 +128,3 @@ public final class SharedAssetBridge {
         ConfigManager.save();
     }
 }
-

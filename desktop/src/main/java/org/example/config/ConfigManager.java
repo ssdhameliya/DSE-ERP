@@ -146,6 +146,12 @@ public final class ConfigManager {
         syncRuntimeBusinessPolicy(key, value);
     }
 
+    public static synchronized void setLocalProperty(String key, String value) {
+        if (value == null || value.isBlank()) properties.remove(key);
+        else properties.setProperty(key, "smtp.appPassword".equals(key) ? SecretValueCodec.encrypt(value.replaceAll("\\s+", "")) : value);
+        syncRuntimeBusinessPolicy(key, value);
+    }
+
     public static synchronized void remove(String key) {
         properties.remove(key);
         save();
