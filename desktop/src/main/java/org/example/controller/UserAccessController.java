@@ -107,8 +107,7 @@ public class UserAccessController implements ScreenLifecycle {
                 if(row.isEmpty()||e.getButton()!=MouseButton.PRIMARY||RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return;
                 if(e.getClickCount()==1){
                     UserRow clicked=row.getItem();
-                    if(detailDrawer!=null&&detailDrawer.isOpen()&&detailUser==clicked)closeDetails();
-                    else{table.getSelectionModel().select(clicked);showDetails(clicked);}
+                    table.getSelectionModel().select(clicked);
                     e.consume();
                 }
             });

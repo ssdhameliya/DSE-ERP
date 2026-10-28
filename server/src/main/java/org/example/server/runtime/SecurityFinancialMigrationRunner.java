@@ -173,7 +173,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V10_0_34_1__company_settings_master_lookups",
                     "db/migration/V10_0_34_1__company_settings_master_lookups.sql"),
             new Migration("V10_0_35__bank_reference_format_master",
-                    "db/migration/V10_0_35__bank_reference_format_master.sql")
+                    "db/migration/V10_0_35__bank_reference_format_master.sql"),
+            new Migration("V10_0_36__bank_statement_reference_format",
+                    "db/migration/V10_0_36__bank_statement_reference_format.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

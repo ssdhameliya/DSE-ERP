@@ -622,4 +622,50 @@ public class CreditDebitNoteService {
         }
         return false;
     }
+
+    public boolean updateCreditNote(Long id, String notes, String reasonCode, String user) {
+        var noteOpt = getCreditNote(id);
+        if (noteOpt.isEmpty()) return false;
+        var note = noteOpt.get();
+        if ("CANCELLED".equalsIgnoreCase(note.status()) || "DELETED".equalsIgnoreCase(note.status())) return false;
+        jdbc.update("UPDATE credit_note_header SET notes = ?, reason_code = COALESCE(?, reason_code) WHERE id = ?",
+                notes, reasonCode, id);
+        auditService.log("CREDIT_NOTE", id, "UPDATED", "Updated notes/reason for Credit Note " + note.creditNoteNo() + " by " + (user != null ? user : "SYSTEM"));
+        return true;
+    }
+
+    public boolean updateDebitNote(Long id, String notes, String reasonCode, String user) {
+        var noteOpt = getDebitNote(id);
+        if (noteOpt.isEmpty()) return false;
+        var note = noteOpt.get();
+        if ("CANCELLED".equalsIgnoreCase(note.status()) || "DELETED".equalsIgnoreCase(note.status())) return false;
+        jdbc.update("UPDATE debit_note_header SET notes = ?, reason_code = COALESCE(?, reason_code) WHERE id = ?",
+                notes, reasonCode, id);
+        auditService.log("DEBIT_NOTE", id, "UPDATED", "Updated notes/reason for Debit Note " + note.debitNoteNo() + " by " + (user != null ? user : "SYSTEM"));
+        return true;
+    }
+
+    public boolean deleteCreditNote(Long id, String user) {
+        var noteOpt = getCreditNote(id);
+        if (noteOpt.isEmpty()) return false;
+        var note = noteOpt.get();
+        if (!"CANCELLED".equalsIgnoreCase(note.status()) && !"DELETED".equalsIgnoreCase(note.status())) {
+            cancelCreditNote(id, user);
+        }
+        jdbc.update("UPDATE credit_note_header SET status = 'DELETED' WHERE id = ?", id);
+        auditService.log("CREDIT_NOTE", id, "DELETED", "Deleted Credit Note " + note.creditNoteNo() + " by " + (user != null ? user : "SYSTEM"));
+        return true;
+    }
+
+    public boolean deleteDebitNote(Long id, String user) {
+        var noteOpt = getDebitNote(id);
+        if (noteOpt.isEmpty()) return false;
+        var note = noteOpt.get();
+        if (!"CANCELLED".equalsIgnoreCase(note.status()) && !"DELETED".equalsIgnoreCase(note.status())) {
+            cancelDebitNote(id, user);
+        }
+        jdbc.update("UPDATE debit_note_header SET status = 'DELETED' WHERE id = ?", id);
+        auditService.log("DEBIT_NOTE", id, "DELETED", "Deleted Debit Note " + note.debitNoteNo() + " by " + (user != null ? user : "SYSTEM"));
+        return true;
+    }
 }

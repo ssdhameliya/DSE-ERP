@@ -17,33 +17,5 @@
    <VBox spacing="10" styleClass="filter-surface,approved-filter-bar,erp-filter-section"><HBox spacing="10" alignment="CENTER_LEFT"><TextField fx:id="search" promptText="Search return, purchase or supplier..." HBox.hgrow="ALWAYS" styleClass="approved-input"/><ComboBox fx:id="supplier" prefWidth="190" styleClass="approved-input"/><DatePicker fx:id="dpFrom" prefWidth="145" promptText="From date" styleClass="approved-input"/><DatePicker fx:id="dpTo" prefWidth="145" promptText="To date" styleClass="approved-input"/><ComboBox fx:id="status" prefWidth="150" styleClass="approved-input"/><Button text="Reset" onAction="#reset" styleClass="secondary-button"/><Button fx:id="btnRefreshReturns" text="Refresh" onAction="#refreshWithFeedback" styleClass="approved-button,approved-secondary-button"/><Button text="Export" onAction="#export" styleClass="secondary-button"/></HBox></VBox>
    <VBox minHeight="0" VBox.vgrow="ALWAYS"><TableView fx:id="table" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register,erp-purple-selection-table"><columns><TableColumn fx:id="cNo" text="Return No." styleClass="approved-table-column"/><TableColumn fx:id="cDate" text="Return Date" styleClass="approved-table-column"/><TableColumn fx:id="cInvoice" text="Purchase No." styleClass="approved-table-column"/><TableColumn fx:id="cSupplier" text="Supplier" styleClass="approved-table-column"/><TableColumn fx:id="cTotal" text="Total Amount (₹)" styleClass="approved-table-column"/><TableColumn fx:id="cRefund" text="Refund Amount (₹)" styleClass="approved-table-column"/><TableColumn fx:id="cStatus" text="Return Status" styleClass="approved-table-column"/><TableColumn fx:id="cRefundStatus" text="Refund Status" styleClass="approved-table-column"/><TableColumn fx:id="cAction" text="Actions" sortable="false" resizable="false" styleClass="approved-table-column"/></columns></TableView><HBox alignment="CENTER_LEFT" spacing="8" styleClass="table-footer"><Label fx:id="pageInfo" styleClass="register-record-count"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnPrevPage" text="‹ Previous" onAction="#previousPage" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnNextPage" text="Next ›" onAction="#nextPage" styleClass="approved-button,approved-secondary-button"/></HBox></VBox>
   </VBox>
-  <VBox fx:id="detailDrawer" spacing="16" prefWidth="420" minWidth="400" maxWidth="450" minHeight="0" styleClass="detail-drawer,erp-detail-drawer-card,return-detail-drawer,return-detail-drawer-spacious">
-    <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
-    <HBox alignment="CENTER_LEFT" spacing="10"><Label text="Purchase Return Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-danger-button"/></HBox>
-    <VBox spacing="8" styleClass="return-detail-section"><Label fx:id="lblDetailNo" styleClass="drawer-document"/><Label fx:id="lblDetailSupplier" styleClass="drawer-customer"/></VBox>
-    <Separator/>
-    <GridPane hgap="16" vgap="12" styleClass="return-detail-section"><columnConstraints><ColumnConstraints percentWidth="46"/><ColumnConstraints percentWidth="54" hgrow="ALWAYS"/></columnConstraints>
-      <Label text="Return Date" styleClass="detail-label,field-label-calendar"/><Label fx:id="lblDetailDate" GridPane.columnIndex="1"/>
-      <Label text="Purchase No." GridPane.rowIndex="1" styleClass="detail-label,field-label-invoice"/><Label fx:id="lblDetailInvoice" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true"/>
-      <Label text="Return Amount" GridPane.rowIndex="2" styleClass="detail-label,field-label-amount"/><Label fx:id="lblDetailAmount" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="drawer-money"/>
-      <Label text="Refund Amount" GridPane.rowIndex="3" styleClass="detail-label,field-label-payment"/><Label fx:id="lblDetailRefund" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-      <Label text="Return Status" GridPane.rowIndex="4" styleClass="detail-label,field-label-status"/><Label fx:id="lblDetailStatus" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-      <Label text="Refund Status" GridPane.rowIndex="5" styleClass="detail-label,field-label-status"/><Label fx:id="lblDetailRefundStatus" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
-    </GridPane>
-    <Separator/>
-    <VBox spacing="8" styleClass="return-detail-section"><Label text="Reason" styleClass="drawer-section"/><Label fx:id="lblDetailReason" wrapText="true"/></VBox>
-    <Region minHeight="8" prefHeight="18" VBox.vgrow="ALWAYS"/>
-    <Separator/>
-    <VBox spacing="9" styleClass="return-detail-actions"><Label text="Quick Actions" styleClass="drawer-section"/>
-      <Button text="Audit Trail" onAction="#auditSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
-      <Button fx:id="btnEditReasonSelected" text="Edit Reason" onAction="#editReasonSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
-      <HBox spacing="8">
-        <Button fx:id="btnApproveSelected" text="Approve Return" onAction="#approveSelected" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-primary-button,return-drawer-action"/>
-        <Button fx:id="btnRejectSelected" text="Reject Return" onAction="#rejectSelected" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
-      </HBox>
-      <Button text="View Original Purchase" onAction="#originalSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
-      <Button fx:id="btnRefundSelected" text="View / Record Refund" onAction="#refundSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button,return-drawer-action"/>
-    </VBox>
-  </VBox>
  </items></SplitPane>
 </VBox>

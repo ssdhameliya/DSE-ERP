@@ -425,11 +425,7 @@ public class MasterDataController implements ScreenLifecycle {
                     RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
                 if (event.getClickCount() == 1) {
                     Lookup clicked = row.getItem();
-                    if (detailDrawer != null && detailDrawer.isOpen() && detailLookup == clicked) closeLookupDetails();
-                    else {
-                        tblLookup.getSelectionModel().select(clicked);
-                        showLookupDetails(clicked);
-                    }
+                    tblLookup.getSelectionModel().select(clicked);
                     event.consume();
                 }
             });

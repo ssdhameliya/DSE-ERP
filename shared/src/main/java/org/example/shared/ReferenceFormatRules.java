@@ -27,6 +27,25 @@ public final class ReferenceFormatRules {
         return Pattern.compile(toRegex(format.trim(), documentDate), Pattern.CASE_INSENSITIVE).matcher(value.trim()).matches();
     }
 
+    public static String format(String formatPattern, long sequenceNumber, LocalDate date) {
+        if (formatPattern == null || formatPattern.isBlank()) return String.valueOf(sequenceNumber);
+        String res = formatPattern.trim();
+        LocalDate d = date == null ? LocalDate.now() : date;
+        res = res.replace("YYYY", String.format(java.util.Locale.ROOT, "%04d", d.getYear()));
+        res = res.replace("YY", String.format(java.util.Locale.ROOT, "%02d", d.getYear() % 100));
+        res = res.replace("DD", String.format(java.util.Locale.ROOT, "%02d", d.getDayOfMonth()));
+        res = res.replace("MM", String.format(java.util.Locale.ROOT, "%02d", d.getMonthValue()));
+        java.util.regex.Matcher matcher = Pattern.compile("X{2,}").matcher(res);
+        if (matcher.find()) {
+            int width = matcher.end() - matcher.start();
+            String formattedSeq = String.format(java.util.Locale.ROOT, "%0" + width + "d", sequenceNumber);
+            res = res.substring(0, matcher.start()) + formattedSeq + res.substring(matcher.end());
+        } else {
+            res = res + sequenceNumber;
+        }
+        return res;
+    }
+
     public static String validationMessage(String format, String value, LocalDate documentDate) {
         if (value == null || value.isBlank()) return "Reference is mandatory";
         if (format == null || format.isBlank()) return "Reference format is not configured";

@@ -292,27 +292,45 @@ public final class UpdateDialogs {
         }
 
         ProgressBar bar = new ProgressBar(0);
-        bar.setMaxWidth(Double.MAX_VALUE);
-        Label status = new Label("Downloading " + asset.name());
+        Label percentLabel = new Label("0%");
+        Label bytesLabel = new Label("Connecting...");
+        Label speedLabel = new Label("—");
         Label detail = new Label("Preparing download...");
-        VBox content = new VBox(14, status, bar, detail);
-        content.setPadding(new Insets(18));
-        Dialog<Void> dialog = baseDialog(owner, required ? "Downloading Required Update" : "Downloading Update", content, 580, 270);
+        VBox content = buildDownloadProgressPane(asset.name(), bar, percentLabel, bytesLabel, speedLabel, detail);
+        Dialog<Void> dialog = baseDialog(owner, required ? "Downloading Required Update" : "Downloading Update", content, 620, 310);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 
         Task<Path> task = new Task<>() {
             @Override protected Path call() throws Exception {
                 updateMessage("Checking cache and downloading official installer if required...");
-                UpdateService.VerifiedDownload verified = service.downloadVerified(release, asset, progress -> updateProgress(progress, 1));
+                UpdateService.VerifiedDownload verified = service.downloadVerified(release, asset, (fraction, copied, total, speed) -> {
+                    updateProgress(fraction >= 0 ? fraction : 0, 1);
+                    Platform.runLater(() -> {
+                        if (fraction >= 0) {
+                            bar.setProgress(fraction);
+                            percentLabel.setText(String.format(Locale.ROOT, "%.0f%%", fraction * 100));
+                        } else {
+                            bar.setProgress(-1);
+                            percentLabel.setText("...");
+                        }
+                        if (total > 0) {
+                            bytesLabel.setText(humanSize(copied) + " / " + humanSize(total));
+                        } else if (copied > 0) {
+                            bytesLabel.setText(humanSize(copied) + " downloaded");
+                        }
+                        if (speed > 0) {
+                            speedLabel.setText(humanSize((long) speed) + "/s");
+                        }
+                    });
+                });
                 Path file = verified.file();
                 UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(),
                         "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + verified.checksum()
                                 + "; Cache=" + (verified.reusedCache() ? "verified-reuse" : "fresh-download"));
-                updateMessage("Installer verified.");
+                updateMessage("Installer verified successfully.");
                 return file;
             }
         };
-        bar.progressProperty().bind(task.progressProperty());
         detail.textProperty().bind(task.messageProperty());
         task.setOnSucceeded(event -> {
             dialog.close();
@@ -370,17 +388,38 @@ public final class UpdateDialogs {
         try { asset = service.assetFor(release); }
         catch (Exception ex) { error(owner, "Installer unavailable", rootMessage(ex)); return; }
 
-        ProgressBar bar = new ProgressBar(0); bar.setMaxWidth(Double.MAX_VALUE);
-        Label status = new Label("Downloading " + asset.name());
+        ProgressBar bar = new ProgressBar(0);
+        Label percentLabel = new Label("0%");
+        Label bytesLabel = new Label("Connecting...");
+        Label speedLabel = new Label("—");
         Label detail = new Label("Preparing download...");
-        VBox content = new VBox(14, status, bar, detail); content.setPadding(new Insets(18));
-        Dialog<Void> dialog = baseDialog(owner, "Downloading Update", content, 560, 260);
+        VBox content = buildDownloadProgressPane(asset.name(), bar, percentLabel, bytesLabel, speedLabel, detail);
+        Dialog<Void> dialog = baseDialog(owner, "Downloading Update", content, 620, 310);
         ButtonType cancel = ButtonType.CANCEL; dialog.getDialogPane().getButtonTypes().add(cancel);
 
         Task<Path> task = new Task<>() {
             @Override protected Path call() throws Exception {
                 updateMessage("Checking cache and downloading installer if required...");
-                UpdateService.VerifiedDownload verified = service.downloadVerified(release, asset, p -> updateProgress(p, 1));
+                UpdateService.VerifiedDownload verified = service.downloadVerified(release, asset, (fraction, copied, total, speed) -> {
+                    updateProgress(fraction >= 0 ? fraction : 0, 1);
+                    Platform.runLater(() -> {
+                        if (fraction >= 0) {
+                            bar.setProgress(fraction);
+                            percentLabel.setText(String.format(Locale.ROOT, "%.0f%%", fraction * 100));
+                        } else {
+                            bar.setProgress(-1);
+                            percentLabel.setText("...");
+                        }
+                        if (total > 0) {
+                            bytesLabel.setText(humanSize(copied) + " / " + humanSize(total));
+                        } else if (copied > 0) {
+                            bytesLabel.setText(humanSize(copied) + " downloaded");
+                        }
+                        if (speed > 0) {
+                            speedLabel.setText(humanSize((long) speed) + "/s");
+                        }
+                    });
+                });
                 Path file = verified.file();
                 UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(),
                         "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + verified.checksum()
@@ -391,7 +430,7 @@ public final class UpdateDialogs {
                 return file;
             }
         };
-        bar.progressProperty().bind(task.progressProperty()); detail.textProperty().bind(task.messageProperty());
+        detail.textProperty().bind(task.messageProperty());
         task.setOnSucceeded(e -> {
             dialog.close();
             Path installer = task.getValue();
@@ -481,6 +520,50 @@ public final class UpdateDialogs {
         };
         for (int i=0;i<rows.length;i++) { Label key=new Label(rows[i][0]); key.getStyleClass().add("settings-form-label"); grid.add(key,0,i); Label value=new Label(rows[i][1]); value.setWrapText(true); grid.add(value,1,i); }
         Dialog<Void> dialog = baseDialog(owner, "System Health", grid, 760, 470); dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE); dialog.showAndWait();
+    }
+
+    private static VBox buildDownloadProgressPane(String assetName, ProgressBar bar, Label percentLabel, Label bytesLabel, Label speedLabel, Label detailLabel) {
+        bar.setMaxWidth(Double.MAX_VALUE);
+        bar.setPrefHeight(22);
+        bar.setMinHeight(22);
+        bar.getStyleClass().addAll("erp-update-progress-bar", "erp-3d-animated-bar");
+
+        Label fileLabel = new Label(assetName);
+        fileLabel.getStyleClass().add("erp-update-filename");
+        fileLabel.setGraphic(IconFactory.compactIcon("download", 16));
+
+        percentLabel.getStyleClass().add("erp-update-percent-label");
+        percentLabel.setText("0%");
+
+        HBox topRow = new HBox(10, fileLabel);
+        Region topSpacer = new Region();
+        HBox.setHgrow(topSpacer, Priority.ALWAYS);
+        topRow.getChildren().addAll(topSpacer, percentLabel);
+        topRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        bytesLabel.getStyleClass().add("erp-update-metric-text");
+        bytesLabel.setGraphic(IconFactory.compactIcon("cloud", 14));
+        bytesLabel.setText("Connecting to update server...");
+
+        speedLabel.getStyleClass().add("erp-update-metric-text");
+        speedLabel.setGraphic(IconFactory.compactIcon("refresh", 14));
+        speedLabel.setText("—");
+
+        HBox metricRow = new HBox(12, bytesLabel);
+        Region metricSpacer = new Region();
+        HBox.setHgrow(metricSpacer, Priority.ALWAYS);
+        metricRow.getChildren().addAll(metricSpacer, speedLabel);
+        metricRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        detailLabel.getStyleClass().add("erp-update-status-text");
+        detailLabel.setWrapText(true);
+        detailLabel.setGraphic(IconFactory.compactIcon("status", 14));
+        detailLabel.setText("Preparing secure download...");
+
+        VBox card = new VBox(12, topRow, bar, metricRow, detailLabel);
+        card.getStyleClass().add("erp-update-progress-container");
+        card.setPadding(new Insets(16));
+        return card;
     }
 
     private static <T> TableColumn<T,String> column(String title, java.util.function.Function<T,String> getter) { TableColumn<T,String> c=new TableColumn<>(title); c.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(getter.apply(v.getValue()))); return c; }

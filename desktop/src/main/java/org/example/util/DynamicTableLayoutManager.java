@@ -375,14 +375,16 @@ public final class DynamicTableLayoutManager {
         else if (key.contains("payment") || key.contains("return") || key.contains("status")) semanticFloor = 78.0;
         else if (key.contains("amount") || key.contains("balance") || key.contains("paid")
                 || key.contains("pending") || key.contains("total") || key.contains("rate")) semanticFloor = 72.0;
-        else if (key.contains("date") || key.contains("due") || key.contains("mobile")
-                || key.contains("quantity") || key.contains("qty")) semanticFloor = 64.0;
+        else if (key.contains("quantity") || key.contains("qty")
+                || key.contains("discount") || key.contains("disc")) semanticFloor = 82.0;
+        else if (key.contains("date") || key.contains("due") || key.contains("mobile")) semanticFloor = 64.0;
         else semanticFloor = 68.0;
         return Math.max(MIN_READABLE_COLUMN, semanticFloor);
     }
 
     private static double denseFloor(String semantic, String heading) {
         String key = (semantic + " " + heading).toLowerCase(Locale.ROOT);
+        if (key.contains("quantity") || key.contains("qty") || key.contains("discount") || key.contains("disc")) return 76.0;
         if (isLongTextSemantic(semantic, heading)) return 66.0;
         if (key.contains("status") || key.contains("payment") || key.contains("return")) return 58.0;
         if (key.contains("invoice") || key.contains("document") || key.contains("reference")) return 56.0;

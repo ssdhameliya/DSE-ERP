@@ -83,7 +83,7 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
             TableRow<CreditNoteRow> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getButton() == MouseButton.PRIMARY && !row.isEmpty()) {
-                    showDetails(row.getItem());
+                    tblCreditNotes.getSelectionModel().select(row.getItem());
                 }
             });
             return row;
@@ -117,20 +117,51 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
         colStatus.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().status));
 
         colActions.setCellFactory(col -> new TableCell<>() {
-            private final Button btnBarcode = new Button("Barcode");
-            private final Button btnCancel = new Button("Cancel");
+            private final MenuButton actions = new MenuButton("Actions");
+            private final MenuItem itemView = new MenuItem("View Note", IconFactory.compactIcon("view", 14));
+            private final MenuItem itemEdit = new MenuItem("Edit Note", IconFactory.compactIcon("edit", 14));
+            private final MenuItem itemBarcode = new MenuItem("Print Barcode", IconFactory.compactIcon("barcode", 14));
+            private final MenuItem itemAudit = new MenuItem("Audit Trail", IconFactory.compactIcon("history", 14));
+            private final MenuItem itemCancel = new MenuItem("Cancel Note", IconFactory.compactIcon("cancel", 14));
+            private final MenuItem itemDelete = new MenuItem("Delete Note", IconFactory.compactIcon("delete", 14));
             {
-                btnBarcode.getStyleClass().addAll("approved-button", "approved-secondary-button", "btn-sm");
-                btnBarcode.setOnAction(e -> {
+                actions.getStyleClass().addAll("table-action-menu", "row-actions");
+                actions.setGraphic(IconFactory.compactIcon("actions", 14));
+                actions.setContentDisplay(ContentDisplay.LEFT);
+                actions.setGraphicTextGap(6);
+                actions.setTooltip(new Tooltip("Actions"));
+                IconFactory.decorateActionMenu(actions);
+
+                itemView.setOnAction(e -> {
+                    CreditNoteRow row = getTableRow().getItem();
+                    if (row != null) showDetails(row);
+                });
+                itemEdit.setOnAction(e -> {
+                    CreditNoteRow row = getTableRow().getItem();
+                    if (row != null) editNote(row);
+                });
+                itemBarcode.setOnAction(e -> {
                     CreditNoteRow row = getTableRow().getItem();
                     if (row != null) printBarcode(row);
                 });
-                btnCancel.getStyleClass().addAll("approved-button", "approved-secondary-button", "btn-sm");
-                btnCancel.setOnAction(e -> {
+                itemAudit.setOnAction(e -> {
+                    CreditNoteRow row = getTableRow().getItem();
+                    if (row != null) {
+                        ActivityTimelineDialog.show(tblCreditNotes, "CREDIT_NOTE", row.id != null ? row.id.intValue() : 0, row.creditNoteNo);
+                    }
+                });
+                itemCancel.setOnAction(e -> {
                     CreditNoteRow row = getTableRow().getItem();
                     if (row != null) cancelNote(row);
                 });
+                itemDelete.setOnAction(e -> {
+                    CreditNoteRow row = getTableRow().getItem();
+                    if (row != null) deleteNote(row);
+                });
+
+                actions.getItems().addAll(itemView, itemEdit, itemBarcode, itemAudit, new SeparatorMenuItem(), itemCancel, itemDelete);
             }
+
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -138,10 +169,12 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
                     setGraphic(null);
                 } else {
                     CreditNoteRow row = getTableRow().getItem();
-                    btnCancel.setDisable(!"ACTIVE".equalsIgnoreCase(row.status));
-                    HBox box = new HBox(6, btnBarcode, btnCancel);
-                    box.setAlignment(Pos.CENTER);
-                    setGraphic(box);
+                    boolean cancelled = row.status != null && ("CANCELLED".equalsIgnoreCase(row.status) || "DELETED".equalsIgnoreCase(row.status));
+                    itemEdit.setDisable(cancelled);
+                    itemCancel.setDisable(cancelled);
+                    itemDelete.setDisable("DELETED".equalsIgnoreCase(row.status));
+                    setGraphic(actions);
+                    setAlignment(Pos.CENTER);
                 }
             }
         });
@@ -198,7 +231,7 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
         int restocked = 0;
 
         for (CreditNoteRow r : masterList) {
-            if ("ACTIVE".equalsIgnoreCase(r.status)) {
+            if (r.status != null && !"CANCELLED".equalsIgnoreCase(r.status) && !"DELETED".equalsIgnoreCase(r.status)) {
                 totalAmount = totalAmount.add(r.totalAmount != null ? r.totalAmount : BigDecimal.ZERO);
                 taxReversed = taxReversed.add(r.cgstAmount != null ? r.cgstAmount : BigDecimal.ZERO)
                     .add(r.sgstAmount != null ? r.sgstAmount : BigDecimal.ZERO)
@@ -218,20 +251,7 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
     private void showDetails(CreditNoteRow row) {
         if (row == null) return;
         this.selectedRow = row;
-        lblDetailNoteNo.setText(row.creditNoteNo);
-        lblDetailDate.setText(row.noteDate != null ? row.noteDate : "-");
-        lblDetailParty.setText(row.partyName != null ? row.partyName : "-");
-        lblDetailInvoice.setText(row.originalInvoiceNo != null ? row.originalInvoiceNo : "-");
-        lblDetailReason.setText(row.reasonCode != null ? row.reasonCode : "-");
-        lblDetailTaxable.setText(currency.format(row.taxableAmount));
-        lblDetailCgst.setText(currency.format(row.cgstAmount));
-        lblDetailSgst.setText(currency.format(row.sgstAmount));
-        lblDetailIgst.setText(currency.format(row.igstAmount));
-        lblDetailTotal.setText(currency.format(row.totalAmount));
-        lblDetailStock.setText(row.adjustInventory ? "Yes (Inventory added back)" : "No (Price diff only)");
-        lblDetailStatus.setText(row.status);
-
-        RegisterUiSupport.showDrawer(detailDrawer, mainSplit, 0.68);
+        CreditDebitNoteInspectionDialog.showCreditNote(tblCreditNotes, row, this::refreshData, this::createCreditNote);
     }
 
     @FXML
@@ -404,6 +424,40 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
         });
     }
 
+    private void editNote(CreditNoteRow row) {
+        if (row == null) return;
+        showDetails(row);
+    }
+
+    private void deleteNote(CreditNoteRow row) {
+        if (row == null) return;
+        if (!AppDialogService.confirm(tblCreditNotes, "Delete Credit Note",
+                "Delete Credit Note " + row.creditNoteNo + "?",
+                "This will void the credit note, reverse GL postings, and restore inventory cleanly.")) {
+            return;
+        }
+
+        UiTaskExecutor.submitAction(
+            "credit-note-delete-" + row.id,
+            () -> {
+                HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(apiUrl("/api/credit-notes/" + row.id)))
+                    .timeout(Duration.ofSeconds(20))
+                    .DELETE();
+                ApiSession.authorize(b);
+                HttpResponse<String> resp = ApiRuntime.HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    return "SUCCESS";
+                }
+                throw new RuntimeException("Failed to delete: " + resp.body());
+            },
+            res -> {
+                AppDialogService.success(tblCreditNotes, "Deleted", "Credit Note deleted safely.");
+                refreshData();
+            },
+            err -> AppDialogService.error(tblCreditNotes, "Credit Notes", "Deletion Failed", err.getMessage())
+        );
+    }
+
     private void cancelNote(CreditNoteRow row) {
         if (!AppDialogService.confirm(tblCreditNotes, "Cancel Credit Note", "Cancel Credit Note " + row.creditNoteNo + "?", "This will reverse GL postings and adjust inventory.")) {
             return;
@@ -414,7 +468,7 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
             () -> {
                 HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(apiUrl("/api/credit-notes/" + row.id + "/cancel")))
                     .timeout(Duration.ofSeconds(20))
-                    .PUT(HttpRequest.BodyPublishers.noBody());
+                    .POST(HttpRequest.BodyPublishers.noBody());
                 ApiSession.authorize(b);
                 HttpResponse<String> resp = ApiRuntime.HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
                 if (resp.statusCode() == 200) {
@@ -456,19 +510,28 @@ public class CreditNoteRegisterController implements ScreenLifecycle {
         );
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
     public static class CreditNoteRow {
         public Long id;
         public String creditNoteNo;
         public String noteDate;
         public String partyName;
+        public String partyGstin;
         public String originalInvoiceNo;
         public String reasonCode;
         public BigDecimal taxableAmount = BigDecimal.ZERO;
         public BigDecimal cgstAmount = BigDecimal.ZERO;
         public BigDecimal sgstAmount = BigDecimal.ZERO;
         public BigDecimal igstAmount = BigDecimal.ZERO;
+        public BigDecimal roundoffAmount = BigDecimal.ZERO;
         public BigDecimal totalAmount = BigDecimal.ZERO;
+        @com.fasterxml.jackson.annotation.JsonAlias({"stockReturned", "adjustInventory"})
         public boolean adjustInventory;
         public String status;
+        public Long glEntryId;
+        public String notes;
+        public String createdBy;
+        public String createdAt;
+        public Long rowVersion;
     }
 }

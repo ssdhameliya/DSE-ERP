@@ -48,7 +48,7 @@ public class InventoryController implements ScreenLifecycle {
    history.setOnAction(e->{selectRow(row);history(row.getItem());});
    delete.setOnAction(e->{selectRow(row);deleteItem(row.getItem());});
    row.setOnContextMenuRequested(e->{if(row.isEmpty()){menu.hide();return;}selectRow(row);menu.show(row,e.getScreenX(),e.getScreenY());e.consume();});
-   row.setOnMouseClicked(e->{if(row.isEmpty()||e.getButton()!=MouseButton.PRIMARY||e.getClickCount()!=1||RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return;Item clicked=row.getItem();if(detailDrawer!=null&&detailDrawer.isOpen()&&detailItem==clicked)closeDetails();else{selectRow(row);showDetails(clicked);}e.consume();});
+   row.setOnMouseClicked(e->{if(row.isEmpty()||e.getButton()!=MouseButton.PRIMARY||e.getClickCount()!=1||RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return;selectRow(row);e.consume();});
    return row;
   });
  }

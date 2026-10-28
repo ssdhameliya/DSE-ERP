@@ -38,7 +38,17 @@ public final class UpdateService {
      * are removed and a clean download is attempted automatically. A freshly downloaded checksum
      * mismatch is also purged and retried once from byte zero before failing closed.
      */
+    @FunctionalInterface
+    public interface DownloadListener {
+        void onProgress(double fraction, long copiedBytes, long totalBytes, double speedBytesPerSec);
+    }
+
     public VerifiedDownload downloadVerified(UpdateRelease release, UpdateRelease.Asset asset, DoubleConsumer progress) throws Exception {
+        Objects.requireNonNull(progress, "progress");
+        return downloadVerified(release, asset, (fraction, copied, total, speed) -> progress.accept(fraction));
+    }
+
+    public VerifiedDownload downloadVerified(UpdateRelease release, UpdateRelease.Asset asset, DownloadListener progress) throws Exception {
         Objects.requireNonNull(release,"release"); Objects.requireNonNull(asset,"asset"); Objects.requireNonNull(progress,"progress");
         String checksum=expectedChecksum(release,asset.name());
         if(checksum.isBlank())throw new SecurityException("The published DSE ERP release must include checksums.txt with a SHA-256 entry for "+asset.name()+".");
@@ -47,7 +57,7 @@ public final class UpdateService {
         if(Files.isRegularFile(target)){
             if(cachedInstallerMatches(target,asset.size(),checksum)){
                 LOG.info("UPDATE_CACHE_CHECKSUM_OK installer="+target.getFileName());
-                progress.accept(1d);
+                progress.onProgress(1d, asset.size() > 0 ? asset.size() : Files.size(target), asset.size() > 0 ? asset.size() : Files.size(target), 0d);
                 return new VerifiedDownload(target,checksum,true);
             }
             LOG.warning("UPDATE_CACHE_CHECKSUM_MISMATCH installer="+target.getFileName()+"; removing cached installer and partial download");
@@ -67,7 +77,7 @@ public final class UpdateService {
                 lastMismatch=mismatch;
                 LOG.warning("UPDATE_DOWNLOADED_CHECKSUM_MISMATCH installer="+file.getFileName()+" attempt="+verificationAttempt+"; forcing clean redownload");
                 purgeCachedInstaller(file);
-                if(verificationAttempt<2)progress.accept(0d);
+                if(verificationAttempt<2)progress.onProgress(0d, 0L, asset.size(), 0d);
             }
         }
         throw new SecurityException("Update checksum verification failed after a clean redownload. Installation was blocked. "+message(lastMismatch),lastMismatch);
@@ -75,10 +85,16 @@ public final class UpdateService {
 
     /** Downloads bytes only. Call downloadVerified for any installable release asset. */
     public Path download(UpdateRelease.Asset asset, DoubleConsumer progress) throws Exception {
+        Objects.requireNonNull(progress, "progress");
+        return download(asset, (fraction, copied, total, speed) -> progress.accept(fraction));
+    }
+
+    public Path download(UpdateRelease.Asset asset, DownloadListener progress) throws Exception {
         Path target=downloadTarget(asset); Path partial=partialPath(target);
         Files.deleteIfExists(target);
         discardImpossiblePartial(target,asset.size());
         Exception last=null;
+        long startTime = System.nanoTime();
         for(int attempt=1;attempt<=3;attempt++){
             long existing=Files.isRegularFile(partial)?Files.size(partial):0;
             HttpRequest.Builder builder=HttpRequest.newBuilder(asset.downloadUrl()).timeout(Duration.ofMinutes(45)).header("User-Agent","DSE-ERP-Updater");
@@ -93,9 +109,23 @@ public final class UpdateService {
                     ? new StandardOpenOption[]{StandardOpenOption.CREATE,StandardOpenOption.APPEND}
                     : new StandardOpenOption[]{StandardOpenOption.CREATE,StandardOpenOption.TRUNCATE_EXISTING};
                 long copied=existing;
-                try(var in=response.body();var out=Files.newOutputStream(partial,options)){byte[] b=new byte[131072];int n;while((n=in.read(b))>=0){if(n==0)continue;out.write(b,0,n);copied+=n;if(total>0)progress.accept(Math.min(1d,(double)copied/total));}}
+                try(var in=response.body();var out=Files.newOutputStream(partial,options)){
+                    byte[] b=new byte[131072];
+                    int n;
+                    while((n=in.read(b))>=0){
+                        if(n==0)continue;
+                        out.write(b,0,n);
+                        copied+=n;
+                        double elapsedSec = Math.max(0.001, (System.nanoTime() - startTime) / 1_000_000_000.0);
+                        double speed = (copied - existing) / elapsedSec;
+                        double fraction = total > 0 ? Math.min(1d, (double) copied / total) : -1d;
+                        progress.onProgress(fraction, copied, total, speed);
+                    }
+                }
                 if(asset.size()>0&&Files.size(partial)!=asset.size())throw new IllegalStateException("Installer download is incomplete ("+Files.size(partial)+" of "+asset.size()+" bytes).");
-                Files.move(partial,target,StandardCopyOption.REPLACE_EXISTING);progress.accept(1d);return target;
+                Files.move(partial,target,StandardCopyOption.REPLACE_EXISTING);
+                progress.onProgress(1d, copied, total, 0d);
+                return target;
             }catch(Exception failure){last=failure;if(attempt<3)pause(attempt);}
         }
         throw new IllegalStateException("Installer download failed after 3 attempts: "+message(last),last);

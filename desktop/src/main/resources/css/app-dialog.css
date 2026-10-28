@@ -111,7 +111,11 @@
     -fx-cursor: hand;
     -fx-graphic-text-gap: 7;
 }
-.dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell {
+.dse-dialog-pane.dse-dialog-workspace .dse-dialog-shell,
+.dse-dialog-pane.erp-document-inspection-dialog .dse-dialog-shell {
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
     -fx-min-width: 860;
     -fx-pref-width: 1080;
     -fx-min-height: 480;
@@ -616,4 +620,128 @@
 .bank-import-metric-imported { -fx-text-fill: #34d399; }
 .bank-import-metric-skipped { -fx-text-fill: #fbbf24; }
 .bank-import-metric-error { -fx-text-fill: #f87171; }
+
+/* Document Inspection Window Pop-up Styles */
+.erp-document-inspection-dialog .dse-dialog-shell {
+    -fx-min-width: 960px;
+    -fx-pref-width: 1080px;
+    -fx-max-width: 1280px;
+    -fx-min-height: 600px;
+    -fx-pref-height: 740px;
+    -fx-max-height: 860px;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+}
+
+.document-inspection-content {
+    -fx-padding: 16 22;
+    -fx-spacing: 12;
+}
+
+.inspection-hero-bar {
+    -fx-padding: 6 10 12 10;
+    -fx-border-color: rgba(148, 163, 184, 0.2);
+    -fx-border-width: 0 0 1 0;
+}
+
+.inspection-kicker {
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+    -fx-letter-spacing: 0.8px;
+    -fx-text-fill: #38bdf8;
+}
+
+.inspection-hero-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #0ea5e9;
+}
+
+.inspection-meta-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94a3b8;
+}
+
+.inspection-overview-strip {
+    -fx-spacing: 12;
+}
+
+.inspection-card {
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+    -fx-border-color: rgba(148, 163, 184, 0.18);
+    -fx-background-color: rgba(30, 41, 59, 0.45);
+    -fx-padding: 10 14;
+}
+
+.inspection-card-title {
+    -fx-font-size: 12.5px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #94a3b8;
+}
+
+.inspection-card-caption {
+    -fx-font-size: 11.5px;
+    -fx-text-fill: #64748b;
+}
+
+.inspection-card-value {
+    -fx-font-size: 12px;
+    -fx-text-fill: #e2e8f0;
+}
+
+.inspection-value-bold {
+    -fx-font-weight: bold;
+}
+
+.inspection-items-table {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+.inspection-footer-totals {
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #38bdf8;
+}
+
+.inspection-action-dock {
+    -fx-padding: 10 0 4 0;
+    -fx-border-color: rgba(148, 163, 184, 0.2);
+    -fx-border-width: 1 0 0 0;
+}
+
+.inspection-charges-box {
+    -fx-background-color: rgba(30, 41, 59, 0.35);
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-color: rgba(148, 163, 184, 0.15);
+    -fx-border-width: 1;
+}
+
+/* Light theme overrides for inspection dialog */
+.dse-theme-light .erp-document-inspection-dialog .dse-dialog-shell,
+.dse-theme-light.erp-document-inspection-dialog .dse-dialog-shell {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cbd5e1;
+}
+
+.dse-theme-light .inspection-card {
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #e2e8f0;
+}
+
+.dse-theme-light .inspection-card-value {
+    -fx-text-fill: #1e293b;
+}
+
+.dse-theme-light .inspection-card-caption {
+    -fx-text-fill: #64748b;
+}
+
+.dse-theme-light .inspection-meta-label {
+    -fx-text-fill: #64748b;
+}
+
 

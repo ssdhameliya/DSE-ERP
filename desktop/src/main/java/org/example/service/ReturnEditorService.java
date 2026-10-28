@@ -157,7 +157,7 @@ public final class ReturnEditorService {
             PopupTableWorkspace.footerText("Enter a reason for every selected return item."));
         VBox content = PopupTableWorkspace.content(metrics, tableArea, footer);
         dialog.getDialogPane().setContent(content);
-        PopupTableWorkspace.prepareDialog(dialog, 1160);
+        PopupTableWorkspace.applyInspectionSizing(dialog, null);
 
         ButtonType save = new ButtonType("Create Return", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
