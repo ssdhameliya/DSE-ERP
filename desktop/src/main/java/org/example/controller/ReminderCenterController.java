@@ -727,7 +727,11 @@ public class ReminderCenterController implements ScreenLifecycle {
 
     private void setDetailVisible(boolean visible) {
         if (reminderDetailPanel == null) return;
-        RegisterUiSupport.hideDrawer(reminderDetailPanel, reminderWorkspace, table);
+        if (visible) {
+            RegisterUiSupport.showDrawer(reminderDetailPanel, reminderWorkspace, 0.64);
+        } else {
+            RegisterUiSupport.hideDrawer(reminderDetailPanel, reminderWorkspace, table);
+        }
     }
 
     public void showReminderInspectionDialog(ReminderRow row) {

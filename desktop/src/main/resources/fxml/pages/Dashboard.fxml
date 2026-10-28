@@ -164,6 +164,12 @@
                 </Button>
                 <Label fx:id="lblEmailBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
             </StackPane>
+            <StackPane styleClass="notification-button-wrap">
+                <Button fx:id="btnWhatsappCenter" contentDisplay="GRAPHIC_ONLY" onAction="#openWhatsappCenter" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
+                    <tooltip><Tooltip text="WhatsApp activity"/></tooltip>
+                </Button>
+                <Label fx:id="lblWhatsappBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
             <Button fx:id="btnShortcutInfo" contentDisplay="GRAPHIC_ONLY" onAction="#showShortcutInfo" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
                 <tooltip><Tooltip text="Keyboard shortcuts"/></tooltip>
             </Button>
