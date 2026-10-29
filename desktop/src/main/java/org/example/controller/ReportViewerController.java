@@ -200,6 +200,9 @@ public class ReportViewerController implements ScreenLifecycle {
         current=result;page=result.page();lblTitle.setText(result.title());lblDescription.setText(result.description());updateReportIdentityIcon();
         if(visibleKeys.isEmpty())for(ReportColumn c:result.columns())if(c.defaultVisible())visibleKeys.add(c.key());
         configureColumns(result);configureGroups(result);configureSort(result);renderFilters(result);tblReport.getItems().setAll(result.rows());
+        org.example.util.DynamicTableLayoutManager.install(tblReport);
+        org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblReport);
+        org.example.util.DynamicTableLayoutManager.forceLayout(tblReport);
         lblRecords.setText("Showing "+(result.rows().isEmpty()?0:(page*result.size()+1))+" to "+Math.min(result.totalRows(),(long)(page*result.size()+result.rows().size()))+" of "+result.totalRows()+" entries");
         lblPage.setText((result.page()+1)+" / "+Math.max(1,result.totalPages()));boolean first=result.page()<=0,last=result.page()>=result.totalPages()-1;btnFirst.setDisable(first);btnPrev.setDisable(first);btnNext.setDisable(last);btnLast.setDisable(last);setBusy(false);rendering=false;pendingSavedRequest=null;
         ScreenRefreshPolicy.markRefreshed("report-viewer:"+reportId);

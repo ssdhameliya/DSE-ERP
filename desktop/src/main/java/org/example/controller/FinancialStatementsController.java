@@ -116,6 +116,7 @@ public class FinancialStatementsController implements ScreenLifecycle {
             }
         });
         pnlContextMenu.getItems().addAll(miPnlDrill, miPnlLedger);
+        IconFactory.decorateActionMenu(pnlContextMenu);
         treeTblPnl.setContextMenu(pnlContextMenu);
 
         ContextMenu bsContextMenu = new ContextMenu();
@@ -129,6 +130,7 @@ public class FinancialStatementsController implements ScreenLifecycle {
             }
         });
         bsContextMenu.getItems().addAll(miBsDrill, miBsLedger);
+        IconFactory.decorateActionMenu(bsContextMenu);
         treeTblBs.setContextMenu(bsContextMenu);
 
         refreshStatements();

@@ -227,6 +227,8 @@ public class ReportsController implements ScreenLifecycle {
         lblLowStock.setText(d.low()+" low-stock items"); lblCustomers.setText(String.valueOf(d.customers()));
         double margin=d.sales()==0?0:(d.profit()/d.sales())*100; lblMargin.setText(String.format("%.2f%%",margin)); profitProgress.setProgress(Math.max(0,Math.min(1,Math.abs(margin)/100)));
         tblSales.getItems().setAll(d.salesRows()); tblPurchases.getItems().setAll(d.purchaseRows());
+        org.example.util.DynamicTableLayoutManager.forceLayout(tblSales);
+        org.example.util.DynamicTableLayoutManager.forceLayout(tblPurchases);
         paymentSummary.getItems().setAll("Total Receivables  •  "+money(d.receivables()),"Received Amount   •  "+money(d.salesPaid()),"Total Payables    •  "+money(d.payables()),"Paid Amount       •  "+money(d.purchasesPaid()));
         stockSummary.getItems().setAll("Total Items       •  "+d.items(),"Low Stock Items   •  "+d.low(),"Out of Stock      •  "+d.out(),"Stock Value       •  "+money(d.stock()));
         topCustomersSummary.getItems().setAll(summaryLines(d.customerPoints(),"No customer sales in selected period"));
@@ -567,8 +569,12 @@ public class ReportsController implements ScreenLifecycle {
     private void configureReportTables(){
         org.example.util.DynamicTableLayoutManager.install(tblSales);
         org.example.util.DynamicTableLayoutManager.install(tblPurchases);
+        if (tblSavedReports != null) org.example.util.DynamicTableLayoutManager.install(tblSavedReports);
+        if (tblSchedules != null) org.example.util.DynamicTableLayoutManager.install(tblSchedules);
         org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblSales);
         org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblPurchases);
+        if (tblSavedReports != null) org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblSavedReports);
+        if (tblSchedules != null) org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblSchedules);
     }
     private void configureIcons(){
         if(reportPageIcon!=null)reportPageIcon.getChildren().setAll(IconFactory.icon("report",24));

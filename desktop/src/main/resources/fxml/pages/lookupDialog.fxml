@@ -10,8 +10,9 @@
         </HBox>
     </top>
     <center>
-        <VBox spacing="12" styleClass="premium-dialog-content">
-            <Label text="Master Information" styleClass="dialog-section-title"/>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="dialog-scroll-pane">
+            <VBox spacing="12" styleClass="premium-dialog-content">
+                <Label text="Master Information" styleClass="dialog-section-title"/>
             <GridPane hgap="18" vgap="8" styleClass="premium-form-grid">
                 <columnConstraints>
                     <ColumnConstraints minWidth="145" prefWidth="145"/>
@@ -40,6 +41,7 @@
                 <CheckBox fx:id="chkActive" text="Active in application dropdowns" selected="true" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
             </GridPane>
         </VBox>
+        </ScrollPane>
     </center>
     <bottom>
         <HBox spacing="12" alignment="CENTER_RIGHT" styleClass="entity-dialog-actions,premium-dialog-actions">

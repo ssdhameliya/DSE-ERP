@@ -112,7 +112,7 @@ public final class QuotationDocumentInspectionDialog {
         Button btnCopy = new Button();
         btnCopy.setGraphic(IconFactory.compactIcon("copy", 13));
         btnCopy.setTooltip(new Tooltip("Copy quotation number"));
-        btnCopy.getStyleClass().addAll("icon-button", "copy-ref-button", "approved-button", "approved-secondary-button");
+        btnCopy.getStyleClass().addAll("icon-button", "copy-ref-button", "approved-button");
         btnCopy.setOnAction(e -> {
             Clipboard clipboard = Clipboard.getSystemClipboard();
             ClipboardContent content = new ClipboardContent();
@@ -249,54 +249,165 @@ public final class QuotationDocumentInspectionDialog {
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
         table.setPlaceholder(new Label("Loading line items…"));
 
+        table.setFixedCellSize(36.0);
+
         TableColumn<QuotationApiClient.LineDto, Number> colIndex = new TableColumn<>("#");
-        colIndex.setPrefWidth(42);
+        colIndex.setPrefWidth(46);
+        colIndex.setMinWidth(40);
         colIndex.setSortable(false);
         colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(table.getItems().indexOf(v.getValue()) + 1));
-        colIndex.setStyle("-fx-alignment: CENTER;");
+        colIndex.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : String.valueOf(item));
+                setAlignment(Pos.CENTER);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colIndex, "index");
 
         TableColumn<QuotationApiClient.LineDto, String> colCode = new TableColumn<>("Item Code");
-        colCode.setPrefWidth(120);
+        colCode.setPrefWidth(125);
+        colCode.setMinWidth(95);
         colCode.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().code())));
+        colCode.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    setText(null);
+                    setCursor(javafx.scene.Cursor.DEFAULT);
+                    setTooltip(null);
+                    setOnMouseClicked(null);
+                    return;
+                }
+                setText(item);
+                getStyleClass().addAll("erp-table-link-cell", "erp-table-value-colour-blue");
+                setCursor(javafx.scene.Cursor.HAND);
+                setTooltip(new Tooltip("Item: " + item + " (Click to copy code)"));
+                setOnMouseClicked(e -> {
+                    if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                        Clipboard clipboard = Clipboard.getSystemClipboard();
+                        ClipboardContent content = new ClipboardContent();
+                        content.putString(item);
+                        clipboard.setContent(content);
+                        ToastManager.info(getTableView(), "Copied", item + " copied to clipboard.");
+                    }
+                });
+            }
+        });
         IconFactory.applyTableHeaderIcon(colCode, "item");
 
         TableColumn<QuotationApiClient.LineDto, String> colDesc = new TableColumn<>("Item Description");
         colDesc.setPrefWidth(240);
+        colDesc.setMinWidth(160);
         colDesc.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().description())));
+        colDesc.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-purple");
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        });
         IconFactory.applyTableHeaderIcon(colDesc, "document");
 
         TableColumn<QuotationApiClient.LineDto, String> colHsn = new TableColumn<>("HSN / SAC");
-        colHsn.setPrefWidth(90);
+        colHsn.setPrefWidth(95);
+        colHsn.setMinWidth(75);
         colHsn.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().hsn())));
+        colHsn.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-indigo");
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colHsn, "tax");
 
         TableColumn<QuotationApiClient.LineDto, String> colUnit = new TableColumn<>("Unit");
-        colUnit.setPrefWidth(65);
+        colUnit.setPrefWidth(70);
+        colUnit.setMinWidth(55);
         colUnit.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().unit())));
+        colUnit.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-teal");
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colUnit, "unit");
 
         TableColumn<QuotationApiClient.LineDto, String> colQty = new TableColumn<>("Quantity");
         colQty.setPrefWidth(85);
+        colQty.setMinWidth(70);
         colQty.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%,.2f", v.getValue().quantity())));
-        colQty.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colQty.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colQty, "quantity");
 
         TableColumn<QuotationApiClient.LineDto, String> colRate = new TableColumn<>("Rate");
         colRate.setPrefWidth(95);
+        colRate.setMinWidth(75);
         colRate.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().rate())));
-        colRate.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colRate.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-green");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colRate, "rate");
 
         TableColumn<QuotationApiClient.LineDto, String> colDiscount = new TableColumn<>("Discount");
-        colDiscount.setPrefWidth(85);
+        colDiscount.setPrefWidth(90);
+        colDiscount.setMinWidth(70);
         colDiscount.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().discount())));
-        colDiscount.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colDiscount.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colDiscount, "discount");
 
         TableColumn<QuotationApiClient.LineDto, String> colGst = new TableColumn<>("GST %");
-        colGst.setPrefWidth(75);
+        colGst.setPrefWidth(80);
+        colGst.setMinWidth(65);
         colGst.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%.1f%%", v.getValue().gst())));
-        colGst.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colGst.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colGst, "tax");
 
         TableColumn<QuotationApiClient.LineDto, String> colTotal = new TableColumn<>("Line Total");
         colTotal.setPrefWidth(120);
+        colTotal.setMinWidth(100);
         colTotal.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().total())));
-        colTotal.setStyle("-fx-alignment: CENTER_RIGHT; -fx-font-weight: bold;");
+        colTotal.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-green");
+                setStyle("-fx-font-weight: bold;");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colTotal, "total");
 
         table.getColumns().addAll(colIndex, colCode, colDesc, colHsn, colUnit, colQty, colRate, colDiscount, colGst, colTotal);
         DynamicTableLayoutManager.install(table);
@@ -395,7 +506,7 @@ public final class QuotationDocumentInspectionDialog {
         // 1. Edit Quotation
         Button btnEdit = new Button("Edit Quotation");
         btnEdit.setGraphic(IconFactory.compactIcon("edit", 14));
-        btnEdit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnEdit.getStyleClass().addAll("approved-button", "approved-amber-button");
         btnEdit.setDisable(alreadyConverted);
         if (alreadyConverted) {
             btnEdit.setTooltip(new Tooltip("Converted quotations are read-only. Duplicate the quotation to create a new revision."));
@@ -411,7 +522,7 @@ public final class QuotationDocumentInspectionDialog {
         // 2. Duplicate Quotation
         Button btnDuplicate = new Button("Duplicate");
         btnDuplicate.setGraphic(IconFactory.compactIcon("copy", 14));
-        btnDuplicate.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnDuplicate.getStyleClass().addAll("approved-button", "approved-indigo-button");
         btnDuplicate.setOnAction(e -> {
             String actor = SessionService.current() == null ? "Admin" : SessionService.current().getFullName();
             UiTaskExecutor.submitAction("quotation-duplicate-" + quote.id(), () -> {
@@ -443,7 +554,7 @@ public final class QuotationDocumentInspectionDialog {
         // 4. Excel
         Button btnExcel = new Button("Excel");
         btnExcel.setGraphic(IconFactory.compactIcon("excel", 14));
-        btnExcel.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnExcel.getStyleClass().addAll("approved-button", "approved-emerald-button");
         btnExcel.setOnAction(e -> {
             UiTaskExecutor.submitAction("quotation-excel-" + quote.id(), () -> {
                 return org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.QUOTATION, quote.no());
@@ -459,7 +570,7 @@ public final class QuotationDocumentInspectionDialog {
         // 5. Email
         Button btnEmail = new Button("Email");
         btnEmail.setGraphic(IconFactory.compactIcon("email", 14));
-        btnEmail.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnEmail.getStyleClass().addAll("approved-button", "approved-sky-button");
         btnEmail.setOnAction(e -> {
             UiTaskExecutor.submitAction("quotation-prepare-email-" + quote.id(), () -> {
                 Path pdf = ManagedInvoicePdfService.quotation(quote.no());
@@ -560,7 +671,7 @@ public final class QuotationDocumentInspectionDialog {
         // 8. Audit Trail
         Button btnAudit = new Button("Audit Trail");
         btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
-        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.getStyleClass().addAll("approved-button", "approved-slate-button");
         btnAudit.setOnAction(e -> {
             UiTaskExecutor.submitLatest("quote-audit-" + quote.no(),
                     () -> support.resolveRecord("QUOTATION", quote.no()),
@@ -579,7 +690,7 @@ public final class QuotationDocumentInspectionDialog {
 
         Button btnClose = new Button("Close");
         btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
-        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.getStyleClass().addAll("approved-button", "approved-danger-ghost-button");
         btnClose.setOnAction(e -> dialog.close());
 
         dock.getChildren().addAll(spacer, btnClose);

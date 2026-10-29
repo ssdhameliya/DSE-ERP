@@ -9,6 +9,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.example.theme.ThemeManager;
 
 import java.util.Locale;
@@ -51,8 +52,15 @@ public final class AppDialogRenderer {
             if (scene != null) {
                 if (!PlatformUiSupport.isMac()) scene.setFill(Color.TRANSPARENT);
                 applyTheme(dialog, scene);
+                PlatformUiSupport.installResponsiveClasses(scene);
             }
             render(dialog);
+            if (pane.getContent() != null) ProfessionalUiEnhancer.enhance(pane.getContent());
+            DynamicTableLayoutManager.requestLayoutIn(pane);
+            if (scene != null && scene.getRoot() != null) {
+                scene.getRoot().applyCss();
+                scene.getRoot().layout();
+            }
             if (scene != null && scene.getWindow() instanceof Stage stage) {
                 boolean workspace = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE))
                         || pane.getStyleClass().contains("dse-dialog-workspace");
@@ -60,7 +68,13 @@ public final class AppDialogRenderer {
                 else WindowUtilsFx.fitCompactDialogToOwnerScreen(stage, stage.getOwner());
             }
         });
-        dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> finish(dialog)));
+        dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
+            Scene scene = pane.getScene();
+            if (scene != null && scene.getRoot() != null) {
+                UiDiagnostics.audit(scene.getRoot(), "dialog:" + safe(dialog.getTitle()));
+                PlatformUiSupport.animateEntrance(scene.getRoot());
+            }
+        });
     }
 
     public static void configureMessage(Dialog<?> dialog, String semantic, String title, String heading, String message, String detail) {
@@ -204,6 +218,22 @@ public final class AppDialogRenderer {
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("dse-dialog-header");
 
+        final double[] dragDelta = new double[2];
+        header.setOnMousePressed(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                dragDelta[0] = w.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = w.getY() - mouseEvent.getScreenY();
+            }
+        });
+        header.setOnMouseDragged(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                w.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                w.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
+
         VBox body = new VBox(14);
         body.getStyleClass().add("dse-dialog-body");
         if (customContent != null && !workspace) {
@@ -227,11 +257,26 @@ public final class AppDialogRenderer {
             if (workspace) VBox.setVgrow(customContent, Priority.ALWAYS);
         }
 
-        VBox shell = new VBox(accent, header, body);
+        Node bodyNode;
+        if (workspace) {
+            VBox.setVgrow(body, Priority.ALWAYS);
+            bodyNode = body;
+        } else {
+            ScrollPane bodyScroll = new ScrollPane(body);
+            bodyScroll.setFitToWidth(true);
+            bodyScroll.setFitToHeight(true);
+            bodyScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            bodyScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            bodyScroll.getStyleClass().addAll("dse-dialog-scroll", "edge-to-edge");
+            bodyScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0;");
+            VBox.setVgrow(bodyScroll, Priority.ALWAYS);
+            bodyNode = bodyScroll;
+        }
+
+        VBox shell = new VBox(accent, header, bodyNode);
         shell.getStyleClass().addAll("dse-dialog-shell", "erp-ui-standard");
         if (workspace) {
             shell.getStyleClass().add("dse-dialog-shell-workspace");
-            VBox.setVgrow(body, Priority.ALWAYS);
         }
         return shell;
     }
@@ -249,26 +294,13 @@ public final class AppDialogRenderer {
         return card;
     }
 
-    private static void finish(Dialog<?> dialog) {
+    static void finish(Dialog<?> dialog) {
+        if (dialog == null) return;
         DialogPane pane = dialog.getDialogPane();
         Scene scene = pane.getScene();
-        if (scene != null) {
-            if (!PlatformUiSupport.isMac()) scene.setFill(Color.TRANSPARENT);
-            applyTheme(dialog, scene);
-            PlatformUiSupport.installResponsiveClasses(scene);
-            if (scene.getRoot() != null) UiDiagnostics.audit(scene.getRoot(), "dialog:" + safe(dialog.getTitle()));
+        if (scene != null && scene.getRoot() != null) {
+            UiDiagnostics.audit(scene.getRoot(), "dialog:" + safe(dialog.getTitle()));
         }
-        String semantic = normalizeSemantic(explicit(pane, SEMANTIC));
-        styleActions(dialog, pane, semantic, safe(dialog.getTitle()), "", "");
-        promoteActionBar(pane);
-        if (scene != null && scene.getWindow() instanceof Stage stage) {
-            boolean workspace = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE))
-                    || pane.getStyleClass().contains("dse-dialog-workspace");
-            if (workspace) WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
-            else WindowUtilsFx.fitCompactDialogToOwnerScreen(stage, stage.getOwner());
-        }
-        DynamicTableLayoutManager.requestLayoutIn(pane);
-        if (pane.getContent() != null) ProfessionalUiEnhancer.enhance(pane.getContent());
     }
 
     private static void styleActions(Dialog<?> dialog, DialogPane pane, String semantic, String title, String heading, String message) {

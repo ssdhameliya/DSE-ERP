@@ -32,6 +32,9 @@ import javafx.scene.layout.BorderPane;
 import javafx.geometry.Pos;
 import javafx.application.Platform;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.Cursor;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.text.Text;
 import javafx.collections.ListChangeListener;
 
@@ -123,6 +126,14 @@ public final class ProfessionalUiEnhancer {
         UiDesignSystem.decorate(node);
         ResponsiveKpiLayoutManager.install(node);
         if (node instanceof TableView<?> table) enhanceTable(table);
+        if (node instanceof TabPane tabPane && !Boolean.TRUE.equals(tabPane.getProperties().get("erp-tab-enhanced"))) {
+            tabPane.getProperties().put("erp-tab-enhanced", true);
+            tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+                if (newTab != null && newTab.getContent() != null) {
+                    DynamicTableLayoutManager.requestLayoutIn(newTab.getContent());
+                }
+            });
+        }
         if (node instanceof DialogPane pane) enhanceDialog(pane);
         if (node instanceof PasswordField passwordField) schedulePasswordReveal(passwordField);
 
@@ -665,7 +676,8 @@ public final class ProfessionalUiEnhancer {
             } else if (semantic != null
                 && column.getCellFactory() == TableColumn.DEFAULT_CELL_FACTORY) {
                 final String valueSemantic = semantic;
-                column.setCellFactory(ignored -> new SemanticValueCell(valueSemantic));
+                final String columnHeading = heading;
+                column.setCellFactory(ignored -> new SemanticValueCell(valueSemantic, columnHeading));
             }
         }
     }
@@ -840,24 +852,75 @@ public final class ProfessionalUiEnhancer {
         return null;
     }
 
-    /** Colours ordinary default table values using the same semantic family as the header. */
+    /** Colours ordinary default table values using the same semantic family as the header and formats links/numbers. */
     private static final class SemanticValueCell extends TableCell<Object, Object> {
         private final String semantic;
+        private final String heading;
+        private final boolean isLink;
+        private final boolean isNumeric;
+        private final boolean isCentered;
 
-        private SemanticValueCell(String semantic) {
-            this.semantic = semantic;
+        private SemanticValueCell(String semantic, String heading) {
+            this.semantic = semantic == null ? "" : semantic.toLowerCase(Locale.ROOT);
+            this.heading = heading == null ? "" : heading.toLowerCase(Locale.ROOT);
+            String s = this.semantic;
+            String h = this.heading;
+            this.isLink = s.contains("code") || s.contains("item") || s.contains("invoice") || s.contains("reference")
+                    || s.contains("document") || s.contains("quotation") || s.contains("bill") || s.contains("order")
+                    || s.contains("return") || s.contains("voucher") || s.contains("note") || s.contains("entry")
+                    || h.contains("code") || h.contains("invoice") || h.contains("quotation") || h.contains("bill")
+                    || h.contains("po") || h.contains("voucher") || h.contains("return no") || h.contains("note no")
+                    || h.contains("ref") || h.contains("challan") || h.contains("order no");
+            this.isNumeric = this.semantic.contains("rate") || this.semantic.contains("amount") || this.semantic.contains("price")
+                    || this.semantic.contains("total") || this.semantic.contains("quantity") || this.semantic.contains("discount")
+                    || this.semantic.contains("balance") || this.semantic.contains("paid") || this.semantic.contains("tax")
+                    || this.heading.contains("amount") || this.heading.contains("total") || this.heading.contains("rate")
+                    || this.heading.contains("quantity") || this.heading.contains("price") || this.heading.contains("gst");
+            this.isCentered = this.semantic.contains("index") || this.heading.equals("#") || this.heading.equals("no.");
         }
 
         @Override protected void updateItem(Object item, boolean empty) {
             super.updateItem(item, empty);
-            getStyleClass().removeIf(style -> style != null && style.startsWith("erp-table-value-colour-"));
+            getStyleClass().removeIf(style -> style != null && (style.startsWith("erp-table-value-colour-") || style.equals("erp-table-link-cell")));
             setGraphic(null);
             if (empty || item == null) {
                 setText(null);
+                setCursor(Cursor.DEFAULT);
+                setTooltip(null);
+                setOnMouseClicked(null);
                 return;
             }
-            setText(String.valueOf(item));
-            getStyleClass().add("erp-table-value-colour-" + IconFactory.semanticColour(semantic));
+            String str = String.valueOf(item);
+            setText(str);
+            String color = IconFactory.semanticColour(semantic);
+            getStyleClass().add("erp-table-value-colour-" + color);
+
+            if (isCentered) {
+                setAlignment(Pos.CENTER);
+            } else if (isNumeric) {
+                setAlignment(Pos.CENTER_RIGHT);
+            } else {
+                setAlignment(Pos.CENTER_LEFT);
+            }
+
+            if (isLink && !str.isBlank() && !"-".equals(str) && !"—".equals(str)) {
+                getStyleClass().add("erp-table-link-cell");
+                setCursor(Cursor.HAND);
+                setTooltip(new Tooltip(str + " (Click to copy)"));
+                setOnMouseClicked(e -> {
+                    if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                        Clipboard clipboard = Clipboard.getSystemClipboard();
+                        ClipboardContent content = new ClipboardContent();
+                        content.putString(str);
+                        clipboard.setContent(content);
+                        ToastManager.info(getTableView(), "Copied", str + " copied to clipboard.");
+                    }
+                });
+            } else {
+                setCursor(Cursor.DEFAULT);
+                setTooltip(null);
+                setOnMouseClicked(null);
+            }
         }
     }
 

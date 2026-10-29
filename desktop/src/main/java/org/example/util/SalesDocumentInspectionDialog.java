@@ -130,7 +130,7 @@ public final class SalesDocumentInspectionDialog {
         Button btnCopy = new Button();
         btnCopy.setGraphic(IconFactory.compactIcon("copy", 13));
         btnCopy.setTooltip(new Tooltip("Copy invoice number"));
-        btnCopy.getStyleClass().addAll("icon-button", "copy-ref-button", "approved-button", "approved-secondary-button");
+        btnCopy.getStyleClass().addAll("icon-button", "copy-ref-button", "approved-button");
         btnCopy.setOnAction(e -> {
             Clipboard clipboard = Clipboard.getSystemClipboard();
             ClipboardContent content = new ClipboardContent();
@@ -284,65 +284,184 @@ public final class SalesDocumentInspectionDialog {
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
         table.setPlaceholder(new Label("No line items associated with this sales invoice."));
 
+        table.setFixedCellSize(36.0);
+
         TableColumn<SalesLine, Number> colIndex = new TableColumn<>("#");
-        colIndex.setPrefWidth(42);
+        colIndex.setPrefWidth(46);
+        colIndex.setMinWidth(40);
         colIndex.setSortable(false);
         colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(table.getItems().indexOf(v.getValue()) + 1));
-        colIndex.setStyle("-fx-alignment: CENTER;");
+        colIndex.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : String.valueOf(item));
+                setAlignment(Pos.CENTER);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colIndex, "index");
 
         TableColumn<SalesLine, String> colCode = new TableColumn<>("Item Code");
-        colCode.setPrefWidth(120);
+        colCode.setPrefWidth(125);
+        colCode.setMinWidth(95);
         colCode.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemCode())));
+        colCode.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.isBlank()) {
+                    setText(null);
+                    setCursor(javafx.scene.Cursor.DEFAULT);
+                    setTooltip(null);
+                    setOnMouseClicked(null);
+                    return;
+                }
+                setText(item);
+                getStyleClass().addAll("erp-table-link-cell", "erp-table-value-colour-blue");
+                setCursor(javafx.scene.Cursor.HAND);
+                setTooltip(new Tooltip("Item: " + item + " (Click to copy code)"));
+                setOnMouseClicked(e -> {
+                    if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                        Clipboard clipboard = Clipboard.getSystemClipboard();
+                        ClipboardContent content = new ClipboardContent();
+                        content.putString(item);
+                        clipboard.setContent(content);
+                        ToastManager.info(getTableView(), "Copied", item + " copied to clipboard.");
+                    }
+                });
+            }
+        });
         IconFactory.applyTableHeaderIcon(colCode, "item");
 
         TableColumn<SalesLine, String> colDesc = new TableColumn<>("Item Description");
         colDesc.setPrefWidth(220);
+        colDesc.setMinWidth(150);
         colDesc.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemDescription())));
+        colDesc.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-purple");
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        });
         IconFactory.applyTableHeaderIcon(colDesc, "document");
 
         TableColumn<SalesLine, String> colHsn = new TableColumn<>("HSN / SAC");
-        colHsn.setPrefWidth(90);
+        colHsn.setPrefWidth(95);
+        colHsn.setMinWidth(75);
         colHsn.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemHsn())));
+        colHsn.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-indigo");
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        });
         IconFactory.applyTableHeaderIcon(colHsn, "tax");
 
         TableColumn<SalesLine, String> colUnit = new TableColumn<>("Unit");
-        colUnit.setPrefWidth(65);
+        colUnit.setPrefWidth(70);
+        colUnit.setMinWidth(55);
         colUnit.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemUnit())));
+        colUnit.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-teal");
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colUnit, "unit");
 
         TableColumn<SalesLine, String> colQty = new TableColumn<>("Quantity");
         colQty.setPrefWidth(85);
+        colQty.setMinWidth(70);
         colQty.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%,.2f", v.getValue().getQuantity())));
-        colQty.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colQty.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colQty, "quantity");
 
         TableColumn<SalesLine, String> colRate = new TableColumn<>("Rate");
         colRate.setPrefWidth(95);
+        colRate.setMinWidth(75);
         colRate.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().getRate())));
-        colRate.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colRate.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-green");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colRate, "rate");
 
         TableColumn<SalesLine, String> colDiscount = new TableColumn<>("Discount");
-        colDiscount.setPrefWidth(90);
+        colDiscount.setPrefWidth(95);
+        colDiscount.setMinWidth(75);
         colDiscount.setCellValueFactory(v -> {
             double dAmt = v.getValue().getDiscountAmount();
             double dPct = v.getValue().getDiscountPercent();
             if (dAmt > 0.009) return new ReadOnlyStringWrapper(money(dAmt) + " (" + String.format(Locale.ROOT, "%.1f%%", dPct) + ")");
             return new ReadOnlyStringWrapper("—");
         });
-        colDiscount.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colDiscount.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colDiscount, "discount");
 
         TableColumn<SalesLine, String> colGst = new TableColumn<>("GST %");
-        colGst.setPrefWidth(75);
+        colGst.setPrefWidth(80);
+        colGst.setMinWidth(65);
         colGst.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%.1f%%", v.getValue().getGstPercent())));
-        colGst.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colGst.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colGst, "tax");
 
         TableColumn<SalesLine, String> colTax = new TableColumn<>("GST Amount");
-        colTax.setPrefWidth(95);
+        colTax.setPrefWidth(100);
+        colTax.setMinWidth(80);
         colTax.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().getGstAmount())));
-        colTax.setStyle("-fx-alignment: CENTER_RIGHT;");
+        colTax.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-teal");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colTax, "tax-amount");
 
         TableColumn<SalesLine, String> colTotal = new TableColumn<>("Line Total");
-        colTotal.setPrefWidth(115);
+        colTotal.setPrefWidth(120);
+        colTotal.setMinWidth(100);
         colTotal.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().getTotalAmount())));
-        colTotal.setStyle("-fx-alignment: CENTER_RIGHT; -fx-font-weight: bold;");
+        colTotal.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                getStyleClass().add("erp-table-value-colour-green");
+                setStyle("-fx-font-weight: bold;");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
+        });
+        IconFactory.applyTableHeaderIcon(colTotal, "total");
 
         table.getColumns().addAll(colIndex, colCode, colDesc, colHsn, colUnit, colQty, colRate, colDiscount, colGst, colTax, colTotal);
         DynamicTableLayoutManager.install(table);
@@ -421,10 +540,12 @@ public final class SalesDocumentInspectionDialog {
         colMode.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().mode())));
         IconFactory.applyTableHeaderIcon(colMode, "payment");
 
+        table.setFixedCellSize(36.0);
+
         TableColumn<SupportApiClient.PaymentRow, String> colAmount = new TableColumn<>("Amount");
         colAmount.setPrefWidth(130);
         colAmount.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().amount())));
-        colAmount.setStyle("-fx-alignment: CENTER_RIGHT; -fx-font-weight: bold;");
+        colAmount.setCellFactory(c -> SemanticTableCells.moneyString("green"));
         IconFactory.applyTableHeaderIcon(colAmount, "currency");
 
         TableColumn<SupportApiClient.PaymentRow, String> colNotes = new TableColumn<>("Notes / Remarks");
@@ -755,7 +876,7 @@ public final class SalesDocumentInspectionDialog {
         // 1. Edit Sale
         Button btnEdit = new Button("Edit Sale");
         btnEdit.setGraphic(IconFactory.compactIcon("edit", 14));
-        btnEdit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnEdit.getStyleClass().addAll("approved-button", "approved-amber-button");
         boolean canEdit = !inactive && !financiallyLocked;
         btnEdit.setDisable(!canEdit);
         if (!canEdit) {
@@ -772,7 +893,7 @@ public final class SalesDocumentInspectionDialog {
         // 2. Duplicate Sale
         Button btnDuplicate = new Button("Duplicate Sale");
         btnDuplicate.setGraphic(IconFactory.compactIcon("copy", 14));
-        btnDuplicate.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnDuplicate.getStyleClass().addAll("approved-button", "approved-indigo-button");
         btnDuplicate.setDisable(inactive);
         btnDuplicate.setOnAction(e -> {
             dialog.close();
@@ -795,7 +916,7 @@ public final class SalesDocumentInspectionDialog {
         // 3. Tax Invoice PDF
         Button btnPrint = new Button("Tax Invoice PDF");
         btnPrint.setGraphic(IconFactory.compactIcon("print", 14));
-        btnPrint.getStyleClass().addAll("approved-button", "approved-primary-button");
+        btnPrint.getStyleClass().addAll("approved-button", "approved-purple-button");
         btnPrint.setOnAction(e -> {
             UiTaskExecutor.submitAction("sales-pdf-" + sale.getId(), () -> {
                 Sales full = service.getByInvoice(sale.getInvoiceNo());
@@ -812,13 +933,13 @@ public final class SalesDocumentInspectionDialog {
         // 4. Barcode
         Button btnBarcode = new Button("Barcode");
         btnBarcode.setGraphic(IconFactory.compactIcon("barcode", 14));
-        btnBarcode.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnBarcode.getStyleClass().addAll("approved-button", "approved-cyan-button");
         btnBarcode.setOnAction(e -> OrderDispatchBarcodeDialog.showForSale(dialog.getDialogPane(), sale));
 
         // 5. Excel
         Button btnExcel = new Button("Excel");
         btnExcel.setGraphic(IconFactory.compactIcon("excel", 14));
-        btnExcel.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnExcel.getStyleClass().addAll("approved-button", "approved-emerald-button");
         btnExcel.setOnAction(e -> {
             try {
                 Sales full = service.getByInvoice(sale.getInvoiceNo());
@@ -832,7 +953,7 @@ public final class SalesDocumentInspectionDialog {
         // 6. Email
         Button btnEmail = new Button("Email");
         btnEmail.setGraphic(IconFactory.compactIcon("email", 14));
-        btnEmail.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnEmail.getStyleClass().addAll("approved-button", "approved-sky-button");
         btnEmail.setOnAction(e -> {
             UiTaskExecutor.submitAction("sales-prepare-email-" + sale.getId(), () -> {
                 Sales full = service.getByInvoice(sale.getInvoiceNo());
@@ -890,7 +1011,7 @@ public final class SalesDocumentInspectionDialog {
         boolean canPay = !isPaid && !inactive && !approvalLocked;
         Button btnRecordPayment = new Button("Record Payment");
         btnRecordPayment.setGraphic(IconFactory.compactIcon("payment", 14));
-        btnRecordPayment.getStyleClass().addAll("approved-button", canPay ? "approved-primary-button" : "approved-secondary-button");
+        btnRecordPayment.getStyleClass().addAll("approved-button", canPay ? "approved-violet-button" : "approved-slate-button");
         btnRecordPayment.setDisable(!canPay);
         if (isPaid) {
             btnRecordPayment.setTooltip(new Tooltip("Invoice is already fully paid (No pending balance)."));
@@ -909,7 +1030,7 @@ public final class SalesDocumentInspectionDialog {
         boolean returnEligible = isReturnEligible(sale);
         Button btnReturn = new Button("Create Sales Return");
         btnReturn.setGraphic(IconFactory.compactIcon("return", 14));
-        btnReturn.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnReturn.getStyleClass().addAll("approved-button", "approved-coral-button");
         btnReturn.setDisable(!returnEligible);
         if (!returnEligible) {
             btnReturn.setTooltip(new Tooltip("Sales Returns require an approved, settled invoice."));
@@ -925,7 +1046,7 @@ public final class SalesDocumentInspectionDialog {
         // 9. Audit Trail
         Button btnAudit = new Button("Audit Trail");
         btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
-        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.getStyleClass().addAll("approved-button", "approved-slate-button");
         btnAudit.setOnAction(e -> ActivityTimelineDialog.show(dialog.getDialogPane(), "SALE", sale.getId(), sale.getInvoiceNo()));
 
         // Approval actions if pending
@@ -978,7 +1099,7 @@ public final class SalesDocumentInspectionDialog {
 
         Button btnClose = new Button("Close");
         btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
-        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.getStyleClass().addAll("approved-button", "approved-danger-ghost-button");
         btnClose.setOnAction(e -> dialog.close());
 
         dock.getChildren().addAll(spacer, btnClose);

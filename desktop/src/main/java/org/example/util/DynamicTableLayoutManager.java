@@ -70,6 +70,17 @@ public final class DynamicTableLayoutManager {
         // register/dialog layouts.
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
+        if (table.getFixedCellSize() <= 0) {
+            table.setFixedCellSize(38.0);
+        }
+        if (!table.getStyleClass().contains("erp-table-standard")) {
+            table.getStyleClass().add("erp-table-standard");
+        }
+        if (!table.getStyleClass().contains("approved-table")) {
+            table.getStyleClass().add("approved-table");
+        }
+        ProfessionalUiEnhancer.refreshTableDecorations(table);
+
         bindColumns(table);
         bindItems(table, null, table.getItems());
 
@@ -81,35 +92,62 @@ public final class DynamicTableLayoutManager {
         }
 
         table.widthProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue == null || oldValue == null || Math.abs(newValue.doubleValue() - oldValue.doubleValue()) < 1.0) {
-                requestSettledLayout(table);
+            if (newValue == null || oldValue == null || Math.abs(newValue.doubleValue() - oldValue.doubleValue()) < 0.5) {
                 return;
             }
-            javafx.animation.PauseTransition debouncer = (javafx.animation.PauseTransition) table.getProperties().get("erp.table.dynamic-layout.debouncer");
-            if (debouncer == null) {
-                debouncer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(50));
-                debouncer.setOnFinished(e -> requestSettledLayout(table));
-                table.getProperties().put("erp.table.dynamic-layout.debouncer", debouncer);
-            }
-            debouncer.playFromStart();
+            layoutNow(table);
+            requestSettledLayout(table);
         });
         table.itemsProperty().addListener((obs, oldItems, newItems) -> bindItems(table, oldItems, newItems));
-        table.sceneProperty().addListener((obs, oldScene, newScene) -> requestSettledLayout(table));
-        table.skinProperty().addListener((obs, oldSkin, newSkin) -> requestSettledLayout(table));
-        table.visibleProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestSettledLayout(table); });
-        table.managedProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestSettledLayout(table); });
+        table.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                layoutNow(table);
+                requestSettledLayout(table);
+            }
+        });
+        table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+            if (newSkin != null) {
+                layoutNow(table);
+                requestSettledLayout(table);
+            }
+        });
+        table.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            if (Boolean.TRUE.equals(newValue)) {
+                layoutNow(table);
+                requestSettledLayout(table);
+            }
+        });
+        table.managedProperty().addListener((obs, oldValue, newValue) -> {
+            if (Boolean.TRUE.equals(newValue)) {
+                layoutNow(table);
+                requestSettledLayout(table);
+            }
+        });
 
         if (!Boolean.TRUE.equals(table.getProperties().get(COLUMN_LISTENER))) {
             table.getProperties().put(COLUMN_LISTENER, true);
             table.getColumns().addListener((ListChangeListener<TableColumn>) change -> {
                 bindColumns(table);
+                layoutNow(table);
                 requestLayout(table);
             });
         }
+        layoutNow(table);
         requestSettledLayout(table);
     }
 
     /** Coalesces structural geometry changes into one next-pulse calculation. */
+    /** Forces an immediate width re-evaluation, clearing width caches after data refresh or scrollbar changes. */
+    public static void forceLayout(TableView<?> table) {
+        if (table == null) return;
+        table.getProperties().remove(LAST_AVAILABLE);
+        for (TableColumn<?, ?> col : table.getColumns()) {
+            col.getProperties().remove(HEADER_MINIMUM);
+        }
+        layoutNow(table);
+        requestSettledLayout(table);
+    }
+
     public static void requestLayout(TableView<?> table) {
         if (table == null) return;
         long generation = generation(table) + 1L;
@@ -143,9 +181,9 @@ public final class DynamicTableLayoutManager {
         if (root == null) return;
         Runnable pass = () -> {
             try {
-                if (root instanceof TableView<?> table) requestLayout(table);
+                if (root instanceof TableView<?> table) { layoutNow(table); requestLayout(table); }
                 for (Node node : root.lookupAll(".table-view")) {
-                    if (node instanceof TableView<?> table) requestLayout(table);
+                    if (node instanceof TableView<?> table) { layoutNow(table); requestLayout(table); }
                 }
             } catch (RuntimeException ignored) { java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Suppressed exception: " + ignored.getMessage(), ignored); }
         };
@@ -185,10 +223,14 @@ public final class DynamicTableLayoutManager {
             // Item changes do not affect column widths. One coalesced settle request
             // is enough for JavaFX to account for a vertical scrollbar appearing or
             // disappearing; there is no row/content measurement and no scroll hook.
-            ListChangeListener listener = change -> requestSettledLayout(table);
+            ListChangeListener listener = change -> {
+                table.getProperties().remove(LAST_AVAILABLE);
+                requestSettledLayout(table);
+            };
             newItems.addListener(listener);
             table.getProperties().put(ITEM_LISTENER, listener);
         }
+        table.getProperties().remove(LAST_AVAILABLE);
         requestSettledLayout(table);
     }
 
@@ -200,7 +242,10 @@ public final class DynamicTableLayoutManager {
 
     private static void prepareColumn(TableColumn<?, ?> column) {
         if (column == null || !column.getColumns().isEmpty()) return;
-        column.setMinWidth(0);
+        double min = column.getMinWidth();
+        if (min <= 10.0) {
+            column.setMinWidth(ABSOLUTE_MIN_COLUMN);
+        }
         column.setMaxWidth(Double.MAX_VALUE);
         column.setResizable(true);
     }
@@ -240,6 +285,9 @@ public final class DynamicTableLayoutManager {
             double width = Math.max(ABSOLUTE_MIN_COLUMN, widths[i]);
             TableColumn<?, ?> column = columns.get(i);
             if (Math.abs(column.getPrefWidth() - width) > 0.5) column.setPrefWidth(width);
+            double floor = profiles.get(i).floor();
+            double min = Math.max(ABSOLUTE_MIN_COLUMN, Math.min(width, floor));
+            if (column.getMinWidth() < min) column.setMinWidth(min);
         }
     }
 
@@ -323,6 +371,19 @@ public final class DynamicTableLayoutManager {
      */
     private static double contentViewportWidth(TableView<?> table) {
         double width = table.getWidth();
+        if (!Double.isFinite(width) || width < 80) {
+            if (table.getPrefWidth() >= 80) {
+                width = table.getPrefWidth();
+            } else if (table.getParent() instanceof javafx.scene.layout.Region parent && parent.getWidth() >= 80) {
+                width = parent.getWidth() - parent.getInsets().getLeft() - parent.getInsets().getRight();
+            } else if (table.getParent() instanceof javafx.scene.layout.Region parent && parent.getPrefWidth() >= 80) {
+                width = parent.getPrefWidth() - parent.getInsets().getLeft() - parent.getInsets().getRight();
+            } else if (table.getScene() != null && table.getScene().getWidth() >= 80) {
+                width = table.getScene().getWidth() - 48.0;
+            } else if (table.getScene() != null && table.getScene().getWindow() != null && table.getScene().getWindow().getWidth() >= 80) {
+                width = table.getScene().getWindow().getWidth() - 48.0;
+            }
+        }
         if (!Double.isFinite(width) || width < 1) return width;
         Insets insets = table.getInsets();
         double available = width - insets.getLeft() - insets.getRight() - 2.0;
@@ -358,7 +419,13 @@ public final class DynamicTableLayoutManager {
         else {
             Font headerFont = Font.font(Font.getDefault().getFamily(), FontWeight.EXTRA_BOLD, 11.5);
             double longestToken = longestHeaderTokenWidth(heading, headerFont);
-            minimum = Math.max(readableMinimum(semantic, heading), longestToken + 36.0);
+            double fullWidth = textWidth(heading, headerFont);
+            double textTarget = heading.contains(" ") ? Math.max(longestToken + 42.0, Math.min(fullWidth + 36.0, 140.0)) : (longestToken + 42.0);
+            minimum = Math.max(readableMinimum(semantic, heading), textTarget);
+        }
+        double colMin = column.getMinWidth();
+        if (colMin > ABSOLUTE_MIN_COLUMN && Double.isFinite(colMin)) {
+            minimum = Math.max(minimum, colMin);
         }
         column.getProperties().put(HEADER_MINIMUM, minimum);
         return minimum;
