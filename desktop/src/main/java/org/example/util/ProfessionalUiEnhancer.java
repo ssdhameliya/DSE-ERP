@@ -128,11 +128,7 @@ public final class ProfessionalUiEnhancer {
         if (node instanceof TableView<?> table) enhanceTable(table);
         if (node instanceof TabPane tabPane && !Boolean.TRUE.equals(tabPane.getProperties().get("erp-tab-enhanced"))) {
             tabPane.getProperties().put("erp-tab-enhanced", true);
-            tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-                if (newTab != null && newTab.getContent() != null) {
-                    DynamicTableLayoutManager.requestLayoutIn(newTab.getContent());
-                }
-            });
+            // Tab activation reflows are pulse-coalesced via UiViewportLayoutCoordinator in installTabContentEnhancement
         }
         if (node instanceof DialogPane pane) enhanceDialog(pane);
         if (node instanceof PasswordField passwordField) schedulePasswordReveal(passwordField);
@@ -185,7 +181,11 @@ public final class ProfessionalUiEnhancer {
             }
         });
         tabs.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-            if (newTab != null) Platform.runLater(() -> enhanceLogicalContent(newTab.getContent()));
+            if (newTab != null && newTab.getContent() != null) {
+                if (!Boolean.TRUE.equals(newTab.getContent().getProperties().get("erp-logical-content-enhanced"))) {
+                    Platform.runLater(() -> enhanceLogicalContent(newTab.getContent()));
+                }
+            }
         });
     }
 
@@ -516,7 +516,12 @@ public final class ProfessionalUiEnhancer {
         table.getProperties().put("erp-cell-tooltips", true);
 
         table.addEventFilter(MouseEvent.MOUSE_MOVED, event -> {
-            TableCell cell = findTableCell(event.getPickResult().getIntersectedNode());
+            Node intersected = event.getPickResult() != null ? event.getPickResult().getIntersectedNode() : null;
+            Object lastNode = table.getProperties().get("erp-last-intersected-node");
+            if (lastNode == intersected) return;
+            table.getProperties().put("erp-last-intersected-node", intersected);
+
+            TableCell cell = findTableCell(intersected);
             Object previous = table.getProperties().get("erp-hovered-table-cell");
             if (previous == cell) return; // mouse movement inside one cell performs zero repeated measurement work
             table.getProperties().put("erp-hovered-table-cell", cell);
@@ -548,6 +553,7 @@ public final class ProfessionalUiEnhancer {
         });
 
         table.addEventFilter(MouseEvent.MOUSE_EXITED, event -> {
+            table.getProperties().remove("erp-last-intersected-node");
             Object previous = table.getProperties().remove("erp-hovered-table-cell");
             if (previous instanceof TableCell previousCell) {
                 clearManagedTooltip(previousCell);

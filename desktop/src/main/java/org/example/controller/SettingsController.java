@@ -1331,6 +1331,11 @@ private record AssetPreviewRequest(
     }
 
     @FXML
+    private void openSystemDiagnostics() {
+        org.example.util.SystemDiagnosticsDialog.show(panelHost != null ? panelHost : panelScroll);
+    }
+
+    @FXML
     private void refreshStorageUsage() {
         if (lblStorageTotal == null) return;
         lblStorageTotal.setText("Total managed storage: Loading…");

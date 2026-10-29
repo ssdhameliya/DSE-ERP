@@ -151,6 +151,7 @@ public class DashboardController implements ScreenLifecycle {
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
     @FXML private Button btnAuditTrail;
+    @FXML private Button btnSystemDiagnosticsNav;
     @FXML private Button btnCommunication;
     @FXML private Button btnDocumentStudio;
     @FXML private Button btnPdfStudio;
@@ -216,11 +217,13 @@ public class DashboardController implements ScreenLifecycle {
     @FXML private Label lblNotificationBadge;
     @FXML private Label lblEmailBadge;
     @FXML private Label lblWhatsappBadge;
+    @FXML private Label lblDiagnosticsBadge;
     @FXML private Label lblReminderBadge;
     @FXML private Button btnReminderTop;
     @FXML private Button btnNotifications;
     @FXML private Button btnEmailCenter;
     @FXML private Button btnWhatsappCenter;
+    @FXML private Button btnSystemDiagnostics;
     @FXML private Button btnShortcutInfo;
     @FXML private Button btnSidebarToggle;
     @FXML private Button shellNewSale;
@@ -351,6 +354,7 @@ public class DashboardController implements ScreenLifecycle {
         UiActionIcons.apply(btnReminders,"reminder","Reminder Center");
         UiActionIcons.apply(btnUserAccess,"permission","User Access");
         UiActionIcons.apply(btnAuditTrail,"history","Audit Trail");
+        if (btnSystemDiagnosticsNav != null) UiActionIcons.apply(btnSystemDiagnosticsNav, "diagnostic", "System Diagnostics");
         UiActionIcons.apply(btnCommunication,"communication","Communication");
         UiActionIcons.apply(btnDocumentStudio,"document","Document Studio");
         UiActionIcons.apply(btnSettings,"settings","Settings");
@@ -613,7 +617,8 @@ public class DashboardController implements ScreenLifecycle {
         UiActionIcons.apply(btnReminderTop, "reminder", "Reminder Center");
         UiActionIcons.apply(btnNotifications, "notification", "Notifications");
         UiActionIcons.apply(btnEmailCenter, "email", "Email centre");
-        UiActionIcons.apply(btnWhatsappCenter, "whatsapp", "WhatsApp activity");
+        if (btnWhatsappCenter != null) UiActionIcons.apply(btnWhatsappCenter, "whatsapp", "WhatsApp activity");
+        if (btnSystemDiagnostics != null) UiActionIcons.apply(btnSystemDiagnostics, "diagnostic", "System Logs & Application Diagnostics");
         UiActionIcons.apply(btnShortcutInfo, "shortcut", "Keyboard shortcuts");
         UiActionIcons.apply(menuUser, "user", "User menu");
         updateThemeButton();
@@ -1207,7 +1212,7 @@ public class DashboardController implements ScreenLifecycle {
                 btnItem, btnMasters, btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
                 btnFinance, btnGeneralLedger, btnFinancialStatements, btnAgingAnalysis,
                 btnGst, btnGstCompliance, btnEWayBill,
-                btnImport, btnInventory, btnBarcodeStudio, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnAuditTrail, btnCommunication,
+                btnImport, btnInventory, btnBarcodeStudio, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnAuditTrail, btnSystemDiagnosticsNav, btnCommunication,
                 btnDocumentStudio, btnPdfStudio, btnExcelStudio, btnSettings, btnSettingsCompany, btnSettingsPayment,
                 btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace,
                 btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules,
@@ -1503,6 +1508,12 @@ public class DashboardController implements ScreenLifecycle {
         CommunicationScreenContext.select("EMAIL");
         refreshEmailBadge();
         openPage(null, "Email Center", "/fxml/pages/CommunicationCenter.fxml");
+    }
+
+    /** Opens authoritative Enterprise System Logs & Application Diagnostics viewer. */
+    @FXML private void openSystemDiagnostics() {
+        Node owner = btnSystemDiagnostics != null ? btnSystemDiagnostics : (btnSystemDiagnosticsNav != null ? btnSystemDiagnosticsNav : shellRoot);
+        org.example.util.SystemDiagnosticsDialog.show(owner);
     }
 
     /** Opens only WhatsApp delivery activity and clears its own unread badge. */

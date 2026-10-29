@@ -247,7 +247,7 @@ public final class QuotationDocumentInspectionDialog {
     private static Node buildItemsTabContent(QuotationApiClient.QuoteDto quote, QuotationApiClient api) {
         TableView<QuotationApiClient.LineDto> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
-        table.setPlaceholder(new Label("Loading line items…"));
+        table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Quotation Lines…", "Streaming line items, discount structures, and tax allocations for " + quote.no()));
 
         table.setFixedCellSize(36.0);
 
@@ -427,6 +427,9 @@ public final class QuotationDocumentInspectionDialog {
                 () -> api.lines(quote.id()),
                 lines -> {
                     table.getItems().setAll(lines);
+                    if (lines.isEmpty()) {
+                        table.setPlaceholder(new Label("No line items associated with this quotation."));
+                    }
                     double totalQty = lines.stream().mapToDouble(QuotationApiClient.LineDto::quantity).sum();
                     double totalAmt = lines.stream().mapToDouble(QuotationApiClient.LineDto::total).sum();
                     lblSummary.setText(String.format(Locale.ROOT,

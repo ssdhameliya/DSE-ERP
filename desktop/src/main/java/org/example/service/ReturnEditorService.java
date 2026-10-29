@@ -21,6 +21,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -221,7 +222,8 @@ public final class ReturnEditorService {
 
         TableColumn<ReturnLine, ReturnLine> reason = new TableColumn<>("Reason");
         reason.setCellValueFactory(value -> new javafx.beans.property.ReadOnlyObjectWrapper<>(value.getValue()));
-        reason.setCellFactory(column -> new ReasonEditorCell());
+        List<String> reasonOptions = loadLookupReasons();
+        reason.setCellFactory(column -> new ReasonEditorCell(reasonOptions));
 
         IconFactory.applyTableHeaderIcon(selected, "select");
         IconFactory.applyTableHeaderIcon(code, "identity");
@@ -293,16 +295,51 @@ public final class ReturnEditorService {
         }
     }
 
-    /** Always-visible reason editor shared by sales and purchase returns. */
+    private static List<String> loadLookupReasons() {
+        try {
+            LookupService lookup = new LookupService();
+            List<String> list = lookup.getValuesByCategoryCode("RETURN_REASON");
+            if (list == null || list.isEmpty()) list = lookup.getValues("RETURN_REASON");
+            if (list == null || list.isEmpty()) list = lookup.getValuesByCategoryCode("CREDIT_NOTE_REASON");
+            if (list == null || list.isEmpty()) {
+                return List.of(
+                        "Goods returned by customer",
+                        "Defective Material",
+                        "Wrong Item Delivered",
+                        "Transit Damage",
+                        "Excess Quantity",
+                        "Quality Rejection",
+                        "Rate Difference",
+                        "Return requested"
+                );
+            }
+            return list;
+        } catch (Exception e) {
+            return List.of("Return requested", "Defective Material", "Wrong Item Delivered", "Rate Difference");
+        }
+    }
+
+    /** Always-visible reason editor powered by Master Lookups for sales and purchase returns. */
     private static final class ReasonEditorCell extends TableCell<ReturnLine, ReturnLine> {
-        private final TextField editor = new TextField();
+        private final ComboBox<String> editor = new ComboBox<>();
         private boolean refreshing;
 
-        ReasonEditorCell() {
-            editor.setPromptText("Reason for return");
-            editor.textProperty().addListener((observable, oldValue, newValue) -> {
-                if (!refreshing && getItem() != null) getItem().setReason(newValue);
+        ReasonEditorCell(List<String> reasonOptions) {
+            editor.setEditable(true);
+            editor.getItems().setAll(reasonOptions != null && !reasonOptions.isEmpty()
+                    ? reasonOptions
+                    : loadLookupReasons());
+            editor.setMaxWidth(Double.MAX_VALUE);
+            editor.setPromptText("Select or enter reason");
+            editor.getStyleClass().addAll("approved-input", "return-reason-combo");
+            editor.valueProperty().addListener((observable, oldValue, newValue) -> {
+                if (!refreshing && getItem() != null && newValue != null) getItem().setReason(newValue);
             });
+            if (editor.getEditor() != null) {
+                editor.getEditor().textProperty().addListener((observable, oldValue, newValue) -> {
+                    if (!refreshing && getItem() != null && newValue != null) getItem().setReason(newValue);
+                });
+            }
         }
 
         @Override protected void updateItem(ReturnLine row, boolean empty) {
@@ -312,7 +349,16 @@ public final class ReturnEditorService {
                 return;
             }
             refreshing = true;
-            editor.setText(row.reason());
+            String current = row.reason();
+            if (current != null && !current.isBlank()) {
+                editor.setValue(current);
+                if (editor.getEditor() != null) editor.getEditor().setText(current);
+            } else if (!editor.getItems().isEmpty()) {
+                String first = editor.getItems().get(0);
+                editor.setValue(first);
+                row.setReason(first);
+                if (editor.getEditor() != null) editor.getEditor().setText(first);
+            }
             refreshing = false;
             setGraphic(editor);
         }
@@ -399,7 +445,7 @@ public final class ReturnEditorService {
         private final DoubleProperty tax;
         private final double originalLineTotal;
         private final double alreadyReturnedAmount;
-        private final StringProperty reason = new SimpleStringProperty("Return requested");
+        private final StringProperty reason = new SimpleStringProperty("");
 
         ReturnLine(InvoiceItem item, double alreadyReturned) {
             sourceLineId = item.sourceLineId();

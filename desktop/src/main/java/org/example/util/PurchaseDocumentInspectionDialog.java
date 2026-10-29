@@ -11,6 +11,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import org.example.api.support.SupportApiClient;
 import org.example.controller.EmailTransmissionDialog;
 import org.example.controller.LinkedRecordContext;
@@ -40,17 +41,9 @@ public final class PurchaseDocumentInspectionDialog {
     public static void show(Node ownerNode, Purchase purchaseSummary, SupportApiClient supportClient, Runnable onUpdated) {
         if (purchaseSummary == null) return;
 
-        PurchaseService purchaseService = new PurchaseService();
-        Purchase purchase;
-        try {
-            Purchase loaded = purchaseService.getByInvoice(purchaseSummary.getInvoiceNo());
-            purchase = (loaded != null) ? loaded : purchaseSummary;
-        } catch (Exception e) {
-            purchase = purchaseSummary;
-        }
-
-        final Purchase currentPurchase = purchase;
+        final Purchase currentPurchase = purchaseSummary;
         final SupportApiClient support = (supportClient != null) ? supportClient : new SupportApiClient();
+        final PurchaseService purchaseService = new PurchaseService();
 
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>(ownerNode);
         dialog.setTitle("Purchase Invoice — " + currentPurchase.getInvoiceNo());
@@ -76,7 +69,7 @@ public final class PurchaseDocumentInspectionDialog {
         // Tab 1: Inward Items
         Tab itemsTab = new Tab("Purchased Items (" + (currentPurchase.getLines() == null ? 0 : currentPurchase.getLines().size()) + ")");
         itemsTab.setGraphic(IconFactory.compactIcon("item", 14));
-        itemsTab.setContent(buildItemsTabContent(currentPurchase));
+        itemsTab.setContent(buildItemsTabContent(currentPurchase, purchaseService, itemsTab));
 
         // Tab 2: Payments & Allocations
         Tab paymentsTab = new Tab("Payments & Allocations");
@@ -270,7 +263,7 @@ public final class PurchaseDocumentInspectionDialog {
         return card;
     }
 
-    private static Node buildItemsTabContent(Purchase purchase) {
+    private static Node buildItemsTabContent(Purchase purchase, PurchaseService purchaseService, Tab itemsTab) {
         TableView<PurchaseLine> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
         table.setPlaceholder(new Label("No line items associated with this purchase invoice."));
@@ -480,24 +473,63 @@ public final class PurchaseDocumentInspectionDialog {
         footer.setPadding(new Insets(8, 6, 4, 6));
 
         VBox container = new VBox(8, table, footer);
-        if (purchase.getCharges() != null && !purchase.getCharges().isEmpty()) {
-            HBox chargesBox = new HBox(10);
-            chargesBox.setAlignment(Pos.CENTER_LEFT);
-            chargesBox.setPadding(new Insets(6, 10, 6, 10));
-            chargesBox.getStyleClass().add("inspection-charges-box");
+        Runnable renderCharges = () -> {
+            if (purchase.getCharges() != null && !purchase.getCharges().isEmpty()) {
+                HBox chargesBox = new HBox(10);
+                chargesBox.setAlignment(Pos.CENTER_LEFT);
+                chargesBox.setPadding(new Insets(6, 10, 6, 10));
+                chargesBox.getStyleClass().add("inspection-charges-box");
 
-            Label chargeTitle = new Label("Additional Charges:");
-            chargeTitle.setGraphic(IconFactory.compactIcon("tax", 13));
-            chargeTitle.getStyleClass().add("inspection-card-title");
-            chargesBox.getChildren().add(chargeTitle);
+                Label chargeTitle = new Label("Additional Charges:");
+                chargeTitle.setGraphic(IconFactory.compactIcon("tax", 13));
+                chargeTitle.getStyleClass().add("inspection-card-title");
+                chargesBox.getChildren().add(chargeTitle);
 
-            for (PurchaseCharge pc : purchase.getCharges()) {
-                Label cPill = new Label(pc.getChargeType() + ": " + money(pc.getAmount()) +
-                        (pc.isTaxable() ? " (GST " + String.format(Locale.ROOT, "%.1f%%", pc.getGstPercent()) + ")" : ""));
-                cPill.getStyleClass().addAll("status-pill", "pill-neutral");
-                chargesBox.getChildren().add(cPill);
+                for (PurchaseCharge pc : purchase.getCharges()) {
+                    Label cPill = new Label(pc.getChargeType() + ": " + money(pc.getAmount()) +
+                            (pc.isTaxable() ? " (GST " + String.format(Locale.ROOT, "%.1f%%", pc.getGstPercent()) + ")" : ""));
+                    cPill.getStyleClass().addAll("status-pill", "pill-neutral");
+                    chargesBox.getChildren().add(cPill);
+                }
+                container.getChildren().add(1, chargesBox);
             }
-            container.getChildren().add(1, chargesBox);
+        };
+
+        if (purchase.getCharges() != null && !purchase.getCharges().isEmpty()) {
+            renderCharges.run();
+        }
+
+        // Asynchronously load inward lines if empty, ensuring instant pop-up opening without UI lag
+        if (lines.isEmpty() && purchaseService != null && purchase.getInvoiceNo() != null && !purchase.getInvoiceNo().isBlank()) {
+            table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Purchased Items…", "Streaming line items, tax breakdowns, and SKU details for " + purchase.getInvoiceNo()));
+            UiTaskExecutor.submitLatest("purchase-inspection-lines-" + purchase.getInvoiceNo(),
+                    () -> purchaseService.getByInvoice(purchase.getInvoiceNo()),
+                    loaded -> {
+                        if (loaded != null && loaded.getLines() != null && !loaded.getLines().isEmpty()) {
+                            purchase.setLines(loaded.getLines());
+                            if (loaded.getCharges() != null) purchase.setCharges(loaded.getCharges());
+                            table.getItems().setAll(loaded.getLines());
+                            double q = loaded.getLines().stream().mapToDouble(PurchaseLine::getQuantity).sum();
+                            double t = loaded.getLines().stream().mapToDouble(PurchaseLine::getGstAmount).sum();
+                            double m = loaded.getLines().stream().mapToDouble(PurchaseLine::getTotalAmount).sum();
+                            lblCount.setText(loaded.getLines().size() + (loaded.getLines().size() == 1 ? " line item" : " line items"));
+                            lblTotals.setText(String.format(Locale.ROOT, "Total Qty: %,.2f   •   Total Tax: %s   •   Grand Total: %s",
+                                    q, money(t), money(m)));
+                            if (itemsTab != null) {
+                                itemsTab.setText("Purchased Items (" + loaded.getLines().size() + ")");
+                            }
+                            if (container.getChildren().size() <= 2) {
+                                renderCharges.run();
+                            }
+                        } else {
+                            table.setPlaceholder(new Label("No line items associated with this purchase invoice."));
+                            lblCount.setText("0 line items");
+                        }
+                    },
+                    err -> {
+                        table.setPlaceholder(new Label("Unable to load purchased items: " + err.getMessage()));
+                        lblCount.setText("0 line items");
+                    });
         }
 
         container.setPadding(new Insets(8, 0, 0, 0));
@@ -507,7 +539,7 @@ public final class PurchaseDocumentInspectionDialog {
     private static Node buildPaymentsTabContent(Purchase purchase, SupportApiClient support, Dialog<?> dialog, Runnable onUpdated) {
         TableView<SupportApiClient.PaymentRow> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "invoice-payment-table");
-        table.setPlaceholder(new Label("No payments recorded yet for this purchase invoice."));
+        table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Payment History…", "Retrieving payment proofs, receipts, and allocations for " + purchase.getInvoiceNo()));
 
         TableColumn<SupportApiClient.PaymentRow, String> colDate = new TableColumn<>("Payment Date");
         colDate.setPrefWidth(110);
@@ -579,6 +611,9 @@ public final class PurchaseDocumentInspectionDialog {
                 () -> support.payments("PURCHASE", purchase.getId()),
                 records -> {
                     table.getItems().setAll(records);
+                    if (records.isEmpty()) {
+                        table.setPlaceholder(new Label("No payments recorded yet for this purchase invoice."));
+                    }
                     double recordedSum = records.stream().mapToDouble(SupportApiClient.PaymentRow::amount).sum();
                     lblHistorySummary.setText(String.format(Locale.ROOT,
                             "%d payment(s) recorded • Total Disbursed: %s • Remaining Pending: %s",
@@ -606,7 +641,7 @@ public final class PurchaseDocumentInspectionDialog {
     private static Node buildAttachmentsTabContent(Purchase purchase, SupportApiClient support, Dialog<?> dialog) {
         ListView<InspectionAttachment> listView = new ListView<>();
         listView.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-attachments-list");
-        listView.setPlaceholder(new Label("No order attachments or payment proofs have been uploaded for this purchase invoice."));
+        listView.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Document Attachments…", "Fetching invoice PDFs, payment receipts, and delivery documents for " + purchase.getInvoiceNo()));
         VBox.setVgrow(listView, Priority.ALWAYS);
 
         listView.setCellFactory(lv -> new ListCell<>() {
@@ -799,6 +834,7 @@ public final class PurchaseDocumentInspectionDialog {
                 items -> {
                     listView.getItems().setAll(items);
                     if (items.isEmpty()) {
+                        listView.setPlaceholder(new Label("No order attachments or payment proofs have been uploaded for this purchase invoice."));
                         statusLabel.setText("No files attached.");
                     } else {
                         long orderCount = items.stream().filter(i -> "Order Attachment".equals(i.category())).count();
@@ -1013,22 +1049,55 @@ public final class PurchaseDocumentInspectionDialog {
             NavigationManager.navigateOrReport("/fxml/pages/PurchasePayment.fxml");
         });
 
-        // 8. Create Purchase Return
-        boolean returnEligible = isReturnEligible(purchase);
-        Button btnReturn = new Button("Create Purchase Return");
-        btnReturn.setGraphic(IconFactory.compactIcon("return", 14));
-        btnReturn.getStyleClass().addAll("approved-button", "approved-secondary-button");
-        btnReturn.setDisable(!returnEligible);
-        if (!returnEligible) {
-            btnReturn.setTooltip(new Tooltip("Purchase Returns require an approved, settled bill."));
+        // 8. Create Purchase Return or View Existing Return
+        String retStatus = safe(purchase.getReturnStatus()).toUpperCase(Locale.ROOT);
+        boolean isAlreadyReturned = "PARTIALLY RETURNED".equals(retStatus) || "FULLY RETURNED".equals(retStatus) || "RETURNED".equals(retStatus);
+        Button btnReturn = new Button();
+        if (isAlreadyReturned) {
+            btnReturn.setText("View Return");
+            btnReturn.setGraphic(IconFactory.compactIcon("view", 14));
+            btnReturn.getStyleClass().addAll("approved-button", "approved-secondary-button");
+            btnReturn.setTooltip(new Tooltip("View Purchase Return for " + purchase.getInvoiceNo() + " (" + retStatus + ")"));
+            btnReturn.setOnAction(e -> {
+                dialog.close();
+                LinkedRecordContext.open("PURCHASE_RETURN", null, purchase.getInvoiceNo(), "VIEW", "Purchase Bill " + purchase.getInvoiceNo());
+                NavigationManager.navigateOrReport("/fxml/pages/PurchaseReturns.fxml");
+            });
         } else {
-            btnReturn.setTooltip(new Tooltip("Create Purchase Return for " + purchase.getInvoiceNo()));
+            boolean returnEligible = isReturnEligible(purchase);
+            btnReturn.setText("Create Purchase Return");
+            btnReturn.setGraphic(IconFactory.compactIcon("return", 14));
+            btnReturn.getStyleClass().addAll("approved-button", "approved-secondary-button");
+            btnReturn.setDisable(!returnEligible);
+            if (!returnEligible) {
+                btnReturn.setTooltip(new Tooltip("Purchase Returns require an approved, settled bill."));
+            } else {
+                btnReturn.setTooltip(new Tooltip("Create Purchase Return for " + purchase.getInvoiceNo()));
+            }
+            btnReturn.setOnAction(e -> {
+                dialog.close();
+                Purchase full = (service != null) ? service.getByInvoice(purchase.getInvoiceNo()) : null;
+                if (full == null) full = purchase;
+                List<ReturnEditorService.InvoiceItem> items = (full.getLines() != null ? full.getLines() : List.<PurchaseLine>of()).stream()
+                        .map(line -> new ReturnEditorService.InvoiceItem(
+                                line.getItemCode(),
+                                line.getItemDescription(),
+                                line.getQuantity(),
+                                line.getRate(),
+                                line.getDiscountPercent(),
+                                line.getGstPercent()))
+                        .toList();
+                Window ownerWindow = dialog.getOwner() != null ? dialog.getOwner() : (dialog.getDialogPane() != null && dialog.getDialogPane().getScene() != null ? dialog.getDialogPane().getScene().getWindow() : null);
+                ReturnEditorService.show(ownerWindow, ReturnEditorService.Type.PURCHASE,
+                        purchase.getInvoiceNo(),
+                        purchase.getSupplier() != null ? purchase.getSupplier().getName() : "Supplier",
+                        purchase.getSupplier() != null ? purchase.getSupplier().getId() : 0,
+                        items).ifPresent(no -> {
+                            if (onUpdated != null) onUpdated.run();
+                            ToastManager.success(dialog.getDialogPane(), "Return Created", "Purchase return created: " + no);
+                        });
+            });
         }
-        btnReturn.setOnAction(e -> {
-            dialog.close();
-            LinkedRecordContext.open("PURCHASE_RETURN", null, purchase.getInvoiceNo(), "CREATE", "Purchase Bill " + purchase.getInvoiceNo());
-            NavigationManager.navigateOrReport("/fxml/pages/PurchaseReturns.fxml");
-        });
 
         // 9. Audit Trail
         Button btnAudit = new Button("Audit Trail");

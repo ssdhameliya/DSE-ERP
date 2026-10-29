@@ -23,7 +23,7 @@ public final class PartySearchUi {
     public static void install(ComboBox<String> box, String type, String allLabel, String taskKey) {
         if (box == null) return;
         PartyService service = new PartyService();
-        PauseTransition debounce = new PauseTransition(Duration.millis(180));
+        PauseTransition debounce = new PauseTransition(Duration.millis(300));
         AtomicBoolean internal = new AtomicBoolean(false);
         box.getProperties().put(DEBOUNCE_KEY, debounce);
         box.getProperties().put(TASK_KEY, taskKey);
@@ -52,7 +52,10 @@ public final class PartySearchUi {
                 internal.set(true);
                 setInternalUpdate(box, true);
                 try {
-                    box.getItems().setAll(new ArrayList<>(names));
+                    List<String> updatedList = new ArrayList<>(names);
+                    if (!updatedList.equals(box.getItems())) {
+                        box.getItems().setAll(updatedList);
+                    }
                     if (selected != null && !selected.isBlank()) box.setValue(selected);
                     if (box.getEditor() != null && typed != null && !typed.isBlank() && !typed.equals(selected)) {
                         box.getEditor().setText(typed);
@@ -62,7 +65,7 @@ public final class PartySearchUi {
                     setInternalUpdate(box, false);
                     internal.set(false);
                 }
-                if (!query.isBlank() && box.isShowing()) Platform.runLater(box::show);
+                if (!query.isBlank() && box.isFocused() && !box.isShowing()) Platform.runLater(box::show);
             }, failure -> { /* filter suggestions are non-critical; typed filtering still works */ });
         };
 

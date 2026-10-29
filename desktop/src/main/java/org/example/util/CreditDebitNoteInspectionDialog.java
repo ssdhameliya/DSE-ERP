@@ -118,31 +118,52 @@ public final class CreditDebitNoteInspectionDialog {
     public static void show(Node ownerNode, Long noteId, String noteNo, boolean isCreditNote, Runnable onUpdated, Runnable onReissue, NoteFullDetails fallback) {
         if (noteId == null && (noteNo == null || noteNo.isBlank())) return;
 
-        NoteFullDetails details = null;
-        if (noteId != null) {
-            String endpoint = isCreditNote ? ("/api/credit-notes/" + noteId) : ("/api/debit-notes/" + noteId);
-            try {
-                HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(apiUrl(endpoint)))
-                        .timeout(Duration.ofSeconds(6))
-                        .header("Accept", "application/json")
-                        .GET();
-                ApiSession.authorize(b);
-                HttpResponse<String> resp = ApiRuntime.HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
-                if (resp.statusCode() == 200) {
-                    details = ApiRuntime.JSON.readValue(resp.body(), NoteFullDetails.class);
-                }
-            } catch (Exception e) {
-                java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.WARNING, "Note details fetch failed, falling back: " + e.getMessage());
+        if (fallback != null) {
+            OwnedDialog<ButtonType> dialog = new OwnedDialog<>(ownerNode);
+            dialog.setTitle((isCreditNote ? "Sales Credit Note Inspection — " : "Purchase Debit Note Inspection — ") + safe(fallback.noteNo()));
+            dialog.setHeaderText(null);
+            dialog.setResizable(true);
+
+            DialogPane pane = dialog.getDialogPane();
+            pane.getStyleClass().addAll("erp-document-inspection-dialog", "credit-debit-inspection-dialog", "approved-ui");
+            AppDialogRenderer.configureWorkspace(dialog, isCreditNote ? "credit" : "debit");
+            PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
+
+            renderDialogContent(dialog, fallback, isCreditNote, onUpdated, onReissue);
+
+            pane.getButtonTypes().add(ButtonType.CLOSE);
+            Node defaultButtonBar = pane.lookup(".button-bar");
+            if (defaultButtonBar != null) {
+                defaultButtonBar.setVisible(false);
+                defaultButtonBar.setManaged(false);
             }
-        }
-        if (details == null) details = fallback;
-        if (details == null) {
-            ToastManager.error(ownerNode, "Note Unavailable", "Unable to load note " + safe(noteNo));
+
+            if (noteId != null && (fallback.lines() == null || fallback.lines().isEmpty())) {
+                String endpoint = isCreditNote ? ("/api/credit-notes/" + noteId) : ("/api/debit-notes/" + noteId);
+                UiTaskExecutor.submitAction("load-note-lines-" + noteId, () -> {
+                    HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(apiUrl(endpoint)))
+                            .timeout(Duration.ofSeconds(6))
+                            .header("Accept", "application/json")
+                            .GET();
+                    ApiSession.authorize(b);
+                    HttpResponse<String> resp = ApiRuntime.HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+                    if (resp.statusCode() == 200) {
+                        return ApiRuntime.JSON.readValue(resp.body(), NoteFullDetails.class);
+                    }
+                    return null;
+                }, loaded -> {
+                    if (loaded != null && loaded.lines() != null && !loaded.lines().isEmpty()) {
+                        renderDialogContent(dialog, loaded, isCreditNote, onUpdated, onReissue);
+                    }
+                }, err -> {});
+            }
+
+            dialog.showAndWait();
             return;
         }
 
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>(ownerNode);
-        dialog.setTitle((isCreditNote ? "Sales Credit Note Inspection — " : "Purchase Debit Note Inspection — ") + safe(details.noteNo()));
+        dialog.setTitle((isCreditNote ? "Sales Credit Note Inspection — " : "Purchase Debit Note Inspection — ") + safe(noteNo));
         dialog.setHeaderText(null);
         dialog.setResizable(true);
 
@@ -151,13 +172,38 @@ public final class CreditDebitNoteInspectionDialog {
         AppDialogRenderer.configureWorkspace(dialog, isCreditNote ? "credit" : "debit");
         PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
 
-        renderDialogContent(dialog, details, isCreditNote, onUpdated, onReissue);
-
+        Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
+                (isCreditNote ? "Loading Sales Credit Note Details — " : "Loading Purchase Debit Note Details — ") + safe(noteNo),
+                "Synchronizing line items, GST credit reversal, and financial allocations…");
+        pane.setContent(loadingSkeleton);
         pane.getButtonTypes().add(ButtonType.CLOSE);
+
         Node defaultButtonBar = pane.lookup(".button-bar");
         if (defaultButtonBar != null) {
             defaultButtonBar.setVisible(false);
             defaultButtonBar.setManaged(false);
+        }
+
+        if (noteId != null) {
+            String endpoint = isCreditNote ? ("/api/credit-notes/" + noteId) : ("/api/debit-notes/" + noteId);
+            UiTaskExecutor.submitAction("load-note-details-" + noteId, () -> {
+                HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(apiUrl(endpoint)))
+                        .timeout(Duration.ofSeconds(6))
+                        .header("Accept", "application/json")
+                        .GET();
+                ApiSession.authorize(b);
+                HttpResponse<String> resp = ApiRuntime.HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    return ApiRuntime.JSON.readValue(resp.body(), NoteFullDetails.class);
+                }
+                return null;
+            }, loaded -> {
+                if (loaded != null) {
+                    renderDialogContent(dialog, loaded, isCreditNote, onUpdated, onReissue);
+                } else {
+                    ToastManager.error(pane, "Not Found", "Note could not be loaded.");
+                }
+            }, err -> ToastManager.error(pane, "Failed", err.getMessage()));
         }
 
         dialog.showAndWait();

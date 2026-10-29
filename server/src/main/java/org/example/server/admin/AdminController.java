@@ -24,5 +24,6 @@ import org.springframework.web.bind.annotation.*;import java.util.*;
  @GetMapping("/registrations") public List<AdminDtos.RegistrationRequestDto> registrations(@RequestParam(defaultValue="PENDING_ADMIN_APPROVAL") String status){return s.registrations(status);}
  @PostMapping("/registrations/{id}/approve") public AdminDtos.Ok approve(@PathVariable long id,@RequestBody AdminDtos.RegistrationDecisionRequest d){return s.approveRegistration(id,d);}
  @PostMapping("/registrations/{id}/reject") public AdminDtos.Ok reject(@PathVariable long id,@RequestBody AdminDtos.RegistrationDecisionRequest d){return s.rejectRegistration(id,d);}
+ @GetMapping("/diagnostics/server-logs") public List<AdminDtos.ServerLogEntry> serverDiagnostics(@RequestParam(defaultValue="300") int limit){return s.serverDiagnostics(limit);}
  private AdminDtos.Ok ok(String m){return new AdminDtos.Ok(true,m);}
 }
