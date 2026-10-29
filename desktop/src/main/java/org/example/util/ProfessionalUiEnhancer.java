@@ -676,8 +676,7 @@ public final class ProfessionalUiEnhancer {
             } else if (semantic != null
                 && column.getCellFactory() == TableColumn.DEFAULT_CELL_FACTORY) {
                 final String valueSemantic = semantic;
-                final String columnHeading = heading;
-                column.setCellFactory(ignored -> new SemanticValueCell(valueSemantic, columnHeading));
+                column.setCellFactory(ignored -> new SemanticValueCell(valueSemantic));
             }
         }
     }
@@ -856,27 +855,50 @@ public final class ProfessionalUiEnhancer {
     private static final class SemanticValueCell extends TableCell<Object, Object> {
         private final String semantic;
         private final String heading;
-        private final boolean isLink;
-        private final boolean isNumeric;
-        private final boolean isCentered;
+
+        private SemanticValueCell(String semantic) {
+            this(semantic, null);
+        }
 
         private SemanticValueCell(String semantic, String heading) {
             this.semantic = semantic == null ? "" : semantic.toLowerCase(Locale.ROOT);
             this.heading = heading == null ? "" : heading.toLowerCase(Locale.ROOT);
+        }
+
+        private boolean isLinkColumn() {
             String s = this.semantic;
-            String h = this.heading;
-            this.isLink = s.contains("code") || s.contains("item") || s.contains("invoice") || s.contains("reference")
+            String h = getHeading();
+            return s.contains("code") || s.contains("item") || s.contains("invoice") || s.contains("reference")
                     || s.contains("document") || s.contains("quotation") || s.contains("bill") || s.contains("order")
                     || s.contains("return") || s.contains("voucher") || s.contains("note") || s.contains("entry")
                     || h.contains("code") || h.contains("invoice") || h.contains("quotation") || h.contains("bill")
                     || h.contains("po") || h.contains("voucher") || h.contains("return no") || h.contains("note no")
                     || h.contains("ref") || h.contains("challan") || h.contains("order no");
-            this.isNumeric = this.semantic.contains("rate") || this.semantic.contains("amount") || this.semantic.contains("price")
-                    || this.semantic.contains("total") || this.semantic.contains("quantity") || this.semantic.contains("discount")
-                    || this.semantic.contains("balance") || this.semantic.contains("paid") || this.semantic.contains("tax")
-                    || this.heading.contains("amount") || this.heading.contains("total") || this.heading.contains("rate")
-                    || this.heading.contains("quantity") || this.heading.contains("price") || this.heading.contains("gst");
-            this.isCentered = this.semantic.contains("index") || this.heading.equals("#") || this.heading.equals("no.");
+        }
+
+        private boolean isNumericColumn() {
+            String s = this.semantic;
+            String h = getHeading();
+            return s.contains("rate") || s.contains("amount") || s.contains("price")
+                    || s.contains("total") || s.contains("quantity") || s.contains("discount")
+                    || s.contains("balance") || s.contains("paid") || s.contains("tax")
+                    || h.contains("amount") || h.contains("total") || h.contains("rate")
+                    || h.contains("quantity") || h.contains("price") || h.contains("gst");
+        }
+
+        private boolean isCenteredColumn() {
+            String s = this.semantic;
+            String h = getHeading();
+            return s.contains("index") || h.equals("#") || h.equals("no.");
+        }
+
+        private String getHeading() {
+            if (heading != null && !heading.isEmpty()) return heading;
+            TableColumn<?, ?> col = getTableColumn();
+            if (col != null && col.getText() != null) {
+                return col.getText().toLowerCase(Locale.ROOT);
+            }
+            return "";
         }
 
         @Override protected void updateItem(Object item, boolean empty) {
@@ -895,15 +917,15 @@ public final class ProfessionalUiEnhancer {
             String color = IconFactory.semanticColour(semantic);
             getStyleClass().add("erp-table-value-colour-" + color);
 
-            if (isCentered) {
+            if (isCenteredColumn()) {
                 setAlignment(Pos.CENTER);
-            } else if (isNumeric) {
+            } else if (isNumericColumn()) {
                 setAlignment(Pos.CENTER_RIGHT);
             } else {
                 setAlignment(Pos.CENTER_LEFT);
             }
 
-            if (isLink && !str.isBlank() && !"-".equals(str) && !"—".equals(str)) {
+            if (isLinkColumn() && !str.isBlank() && !"-".equals(str) && !"—".equals(str)) {
                 getStyleClass().add("erp-table-link-cell");
                 setCursor(Cursor.HAND);
                 setTooltip(new Tooltip(str + " (Click to copy)"));
