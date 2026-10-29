@@ -87,8 +87,38 @@ public final class UiDesignSystem {
         if (containsAny(styles, "approved-warning-button", "erp-button-warning")) {
             role(button, "warning"); return;
         }
-        if (containsAny(styles, "approved-secondary-button", "erp-button-secondary", "secondary-button")) {
-            role(button, "secondary"); return;
+        if (containsAny(styles, "approved-amber-button", "erp-button-amber")) {
+            role(button, "amber"); return;
+        }
+        if (containsAny(styles, "approved-indigo-button", "erp-button-indigo")) {
+            role(button, "indigo"); return;
+        }
+        if (containsAny(styles, "approved-emerald-button", "erp-button-emerald")) {
+            role(button, "emerald"); return;
+        }
+        if (containsAny(styles, "approved-sky-button", "erp-button-sky")) {
+            role(button, "sky"); return;
+        }
+        if (containsAny(styles, "approved-purple-button", "erp-button-purple")) {
+            role(button, "purple"); return;
+        }
+        if (containsAny(styles, "approved-cyan-button", "erp-button-cyan")) {
+            role(button, "cyan"); return;
+        }
+        if (containsAny(styles, "approved-violet-button", "erp-button-violet")) {
+            role(button, "violet"); return;
+        }
+        if (containsAny(styles, "approved-coral-button", "erp-button-coral")) {
+            role(button, "coral"); return;
+        }
+        if (containsAny(styles, "approved-slate-button", "erp-button-slate")) {
+            role(button, "slate"); return;
+        }
+        if (containsAny(styles, "approved-danger-ghost-button", "erp-button-danger-ghost")) {
+            role(button, "danger-ghost"); return;
+        }
+        if (containsAny(styles, "copy-ref-button", "copy-button")) {
+            role(button, "copy-pill"); return;
         }
         if (containsAny(styles, "approved-row-action", "table-action", "row-action")) {
             role(button, "row-action"); return;
@@ -100,17 +130,50 @@ public final class UiDesignSystem {
         }
 
         // Table action menus and obvious universal icon buttons remain compact.
-        if (button instanceof MenuButton && (text.isBlank() || text.equals("actions") || text.equals("...") || text.equals("⋮"))) {
+        if (button instanceof MenuButton && (text.isBlank() || text.equals("actions") || text.equals("...") || text.contains("option"))) {
             role(button, "row-action"); return;
         }
         if (text.isBlank()) {
             role(button, "icon"); return;
         }
 
+        // Contextual semantic roles based on action text (zero color collision):
         if (containsAny(text, "delete", "reject", "remove", "void", "reverse", "discard")) {
             role(button, "danger");
         } else if (containsAny(text, "approve", "reconcile", "complete", "confirm match", "apply adjustment")) {
             role(button, "success");
+        } else if (containsAny(text, "refresh", "reload", "sync", "recalculate", "refreshing")) {
+            role(button, "emerald");
+        } else if (containsAny(text, "reset", "clear", "clear-filters", "clear history", "reset template", "undo")) {
+            role(button, "coral");
+        } else if (containsAny(text, "download", "pull data")) {
+            role(button, "sky");
+        } else if (containsAny(text, "view", "preview", "inspect", "drill", "360")) {
+            role(button, "cyan");
+        } else if (containsAny(text, "open", "browse", "choose file", "browse file", "attach", "folder")) {
+            role(button, "indigo");
+        } else if (containsAny(text, "excel", "spreadsheet", "export excel", "export xls", "csv")) {
+            role(button, "emerald");
+        } else if (containsAny(text, "email", "send email", "mail")) {
+            role(button, "sky");
+        } else if (containsAny(text, "edit", "modify", "rename", "change")) {
+            role(button, "amber");
+        } else if (containsAny(text, "duplicate", "clone", "repeat")) {
+            role(button, "violet");
+        } else if (containsAny(text, "pdf", "print", "tax invoice pdf")) {
+            role(button, "purple");
+        } else if (containsAny(text, "barcode", "label", "qr")) {
+            role(button, "cyan");
+        } else if (containsAny(text, "payment", "record payment", "pay now")) {
+            role(button, "violet");
+        } else if (containsAny(text, "return", "create return", "sales return", "purchase return")) {
+            role(button, "coral");
+        } else if (containsAny(text, "audit", "history", "log", "trail")) {
+            role(button, "slate");
+        } else if (containsAny(text, "close", "cancel", "dismiss")) {
+            role(button, "danger-ghost");
+        } else if (containsAny(styles, "approved-secondary-button", "erp-button-secondary", "secondary-button")) {
+            role(button, "secondary");
         } else if (!text.contains("saved") && (text.equals("save") || text.startsWith("save ") || text.startsWith("save-")
                 || containsAny(text, "create", "add ", "new ", "import", "generate", "submit", "sign in", "login"))) {
             role(button, "primary");

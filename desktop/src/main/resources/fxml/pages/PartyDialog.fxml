@@ -10,8 +10,9 @@
         </HBox>
     </top>
     <center>
-        <VBox spacing="14" styleClass="premium-dialog-content">
-            <Label text="Basic Information" styleClass="dialog-section-title"/>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="dialog-scroll-pane">
+            <VBox spacing="14" styleClass="premium-dialog-content">
+                <Label text="Basic Information" styleClass="dialog-section-title"/>
             <GridPane hgap="18" vgap="8" styleClass="premium-form-grid">
                 <columnConstraints>
                     <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
@@ -67,6 +68,7 @@
                 </VBox>
             </GridPane>
         </VBox>
+        </ScrollPane>
     </center>
     <bottom>
         <HBox alignment="CENTER_RIGHT" spacing="12" styleClass="entity-dialog-actions,premium-dialog-actions">

@@ -17829,3 +17829,334 @@
 }
 
 
+
+/* ==========================================================================
+   DSE ERP 3D ELEVATED VIBRANT BUTTON PALETTE (DARK & LIGHT MODES)
+   ========================================================================== */
+
+/* Universal Button 3D Base */
+.button.approved-amber-button, .button.erp-button-role-amber, .button.erp-button-amber,
+.button.approved-indigo-button, .button.erp-button-role-indigo, .button.erp-button-indigo,
+.button.approved-emerald-button, .button.erp-button-role-emerald, .button.erp-button-emerald,
+.button.approved-sky-button, .button.erp-button-role-sky, .button.erp-button-sky,
+.button.approved-purple-button, .button.erp-button-role-purple, .button.erp-button-purple,
+.button.approved-cyan-button, .button.erp-button-role-cyan, .button.erp-button-cyan,
+.button.approved-violet-button, .button.erp-button-role-violet, .button.erp-button-violet,
+.button.approved-coral-button, .button.erp-button-role-coral, .button.erp-button-coral,
+.button.approved-slate-button, .button.erp-button-role-slate, .button.erp-button-slate,
+.button.approved-danger-ghost-button, .button.erp-button-role-danger-ghost, .button.erp-button-danger-ghost {
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 8px 16px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-cursor: hand;
+}
+
+/* 1. Amber / Orange (Edit Sale / Modify) */
+.dse-theme-dark .button.approved-amber-button,
+.dse-theme-dark .button.erp-button-role-amber,
+.dse-theme-dark .button.erp-button-amber {
+    -fx-background-color: linear-gradient(to bottom, #d97706, #b45309);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #f59e0b;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-amber-button:hover,
+.dse-theme-dark .button.erp-button-role-amber:hover,
+.dse-theme-dark .button.erp-button-amber:hover {
+    -fx-background-color: linear-gradient(to bottom, #f59e0b, #d97706);
+    -fx-effect: dropshadow(gaussian, rgba(245, 158, 11, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-amber-button,
+.dse-theme-light .button.erp-button-role-amber,
+.dse-theme-light .button.erp-button-amber {
+    -fx-background-color: linear-gradient(to bottom, #f59e0b, #d97706);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #b45309;
+    -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.25), 6, 0, 0, 2);
+}
+
+/* 2. Indigo / Deep Blue (Duplicate / Clone) */
+.dse-theme-dark .button.approved-indigo-button,
+.dse-theme-dark .button.erp-button-role-indigo,
+.dse-theme-dark .button.erp-button-indigo {
+    -fx-background-color: linear-gradient(to bottom, #4f46e5, #4338ca);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #6366f1;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(79, 70, 229, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-indigo-button:hover,
+.dse-theme-dark .button.erp-button-role-indigo:hover,
+.dse-theme-dark .button.erp-button-indigo:hover {
+    -fx-background-color: linear-gradient(to bottom, #6366f1, #4f46e5);
+    -fx-effect: dropshadow(gaussian, rgba(99, 102, 241, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-indigo-button,
+.dse-theme-light .button.erp-button-role-indigo,
+.dse-theme-light .button.erp-button-indigo {
+    -fx-background-color: linear-gradient(to bottom, #6366f1, #4f46e5);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #4338ca;
+    -fx-effect: dropshadow(gaussian, rgba(79, 70, 229, 0.25), 6, 0, 0, 2);
+}
+
+/* 3. Emerald Green (Excel / Export) */
+.dse-theme-dark .button.approved-emerald-button,
+.dse-theme-dark .button.erp-button-role-emerald,
+.dse-theme-dark .button.erp-button-emerald {
+    -fx-background-color: linear-gradient(to bottom, #059669, #047857);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #10b981;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(5, 150, 105, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-emerald-button:hover,
+.dse-theme-dark .button.erp-button-role-emerald:hover,
+.dse-theme-dark .button.erp-button-emerald:hover {
+    -fx-background-color: linear-gradient(to bottom, #10b981, #059669);
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-emerald-button,
+.dse-theme-light .button.erp-button-role-emerald,
+.dse-theme-light .button.erp-button-emerald {
+    -fx-background-color: linear-gradient(to bottom, #10b981, #059669);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #047857;
+    -fx-effect: dropshadow(gaussian, rgba(5, 150, 105, 0.25), 6, 0, 0, 2);
+}
+
+/* 4. Sky Blue (Email / Transmit) */
+.dse-theme-dark .button.approved-sky-button,
+.dse-theme-dark .button.erp-button-role-sky,
+.dse-theme-dark .button.erp-button-sky {
+    -fx-background-color: linear-gradient(to bottom, #0284c7, #0369a1);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #0ea5e9;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(2, 132, 199, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-sky-button:hover,
+.dse-theme-dark .button.erp-button-role-sky:hover,
+.dse-theme-dark .button.erp-button-sky:hover {
+    -fx-background-color: linear-gradient(to bottom, #0ea5e9, #0284c7);
+    -fx-effect: dropshadow(gaussian, rgba(14, 165, 233, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-sky-button,
+.dse-theme-light .button.erp-button-role-sky,
+.dse-theme-light .button.erp-button-sky {
+    -fx-background-color: linear-gradient(to bottom, #0ea5e9, #0284c7);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #0369a1;
+    -fx-effect: dropshadow(gaussian, rgba(2, 132, 199, 0.25), 6, 0, 0, 2);
+}
+
+/* 5. Royal Purple (PDF / Print) */
+.dse-theme-dark .button.approved-purple-button,
+.dse-theme-dark .button.erp-button-role-purple,
+.dse-theme-dark .button.erp-button-purple {
+    -fx-background-color: linear-gradient(to bottom, #7c3aed, #6d28d9);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #8b5cf6;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-purple-button:hover,
+.dse-theme-dark .button.erp-button-role-purple:hover,
+.dse-theme-dark .button.erp-button-purple:hover {
+    -fx-background-color: linear-gradient(to bottom, #8b5cf6, #7c3aed);
+    -fx-effect: dropshadow(gaussian, rgba(139, 92, 246, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-purple-button,
+.dse-theme-light .button.erp-button-role-purple,
+.dse-theme-light .button.erp-button-purple {
+    -fx-background-color: linear-gradient(to bottom, #8b5cf6, #7c3aed);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #6d28d9;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.25), 6, 0, 0, 2);
+}
+
+/* 6. Cyber Cyan (Barcode / Labels) */
+.dse-theme-dark .button.approved-cyan-button,
+.dse-theme-dark .button.erp-button-role-cyan,
+.dse-theme-dark .button.erp-button-cyan {
+    -fx-background-color: linear-gradient(to bottom, #0891b2, #0e7490);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #06b6d4;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(8, 145, 178, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-cyan-button:hover,
+.dse-theme-dark .button.erp-button-role-cyan:hover,
+.dse-theme-dark .button.erp-button-cyan:hover {
+    -fx-background-color: linear-gradient(to bottom, #06b6d4, #0891b2);
+    -fx-effect: dropshadow(gaussian, rgba(6, 182, 212, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-cyan-button,
+.dse-theme-light .button.erp-button-role-cyan,
+.dse-theme-light .button.erp-button-cyan {
+    -fx-background-color: linear-gradient(to bottom, #06b6d4, #0891b2);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #0e7490;
+    -fx-effect: dropshadow(gaussian, rgba(8, 145, 178, 0.25), 6, 0, 0, 2);
+}
+
+/* 7. Royal Violet (Record Payment) */
+.dse-theme-dark .button.approved-violet-button,
+.dse-theme-dark .button.erp-button-role-violet,
+.dse-theme-dark .button.erp-button-violet {
+    -fx-background-color: linear-gradient(to bottom, #9333ea, #7e22ce);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #a855f7;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(147, 51, 234, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-violet-button:hover,
+.dse-theme-dark .button.erp-button-role-violet:hover,
+.dse-theme-dark .button.erp-button-violet:hover {
+    -fx-background-color: linear-gradient(to bottom, #a855f7, #9333ea);
+    -fx-effect: dropshadow(gaussian, rgba(168, 85, 247, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-violet-button,
+.dse-theme-light .button.erp-button-role-violet,
+.dse-theme-light .button.erp-button-violet {
+    -fx-background-color: linear-gradient(to bottom, #a855f7, #9333ea);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #7e22ce;
+    -fx-effect: dropshadow(gaussian, rgba(147, 51, 234, 0.25), 6, 0, 0, 2);
+}
+
+/* 8. Coral Red (Sales Return / Purchase Return) */
+.dse-theme-dark .button.approved-coral-button,
+.dse-theme-dark .button.erp-button-role-coral,
+.dse-theme-dark .button.erp-button-coral {
+    -fx-background-color: linear-gradient(to bottom, #e11d48, #be123c);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #f43f5e;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(225, 29, 72, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-coral-button:hover,
+.dse-theme-dark .button.erp-button-role-coral:hover,
+.dse-theme-dark .button.erp-button-coral:hover {
+    -fx-background-color: linear-gradient(to bottom, #f43f5e, #e11d48);
+    -fx-effect: dropshadow(gaussian, rgba(244, 63, 94, 0.55), 14, 0, 0, 5);
+}
+.dse-theme-light .button.approved-coral-button,
+.dse-theme-light .button.erp-button-role-coral,
+.dse-theme-light .button.erp-button-coral {
+    -fx-background-color: linear-gradient(to bottom, #f43f5e, #e11d48);
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #be123c;
+    -fx-effect: dropshadow(gaussian, rgba(225, 29, 72, 0.25), 6, 0, 0, 2);
+}
+
+/* 9. Elevated Slate (Audit Trail / History) */
+.dse-theme-dark .button.approved-slate-button,
+.dse-theme-dark .button.erp-button-role-slate,
+.dse-theme-dark .button.erp-button-slate {
+    -fx-background-color: linear-gradient(to bottom, #334155, #1e293b);
+    -fx-text-fill: #f1f5f9;
+    -fx-border-color: #475569;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.35), 8, 0, 0, 3);
+}
+.dse-theme-dark .button.approved-slate-button:hover,
+.dse-theme-dark .button.erp-button-role-slate:hover,
+.dse-theme-dark .button.erp-button-slate:hover {
+    -fx-background-color: linear-gradient(to bottom, #475569, #334155);
+    -fx-border-color: #64748b;
+    -fx-effect: dropshadow(gaussian, rgba(71, 85, 105, 0.45), 12, 0, 0, 4);
+}
+.dse-theme-light .button.approved-slate-button,
+.dse-theme-light .button.erp-button-role-slate,
+.dse-theme-light .button.erp-button-slate {
+    -fx-background-color: linear-gradient(to bottom, #f1f5f9, #e2e8f0);
+    -fx-text-fill: #1e293b;
+    -fx-border-color: #cbd5e1;
+    -fx-effect: dropshadow(gaussian, rgba(100, 116, 139, 0.15), 6, 0, 0, 2);
+}
+
+/* 10. Crimson Ghost (Close / Cancel) */
+.dse-theme-dark .button.approved-danger-ghost-button,
+.dse-theme-dark .button.erp-button-role-danger-ghost,
+.dse-theme-dark .button.erp-button-danger-ghost {
+    -fx-background-color: rgba(239, 68, 68, 0.08);
+    -fx-text-fill: #fca5a5;
+    -fx-border-color: rgba(239, 68, 68, 0.45);
+    -fx-border-width: 1px;
+}
+.dse-theme-dark .button.approved-danger-ghost-button:hover,
+.dse-theme-dark .button.erp-button-role-danger-ghost:hover,
+.dse-theme-dark .button.erp-button-danger-ghost:hover {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: #ffffff;
+    -fx-border-color: #f87171;
+    -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.55), 14, 0, 0, 4);
+}
+.dse-theme-light .button.approved-danger-ghost-button,
+.dse-theme-light .button.erp-button-role-danger-ghost,
+.dse-theme-light .button.erp-button-danger-ghost {
+    -fx-background-color: rgba(239, 68, 68, 0.06);
+    -fx-text-fill: #dc2626;
+    -fx-border-color: rgba(239, 68, 68, 0.35);
+}
+.dse-theme-light .button.approved-danger-ghost-button:hover,
+.dse-theme-light .button.erp-button-role-danger-ghost:hover,
+.dse-theme-light .button.erp-button-danger-ghost:hover {
+    -fx-background-color: #dc2626;
+    -fx-text-fill: #ffffff;
+    -fx-effect: dropshadow(gaussian, rgba(220, 38, 38, 0.35), 8, 0, 0, 2);
+}
+
+/* 11. Copy Reference Pill (Top Header Copy Button) */
+.dse-theme-dark .button.copy-ref-button,
+.dse-theme-dark .button.erp-button-role-copy-pill {
+    -fx-background-color: rgba(56, 189, 248, 0.12);
+    -fx-text-fill: #38bdf8;
+    -fx-border-color: rgba(56, 189, 248, 0.35);
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-padding: 3px 7px;
+    -fx-cursor: hand;
+}
+.dse-theme-dark .button.copy-ref-button:hover,
+.dse-theme-dark .button.erp-button-role-copy-pill:hover {
+    -fx-background-color: rgba(56, 189, 248, 0.25);
+    -fx-border-color: #38bdf8;
+    -fx-effect: dropshadow(gaussian, rgba(56, 189, 248, 0.45), 10, 0, 0, 2);
+}
+.dse-theme-light .button.copy-ref-button,
+.dse-theme-light .button.erp-button-role-copy-pill {
+    -fx-background-color: rgba(2, 132, 199, 0.08);
+    -fx-text-fill: #0284c7;
+    -fx-border-color: rgba(2, 132, 199, 0.28);
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-padding: 3px 7px;
+    -fx-cursor: hand;
+}
+.dse-theme-light .button.copy-ref-button:hover,
+.dse-theme-light .button.erp-button-role-copy-pill:hover {
+    -fx-background-color: rgba(2, 132, 199, 0.16);
+    -fx-border-color: #0284c7;
+    -fx-effect: dropshadow(gaussian, rgba(2, 132, 199, 0.25), 6, 0, 0, 1);
+}
+
+
+/* Universal Table Reference Hyperlink Styling */
+.table-cell.erp-table-link-cell {
+    -fx-text-fill: #38bdf8;
+    -fx-font-weight: 700;
+    -fx-cursor: hand;
+    -fx-underline: false;
+}
+.table-cell.erp-table-link-cell:hover {
+    -fx-text-fill: #7dd3fc;
+    -fx-underline: true;
+    -fx-cursor: hand;
+}
+

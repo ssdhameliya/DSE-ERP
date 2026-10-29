@@ -77,19 +77,8 @@ public final class WindowUtilsFx {
         stage.setMinWidth(0);
         stage.setMinHeight(0);
         if (stage.getScene() != null && stage.getScene().getRoot() != null) {
-            if (stage.getScene().getRoot() instanceof javafx.scene.control.DialogPane dialogPane) {
-                javafx.scene.Node content = dialogPane.getContent();
-                if (content != null && !(content instanceof javafx.scene.control.ScrollPane)) {
-                    javafx.scene.control.ScrollPane sp = new javafx.scene.control.ScrollPane(content);
-                    sp.setFitToWidth(true);
-                    sp.setFitToHeight(true);
-                    sp.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
-                    sp.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
-                    sp.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
-                    dialogPane.setContent(sp);
-                }
-            }
             stage.getScene().getRoot().applyCss();
+            stage.getScene().getRoot().layout();
             stage.sizeToScene();
         }
         if (stage.getWidth() > maxW) stage.setWidth(maxW);
@@ -104,6 +93,11 @@ public final class WindowUtilsFx {
         double margin = screen.getWidth() < 1100 || screen.getHeight() < 700 ? 16 : 36;
         double maxW = Math.max(320, screen.getWidth() - margin * 2);
         double maxH = Math.max(260, screen.getHeight() - margin * 2);
+        if (stage.getScene() != null && stage.getScene().getRoot() != null) {
+            stage.getScene().getRoot().applyCss();
+            stage.getScene().getRoot().layout();
+            stage.sizeToScene();
+        }
         stage.setMinWidth(Math.min(Math.max(640, stage.getMinWidth()), maxW));
         stage.setMinHeight(Math.min(Math.max(460, stage.getMinHeight()), maxH));
         if (stage.getWidth() > maxW) stage.setWidth(maxW);

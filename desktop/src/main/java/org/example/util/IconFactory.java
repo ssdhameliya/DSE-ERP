@@ -33,6 +33,8 @@ import javafx.geometry.Pos;
 import javafx.scene.paint.Color;
 import org.example.theme.ThemeManager;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Locale;
@@ -56,7 +58,14 @@ public final class IconFactory {
     public static final String NAVIGATION_CONTROL_PROPERTY = "erp.navigation.control";
     private static final String[] BUTTON_VARIANTS = {
         "erp-button-primary", "erp-button-secondary", "erp-button-success",
-        "erp-button-warning", "erp-button-danger", "erp-button-icon"
+        "erp-button-warning", "erp-button-danger", "erp-button-icon",
+        "erp-button-amber", "erp-button-indigo", "erp-button-emerald",
+        "erp-button-sky", "erp-button-purple", "erp-button-cyan",
+        "erp-button-violet", "erp-button-coral", "erp-button-slate",
+        "erp-button-danger-ghost", "approved-amber-button", "approved-indigo-button",
+        "approved-emerald-button", "approved-sky-button", "approved-purple-button",
+        "approved-cyan-button", "approved-violet-button", "approved-coral-button",
+        "approved-slate-button", "approved-danger-ghost-button"
     };
 
     private IconFactory() {
@@ -738,7 +747,7 @@ public final class IconFactory {
 
         String text = button.getText() == null ? "" : button.getText().toLowerCase(Locale.ROOT);
         String variant;
-        if (button.getStyleClass().contains("top-icon") || text.isBlank()) {
+        if (button.getStyleClass().contains("top-icon") || button.getStyleClass().contains("copy-ref-button") || text.isBlank()) {
             variant = "erp-button-icon";
         } else if ("delete".equals(semantic) || "error".equals(semantic)) {
             variant = "erp-button-danger";
@@ -746,6 +755,36 @@ public final class IconFactory {
             variant = "erp-button-warning";
         } else if ("complete".equals(semantic)) {
             variant = "erp-button-success";
+        } else if ("edit".equals(semantic)) {
+            variant = "erp-button-amber";
+            if (!button.getStyleClass().contains("approved-amber-button")) button.getStyleClass().add("approved-amber-button");
+        } else if ("duplicate".equals(semantic)) {
+            variant = "erp-button-indigo";
+            if (!button.getStyleClass().contains("approved-indigo-button")) button.getStyleClass().add("approved-indigo-button");
+        } else if ("excel".equals(semantic) || "export".equals(semantic)) {
+            variant = "erp-button-emerald";
+            if (!button.getStyleClass().contains("approved-emerald-button")) button.getStyleClass().add("approved-emerald-button");
+        } else if ("email".equals(semantic) || "sent".equals(semantic)) {
+            variant = "erp-button-sky";
+            if (!button.getStyleClass().contains("approved-sky-button")) button.getStyleClass().add("approved-sky-button");
+        } else if ("pdf".equals(semantic) || "print".equals(semantic)) {
+            variant = "erp-button-purple";
+            if (!button.getStyleClass().contains("approved-purple-button")) button.getStyleClass().add("approved-purple-button");
+        } else if ("barcode".equals(semantic)) {
+            variant = "erp-button-cyan";
+            if (!button.getStyleClass().contains("approved-cyan-button")) button.getStyleClass().add("approved-cyan-button");
+        } else if ("payment".equals(semantic)) {
+            variant = "erp-button-violet";
+            if (!button.getStyleClass().contains("approved-violet-button")) button.getStyleClass().add("approved-violet-button");
+        } else if ("return".equals(semantic)) {
+            variant = "erp-button-coral";
+            if (!button.getStyleClass().contains("approved-coral-button")) button.getStyleClass().add("approved-coral-button");
+        } else if ("audit".equals(semantic) || "history".equals(semantic)) {
+            variant = "erp-button-slate";
+            if (!button.getStyleClass().contains("approved-slate-button")) button.getStyleClass().add("approved-slate-button");
+        } else if ("cancel".equals(semantic) || "close".equals(semantic)) {
+            variant = "erp-button-danger-ghost";
+            if (!button.getStyleClass().contains("approved-danger-ghost-button")) button.getStyleClass().add("approved-danger-ghost-button");
         } else if ("add".equals(semantic) || "save".equals(semantic) || "backup".equals(semantic)
             || "import".equals(semantic)) {
             variant = "erp-button-primary";
@@ -816,7 +855,7 @@ public final class IconFactory {
         return switch (semantic) {
             case "gstin" -> "fas-id-card";
             case "dashboard" -> "fas-th-large";
-            case "business" -> "fas-building";
+            case "business" -> "fas-briefcase";
             case "application" -> "fas-desktop";
             case "chevron" -> "fas-chevron-right";
             case "sale" -> "fas-shopping-cart";
@@ -828,7 +867,7 @@ public final class IconFactory {
             case "goods-receipt" -> "fas-dolly-flatbed";
             case "dispatch" -> "fas-shipping-fast";
             case "quotation" -> "fas-file-alt";
-            case "payment" -> "fas-credit-card";
+            case "payment" -> "fas-wallet";
             case "refund" -> "fas-undo";
             case "undo" -> "fas-undo";
             case "redo" -> "fas-redo";
@@ -836,12 +875,12 @@ public final class IconFactory {
             case "customer" -> "fas-user";
             case "user" -> "fas-user-circle";
             case "supplier" -> "fas-users";
-            case "item" -> "fas-box";
+            case "item" -> "fas-tag";
             case "inventory" -> "fas-boxes";
             case "master" -> "fas-address-card";
             case "report" -> "fas-chart-bar";
             case "favorite" -> "fas-star";
-            case "email" -> "fas-envelope";
+            case "email" -> "fas-at";
             case "notification" -> "fas-bell";
             case "menu" -> "fas-bars";
             case "search" -> "fas-search";
@@ -852,7 +891,7 @@ public final class IconFactory {
             case "shortcut" -> "fas-keyboard";
             case "view" -> "fas-eye";
             case "hide" -> "fas-eye-slash";
-            case "edit" -> "fas-pen";
+            case "edit" -> "fas-tools";
             case "delete" -> "fas-trash-alt";
             case "print" -> "fas-print";
             case "download" -> "fas-download";
@@ -863,14 +902,14 @@ public final class IconFactory {
             case "previous" -> "fas-angle-left";
             case "next" -> "fas-angle-right";
             case "last" -> "fas-angle-double-right";
-            case "reset" -> "fas-undo-alt";
+            case "reset" -> "fas-broom";
             case "notes" -> "fas-sticky-note";
             case "import" -> "fas-file-import";
             case "save" -> "fas-save";
             case "add" -> "fas-plus";
             case "cancel" -> "fas-times";
             case "refresh" -> "fas-sync-alt";
-            case "filter" -> "fas-filter";
+            case "filter" -> "fas-sliders-h";
             case "attachment" -> "fas-paperclip";
             case "whatsapp" -> "fab-whatsapp";
             case "reminder" -> "fas-clock";
@@ -884,11 +923,11 @@ public final class IconFactory {
             case "restore" -> "fas-history";
             case "validate" -> "fas-shield-alt";
             case "folder" -> "fas-folder-open";
-            case "copy" -> "fas-copy";
+            case "copy" -> "fas-paste";
             case "reopen" -> "fas-redo-alt";
             case "snooze" -> "fas-clock";
             case "lock" -> "fas-lock";
-            case "return" -> "fas-undo-alt";
+            case "return" -> "fas-reply";
             case "calendar" -> "fas-calendar-alt";
             case "phone" -> "fas-phone-alt";
             case "identity" -> "fas-id-card";
@@ -912,14 +951,15 @@ public final class IconFactory {
             case "location" -> "fas-map-marker-alt";
             case "warning" -> "fas-exclamation-circle";
             case "confirmation" -> "fas-question-circle";
-            case "sent" -> "fas-paper-plane";
-            case "audit" -> "fas-history";
-            case "history" -> "fas-history";
+            case "sent" -> "fas-at";
+            case "audit" -> "fas-fingerprint";
+            case "history" -> "fas-fingerprint";
             case "link" -> "fas-link";
             case "info" -> "fas-info-circle";
             case "adjust" -> "fas-sliders-h";
             case "workspace" -> "fas-folder-open";
             case "bank" -> "fas-university";
+            case "account-holder" -> "fas-wallet";
             case "delivery" -> "fas-truck";
             case "update" -> "fas-cloud-download-alt";
             case "permission" -> "fas-user-shield";
@@ -938,12 +978,13 @@ public final class IconFactory {
             case "preserve" -> "fas-lock";
             case "installer" -> "fas-compact-disc";
             case "approve" -> "fas-thumbs-up";
+            case "approval" -> "fas-award";
             case "reject" -> "fas-ban";
             case "publish" -> "fas-cloud-upload-alt";
             case "set-default" -> "fas-star";
             case "archive" -> "fas-archive";
-            case "duplicate" -> "fas-clone";
-            case "transporter" -> "fas-truck-moving";
+            case "duplicate" -> "fas-retweet";
+            case "transporter" -> "fas-dolly";
             case "vehicle" -> "fas-truck";
             case "ledger" -> "fas-book";
             case "barcode" -> "fas-barcode";
@@ -961,10 +1002,10 @@ public final class IconFactory {
         return switch (semantic) {
             case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate", "approve", "publish" -> "green";
             case "export", "excel" -> "blue";
-            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "gstin", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle", "lock" -> "orange";
+            case "purchase", "purchase-order", "goods-receipt", "item", "reminder", "warning", "snooze", "quantity", "tax", "gstin", "discount", "category", "minimum", "source", "reference", "rollback", "package", "set-default", "transporter", "vehicle", "lock" -> "orange";
             case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "reset", "notes", "print", "application", "calendar", "audit", "archive", "duplicate", "barcode" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit", "reject", "exit" -> "pink";
-            case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email", "backup" -> "teal";
+            case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email", "backup", "filter" -> "teal";
             case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron", "wallet", "finance" -> "blue";
             case "credit" -> "green";
             case "adjust", "bank", "delivery", "dispatch", "project", "update", "permission", "register", "draft", "restart", "workflow", "reconcile", "version" -> "purple";
@@ -985,12 +1026,19 @@ public final class IconFactory {
         boolean dark = ThemeManager.getCurrentTheme() == ThemeManager.Theme.DARK;
         return switch (colourName == null ? "" : colourName.toLowerCase(Locale.ROOT)) {
             case "blue" -> dark ? "#73a9ff" : "#2563eb";
+            case "sky" -> dark ? "#7dd3fc" : "#0284c7";
             case "green" -> dark ? "#4ade80" : "#16a34a";
+            case "emerald" -> dark ? "#4ade80" : "#10b981";
             case "orange" -> dark ? "#fbbf24" : "#d97706";
+            case "amber" -> dark ? "#fcd34d" : "#f59e0b";
             case "purple" -> dark ? "#c4b5fd" : "#7c3aed";
+            case "violet" -> dark ? "#c4b5fd" : "#8b5cf6";
             case "pink" -> dark ? "#fb7185" : "#e11d48";
+            case "coral" -> dark ? "#fda4af" : "#f43f5e";
             case "teal" -> dark ? "#5eead4" : "#0d9488";
+            case "cyan" -> dark ? "#67e8f9" : "#06b6d4";
             case "indigo" -> dark ? "#a5b4fc" : "#4f46e5";
+            case "slate" -> dark ? "#94a3b8" : "#64748b";
             default -> dark ? "#94a3b8" : "#64748b";
         };
     }
@@ -1035,10 +1083,16 @@ public final class IconFactory {
     private static String semantic(ButtonBase button) {
         Object pinned = button.getProperties().get(PAGER_SEMANTIC_PROPERTY);
         if (pinned instanceof String value && PAGER_SEMANTICS.contains(value)) return value;
+        if (button.getStyleClass().contains("copy-ref-button") || button.getStyleClass().contains("copy-button")) {
+            return "copy";
+        }
         String byText = semantic(button.getText());
         if (byText != null) return byText;
         String id = button.getId() == null ? "" : button.getId();
-        String styles = String.join(" ", button.getStyleClass());
+        // Strip design system role classes to prevent spurious keyword matches (e.g. erp-button-role-xxx matching "role")
+        String styles = button.getStyleClass().stream()
+            .filter(s -> s != null && !s.startsWith("erp-button-role-") && !s.startsWith("erp-") && !s.startsWith("approved-"))
+            .collect(Collectors.joining(" "));
         String byMetadata = semantic(id + " " + styles);
         if (byMetadata != null) return byMetadata;
         if (button instanceof MenuButton) return "actions";
@@ -1248,8 +1302,10 @@ public final class IconFactory {
         if (value.contains("terms")) return "terms";
         if (value.contains("delivery")) return "delivery";
         if (value.contains("application update") || value.contains("check update") || value.equals("update")) return "update";
+        if (value.contains("duplicate") || value.contains("clone")) return "duplicate";
+        if (value.contains("copy") || value.contains("paste")) return "copy";
         if (value.contains("permission")) return "permission";
-        if (value.contains("role")) return "role";
+        if (value.matches(".*\\b(role|roles|user-role|admin-role)\\b.*")) return "role";
         if (value.contains("history")) return "history";
         if (value.contains("adjust")) return "adjust";
         if (value.equals("ok") || value.equals("yes") || value.equals("confirm")) return "complete";

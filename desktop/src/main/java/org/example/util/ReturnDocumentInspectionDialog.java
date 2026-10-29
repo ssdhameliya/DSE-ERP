@@ -120,7 +120,7 @@ public final class ReturnDocumentInspectionDialog {
         Button btnCopy = new Button();
         btnCopy.setGraphic(IconFactory.compactIcon("copy", 13));
         btnCopy.setTooltip(new Tooltip("Copy return reference number"));
-        btnCopy.getStyleClass().addAll("icon-button", "copy-ref-button", "approved-button", "approved-secondary-button");
+        btnCopy.getStyleClass().addAll("icon-button", "copy-ref-button", "approved-button");
         btnCopy.setOnAction(e -> {
             Clipboard clipboard = Clipboard.getSystemClipboard();
             ClipboardContent content = new ClipboardContent();
@@ -549,7 +549,7 @@ public final class ReturnDocumentInspectionDialog {
         // 5. Excel
         Button btnExcel = new Button("Excel");
         btnExcel.setGraphic(IconFactory.compactIcon("excel", 14));
-        btnExcel.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnExcel.getStyleClass().addAll("approved-button", "approved-emerald-button");
         btnExcel.setOnAction(e -> {
             UiTaskExecutor.submitAction("return-excel-" + details.no(), () -> {
                 return ExcelOutputService.generate(
@@ -608,7 +608,7 @@ public final class ReturnDocumentInspectionDialog {
         // 7. Audit Trail
         Button btnAudit = new Button("Audit Trail");
         btnAudit.setGraphic(IconFactory.compactIcon("history", 14));
-        btnAudit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAudit.getStyleClass().addAll("approved-button", "approved-slate-button");
         btnAudit.setOnAction(e -> {
             String module = isSales ? "SALES_RETURN" : "PURCHASE_RETURN";
             UiTaskExecutor.submitLatest("return-audit-" + details.no(),
@@ -671,7 +671,7 @@ public final class ReturnDocumentInspectionDialog {
 
         Button btnClose = new Button("Close");
         btnClose.setGraphic(IconFactory.compactIcon("cancel", 14));
-        btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnClose.getStyleClass().addAll("approved-button", "approved-danger-ghost-button");
         btnClose.setOnAction(e -> dialog.close());
 
         dock.getChildren().addAll(spacer, btnClose);
