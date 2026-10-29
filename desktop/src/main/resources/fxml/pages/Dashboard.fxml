@@ -88,6 +88,7 @@
             <Button fx:id="btnReminders" text="Reminders" onAction="#openReminderCenter" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnUserAccess" text="User Access" onAction="#openUserAccess" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnAuditTrail" text="Audit Trail" onAction="#openAuditTrail" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnSystemDiagnosticsNav" text="System Diagnostics" onAction="#openSystemDiagnostics" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnCommunication" text="Communication" onAction="#openCommunication" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <VBox styleClass="nav-group">
                 <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
@@ -165,10 +166,10 @@
                 <Label fx:id="lblEmailBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
             </StackPane>
             <StackPane styleClass="notification-button-wrap">
-                <Button fx:id="btnWhatsappCenter" contentDisplay="GRAPHIC_ONLY" onAction="#openWhatsappCenter" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
-                    <tooltip><Tooltip text="WhatsApp activity"/></tooltip>
+                <Button fx:id="btnSystemDiagnostics" contentDisplay="GRAPHIC_ONLY" onAction="#openSystemDiagnostics" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
+                    <tooltip><Tooltip text="System Logs &amp; Application Diagnostics (Ctrl + Shift + L)"/></tooltip>
                 </Button>
-                <Label fx:id="lblWhatsappBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+                <Label fx:id="lblDiagnosticsBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
             </StackPane>
             <Button fx:id="btnShortcutInfo" contentDisplay="GRAPHIC_ONLY" onAction="#showShortcutInfo" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
                 <tooltip><Tooltip text="Keyboard shortcuts"/></tooltip>

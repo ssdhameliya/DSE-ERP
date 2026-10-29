@@ -26,7 +26,6 @@ public final class InvoicePaymentDetailsDialog {
     public static void show(Node owner, SupportApiClient api, String documentType, int documentId,
                             String invoiceNo, String partyLabel, String partyName,
                             double total, double paid, double balance) {
-        List<SupportApiClient.PaymentRow> payments = api.payments(documentType, documentId);
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>(owner);
         dialog.setTitle("Invoice Payment Details");
         dialog.setHeaderText(null);
@@ -55,7 +54,7 @@ public final class InvoicePaymentDetailsDialog {
 
         TableView<SupportApiClient.PaymentRow> table = new TableView<>();
         table.getStyleClass().addAll("professional-table", "approved-table", "invoice-payment-table", "erp-table-profile-dialog");
-        table.setPlaceholder(new Label("No payment records have been recorded for this invoice."));
+        table.setPlaceholder(new Label("Loading payment records…"));
         TableColumn<SupportApiClient.PaymentRow, String> date = textColumn("Date", "calendar", SupportApiClient.PaymentRow::date);
         TableColumn<SupportApiClient.PaymentRow, String> reference = textColumn("Reference", "document", SupportApiClient.PaymentRow::reference);
         TableColumn<SupportApiClient.PaymentRow, String> from = textColumn("Received From / Paid To", "customer", SupportApiClient.PaymentRow::receivedFrom);
@@ -75,12 +74,11 @@ public final class InvoicePaymentDetailsDialog {
         TableColumn<SupportApiClient.PaymentRow, String> notes = textColumn("Notes", "notes", SupportApiClient.PaymentRow::notes);
         table.getColumns().addAll(date, reference, from, mode, amount, notes);
         DynamicTableLayoutManager.install(table);
-        table.getItems().setAll(payments);
         VBox.setVgrow(table, Priority.ALWAYS);
 
-        Label count = new Label(payments.size() + (payments.size() == 1 ? " payment record" : " payment records"));
+        Label count = new Label("Loading payment history…");
         count.getStyleClass().add("muted-label");
-        Label totalRecorded = new Label("Recorded total: " + money(payments.stream().mapToDouble(SupportApiClient.PaymentRow::amount).sum()));
+        Label totalRecorded = new Label("");
         totalRecorded.getStyleClass().add("payment-history-total");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -89,6 +87,24 @@ public final class InvoicePaymentDetailsDialog {
 
         dialog.getDialogPane().setContent(new VBox(12, hero, metrics, table, footer));
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        final SupportApiClient client = api != null ? api : new SupportApiClient();
+        UiTaskExecutor.submitLatest("invoice-payment-" + documentType + "-" + documentId,
+                () -> client.payments(documentType, documentId),
+                payments -> {
+                    List<SupportApiClient.PaymentRow> list = payments != null ? payments : List.of();
+                    table.getItems().setAll(list);
+                    if (list.isEmpty()) {
+                        table.setPlaceholder(new Label("No payment records have been recorded for this invoice."));
+                    }
+                    count.setText(list.size() + (list.size() == 1 ? " payment record" : " payment records"));
+                    totalRecorded.setText("Recorded total: " + money(list.stream().mapToDouble(SupportApiClient.PaymentRow::amount).sum()));
+                },
+                err -> {
+                    table.setPlaceholder(new Label("Unable to load payment history: " + err.getMessage()));
+                    count.setText("Error loading payments");
+                });
+
         dialog.showAndWait();
     }
 

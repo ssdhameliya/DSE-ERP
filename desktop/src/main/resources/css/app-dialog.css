@@ -1025,29 +1025,48 @@
     -fx-border-width: 0 0 1 0;
 }
 
+/* Universal Table Row Empty Isolation (Prevents Cursor Hitching & Ghost Highlights) */
+.table-view .table-row-cell:empty,
+.table-view .table-row-cell:empty:hover,
+.table-view .table-row-cell:empty:focused,
+.table-view .table-row-cell:empty:selected,
+.dse-theme-dark .table-view .table-row-cell:empty,
+.dse-theme-dark .table-view .table-row-cell:empty:hover,
+.dse-theme-dark .table-view .table-row-cell:empty:focused,
+.dse-theme-dark .table-view .table-row-cell:empty:selected,
+.dse-theme-light .table-view .table-row-cell:empty,
+.dse-theme-light .table-view .table-row-cell:empty:hover,
+.dse-theme-light .table-view .table-row-cell:empty:focused,
+.dse-theme-light .table-view .table-row-cell:empty:selected {
+    -fx-background-color: transparent !important;
+    -fx-border-color: transparent !important;
+    -fx-cursor: default !important;
+    -fx-effect: none !important;
+}
+
 /* 3D Interactive Row Hover & Selection */
-.dse-theme-dark .table-view.erp-table-standard .table-row-cell:hover,
-.dse-theme-dark .table-view.approved-table .table-row-cell:hover,
-.dse-theme-dark .table-view.inspection-items-table .table-row-cell:hover {
+.dse-theme-dark .table-view.erp-table-standard .table-row-cell:filled:hover,
+.dse-theme-dark .table-view.approved-table .table-row-cell:filled:hover,
+.dse-theme-dark .table-view.inspection-items-table .table-row-cell:filled:hover {
     -fx-background-color: rgba(56, 189, 248, 0.09);
     -fx-border-color: transparent transparent rgba(56, 189, 248, 0.20) transparent;
 }
-.dse-theme-light .table-view.erp-table-standard .table-row-cell:hover,
-.dse-theme-light .table-view.approved-table .table-row-cell:hover,
-.dse-theme-light .table-view.inspection-items-table .table-row-cell:hover {
+.dse-theme-light .table-view.erp-table-standard .table-row-cell:filled:hover,
+.dse-theme-light .table-view.approved-table .table-row-cell:filled:hover,
+.dse-theme-light .table-view.inspection-items-table .table-row-cell:filled:hover {
     -fx-background-color: #f1f5f9;
     -fx-border-color: transparent transparent #cbd5e1 transparent;
 }
 
-.dse-theme-dark .table-view.erp-table-standard .table-row-cell:selected,
-.dse-theme-dark .table-view.approved-table .table-row-cell:selected,
-.dse-theme-dark .table-view.inspection-items-table .table-row-cell:selected {
+.dse-theme-dark .table-view.erp-table-standard .table-row-cell:filled:selected,
+.dse-theme-dark .table-view.approved-table .table-row-cell:filled:selected,
+.dse-theme-dark .table-view.inspection-items-table .table-row-cell:filled:selected {
     -fx-background-color: rgba(56, 189, 248, 0.16);
     -fx-border-color: transparent transparent #38bdf8 transparent;
 }
-.dse-theme-light .table-view.erp-table-standard .table-row-cell:selected,
-.dse-theme-light .table-view.approved-table .table-row-cell:selected,
-.dse-theme-light .table-view.inspection-items-table .table-row-cell:selected {
+.dse-theme-light .table-view.erp-table-standard .table-row-cell:filled:selected,
+.dse-theme-light .table-view.approved-table .table-row-cell:filled:selected,
+.dse-theme-light .table-view.inspection-items-table .table-row-cell:filled:selected {
     -fx-background-color: #eff6ff;
     -fx-border-color: transparent transparent #0284c7 transparent;
 }
@@ -1366,4 +1385,185 @@
     -fx-background-color: rgba(2, 132, 199, 0.16);
     -fx-border-color: #0284c7;
     -fx-effect: dropshadow(gaussian, rgba(2, 132, 199, 0.25), 6, 0, 0, 1);
+}
+
+/* =============================================================================
+   12. Enterprise Audit Trail Table & Cell Styling
+   ============================================================================= */
+.audit-time-cell {
+    -fx-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -app-text-secondary;
+}
+
+.audit-field-cell {
+    -fx-font-weight: 700;
+    -fx-font-size: 12px;
+}
+
+.dse-theme-dark .audit-old-value {
+    -fx-background-color: rgba(245, 158, 11, 0.12);
+    -fx-text-fill: #fcd34d;
+    -fx-border-color: rgba(245, 158, 11, 0.30);
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 6px;
+    -fx-font-size: 11px;
+}
+
+.dse-theme-light .audit-old-value {
+    -fx-background-color: rgba(217, 119, 6, 0.08);
+    -fx-text-fill: #b45309;
+    -fx-border-color: rgba(217, 119, 6, 0.25);
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 6px;
+    -fx-font-size: 11px;
+}
+
+.dse-theme-dark .audit-new-value {
+    -fx-background-color: rgba(16, 185, 129, 0.14);
+    -fx-text-fill: #6ee7b7;
+    -fx-border-color: rgba(16, 185, 129, 0.35);
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 6px;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.dse-theme-light .audit-new-value {
+    -fx-background-color: rgba(16, 185, 129, 0.10);
+    -fx-text-fill: #047857;
+    -fx-border-color: rgba(16, 185, 129, 0.28);
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 6px;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.audit-user-label {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: 600;
+}
+
+
+/* =============================================================================
+   13. 3D Animated Classy Loading & Skeleton Styles
+   ============================================================================= */
+.skeleton-3d-root {
+    -fx-alignment: center;
+    -fx-padding: 24px;
+}
+
+.skeleton-3d-card {
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-padding: 20px 24px;
+    -fx-spacing: 14px;
+}
+
+.dse-theme-dark .skeleton-3d-card {
+    -fx-background-color: linear-gradient(to bottom, #1e293b, #0f172a);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.50), 28, 0.15, 0, 10);
+}
+
+.dse-theme-light .skeleton-3d-card {
+    -fx-background-color: linear-gradient(to bottom, #ffffff, #f8fafc);
+    -fx-border-color: rgba(0, 0, 0, 0.08);
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.12), 24, 0.10, 0, 8);
+}
+
+.skeleton-pill-hero {
+    -fx-alignment: center-left;
+    -fx-spacing: 10px;
+    -fx-padding: 6px 16px;
+    -fx-background-radius: 20px;
+    -fx-border-radius: 20px;
+}
+
+.dse-theme-dark .skeleton-pill-hero {
+    -fx-background-color: rgba(56, 189, 248, 0.12);
+    -fx-border-color: rgba(56, 189, 248, 0.30);
+    -fx-border-width: 1px;
+}
+
+.dse-theme-light .skeleton-pill-hero {
+    -fx-background-color: rgba(14, 165, 233, 0.10);
+    -fx-border-color: rgba(14, 165, 233, 0.25);
+    -fx-border-width: 1px;
+}
+
+.skeleton-hero-text {
+    -fx-font-weight: 700;
+    -fx-font-size: 13px;
+}
+
+.dse-theme-dark .skeleton-hero-text {
+    -fx-text-fill: #e0f2fe;
+}
+
+.dse-theme-light .skeleton-hero-text {
+    -fx-text-fill: #0369a1;
+}
+
+.skeleton-sub-text {
+    -fx-font-size: 11px;
+}
+
+.dse-theme-dark .skeleton-sub-text {
+    -fx-text-fill: #94a3b8;
+}
+
+.dse-theme-light .skeleton-sub-text {
+    -fx-text-fill: #64748b;
+}
+
+.skeleton-bar {
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+}
+
+.dse-theme-dark .skeleton-bar-base {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+}
+
+.dse-theme-light .skeleton-bar-base {
+    -fx-background-color: rgba(0, 0, 0, 0.06);
+}
+
+.dse-theme-dark .skeleton-bar-highlight {
+    -fx-background-color: rgba(255, 255, 255, 0.15);
+}
+
+.dse-theme-light .skeleton-bar-highlight {
+    -fx-background-color: rgba(0, 0, 0, 0.12);
+}
+
+.dse-theme-dark .skeleton-badge-amber {
+    -fx-background-color: rgba(245, 158, 11, 0.22);
+}
+
+.dse-theme-light .skeleton-badge-amber {
+    -fx-background-color: rgba(217, 119, 6, 0.16);
+}
+
+.dse-theme-dark .skeleton-badge-emerald {
+    -fx-background-color: rgba(16, 185, 129, 0.22);
+}
+
+.dse-theme-light .skeleton-badge-emerald {
+    -fx-background-color: rgba(16, 185, 129, 0.16);
+}
+
+.dse-theme-dark .skeleton-badge-sky {
+    -fx-background-color: rgba(56, 189, 248, 0.22);
+}
+
+.dse-theme-light .skeleton-badge-sky {
+    -fx-background-color: rgba(14, 165, 233, 0.16);
 }

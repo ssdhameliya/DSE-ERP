@@ -17,5 +17,6 @@ public final class AdminDtos { private AdminDtos(){}
  public record AuditRequest(int userId,String action,String detail){}
  public record RegistrationRequestDto(long id,String username,String fullName,String email,String requestedRole,boolean emailVerified,boolean mfaVerified,String status,String requestedAt,String reviewedBy,String reviewedAt,String rejectionReason,long rowVersion){}
  public record RegistrationDecisionRequest(String role,String reason,long rowVersion){}
+ public record ServerLogEntry(String time,String level,String thread,String logger,String message,String stackTrace){}
  public record Ok(boolean success,String message){}
 }

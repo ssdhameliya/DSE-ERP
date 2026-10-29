@@ -9,6 +9,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
 import org.example.api.audit.AuditApiClient;
 import org.example.util.ActivityTimelineDialog;
+import org.example.util.Classy3DLoadingView;
 import org.example.util.BusinessClock;
 import org.example.util.DynamicTableLayoutManager;
 import org.example.util.RealtimeSearchSupport;
@@ -36,6 +37,7 @@ public final class GlobalAuditController implements ScreenLifecycle {
         ResponsiveKpiLayoutManager.install(auditKpiGrid);
         DynamicTableLayoutManager.install(table);
         RealtimeSearchSupport.installRemote(txtSearch, () -> { page=0; load(); });
+        Classy3DLoadingView.attachToTable(table, "Loading Enterprise Audit Ledger…", "Fetching company-wide audit transactions, modifications, and security events…");
         colView.setCellFactory(c->new TableCell<>(){final Button b=new Button();{UiActionIcons.applyLabeledTableAction(b,"View","view","View audit details");b.setAccessibleText("View audit details");b.setOnAction(e->{Row r=getTableRow()==null?null:getTableRow().getItem();if(r!=null)ActivityTimelineDialog.show(table,r.entityType(),(int)r.entityId(),r.reference());});}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:b);setAlignment(javafx.geometry.Pos.CENTER);}});
         refresh();
     }
@@ -44,8 +46,8 @@ public final class GlobalAuditController implements ScreenLifecycle {
     private TableCell<Row,String> valueCell(String cls){return new TableCell<>(){protected void updateItem(String item,boolean empty){super.updateItem(item,empty);setText(empty?null:(item==null||item.isBlank()?"—":item));getStyleClass().removeAll("audit-old-value","audit-new-value");if(!empty)getStyleClass().add(cls);}};}
 
     @FXML private void refresh(){load();}
-    private void load(){String module=value(cmbModule),action=value(cmbAction);UiTaskExecutor.submitLatest("global-audit",()->api.global(page,100,module,action,txtUser.getText(),txtReference.getText(),txtSearch.getText()),this::show,this::error);}
-    private void show(AuditApiClient.GlobalPage p){totalPages=p.totalPages();page=p.page();lblTotal.setText(String.valueOf(p.total()));lblChanges.setText(String.valueOf(p.businessChanges()));lblFinancial.setText(String.valueOf(p.financialEvents()));lblDocuments.setText(String.valueOf(p.documentEvents()));lblCommunications.setText(String.valueOf(p.communications()));List<Row> rows=new ArrayList<>();for(var e:p.rows()){if(e.changes()==null||e.changes().isEmpty())rows.add(Row.of(e,null));else for(var c:e.changes())rows.add(Row.of(e,c));}table.setItems(FXCollections.observableArrayList(rows));lblPage.setText("Page "+(page+1)+(totalPages>0?" of "+totalPages:"")+" • "+p.total()+" events");}
+    private void load(){String module=value(cmbModule),action=value(cmbAction);table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Enterprise Audit Ledger…", "Fetching company-wide audit transactions, modifications, and security events…"));UiTaskExecutor.submitLatest("global-audit",()->api.global(page,100,module,action,txtUser.getText(),txtReference.getText(),txtSearch.getText()),this::show,this::error);}
+    private void show(AuditApiClient.GlobalPage p){totalPages=p.totalPages();page=p.page();lblTotal.setText(String.valueOf(p.total()));lblChanges.setText(String.valueOf(p.businessChanges()));lblFinancial.setText(String.valueOf(p.financialEvents()));lblDocuments.setText(String.valueOf(p.documentEvents()));lblCommunications.setText(String.valueOf(p.communications()));List<Row> rows=new ArrayList<>();for(var e:p.rows()){if(e.changes()==null||e.changes().isEmpty())rows.add(Row.of(e,null));else for(var c:e.changes())rows.add(Row.of(e,c));}table.setItems(FXCollections.observableArrayList(rows));if(rows.isEmpty())table.setPlaceholder(new Label("No audit records found matching the active filters."));lblPage.setText("Page "+(page+1)+(totalPages>0?" of "+totalPages:"")+" • "+p.total()+" events");}
     @FXML private void clearFilters(){cmbModule.getSelectionModel().selectFirst();cmbAction.getSelectionModel().selectFirst();txtUser.clear();txtReference.clear();txtSearch.clear();page=0;load();}
     @FXML private void previousPage(){if(page>0){page--;load();}}
     @FXML private void nextPage(){if(page+1<totalPages){page++;load();}}

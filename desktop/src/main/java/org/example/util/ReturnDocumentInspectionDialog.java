@@ -38,25 +38,47 @@ public final class ReturnDocumentInspectionDialog {
         final ReturnApiClient api = (returnApiClient != null) ? returnApiClient : new ReturnApiClient();
         final SupportApiClient support = (supportApiClient != null) ? supportApiClient : new SupportApiClient();
 
-        ReturnApiClient.Details details;
-        try {
-            details = api.details(returnNo);
-        } catch (Exception ex) {
-            ToastManager.error(ownerNode, "Failed to load return details", ex.getMessage());
-            return;
-        }
-
-        final ReturnApiClient.Details currentDetails = details;
-
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>(ownerNode);
-        dialog.setTitle((isSalesReturn ? "Sales Return Inspection — " : "Purchase Return Inspection — ") + currentDetails.no());
+        dialog.setTitle((isSalesReturn ? "Sales Return Inspection — " : "Purchase Return Inspection — ") + returnNo);
         dialog.setHeaderText(null);
         dialog.setResizable(true);
 
         DialogPane pane = dialog.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "return-inspection-dialog", "approved-ui");
+        AppDialogRenderer.configureWorkspace(dialog, "return",
+                isSalesReturn ? "Sales Return" : "Purchase Return",
+                isSalesReturn ? "Sales Return" : "Purchase Return",
+                returnNo, "");
         PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
 
+        Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
+                (isSalesReturn ? "Loading Sales Return Details — " : "Loading Purchase Return Details — ") + returnNo,
+                "Synchronizing return lines, inventory restoration status, and refund settlements…");
+        pane.setContent(loadingSkeleton);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+
+        Node defaultButtonBar = pane.lookup(".button-bar");
+        if (defaultButtonBar != null) {
+            defaultButtonBar.setVisible(false);
+            defaultButtonBar.setManaged(false);
+        }
+
+        UiTaskExecutor.submitLatest("return-inspection-" + returnNo,
+                () -> api.details(returnNo),
+                details -> {
+                    if (details != null) {
+                        dialog.setTitle((isSalesReturn ? "Sales Return Inspection — " : "Purchase Return Inspection — ") + details.no());
+                        renderContent(dialog, pane, details, isSalesReturn, api, support, onUpdated);
+                    } else {
+                        ToastManager.error(pane, "Not Found", "Return record could not be loaded for " + returnNo);
+                    }
+                },
+                ex -> ToastManager.error(pane, "Failed to load", ex.getMessage()));
+
+        dialog.showAndWait();
+    }
+
+    private static void renderContent(Dialog<?> dialog, DialogPane pane, ReturnApiClient.Details currentDetails, boolean isSalesReturn, ReturnApiClient api, SupportApiClient support, Runnable onUpdated) {
         // Header Hero
         HBox headerHero = buildHeaderHero(currentDetails, isSalesReturn, dialog);
 
@@ -92,18 +114,10 @@ public final class ReturnDocumentInspectionDialog {
         VBox contentBox = new VBox(12, headerHero, metricStrip, tabPane, actionDock);
         contentBox.setPadding(new Insets(16, 20, 16, 20));
         contentBox.getStyleClass().addAll("document-inspection-content", "erp-ui-standard");
+        contentBox.setStyle("-fx-background-color: #0b1325; -fx-background-radius: 12;");
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
         pane.setContent(contentBox);
-        pane.getButtonTypes().add(ButtonType.CLOSE);
-
-        Node defaultButtonBar = pane.lookup(".button-bar");
-        if (defaultButtonBar != null) {
-            defaultButtonBar.setVisible(false);
-            defaultButtonBar.setManaged(false);
-        }
-
-        dialog.showAndWait();
     }
 
     private static HBox buildHeaderHero(ReturnApiClient.Details details, boolean isSales, Dialog<?> dialog) {
@@ -111,7 +125,7 @@ public final class ReturnDocumentInspectionDialog {
         iconLabel.setGraphic(IconFactory.icon("return", 32));
         iconLabel.getStyleClass().add("inspection-hero-icon");
 
-        Label docTypeLabel = new Label(isSales ? "CREDIT NOTE / SALES RETURN" : "DEBIT NOTE / PURCHASE RETURN");
+        Label docTypeLabel = new Label(isSales ? "SALES RETURN DOCUMENT" : "PURCHASE RETURN DOCUMENT");
         docTypeLabel.getStyleClass().add("inspection-kicker");
 
         Label docNoLabel = new Label(details.no());
@@ -255,11 +269,28 @@ public final class ReturnDocumentInspectionDialog {
         TableView<ReturnApiClient.Line> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
         table.setPlaceholder(new Label("No line items associated with this return."));
+        table.setFixedCellSize(36.0);
+        table.getProperties().put("erp-keep-selection", true);
 
         TableColumn<ReturnApiClient.Line, Number> colIndex = new TableColumn<>("#");
         colIndex.setPrefWidth(42);
         colIndex.setSortable(false);
+        colIndex.getProperties().put("erp-row-number", true);
+        colIndex.getProperties().put("erp-header-explicit", true);
         colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(table.getItems().indexOf(v.getValue()) + 1));
+        colIndex.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                setText(String.valueOf(item));
+                setGraphic(null);
+                setAlignment(Pos.CENTER);
+            }
+        });
         colIndex.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<ReturnApiClient.Line, String> colCode = new TableColumn<>("Item Code");
@@ -309,24 +340,32 @@ public final class ReturnDocumentInspectionDialog {
         VBox.setVgrow(table, Priority.ALWAYS);
 
         double sumQty = lines.stream().mapToDouble(ReturnApiClient.Line::quantity).sum();
+        double sumTax = lines.stream().mapToDouble(ReturnApiClient.Line::tax).sum();
         double sumTotal = lines.stream().mapToDouble(ReturnApiClient.Line::amount).sum();
 
-        Label lblCount = new Label(lines.size() + (lines.size() == 1 ? " returned line" : " returned lines"));
-        lblCount.getStyleClass().add("muted-label");
+        Label lblCount = new Label(lines.size() + (lines.size() == 1 ? " returned line item" : " returned line items"));
+        lblCount.getStyleClass().addAll("status-pill", "pill-info");
+        lblCount.setGraphic(IconFactory.compactIcon("item", 13));
+
+        Label lblInventoryPill = new Label("Inventory Restoration Tracked");
+        lblInventoryPill.getStyleClass().addAll("status-pill", "pill-success");
+        lblInventoryPill.setGraphic(IconFactory.compactIcon("complete", 13));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label lblTotals = new Label(String.format(Locale.ROOT, "Total Returned Qty: %,.2f   •   Return Total: %s",
-                sumQty, money(sumTotal)));
+        Label lblTotals = new Label(String.format(Locale.ROOT, "Total Qty: %,.2f   •   Tax: %s   •   Return Total: %s",
+                sumQty, money(sumTax), money(sumTotal)));
         lblTotals.getStyleClass().addAll("inspection-footer-totals", "summary-amount");
 
-        HBox footer = new HBox(12, lblCount, spacer, lblTotals);
+        HBox footer = new HBox(12, lblCount, lblInventoryPill, spacer, lblTotals);
         footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setPadding(new Insets(8, 6, 4, 6));
+        footer.setPadding(new Insets(8, 12, 8, 12));
+        footer.getStyleClass().addAll("inspection-card", "erp-detail-drawer-card");
 
         VBox container = new VBox(8, table, footer);
         container.setPadding(new Insets(8, 0, 0, 0));
+        VBox.setVgrow(container, Priority.ALWAYS);
         return container;
     }
 
@@ -404,21 +443,22 @@ public final class ReturnDocumentInspectionDialog {
     }
 
     private static Node buildNotesTabContent(ReturnApiClient.Details details, boolean isSales, Dialog<?> dialog) {
-        GridPane grid = new GridPane();
-        grid.setHgap(16);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(14, 16, 14, 16));
-        grid.getStyleClass().addAll("inspection-detail-grid", "erp-detail-drawer-card");
+        // Card 1: Linked Origin Document & Counterparty
+        Label lblDocTitle = new Label("Linked Origin Document");
+        lblDocTitle.setGraphic(IconFactory.compactIcon("document", 14));
+        lblDocTitle.setGraphicTextGap(6);
+        lblDocTitle.getStyleClass().add("inspection-card-title");
 
-        int r = 0;
-        addDetailRow(grid, r++, "Original Invoice Ref", safe(details.invoice()), "document");
-        addDetailRow(grid, r++, isSales ? "Customer Name" : "Supplier Name", safe(details.party()), isSales ? "customer" : "supplier");
-        addDetailRow(grid, r++, "Payment Terms", safe(details.paymentTerms()).isBlank() ? "Standard" : details.paymentTerms(), "payment");
-        addDetailRow(grid, r++, "Notes / Remarks", safe(details.notes()).isBlank() ? "No notes recorded." : details.notes(), "notes");
+        GridPane docGrid = new GridPane();
+        docGrid.setHgap(14);
+        docGrid.setVgap(8);
+        int r1 = 0;
+        addDetailRow(docGrid, r1++, "Original Reference", safe(details.invoice()), "document");
+        addDetailRow(docGrid, r1++, isSales ? "Customer Name" : "Supplier Name", safe(details.party()), isSales ? "customer" : "supplier");
+        addDetailRow(docGrid, r1++, "Commercial Terms", safe(details.paymentTerms()).isBlank() ? "Standard Terms" : details.paymentTerms(), "payment");
+        addDetailRow(docGrid, r1++, "Document Classification", isSales ? "Sales Return (Credit Note)" : "Purchase Return (Debit Note)", "return");
 
-        HBox actionRow = new HBox(10);
-        actionRow.setPadding(new Insets(10, 0, 0, 0));
-        Button btnViewOriginal = new Button("Open Original Invoice (" + details.invoice() + ")");
+        Button btnViewOriginal = new Button("Open Original " + (isSales ? "Invoice" : "Bill") + " (" + details.invoice() + ")");
         btnViewOriginal.setGraphic(IconFactory.compactIcon(isSales ? "sales" : "purchase", 14));
         btnViewOriginal.getStyleClass().addAll("approved-button", "approved-secondary-button");
         btnViewOriginal.setOnAction(e -> {
@@ -431,9 +471,64 @@ public final class ReturnDocumentInspectionDialog {
                 NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
             }
         });
-        actionRow.getChildren().add(btnViewOriginal);
 
-        VBox container = new VBox(10, grid, actionRow);
+        VBox docCard = new VBox(10, lblDocTitle, docGrid, btnViewOriginal);
+        docCard.getStyleClass().addAll("inspection-card", "erp-detail-drawer-card");
+        docCard.setPadding(new Insets(14));
+        HBox.setHgrow(docCard, Priority.ALWAYS);
+
+        // Card 2: Financial Settlement Ledger
+        Label lblFinTitle = new Label("Financial & Settlement Ledger");
+        lblFinTitle.setGraphic(IconFactory.compactIcon("payment", 14));
+        lblFinTitle.setGraphicTextGap(6);
+        lblFinTitle.getStyleClass().add("inspection-card-title");
+
+        GridPane finGrid = new GridPane();
+        finGrid.setHgap(14);
+        finGrid.setVgap(8);
+        int r2 = 0;
+        addDetailRow(finGrid, r2++, "Gross Return Total", money(details.total()), "currency");
+        addDetailRow(finGrid, r2++, "Refunded / Settled", money(details.refund()), "complete");
+        addDetailRow(finGrid, r2++, "Outstanding Balance", money(Math.max(0, details.total() - details.refund())), "balance");
+        addDetailRow(finGrid, r2++, "Settlement State", safe(details.refundStatus()).isBlank() ? "PENDING" : safe(details.refundStatus()), "status");
+        addDetailRow(finGrid, r2++, "Operating Currency", safe(details.currency()).isBlank() ? "INR - Indian Rupee" : details.currency(), "currency");
+
+        VBox finCard = new VBox(10, lblFinTitle, finGrid);
+        finCard.getStyleClass().addAll("inspection-card", "erp-detail-drawer-card");
+        finCard.setPadding(new Insets(14));
+        HBox.setHgrow(finCard, Priority.ALWAYS);
+
+        HBox topCards = new HBox(12, docCard, finCard);
+
+        // Card 3: Notes, Return Remarks & Audit Timeline
+        Label lblNotesTitle = new Label("Return Remarks & Audit Timeline");
+        lblNotesTitle.setGraphic(IconFactory.compactIcon("notes", 14));
+        lblNotesTitle.setGraphicTextGap(6);
+        lblNotesTitle.getStyleClass().add("inspection-card-title");
+
+        GridPane auditGrid = new GridPane();
+        auditGrid.setHgap(14);
+        auditGrid.setVgap(8);
+        int r3 = 0;
+        addDetailRow(auditGrid, r3++, "Created Timestamp", BusinessClock.formatTimestamp(details.createdAt()), "calendar");
+        addDetailRow(auditGrid, r3++, "Last Modified", BusinessClock.formatTimestamp(details.updatedAt()), "calendar");
+        addDetailRow(auditGrid, r3++, "Ledger Revision", "Revision " + details.rowVersion(), "notes");
+
+        Label lblRemarksCaption = new Label("Return Remarks & Explanation:");
+        lblRemarksCaption.getStyleClass().add("inspection-card-caption");
+
+        Label lblRemarksValue = new Label(safe(details.notes()).isBlank() ? "No additional return remarks recorded." : details.notes());
+        lblRemarksValue.getStyleClass().addAll("inspection-card-value", "inspection-value-bold");
+        lblRemarksValue.setWrapText(true);
+        lblRemarksValue.setStyle("-fx-padding: 10 14 10 14; -fx-background-color: rgba(15, 23, 42, 0.55); -fx-background-radius: 6;");
+
+        VBox notesCard = new VBox(10, lblNotesTitle, auditGrid, lblRemarksCaption, lblRemarksValue);
+        notesCard.getStyleClass().addAll("inspection-card", "erp-detail-drawer-card");
+        notesCard.setPadding(new Insets(14));
+
+        VBox container = new VBox(12, topCards, notesCard);
+        container.setPadding(new Insets(8, 0, 0, 0));
+
         ScrollPane scroll = new ScrollPane(container);
         scroll.setFitToWidth(true);
         scroll.getStyleClass().addAll("erp-inner-scroll", "inspection-scroll");

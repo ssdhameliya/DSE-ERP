@@ -245,6 +245,9 @@ public final class WorkspaceTabManager {
             } else if (event.getCode() == KeyCode.F9) {
                 NavigationManager.navigateOrReport("/fxml/pages/Sale.fxml");
                 event.consume();
+            } else if (event.isControlDown() && event.isShiftDown() && event.getCode() == KeyCode.L) {
+                org.example.util.SystemDiagnosticsDialog.show(scene.getRoot());
+                event.consume();
             }
         });
     }

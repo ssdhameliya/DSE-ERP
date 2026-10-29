@@ -17123,12 +17123,24 @@
 
 /* Empty tables are one body surface, not nested dark rectangles. */
 .erp-ui-standard .erp-table-standard .placeholder,
-.erp-ui-standard .erp-table-standard .placeholder .label,
-.erp-ui-standard .erp-table-standard .table-row-cell:empty {
+.erp-ui-standard .erp-table-standard .placeholder .label {
     -fx-background-color: #ffffff;
     -fx-text-fill: #64748b;
     -fx-text-background-color: #64748b;
     -fx-border-color: transparent;
+}
+.table-view .table-row-cell:empty,
+.table-view .table-row-cell:empty:hover,
+.table-view .table-row-cell:empty:focused,
+.table-view .table-row-cell:empty:selected,
+.erp-ui-standard .erp-table-standard .table-row-cell:empty,
+.erp-ui-standard .erp-table-standard .table-row-cell:empty:hover,
+.erp-ui-standard .erp-table-standard .table-row-cell:empty:focused,
+.erp-ui-standard .erp-table-standard .table-row-cell:empty:selected {
+    -fx-background-color: transparent !important;
+    -fx-border-color: transparent !important;
+    -fx-cursor: default !important;
+    -fx-effect: none !important;
 }
 
 /* All register drawers use the same four-side inset; scroll content does not add a second edge. */

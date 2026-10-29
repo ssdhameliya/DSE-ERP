@@ -12,6 +12,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import org.example.api.support.SupportApiClient;
 import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import org.example.controller.EmailTransmissionDialog;
 import org.example.controller.LinkedRecordContext;
 import org.example.controller.SalesScreenContext;
@@ -40,17 +41,9 @@ public final class SalesDocumentInspectionDialog {
     public static void show(Node ownerNode, Sales saleSummary, SupportApiClient supportClient, Runnable onUpdated) {
         if (saleSummary == null) return;
 
-        SalesService salesService = new SalesService();
-        Sales sale;
-        try {
-            Sales loaded = salesService.getByInvoice(saleSummary.getInvoiceNo());
-            sale = (loaded != null) ? loaded : saleSummary;
-        } catch (Exception e) {
-            sale = saleSummary;
-        }
-
-        final Sales currentSale = sale;
+        final Sales currentSale = saleSummary;
         final SupportApiClient support = (supportClient != null) ? supportClient : new SupportApiClient();
+        final SalesService salesService = new SalesService();
 
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>(ownerNode);
         dialog.setTitle("Sales Invoice — " + currentSale.getInvoiceNo());
@@ -76,7 +69,7 @@ public final class SalesDocumentInspectionDialog {
         // Tab 1: Consignment Items
         Tab itemsTab = new Tab("Consignment Items (" + (currentSale.getLines() == null ? 0 : currentSale.getLines().size()) + ")");
         itemsTab.setGraphic(IconFactory.compactIcon("item", 14));
-        itemsTab.setContent(buildItemsTabContent(currentSale));
+        itemsTab.setContent(buildItemsTabContent(currentSale, salesService, itemsTab));
 
         // Tab 2: Payments & Allocations
         Tab paymentsTab = new Tab("Payments & Allocations");
@@ -279,7 +272,7 @@ public final class SalesDocumentInspectionDialog {
         return card;
     }
 
-    private static Node buildItemsTabContent(Sales sale) {
+    private static Node buildItemsTabContent(Sales sale, SalesService salesService, Tab itemsTab) {
         TableView<SalesLine> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
         table.setPlaceholder(new Label("No line items associated with this sales invoice."));
@@ -491,24 +484,63 @@ public final class SalesDocumentInspectionDialog {
 
         // Additional Charges strip if any
         VBox container = new VBox(8, table, footer);
-        if (sale.getCharges() != null && !sale.getCharges().isEmpty()) {
-            HBox chargesBox = new HBox(10);
-            chargesBox.setAlignment(Pos.CENTER_LEFT);
-            chargesBox.setPadding(new Insets(6, 10, 6, 10));
-            chargesBox.getStyleClass().add("inspection-charges-box");
+        Runnable renderCharges = () -> {
+            if (sale.getCharges() != null && !sale.getCharges().isEmpty()) {
+                HBox chargesBox = new HBox(10);
+                chargesBox.setAlignment(Pos.CENTER_LEFT);
+                chargesBox.setPadding(new Insets(6, 10, 6, 10));
+                chargesBox.getStyleClass().add("inspection-charges-box");
 
-            Label chargeTitle = new Label("Additional Charges:");
-            chargeTitle.setGraphic(IconFactory.compactIcon("tax", 13));
-            chargeTitle.getStyleClass().add("inspection-card-title");
-            chargesBox.getChildren().add(chargeTitle);
+                Label chargeTitle = new Label("Additional Charges:");
+                chargeTitle.setGraphic(IconFactory.compactIcon("tax", 13));
+                chargeTitle.getStyleClass().add("inspection-card-title");
+                chargesBox.getChildren().add(chargeTitle);
 
-            for (SalesCharge sc : sale.getCharges()) {
-                Label cPill = new Label(sc.getChargeType() + ": " + money(sc.getAmount()) +
-                        (sc.isTaxable() ? " (GST " + String.format(Locale.ROOT, "%.1f%%", sc.getGstPercent()) + ")" : ""));
-                cPill.getStyleClass().addAll("status-pill", "pill-neutral");
-                chargesBox.getChildren().add(cPill);
+                for (SalesCharge sc : sale.getCharges()) {
+                    Label cPill = new Label(sc.getChargeType() + ": " + money(sc.getAmount()) +
+                            (sc.isTaxable() ? " (GST " + String.format(Locale.ROOT, "%.1f%%", sc.getGstPercent()) + ")" : ""));
+                    cPill.getStyleClass().addAll("status-pill", "pill-neutral");
+                    chargesBox.getChildren().add(cPill);
+                }
+                container.getChildren().add(1, chargesBox);
             }
-            container.getChildren().add(1, chargesBox);
+        };
+
+        if (sale.getCharges() != null && !sale.getCharges().isEmpty()) {
+            renderCharges.run();
+        }
+
+        // Asynchronously load consignment lines if empty, ensuring instant pop-up opening without UI lag
+        if (lines.isEmpty() && salesService != null && sale.getInvoiceNo() != null && !sale.getInvoiceNo().isBlank()) {
+            table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Consignment Items…", "Streaming line items, tax breakdowns, and SKU details for " + sale.getInvoiceNo()));
+            UiTaskExecutor.submitLatest("sales-inspection-lines-" + sale.getInvoiceNo(),
+                    () -> salesService.getByInvoice(sale.getInvoiceNo()),
+                    loaded -> {
+                        if (loaded != null && loaded.getLines() != null && !loaded.getLines().isEmpty()) {
+                            sale.setLines(loaded.getLines());
+                            if (loaded.getCharges() != null) sale.setCharges(loaded.getCharges());
+                            table.getItems().setAll(loaded.getLines());
+                            double q = loaded.getLines().stream().mapToDouble(SalesLine::getQuantity).sum();
+                            double t = loaded.getLines().stream().mapToDouble(SalesLine::getGstAmount).sum();
+                            double m = loaded.getLines().stream().mapToDouble(SalesLine::getTotalAmount).sum();
+                            lblCount.setText(loaded.getLines().size() + (loaded.getLines().size() == 1 ? " line item" : " line items"));
+                            lblTotals.setText(String.format(Locale.ROOT, "Total Qty: %,.2f   •   Total Tax: %s   •   Grand Total: %s",
+                                    q, money(t), money(m)));
+                            if (itemsTab != null) {
+                                itemsTab.setText("Consignment Items (" + loaded.getLines().size() + ")");
+                            }
+                            if (container.getChildren().size() <= 2) {
+                                renderCharges.run();
+                            }
+                        } else {
+                            table.setPlaceholder(new Label("No line items associated with this sales invoice."));
+                            lblCount.setText("0 line items");
+                        }
+                    },
+                    err -> {
+                        table.setPlaceholder(new Label("Unable to load consignment items: " + err.getMessage()));
+                        lblCount.setText("0 line items");
+                    });
         }
 
         container.setPadding(new Insets(8, 0, 0, 0));
@@ -518,7 +550,7 @@ public final class SalesDocumentInspectionDialog {
     private static Node buildPaymentsTabContent(Sales sale, SupportApiClient support, Dialog<?> dialog, Runnable onUpdated) {
         TableView<SupportApiClient.PaymentRow> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "invoice-payment-table");
-        table.setPlaceholder(new Label("No payments recorded yet for this invoice."));
+        table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Payment History…", "Retrieving payment proofs, receipts, and allocations for " + sale.getInvoiceNo()));
 
         TableColumn<SupportApiClient.PaymentRow, String> colDate = new TableColumn<>("Payment Date");
         colDate.setPrefWidth(110);
@@ -591,6 +623,9 @@ public final class SalesDocumentInspectionDialog {
                 () -> support.payments("SALE", sale.getId()),
                 records -> {
                     table.getItems().setAll(records);
+                    if (records.isEmpty()) {
+                        table.setPlaceholder(new Label("No payments recorded yet for this invoice."));
+                    }
                     double recordedSum = records.stream().mapToDouble(SupportApiClient.PaymentRow::amount).sum();
                     lblHistorySummary.setText(String.format(Locale.ROOT,
                             "%d payment(s) recorded • Total Collected: %s • Remaining Pending: %s",
@@ -618,7 +653,7 @@ public final class SalesDocumentInspectionDialog {
     private static Node buildAttachmentsTabContent(Sales sale, SupportApiClient support, Dialog<?> dialog) {
         ListView<InspectionAttachment> listView = new ListView<>();
         listView.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-attachments-list");
-        listView.setPlaceholder(new Label("No order attachments or payment proofs have been uploaded for this invoice."));
+        listView.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading Document Attachments…", "Fetching order PDFs, payment receipts, and dispatch documents for " + sale.getInvoiceNo()));
         VBox.setVgrow(listView, Priority.ALWAYS);
 
         listView.setCellFactory(lv -> new ListCell<>() {
@@ -811,6 +846,7 @@ public final class SalesDocumentInspectionDialog {
                 items -> {
                     listView.getItems().setAll(items);
                     if (items.isEmpty()) {
+                        listView.setPlaceholder(new Label("No order attachments or payment proofs have been uploaded for this invoice."));
                         statusLabel.setText("No files attached.");
                     } else {
                         long orderCount = items.stream().filter(i -> "Order Attachment".equals(i.category())).count();
@@ -1026,22 +1062,55 @@ public final class SalesDocumentInspectionDialog {
             NavigationManager.navigateOrReport("/fxml/pages/RecordPayment.fxml");
         });
 
-        // 8. Create Sales Return
-        boolean returnEligible = isReturnEligible(sale);
-        Button btnReturn = new Button("Create Sales Return");
-        btnReturn.setGraphic(IconFactory.compactIcon("return", 14));
-        btnReturn.getStyleClass().addAll("approved-button", "approved-coral-button");
-        btnReturn.setDisable(!returnEligible);
-        if (!returnEligible) {
-            btnReturn.setTooltip(new Tooltip("Sales Returns require an approved, settled invoice."));
+        // 8. Create Sales Return or View Existing Return
+        String retStatus = safe(sale.getReturnStatus()).toUpperCase(Locale.ROOT);
+        boolean isAlreadyReturned = "PARTIALLY RETURNED".equals(retStatus) || "FULLY RETURNED".equals(retStatus) || "RETURNED".equals(retStatus);
+        Button btnReturn = new Button();
+        if (isAlreadyReturned) {
+            btnReturn.setText("View Return");
+            btnReturn.setGraphic(IconFactory.compactIcon("view", 14));
+            btnReturn.getStyleClass().addAll("approved-button", "approved-secondary-button");
+            btnReturn.setTooltip(new Tooltip("View Sales Return for " + sale.getInvoiceNo() + " (" + retStatus + ")"));
+            btnReturn.setOnAction(e -> {
+                dialog.close();
+                LinkedRecordContext.open("SALES_RETURN", null, sale.getInvoiceNo(), "VIEW", "Sales Invoice " + sale.getInvoiceNo());
+                NavigationManager.navigateOrReport("/fxml/pages/SalesReturns.fxml");
+            });
         } else {
-            btnReturn.setTooltip(new Tooltip("Create Sales Return for " + sale.getInvoiceNo()));
+            boolean returnEligible = isReturnEligible(sale);
+            btnReturn.setText("Create Sales Return");
+            btnReturn.setGraphic(IconFactory.compactIcon("return", 14));
+            btnReturn.getStyleClass().addAll("approved-button", "approved-coral-button");
+            btnReturn.setDisable(!returnEligible);
+            if (!returnEligible) {
+                btnReturn.setTooltip(new Tooltip("Sales Returns require an approved, settled invoice."));
+            } else {
+                btnReturn.setTooltip(new Tooltip("Create Sales Return for " + sale.getInvoiceNo()));
+            }
+            btnReturn.setOnAction(e -> {
+                dialog.close();
+                Sales full = (service != null) ? service.getByInvoice(sale.getInvoiceNo()) : null;
+                if (full == null) full = sale;
+                List<ReturnEditorService.InvoiceItem> items = (full.getLines() != null ? full.getLines() : List.<SalesLine>of()).stream()
+                        .map(line -> new ReturnEditorService.InvoiceItem(
+                                line.getItemCode(),
+                                line.getItemDescription(),
+                                line.getQuantity(),
+                                line.getRate(),
+                                line.getDiscountPercent(),
+                                line.getGstPercent()))
+                        .toList();
+                Window ownerWindow = dialog.getOwner() != null ? dialog.getOwner() : (dialog.getDialogPane() != null && dialog.getDialogPane().getScene() != null ? dialog.getDialogPane().getScene().getWindow() : null);
+                ReturnEditorService.show(ownerWindow, ReturnEditorService.Type.SALES,
+                        sale.getInvoiceNo(),
+                        sale.getCustomer() != null ? sale.getCustomer().getName() : "Customer",
+                        sale.getCustomer() != null ? sale.getCustomer().getId() : 0,
+                        items).ifPresent(no -> {
+                            if (onUpdated != null) onUpdated.run();
+                            ToastManager.success(dialog.getDialogPane(), "Return Created", "Sales return created: " + no);
+                        });
+            });
         }
-        btnReturn.setOnAction(e -> {
-            dialog.close();
-            LinkedRecordContext.open("SALES_RETURN", null, sale.getInvoiceNo(), "CREATE", "Sales Invoice " + sale.getInvoiceNo());
-            NavigationManager.navigateOrReport("/fxml/pages/SalesReturns.fxml");
-        });
 
         // 9. Audit Trail
         Button btnAudit = new Button("Audit Trail");

@@ -11,6 +11,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.example.server.insights.InsightsService;
+import org.example.server.creditdebit.CreditDebitNoteDtos;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -24,15 +27,18 @@ public class ReturnService {
     private final JpaNativeRepository jdbc;
     private final BusinessOperationsService operations;
     private final AuditService audit;
+    private final org.example.server.creditdebit.CreditDebitNoteService creditDebitNoteService;
     private final int settlementDays;
 
     public ReturnService(JpaNativeRepository jdbc,
                          BusinessOperationsService operations,
                          AuditService audit,
+                         org.example.server.creditdebit.CreditDebitNoteService creditDebitNoteService,
                          @Value("${dse.return.settlement-days:7}") int settlementDays) {
         this.jdbc = jdbc;
         this.operations = operations;
         this.audit = audit;
+        this.creditDebitNoteService = creditDebitNoteService;
         this.settlementDays = Math.max(0, Math.min(settlementDays, 365));
     }
 
@@ -193,6 +199,7 @@ public class ReturnService {
         // Re-check the original at approval time so a stale pending Return cannot bypass the full-paid rule.
         if (sales) requireActiveSaleForReturn(origin.invoice()); else requirePostedPurchaseForReturn(origin.invoice());
         postReturnStock(no, sales);
+        createFinancialNoteForApprovedReturn(no, origin, sales);
         String now = BusinessClock.nowUtcText();
         LocalDate due = BusinessClock.today().plusDays(settlementDays);
         jdbc.update("UPDATE return_register SET status='APPROVED',refund_status='PENDING',approved_by=?,approved_at=?,rejection_reason=NULL,settlement_due_date=?,updated_at=? WHERE return_no=?",
@@ -498,6 +505,125 @@ public class ReturnService {
             double q = n(line.get("quantity"));
             if (sales) operations.applyStockMovement(code, q, false, n(line.get("unit_cost")), "SALES_RETURN", ((Number) line.get("id")).intValue());
             else operations.applyStockDelta(code, -q, true);
+        }
+    }
+
+    private void createFinancialNoteForApprovedReturn(String no, ReturnOrigin origin, boolean sales) {
+        if (creditDebitNoteService == null || origin == null) return;
+        try {
+            if (sales) {
+                List<Map<String, Object>> lines = jdbc.queryForList("""
+                    SELECT r.item_code, r.quantity, r.amount, im.id AS item_id,
+                           COALESCE(NULLIF(sl.item_description_snapshot,''), im.description, r.item_code) AS descr,
+                           COALESCE(im.hsn, '') AS hsn,
+                           COALESCE(sl.rate, 0) AS rate,
+                           COALESCE(sl.gst_percent, 18.0) AS gst_rate
+                    FROM return_register r
+                    LEFT JOIN item_master im ON im.item_code = r.item_code
+                    LEFT JOIN sales_line sl ON sl.id = r.source_line_id
+                    WHERE r.return_no = ? ORDER BY r.id
+                    """, no);
+                if (lines.isEmpty()) return;
+
+                List<CreditDebitNoteDtos.NoteLineDto> noteLines = new ArrayList<>();
+                for (Map<String, Object> l : lines) {
+                    BigDecimal qty = BigDecimal.valueOf(n(l.get("quantity"))).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal price = BigDecimal.valueOf(n(l.get("rate"))).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal gstRate = BigDecimal.valueOf(n(l.get("gst_rate"))).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal taxable = qty.multiply(price).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal taxTotal = taxable.multiply(gstRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                    BigDecimal cgst = taxTotal.divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+                    BigDecimal sgst = taxTotal.subtract(cgst);
+                    BigDecimal lineTotal = taxable.add(taxTotal);
+
+                    noteLines.add(new CreditDebitNoteDtos.NoteLineDto(
+                            null,
+                            l.get("item_id") instanceof Number num ? num.longValue() : null,
+                            Objects.toString(l.get("item_code"), ""),
+                            Objects.toString(l.get("descr"), ""),
+                            Objects.toString(l.get("hsn"), ""),
+                            qty, price, gstRate, taxable, cgst, sgst, BigDecimal.ZERO, lineTotal
+                    ));
+                }
+
+                int partyId = sourcePartyId(true, origin.invoice());
+                Map<String, Object> party = jdbc.queryForMap("SELECT name, COALESCE(gstin,'') gstin FROM party_master WHERE id=?", partyId);
+                String partyName = Objects.toString(party.get("name"), "Customer");
+                String gstin = Objects.toString(party.get("gstin"), "");
+
+                CreditDebitNoteDtos.CreditNoteDto cnReq = new CreditDebitNoteDtos.CreditNoteDto(
+                        null, null, BusinessClock.today(), origin.invoice(),
+                        (long) partyId, partyName, gstin, "SALES_RETURN",
+                        null, null, null, null, null, null,
+                        false,
+                        "POSTED", null, "Generated from approved Sales Return " + no,
+                        CurrentUser.require().username(), null, 0L, noteLines
+                );
+
+                CreditDebitNoteDtos.CreditNoteDto created = creditDebitNoteService.createCreditNote(cnReq, CurrentUser.require().username());
+                if (created != null && created.creditNoteNo() != null) {
+                    jdbc.update("UPDATE return_register SET notes = TRIM(CONCAT(COALESCE(notes,''), ' Credit Note: ', ?)) WHERE return_no = ?",
+                            created.creditNoteNo(), no);
+                    audit.log("SALES_RETURN", returnAuditId(no), "CREDIT_NOTE_LINKED", no + " • Generated Credit Note " + created.creditNoteNo());
+                }
+            } else {
+                List<Map<String, Object>> lines = jdbc.queryForList("""
+                    SELECT r.item_code, r.quantity, r.amount, im.id AS item_id,
+                           COALESCE(NULLIF(pl.item_description_snapshot,''), im.description, r.item_code) AS descr,
+                           COALESCE(im.hsn, '') AS hsn,
+                           COALESCE(pl.rate, 0) AS rate,
+                           COALESCE(pl.gst_percent, 18.0) AS gst_rate
+                    FROM return_register r
+                    LEFT JOIN item_master im ON im.item_code = r.item_code
+                    LEFT JOIN purchase_line pl ON pl.id = r.source_line_id
+                    WHERE r.return_no = ? ORDER BY r.id
+                    """, no);
+                if (lines.isEmpty()) return;
+
+                List<CreditDebitNoteDtos.NoteLineDto> noteLines = new ArrayList<>();
+                for (Map<String, Object> l : lines) {
+                    BigDecimal qty = BigDecimal.valueOf(n(l.get("quantity"))).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal price = BigDecimal.valueOf(n(l.get("rate"))).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal gstRate = BigDecimal.valueOf(n(l.get("gst_rate"))).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal taxable = qty.multiply(price).setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal taxTotal = taxable.multiply(gstRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                    BigDecimal cgst = taxTotal.divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
+                    BigDecimal sgst = taxTotal.subtract(cgst);
+                    BigDecimal lineTotal = taxable.add(taxTotal);
+
+                    noteLines.add(new CreditDebitNoteDtos.NoteLineDto(
+                            null,
+                            l.get("item_id") instanceof Number num ? num.longValue() : null,
+                            Objects.toString(l.get("item_code"), ""),
+                            Objects.toString(l.get("descr"), ""),
+                            Objects.toString(l.get("hsn"), ""),
+                            qty, price, gstRate, taxable, cgst, sgst, BigDecimal.ZERO, lineTotal
+                    ));
+                }
+
+                int partyId = sourcePartyId(false, origin.invoice());
+                Map<String, Object> party = jdbc.queryForMap("SELECT name, COALESCE(gstin,'') gstin FROM party_master WHERE id=?", partyId);
+                String partyName = Objects.toString(party.get("name"), "Supplier");
+                String gstin = Objects.toString(party.get("gstin"), "");
+
+                CreditDebitNoteDtos.DebitNoteDto dnReq = new CreditDebitNoteDtos.DebitNoteDto(
+                        null, null, BusinessClock.today(), origin.invoice(),
+                        (long) partyId, partyName, gstin, "PURCHASE_RETURN",
+                        null, null, null, null, null, null,
+                        false,
+                        "POSTED", null, "Generated from approved Purchase Return " + no,
+                        CurrentUser.require().username(), null, 0L, noteLines
+                );
+
+                CreditDebitNoteDtos.DebitNoteDto created = creditDebitNoteService.createDebitNote(dnReq, CurrentUser.require().username());
+                if (created != null && created.debitNoteNo() != null) {
+                    jdbc.update("UPDATE return_register SET notes = TRIM(CONCAT(COALESCE(notes,''), ' Debit Note: ', ?)) WHERE return_no = ?",
+                            created.debitNoteNo(), no);
+                    audit.log("PURCHASE_RETURN", returnAuditId(no), "DEBIT_NOTE_LINKED", no + " • Generated Debit Note " + created.debitNoteNo());
+                }
+            }
+        } catch (Exception ex) {
+            java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.WARNING, "Failed to auto-generate Credit/Debit note for approved return " + no + ": " + ex.getMessage(), ex);
         }
     }
 

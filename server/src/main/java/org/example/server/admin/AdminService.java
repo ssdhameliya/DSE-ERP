@@ -8,6 +8,7 @@ import org.example.server.util.BusinessClock;
 import org.example.server.web.ConcurrentEditException;
 import org.example.shared.SecretValueCodec;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,13 +24,29 @@ public class AdminService {
     private final PasswordEncoder passwords;
     private final TokenService tokens;
     private final RoleMasterService roleMaster;
+    private final String workspacePath;
+
+    private static final java.util.regex.Pattern SPRING_BOOT_LOG_PATTERN = java.util.regex.Pattern.compile(
+            "^(\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:?\\d{2})?)\\s+(\\w+)\\s+(?:\\d+\\s+---\\s+)?(?:\\[(.*?)\\]\\s+)?\\[(.*?)\\]\\s+([^:]+?)\\s+:\\s+(.*)$"
+    );
+    private static final java.util.regex.Pattern LEGACY_SERVER_LOG_PATTERN = java.util.regex.Pattern.compile(
+            "^(\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:?\\d{2})?)\\s+\\[(.*?)\\]\\s+(\\w+)\\s+([\\w\\.]+)\\s+-\\s+(.*)$"
+    );
 
     public AdminService(JpaNativeRepository jdbc, PasswordEncoder passwords, TokenService tokens,
                         RoleMasterService roleMaster) {
+        this(jdbc, passwords, tokens, roleMaster, "");
+    }
+
+    @Autowired
+    public AdminService(JpaNativeRepository jdbc, PasswordEncoder passwords, TokenService tokens,
+                        RoleMasterService roleMaster,
+                        @org.springframework.beans.factory.annotation.Value("${dse.workspace.path:}") String workspacePath) {
         this.jdbc = jdbc;
         this.passwords = passwords;
         this.tokens = tokens;
         this.roleMaster = roleMaster;
+        this.workspacePath = workspacePath != null ? workspacePath.trim() : "";
     }
 
     @PostConstruct
@@ -422,6 +439,100 @@ public class AdminService {
         if(!"PENDING_ADMIN_APPROVAL".equals(String.valueOf(row.get("status"))))throw new IllegalArgumentException("Registration request has already been processed");
         var actor=CurrentUser.require();String reason=request.reason()==null?"":request.reason().trim();jdbc.update("UPDATE registration_request SET status='REJECTED',reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP,rejection_reason=?,row_version=row_version+1 WHERE id=?",actor.id(),reason,id);
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('REGISTRATION',?,?,?,?,?)",id,"REGISTRATION_REJECTED",reason.isBlank()?"Registration rejected":reason,actor.username(),BusinessClock.nowUtcText());return new AdminDtos.Ok(true,"Registration rejected");
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<AdminDtos.ServerLogEntry> serverDiagnostics(int limit) {
+        int maxLines = Math.max(10, Math.min(limit, 1000));
+        List<AdminDtos.ServerLogEntry> results = new java.util.ArrayList<>();
+
+        java.nio.file.Path logFile = null;
+        if (workspacePath != null && !workspacePath.isBlank()) {
+            java.nio.file.Path candidate = java.nio.file.Path.of(workspacePath, "Logs", "Server", "dse-erp-server.log");
+            if (java.nio.file.Files.exists(candidate)) logFile = candidate;
+        }
+        if (logFile == null) {
+            java.nio.file.Path candidate = java.nio.file.Path.of("D:", "DSE Production", "Logs", "Server", "dse-erp-server.log");
+            if (java.nio.file.Files.exists(candidate)) logFile = candidate;
+        }
+        if (logFile == null) {
+            java.nio.file.Path candidate = java.nio.file.Path.of("logs", "dse-erp-server.log");
+            if (java.nio.file.Files.exists(candidate)) logFile = candidate;
+        }
+
+        if (logFile == null || !java.nio.file.Files.exists(logFile)) {
+            return List.of();
+        }
+
+        try {
+            List<String> lines = java.nio.file.Files.readAllLines(logFile, java.nio.charset.StandardCharsets.UTF_8);
+            int start = Math.max(0, lines.size() - Math.max(maxLines * 4, 3000));
+            List<String> traceBuffer = new java.util.ArrayList<>();
+
+            for (int i = lines.size() - 1; i >= start && results.size() < maxLines; i--) {
+                String line = lines.get(i).trim();
+                if (line.isBlank()) continue;
+
+                java.util.regex.Matcher mSpring = SPRING_BOOT_LOG_PATTERN.matcher(line);
+                java.util.regex.Matcher mLegacy = !mSpring.matches() ? LEGACY_SERVER_LOG_PATTERN.matcher(line) : null;
+
+                if (mSpring.matches() || (mLegacy != null && mLegacy.matches())) {
+                    String time;
+                    String level;
+                    String thread;
+                    String logger;
+                    String msg;
+
+                    if (mSpring.matches()) {
+                        time = mSpring.group(1);
+                        level = mSpring.group(2).toUpperCase(java.util.Locale.ROOT);
+                        thread = mSpring.group(4) != null ? mSpring.group(4).trim() : "";
+                        logger = mSpring.group(5).trim();
+                        msg = mSpring.group(6).trim();
+                    } else {
+                        time = mLegacy.group(1);
+                        thread = mLegacy.group(2) != null ? mLegacy.group(2).trim() : "";
+                        level = mLegacy.group(3).toUpperCase(java.util.Locale.ROOT);
+                        logger = mLegacy.group(4).trim();
+                        msg = mLegacy.group(5).trim();
+                    }
+
+                    StringBuilder traceBuilder = new StringBuilder();
+                    for (int t = traceBuffer.size() - 1; t >= 0; t--) {
+                        traceBuilder.append(traceBuffer.get(t)).append("\n");
+                    }
+                    String rawFailure = traceBuilder.toString().trim();
+                    traceBuffer.clear();
+
+                    String simpleLogger = logger;
+                    if (simpleLogger.contains(".")) {
+                        simpleLogger = simpleLogger.substring(simpleLogger.lastIndexOf('.') + 1);
+                    }
+                    if (simpleLogger.endsWith("]")) {
+                        int open = simpleLogger.indexOf('[');
+                        if (open >= 0) simpleLogger = simpleLogger.substring(open + 1, simpleLogger.length() - 1);
+                    }
+
+                    results.add(new AdminDtos.ServerLogEntry(
+                            time,
+                            level,
+                            thread,
+                            simpleLogger,
+                            msg,
+                            rawFailure
+                    ));
+                } else {
+                    if (traceBuffer.size() < 250) {
+                        traceBuffer.add(line);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            java.lang.System.getLogger("org.example").log(java.lang.System.Logger.Level.DEBUG, "Failed reading server log: " + ex.getMessage(), ex);
+        }
+
+        return results;
     }
 
 }

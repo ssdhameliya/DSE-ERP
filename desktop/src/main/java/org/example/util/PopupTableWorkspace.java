@@ -152,15 +152,17 @@ public final class PopupTableWorkspace {
             if (!screens.isEmpty()) screen = screens.get(0);
         }
         Rectangle2D bounds = screen.getVisualBounds();
-        double targetW = Math.max(1180, Math.min(1760, bounds.getWidth() * 0.88));
-        double targetH = Math.max(720, Math.min(980, bounds.getHeight() * 0.88));
+        double maxAvailableW = Math.max(800, bounds.getWidth() - 32);
+        double maxAvailableH = Math.max(560, bounds.getHeight() - 48);
+        double targetW = Math.min(maxAvailableW, Math.max(980, Math.min(1760, bounds.getWidth() * 0.88)));
+        double targetH = Math.min(maxAvailableH, Math.max(580, Math.min(980, bounds.getHeight() * 0.88)));
 
         DialogPane pane = dialog.getDialogPane();
         pane.setPrefSize(targetW, targetH);
-        pane.setMaxWidth(bounds.getWidth() - 32);
-        pane.setMaxHeight(bounds.getHeight() - 32);
-        pane.setMinWidth(Math.min(1080, targetW));
-        pane.setMinHeight(Math.min(680, targetH));
+        pane.setMaxWidth(maxAvailableW);
+        pane.setMaxHeight(maxAvailableH);
+        pane.setMinWidth(Math.min(920, targetW));
+        pane.setMinHeight(Math.min(540, targetH));
         if (!pane.getStyleClass().contains("erp-table-workspace-dialog")) {
             pane.getStyleClass().add("erp-table-workspace-dialog");
         }
