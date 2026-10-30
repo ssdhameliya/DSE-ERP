@@ -1115,6 +1115,7 @@ public final class IconFactory {
         if (value.equals("●")) return "active";
 
         // Specific actions must win before broad business nouns.
+        if (value.contains("system diagnostics") || value.contains("diagnostics") || value.contains("diagnostic")) return "diagnostic";
         if (value.contains("audit trail")) return "audit";
         if (value.contains("mark all read")) return "mark-all-read";
         if (value.equals("mark read") || value.contains("mark as read")) return "mark-read";

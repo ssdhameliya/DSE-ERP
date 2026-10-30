@@ -166,6 +166,12 @@
                 <Label fx:id="lblEmailBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
             </StackPane>
             <StackPane styleClass="notification-button-wrap">
+                <Button fx:id="btnWhatsappCenter" contentDisplay="GRAPHIC_ONLY" onAction="#openWhatsappCenter" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
+                    <tooltip><Tooltip text="WhatsApp activity"/></tooltip>
+                </Button>
+                <Label fx:id="lblWhatsappBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
+            <StackPane styleClass="notification-button-wrap">
                 <Button fx:id="btnSystemDiagnostics" contentDisplay="GRAPHIC_ONLY" onAction="#openSystemDiagnostics" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
                     <tooltip><Tooltip text="System Logs &amp; Application Diagnostics (Ctrl + Shift + L)"/></tooltip>
                 </Button>
