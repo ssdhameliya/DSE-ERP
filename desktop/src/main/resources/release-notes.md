@@ -1,19 +1,11 @@
-# What's New in DSE ERP v11.0.10
+# What's New in DSE ERP v11.0.11
 
-### Enterprise System & Application Diagnostics Ledger (`Ctrl+Shift+L`)
-- **Centralized Diagnostic Stream**: Live unified stream of desktop client exceptions, background task execution failures, and server platform events.
-- **Plain-English Error Guidance**: Automatically translates raw technical stack traces into human-readable problem descriptions and actionable resolution steps via `UserFacingErrorMapper`.
-- **Zero-SSH Cloud Log Streaming**: Seamlessly streams server logs across Local, UAT (`api-uat.jasviindustries.in`), and PROD (`api.jasviindustries.in`) via authenticated REST diagnostics API, with automatic local disk fallback.
-- **Diagnostic Management Suite**: Real-time KPI counter cards, instant CSV export, log directory launcher, and instant filtering by log level, component, and source.
+### Unified Enterprise Inspection Modals & Double-Header Fix
+- **Single-Header Symmetry**: Resolved double-header rendering in System & Application Diagnostics and Audit Trail modals, eliminating the duplicate outer shell.
+- **Solid Host Framing**: Standardized all 7 document inspection and system diagnostic dialogs with a persistent, solid opaque background (`#0d1527` dark / `#ffffff` light), 14px radius, ambient elevation shadows, and top-right close buttons.
+- **Window Dragging**: Added smooth window dragging support across all inspection and diagnostic hero header bars.
 
-### Context-Aware Return Routing & Master Lookup
-- **Dynamic Action Button**: Sales and Purchase document inspection popups now evaluate return status dynamically: shows **"View Return"** if returned, or **"Create Return"** if unreturned.
-- **Dynamic Return Reasons**: Fully integrated with master lookup table, allowing configurable return reasons.
-
-### High-Performance Party Search & Dropdown Autocomplete
-- **Debounced Keystroke Handling**: 300ms debounce eliminates input freezing and typing delays on Sales, Purchase, and Quotation screens.
-- **Asynchronous Search Worker**: Background thread filtering maintains 60 FPS responsive typing even with thousands of party records.
-
-### Global Header Modernization
-- **System Diagnostics Button**: Replaced WhatsApp icon in the header toolbar with dedicated System Diagnostics launcher (`settings` icon).
-- **Classy3DLoadingView**: Tactile skeleton loading views for smooth document and ledger transitions.
+### Lightning-Fast Search & Dropdown Filtering
+- **Pre-Indexed Memory Search**: Background ingestion and flattening threads pre-index searchable strings, reducing search evaluations to a single instant substring comparison.
+- **250ms Input & Dropdown Debounce**: Smooth, fluid filtering without keystroke lag or dropdown selection stutter.
+- **Cell Tooltip Reuse & O(1) Indexing**: Eliminated GC churn from repetitive tooltip allocations and optimized row numbering performance.

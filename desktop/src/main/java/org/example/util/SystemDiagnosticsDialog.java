@@ -15,9 +15,11 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import javafx.util.Duration;
 import org.example.config.WorkspaceManager;
 import org.example.service.SessionService;
+import org.example.theme.ThemeManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,8 +64,44 @@ public final class SystemDiagnosticsDialog {
             String friendlyExplanation,
             String actionableGuidance,
             String technicalDetail,
-            String rawFailure
-    ) {}
+            String rawFailure,
+            String searchIndex
+    ) {
+        public DiagnosticRow(
+                long id,
+                String timeRaw,
+                String formattedTime,
+                String level,
+                String source,
+                String component,
+                String event,
+                String user,
+                String friendlyTitle,
+                String friendlyExplanation,
+                String actionableGuidance,
+                String technicalDetail,
+                String rawFailure
+        ) {
+            this(
+                    id,
+                    timeRaw,
+                    formattedTime,
+                    level,
+                    source,
+                    component,
+                    event,
+                    user,
+                    friendlyTitle,
+                    friendlyExplanation,
+                    actionableGuidance,
+                    technicalDetail,
+                    rawFailure,
+                    (safe(friendlyTitle) + " " + safe(component) + " " + safe(level) + " " +
+                     safe(user) + " " + safe(friendlyExplanation) + " " + safe(actionableGuidance) + " " +
+                     safe(technicalDetail) + " " + safe(rawFailure)).toLowerCase(Locale.ROOT)
+            );
+        }
+    }
 
     private SystemDiagnosticsDialog() {}
 
@@ -77,9 +115,21 @@ public final class SystemDiagnosticsDialog {
 
         DialogPane pane = dialog.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "diagnostics-dialog", "approved-ui");
-        AppDialogRenderer.configureWorkspace(dialog, "system", "System Logs & Diagnostics", "System & Application Diagnostics",
-                "Authoritative enterprise error stream & diagnostic health ledger", "");
+        pane.getProperties().put("dse.dialog.presented", true);
         PopupTableWorkspace.applyInspectionSizing(dialog, owner);
+
+        boolean isDark = ThemeManager.isDark();
+        String hostBg = isDark ? "#0d1527" : "#ffffff";
+        String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+        String hostShadow = isDark
+                ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+        StackPane host = new StackPane();
+        host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+        host.setStyle(String.format(
+                "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                hostBg, hostBorder, hostShadow));
 
         // ================= HEADER HERO =================
         HBox headerHero = buildHeaderHero(dialog);
@@ -159,7 +209,10 @@ public final class SystemDiagnosticsDialog {
         toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.setPadding(new Insets(4, 2, 6, 2));
 
-        // ================= TABLEVIEW =================
+        // ================= TABLEVIEW & PAGINATION SETUP =================
+        final int PAGE_SIZE = 25;
+        final int[] currentPage = new int[]{0};
+
         TableView<DiagnosticRow> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "diagnostics-table");
         table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading System Diagnostic Ledger…", "Fetching real-time error logs, stack traces, and background events…"));
@@ -174,16 +227,17 @@ public final class SystemDiagnosticsDialog {
         colIndex.setSortable(false);
         colIndex.getProperties().put("erp-row-number", true);
         colIndex.getProperties().put("erp-header-explicit", true);
-        colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(table.getItems().indexOf(v.getValue()) + 1));
+        colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(v.getValue().id()));
         colIndex.setCellFactory(col -> new TableCell<>() {
             @Override protected void updateItem(Number item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                if (empty || getIndex() < 0 || getTableView() == null || getTableView().getItems() == null || getIndex() >= getTableView().getItems().size()) {
                     setText(null);
                     setGraphic(null);
                     return;
                 }
-                setText(String.valueOf(item));
+                int rowNumber = (currentPage[0] * PAGE_SIZE) + getIndex() + 1;
+                setText(String.valueOf(rowNumber));
                 setGraphic(null);
                 setAlignment(Pos.CENTER);
             }
@@ -309,6 +363,7 @@ public final class SystemDiagnosticsDialog {
         colExplain.setMinWidth(220);
         colExplain.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().friendlyExplanation() + " • " + v.getValue().actionableGuidance()));
         colExplain.setCellFactory(col -> new TableCell<>() {
+            private final Tooltip explainTooltip = new Tooltip();
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
@@ -319,7 +374,8 @@ public final class SystemDiagnosticsDialog {
                 }
                 setText(item);
                 setAlignment(Pos.CENTER_LEFT);
-                setTooltip(new Tooltip(item));
+                explainTooltip.setText(item);
+                setTooltip(explainTooltip);
             }
         });
         IconFactory.applyTableHeaderIcon(colExplain, "notes");
@@ -379,9 +435,6 @@ public final class SystemDiagnosticsDialog {
         VBox.setVgrow(table, Priority.ALWAYS);
 
         // ================= DATA PIPELINE & PAGINATION =================
-        final int PAGE_SIZE = 25;
-        final int[] currentPage = new int[]{0};
-
         ObservableList<DiagnosticRow> masterList = FXCollections.observableArrayList();
         FilteredList<DiagnosticRow> filteredList = new FilteredList<>(masterList, p -> true);
         ObservableList<DiagnosticRow> pagedList = FXCollections.observableArrayList();
@@ -454,30 +507,19 @@ public final class SystemDiagnosticsDialog {
                 if ("SERVER".equalsIgnoreCase(src) && !"SERVER".equalsIgnoreCase(row.source())) return false;
 
                 if (q.isBlank()) return true;
-                if (safe(row.friendlyTitle()).toLowerCase(Locale.ROOT).contains(q)) return true;
-                if (safe(row.component()).toLowerCase(Locale.ROOT).contains(q)) return true;
-                if (safe(row.level()).toLowerCase(Locale.ROOT).contains(q)) return true;
-                if (safe(row.user()).toLowerCase(Locale.ROOT).contains(q)) return true;
-                if (safe(row.friendlyExplanation()).toLowerCase(Locale.ROOT).contains(q)) return true;
-                if (safe(row.actionableGuidance()).toLowerCase(Locale.ROOT).contains(q)) return true;
-                if (q.length() >= 3) {
-                    return safe(row.technicalDetail()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.rawFailure()).toLowerCase(Locale.ROOT).contains(q);
-                }
-                return false;
+                return row.searchIndex().contains(q);
             });
 
             currentPage[0] = 0;
             renderPage.run();
         };
 
-        PauseTransition searchDebounce = new PauseTransition(Duration.millis(300));
-        txtSearch.textProperty().addListener((obs, o, n) -> {
-            searchDebounce.setOnFinished(e -> applyFilter.run());
-            searchDebounce.playFromStart();
-        });
-        cmbLevel.valueProperty().addListener((obs, o, n) -> applyFilter.run());
-        cmbSource.valueProperty().addListener((obs, o, n) -> applyFilter.run());
+        PauseTransition filterDebounce = new PauseTransition(Duration.millis(250));
+        filterDebounce.setOnFinished(e -> applyFilter.run());
+
+        txtSearch.textProperty().addListener((obs, o, n) -> filterDebounce.playFromStart());
+        cmbLevel.valueProperty().addListener((obs, o, n) -> filterDebounce.playFromStart());
+        cmbSource.valueProperty().addListener((obs, o, n) -> filterDebounce.playFromStart());
 
         Runnable loadData = () -> {
             table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading System Diagnostic Ledger…", "Fetching real-time error logs, stack traces, and background events…"));
@@ -522,17 +564,20 @@ public final class SystemDiagnosticsDialog {
         VBox root = new VBox(12, headerHero, kpiStrip, toolbar, table, paginationBar);
         root.setPadding(new Insets(16, 20, 16, 20));
         root.getStyleClass().addAll("document-inspection-content", "erp-ui-standard");
-        root.setStyle("-fx-background-color: #0b1325; -fx-background-radius: 12;");
+        root.setStyle(isDark ? "-fx-background-color: #0b1325; -fx-background-radius: 12;" : "-fx-background-color: #f8fafc; -fx-background-radius: 12;");
         VBox.setVgrow(root, Priority.ALWAYS);
 
-        pane.setContent(root);
+        host.getChildren().setAll(root);
+        pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
-        Node defaultButtonBar = pane.lookup(".button-bar");
-        if (defaultButtonBar != null) {
-            defaultButtonBar.setVisible(false);
-            defaultButtonBar.setManaged(false);
-        }
+        dialog.setOnShowing(ev -> {
+            Node defaultButtonBar = pane.lookup(".button-bar");
+            if (defaultButtonBar != null) {
+                defaultButtonBar.setVisible(false);
+                defaultButtonBar.setManaged(false);
+            }
+        });
 
         // Trigger load
         loadData.run();
@@ -568,8 +613,8 @@ public final class SystemDiagnosticsDialog {
         rotationPill.setGraphicTextGap(5);
 
         Button btnCloseTop = new Button();
-        btnCloseTop.setGraphic(IconFactory.compactIcon("close", 14));
-        btnCloseTop.getStyleClass().addAll("icon-button", "approved-button");
+        btnCloseTop.setGraphic(SemanticIconManager.compact("close", 14));
+        btnCloseTop.getStyleClass().addAll("dse-dialog-close", "icon-button");
         btnCloseTop.setTooltip(new Tooltip("Close Diagnostics"));
         btnCloseTop.setOnAction(e -> dialog.close());
 
@@ -579,6 +624,23 @@ public final class SystemDiagnosticsDialog {
         HBox hero = new HBox(12, iconLabel, titleBox, spacer, badges);
         hero.setAlignment(Pos.CENTER_LEFT);
         hero.getStyleClass().add("inspection-hero-bar");
+
+        final double[] dragDelta = new double[2];
+        hero.setOnMousePressed(mouseEvent -> {
+            Window window = dialog.getDialogPane().getScene().getWindow();
+            if (window != null) {
+                dragDelta[0] = window.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = window.getY() - mouseEvent.getScreenY();
+            }
+        });
+        hero.setOnMouseDragged(mouseEvent -> {
+            Window window = dialog.getDialogPane().getScene().getWindow();
+            if (window != null) {
+                window.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                window.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
+
         return hero;
     }
 
@@ -615,23 +677,69 @@ public final class SystemDiagnosticsDialog {
 
         DialogPane pane = modal.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "approved-ui");
-        AppDialogRenderer.configureWorkspace(modal, "system", "Diagnostic Detail", row.friendlyTitle(), row.component() + " • " + row.level(), "");
+        pane.getProperties().put("dse.dialog.presented", true);
+
+        boolean isDark = ThemeManager.isDark();
+        String hostBg = isDark ? "#0d1527" : "#ffffff";
+        String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+        String hostShadow = isDark
+                ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+        StackPane host = new StackPane();
+        host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+        host.setStyle(String.format(
+                "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                hostBg, hostBorder, hostShadow));
 
         Label lblTitle = new Label(row.friendlyTitle());
-        lblTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
+        lblTitle.setStyle(isDark ? "-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;" : "-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #0284c7;");
+
+        Label lblSub = new Label(row.component() + " • " + row.level());
+        lblSub.setStyle(isDark ? "-fx-font-size: 12px; -fx-text-fill: #94a3b8;" : "-fx-font-size: 12px; -fx-text-fill: #64748b;");
+
+        VBox titleBox = new VBox(2, lblTitle, lblSub);
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        Button btnHeroClose = new Button();
+        btnHeroClose.setGraphic(SemanticIconManager.compact("close", 14));
+        btnHeroClose.getStyleClass().addAll("dse-dialog-close", "icon-button");
+        btnHeroClose.setTooltip(new Tooltip("Close"));
+        btnHeroClose.setOnAction(e -> modal.close());
+
+        HBox modalHero = new HBox(12, titleBox, btnHeroClose);
+        modalHero.setAlignment(Pos.CENTER_LEFT);
+
+        final double[] dragDelta = new double[2];
+        modalHero.setOnMousePressed(mouseEvent -> {
+            Window window = modal.getDialogPane().getScene().getWindow();
+            if (window != null) {
+                dragDelta[0] = window.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = window.getY() - mouseEvent.getScreenY();
+            }
+        });
+        modalHero.setOnMouseDragged(mouseEvent -> {
+            Window window = modal.getDialogPane().getScene().getWindow();
+            if (window != null) {
+                window.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                window.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
 
         Label lblReason = new Label("What Happened: " + row.friendlyExplanation());
         lblReason.setWrapText(true);
-        lblReason.setStyle("-fx-font-size: 13px; -fx-text-fill: #e2e8f0;");
+        lblReason.setStyle(isDark ? "-fx-font-size: 13px; -fx-text-fill: #e2e8f0;" : "-fx-font-size: 13px; -fx-text-fill: #1e293b;");
 
         Label lblAction = new Label("Recommended Action: " + row.actionableGuidance());
         lblAction.setWrapText(true);
-        lblAction.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #34d399;");
+        lblAction.setStyle(isDark ? "-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #34d399;" : "-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #059669;");
 
         TextArea txtTrace = new TextArea();
         txtTrace.setEditable(false);
         txtTrace.setWrapText(true);
-        txtTrace.setStyle("-fx-font-family: 'Consolas', 'Courier New', monospace; -fx-font-size: 12px; -fx-text-fill: #cbd5e1; -fx-control-inner-background: #060c18;");
+        txtTrace.setStyle(isDark
+                ? "-fx-font-family: 'Consolas', 'Courier New', monospace; -fx-font-size: 12px; -fx-text-fill: #cbd5e1; -fx-control-inner-background: #060c18;"
+                : "-fx-font-family: 'Consolas', 'Courier New', monospace; -fx-font-size: 12px; -fx-text-fill: #334155; -fx-control-inner-background: #f1f5f9;");
         txtTrace.setText("--- EVENT DETAILS ---\n"
                 + "Time: " + row.formattedTime() + " (" + row.timeRaw() + ")\n"
                 + "Source: " + row.source() + "\n"
@@ -662,19 +770,22 @@ public final class SystemDiagnosticsDialog {
         HBox actions = new HBox(10, btnCopy, btnClose);
         actions.setAlignment(Pos.CENTER_RIGHT);
 
-        VBox content = new VBox(10, lblTitle, lblReason, lblAction, txtTrace, actions);
+        VBox content = new VBox(10, modalHero, lblReason, lblAction, txtTrace, actions);
         content.setPadding(new Insets(16));
-        content.setStyle("-fx-background-color: #0b1325; -fx-background-radius: 12;");
+        content.setStyle(isDark ? "-fx-background-color: #0b1325; -fx-background-radius: 12;" : "-fx-background-color: #f8fafc; -fx-background-radius: 12;");
         content.setPrefSize(720, 500);
 
-        pane.setContent(content);
+        host.getChildren().setAll(content);
+        pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
-        Node btnBar = pane.lookup(".button-bar");
-        if (btnBar != null) {
-            btnBar.setVisible(false);
-            btnBar.setManaged(false);
-        }
+        modal.setOnShowing(ev -> {
+            Node btnBar = pane.lookup(".button-bar");
+            if (btnBar != null) {
+                btnBar.setVisible(false);
+                btnBar.setManaged(false);
+            }
+        });
 
         modal.showAndWait();
     }

@@ -13,6 +13,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
+import javafx.stage.Window;
 import org.example.api.ApiRuntime;
 import org.example.api.ApiSession;
 import org.example.config.ConfigManager;
@@ -20,6 +21,7 @@ import org.example.controller.CreditNoteRegisterController.CreditNoteRow;
 import org.example.controller.DebitNoteRegisterController.DebitNoteRow;
 import org.example.controller.LinkedRecordContext;
 import org.example.navigation.NavigationManager;
+import org.example.theme.ThemeManager;
 
 import java.math.BigDecimal;
 import java.net.URI;
@@ -126,17 +128,33 @@ public final class CreditDebitNoteInspectionDialog {
 
             DialogPane pane = dialog.getDialogPane();
             pane.getStyleClass().addAll("erp-document-inspection-dialog", "credit-debit-inspection-dialog", "approved-ui");
-            AppDialogRenderer.configureWorkspace(dialog, isCreditNote ? "credit" : "debit");
+            pane.getProperties().put("dse.dialog.presented", true);
             PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
 
-            renderDialogContent(dialog, fallback, isCreditNote, onUpdated, onReissue);
+            boolean isDark = ThemeManager.isDark();
+            String hostBg = isDark ? "#0d1527" : "#ffffff";
+            String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+            String hostShadow = isDark
+                    ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                    : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+            StackPane host = new StackPane();
+            host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+            host.setStyle(String.format(
+                    "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                    hostBg, hostBorder, hostShadow));
+            pane.setContent(host);
+
+            renderDialogContent(dialog, host, fallback, isCreditNote, onUpdated, onReissue);
 
             pane.getButtonTypes().add(ButtonType.CLOSE);
-            Node defaultButtonBar = pane.lookup(".button-bar");
-            if (defaultButtonBar != null) {
-                defaultButtonBar.setVisible(false);
-                defaultButtonBar.setManaged(false);
-            }
+            dialog.setOnShowing(ev -> {
+                Node defaultButtonBar = pane.lookup(".button-bar");
+                if (defaultButtonBar != null) {
+                    defaultButtonBar.setVisible(false);
+                    defaultButtonBar.setManaged(false);
+                }
+            });
 
             if (noteId != null && (fallback.lines() == null || fallback.lines().isEmpty())) {
                 String endpoint = isCreditNote ? ("/api/credit-notes/" + noteId) : ("/api/debit-notes/" + noteId);
@@ -153,7 +171,7 @@ public final class CreditDebitNoteInspectionDialog {
                     return null;
                 }, loaded -> {
                     if (loaded != null && loaded.lines() != null && !loaded.lines().isEmpty()) {
-                        renderDialogContent(dialog, loaded, isCreditNote, onUpdated, onReissue);
+                        renderDialogContent(dialog, host, loaded, isCreditNote, onUpdated, onReissue);
                     }
                 }, err -> {});
             }
@@ -169,20 +187,36 @@ public final class CreditDebitNoteInspectionDialog {
 
         DialogPane pane = dialog.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "credit-debit-inspection-dialog", "approved-ui");
-        AppDialogRenderer.configureWorkspace(dialog, isCreditNote ? "credit" : "debit");
+        pane.getProperties().put("dse.dialog.presented", true);
         PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
+
+        boolean isDark = ThemeManager.isDark();
+        String hostBg = isDark ? "#0d1527" : "#ffffff";
+        String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+        String hostShadow = isDark
+                ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+        StackPane host = new StackPane();
+        host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+        host.setStyle(String.format(
+                "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                hostBg, hostBorder, hostShadow));
 
         Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
                 (isCreditNote ? "Loading Sales Credit Note Details — " : "Loading Purchase Debit Note Details — ") + safe(noteNo),
                 "Synchronizing line items, GST credit reversal, and financial allocations…");
-        pane.setContent(loadingSkeleton);
+        host.getChildren().setAll(loadingSkeleton);
+        pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
-        Node defaultButtonBar = pane.lookup(".button-bar");
-        if (defaultButtonBar != null) {
-            defaultButtonBar.setVisible(false);
-            defaultButtonBar.setManaged(false);
-        }
+        dialog.setOnShowing(ev -> {
+            Node defaultButtonBar = pane.lookup(".button-bar");
+            if (defaultButtonBar != null) {
+                defaultButtonBar.setVisible(false);
+                defaultButtonBar.setManaged(false);
+            }
+        });
 
         if (noteId != null) {
             String endpoint = isCreditNote ? ("/api/credit-notes/" + noteId) : ("/api/debit-notes/" + noteId);
@@ -199,7 +233,7 @@ public final class CreditDebitNoteInspectionDialog {
                 return null;
             }, loaded -> {
                 if (loaded != null) {
-                    renderDialogContent(dialog, loaded, isCreditNote, onUpdated, onReissue);
+                    renderDialogContent(dialog, host, loaded, isCreditNote, onUpdated, onReissue);
                 } else {
                     ToastManager.error(pane, "Not Found", "Note could not be loaded.");
                 }
@@ -209,9 +243,9 @@ public final class CreditDebitNoteInspectionDialog {
         dialog.showAndWait();
     }
 
-    private static void renderDialogContent(Dialog<?> dialog, NoteFullDetails details, boolean isCreditNote, Runnable onUpdated, Runnable onReissue) {
+    private static void renderDialogContent(Dialog<?> dialog, StackPane host, NoteFullDetails details, boolean isCreditNote, Runnable onUpdated, Runnable onReissue) {
         // Header Hero
-        HBox headerHero = buildHeaderHero(details, isCreditNote);
+        HBox headerHero = buildHeaderHero(details, isCreditNote, dialog);
 
         // Metric Strip
         HBox metricStrip = buildOverviewCards(details, isCreditNote);
@@ -245,13 +279,13 @@ public final class CreditDebitNoteInspectionDialog {
         VBox contentBox = new VBox(12, headerHero, metricStrip, tabPane, actionDock);
         contentBox.setPadding(new Insets(16, 20, 16, 20));
         contentBox.getStyleClass().addAll("document-inspection-content", "erp-ui-standard");
-        contentBox.setStyle("-fx-background-color: #0b1325; -fx-background-radius: 12;");
+        contentBox.setStyle("-fx-background-color: transparent;");
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
-        dialog.getDialogPane().setContent(contentBox);
+        host.getChildren().setAll(contentBox);
     }
 
-    private static HBox buildHeaderHero(NoteFullDetails details, boolean isCreditNote) {
+    private static HBox buildHeaderHero(NoteFullDetails details, boolean isCreditNote, Dialog<?> dialog) {
         Label iconLabel = new Label();
         iconLabel.setGraphic(IconFactory.icon(isCreditNote ? "credit_note" : "debit_note", 32));
         iconLabel.getStyleClass().add("inspection-hero-icon");
@@ -298,10 +332,36 @@ public final class CreditDebitNoteInspectionDialog {
             statusPill.getStyleClass().addAll("status-pill", "pill-warning");
         }
 
-        HBox hero = new HBox(16, iconLabel, metaBox, spacer, statusPill);
+        Button btnHeroClose = new Button();
+        btnHeroClose.setGraphic(SemanticIconManager.compact("close", 14));
+        btnHeroClose.getStyleClass().addAll("dse-dialog-close", "icon-button");
+        btnHeroClose.setTooltip(new Tooltip("Close"));
+        btnHeroClose.setOnAction(e -> dialog.close());
+
+        HBox statusBox = new HBox(8, statusPill, btnHeroClose);
+        statusBox.setAlignment(Pos.CENTER_RIGHT);
+
+        HBox hero = new HBox(16, iconLabel, metaBox, spacer, statusBox);
         hero.setAlignment(Pos.CENTER_LEFT);
         hero.setPadding(new Insets(4, 8, 8, 8));
         hero.getStyleClass().add("inspection-hero-container");
+
+        final double[] dragDelta = new double[2];
+        hero.setOnMousePressed(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                dragDelta[0] = w.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = w.getY() - mouseEvent.getScreenY();
+            }
+        });
+        hero.setOnMouseDragged(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                w.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                w.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
+
         return hero;
     }
 

@@ -23,6 +23,7 @@ import org.example.model.SalesCharge;
 import org.example.model.SalesLine;
 import org.example.navigation.NavigationManager;
 import org.example.service.*;
+import org.example.theme.ThemeManager;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -52,8 +53,60 @@ public final class SalesDocumentInspectionDialog {
 
         DialogPane pane = dialog.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "sales-inspection-dialog", "approved-ui");
+        pane.getProperties().put("dse.dialog.presented", true);
         PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
 
+        boolean isDark = ThemeManager.isDark();
+        String hostBg = isDark ? "#0d1527" : "#ffffff";
+        String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+        String hostShadow = isDark
+                ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+        StackPane host = new StackPane();
+        host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+        host.setStyle(String.format(
+                "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                hostBg, hostBorder, hostShadow));
+
+        Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
+                "Loading Sales Invoice — " + currentSale.getInvoiceNo(),
+                "Synchronizing consignment lines, payment allocations, and customer ledger status…");
+        host.getChildren().setAll(loadingSkeleton);
+        pane.setContent(host);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+
+        dialog.setOnShowing(ev -> {
+            Node defaultButtonBar = pane.lookup(".button-bar");
+            if (defaultButtonBar != null) {
+                defaultButtonBar.setVisible(false);
+                defaultButtonBar.setManaged(false);
+            }
+        });
+
+        UiTaskExecutor.submitLatest("sales-inspection-" + currentSale.getInvoiceNo(),
+                () -> {
+                    if (currentSale.getLines() != null && !currentSale.getLines().isEmpty()) {
+                        return currentSale;
+                    }
+                    try {
+                        Sales full = salesService.getByInvoice(currentSale.getInvoiceNo());
+                        return full != null ? full : currentSale;
+                    } catch (Exception ex) {
+                        return currentSale;
+                    }
+                },
+                resolvedSale -> {
+                    renderContent(dialog, host, resolvedSale, salesService, support, onUpdated);
+                },
+                ex -> {
+                    renderContent(dialog, host, currentSale, salesService, support, onUpdated);
+                });
+
+        dialog.showAndWait();
+    }
+
+    private static void renderContent(Dialog<?> dialog, StackPane host, Sales currentSale, SalesService salesService, SupportApiClient support, Runnable onUpdated) {
         // ================= HEADER HERO =================
         HBox headerHero = buildHeaderHero(currentSale, dialog);
 
@@ -71,20 +124,38 @@ public final class SalesDocumentInspectionDialog {
         itemsTab.setGraphic(IconFactory.compactIcon("item", 14));
         itemsTab.setContent(buildItemsTabContent(currentSale, salesService, itemsTab));
 
-        // Tab 2: Payments & Allocations
+        // Tab 2: Payments & Allocations (lazy-loaded on tab click)
         Tab paymentsTab = new Tab("Payments & Allocations");
         paymentsTab.setGraphic(IconFactory.compactIcon("payment", 14));
-        paymentsTab.setContent(buildPaymentsTabContent(currentSale, support, dialog, onUpdated));
+        paymentsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Payments…", "Synchronizing payment allocations…"));
+        java.util.concurrent.atomic.AtomicBoolean paymentsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
+        paymentsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected && paymentsLoaded.compareAndSet(false, true)) {
+                paymentsTab.setContent(buildPaymentsTabContent(currentSale, support, dialog, onUpdated));
+            }
+        });
 
-        // Tab 3: Document Attachments
+        // Tab 3: Document Attachments (lazy-loaded on tab click)
         Tab attachmentsTab = new Tab("Attachments");
         attachmentsTab.setGraphic(IconFactory.compactIcon("document", 14));
-        attachmentsTab.setContent(buildAttachmentsTabContent(currentSale, support, dialog));
+        attachmentsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Attachments…", "Synchronizing document files…"));
+        java.util.concurrent.atomic.AtomicBoolean attachmentsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
+        attachmentsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected && attachmentsLoaded.compareAndSet(false, true)) {
+                attachmentsTab.setContent(buildAttachmentsTabContent(currentSale, support, dialog));
+            }
+        });
 
-        // Tab 4: Logistics & Notes
+        // Tab 4: Logistics & Notes (lazy-loaded on tab click)
         Tab logisticsTab = new Tab("Transport & Notes");
         logisticsTab.setGraphic(IconFactory.compactIcon("delivery", 14));
-        logisticsTab.setContent(buildLogisticsTabContent(currentSale));
+        logisticsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Transport…", "Synchronizing dispatch details…"));
+        java.util.concurrent.atomic.AtomicBoolean logisticsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
+        logisticsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected && logisticsLoaded.compareAndSet(false, true)) {
+                logisticsTab.setContent(buildLogisticsTabContent(currentSale));
+            }
+        });
 
         tabPane.getTabs().addAll(itemsTab, paymentsTab, attachmentsTab, logisticsTab);
 
@@ -94,19 +165,10 @@ public final class SalesDocumentInspectionDialog {
         VBox contentBox = new VBox(12, headerHero, metricStrip, tabPane, actionDock);
         contentBox.setPadding(new Insets(16, 20, 16, 20));
         contentBox.getStyleClass().addAll("document-inspection-content", "erp-ui-standard");
+        contentBox.setStyle("-fx-background-color: transparent;");
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
-        pane.setContent(contentBox);
-        pane.getButtonTypes().add(ButtonType.CLOSE);
-
-        // Hide default dialog button bar since we have custom action dock
-        Node defaultButtonBar = pane.lookup(".button-bar");
-        if (defaultButtonBar != null) {
-            defaultButtonBar.setVisible(false);
-            defaultButtonBar.setManaged(false);
-        }
-
-        dialog.showAndWait();
+        host.getChildren().setAll(contentBox);
     }
 
     private static HBox buildHeaderHero(Sales sale, Dialog<?> dialog) {
@@ -174,9 +236,33 @@ public final class SalesDocumentInspectionDialog {
             statusStrip.getChildren().add(retStatusPill);
         }
 
+        Button btnHeroClose = new Button();
+        btnHeroClose.setGraphic(SemanticIconManager.compact("close", 14));
+        btnHeroClose.getStyleClass().addAll("dse-dialog-close", "icon-button");
+        btnHeroClose.setTooltip(new Tooltip("Close"));
+        btnHeroClose.setOnAction(e -> dialog.close());
+        statusStrip.getChildren().add(btnHeroClose);
+
         HBox hero = new HBox(12, iconLabel, titleBox, spacer, statusStrip);
         hero.setAlignment(Pos.CENTER_LEFT);
         hero.getStyleClass().add("inspection-hero-bar");
+
+        final double[] dragDelta = new double[2];
+        hero.setOnMousePressed(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                dragDelta[0] = w.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = w.getY() - mouseEvent.getScreenY();
+            }
+        });
+        hero.setOnMouseDragged(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                w.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                w.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
+
         return hero;
     }
 
@@ -285,10 +371,10 @@ public final class SalesDocumentInspectionDialog {
         colIndex.setSortable(false);
         colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(table.getItems().indexOf(v.getValue()) + 1));
         colIndex.setCellFactory(col -> new TableCell<>() {
+            { setAlignment(Pos.CENTER); }
             @Override protected void updateItem(Number item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : String.valueOf(item));
-                setAlignment(Pos.CENTER);
             }
         });
         IconFactory.applyTableHeaderIcon(colIndex, "index");
@@ -298,18 +384,19 @@ public final class SalesDocumentInspectionDialog {
         colCode.setMinWidth(95);
         colCode.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemCode())));
         colCode.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().addAll("erp-table-link-cell", "erp-table-value-colour-blue");
+                setCursor(javafx.scene.Cursor.HAND);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null || item.isBlank()) {
                     setText(null);
-                    setCursor(javafx.scene.Cursor.DEFAULT);
                     setTooltip(null);
                     setOnMouseClicked(null);
                     return;
                 }
                 setText(item);
-                getStyleClass().addAll("erp-table-link-cell", "erp-table-value-colour-blue");
-                setCursor(javafx.scene.Cursor.HAND);
                 setTooltip(new Tooltip("Item: " + item + " (Click to copy code)"));
                 setOnMouseClicked(e -> {
                     if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
@@ -329,11 +416,13 @@ public final class SalesDocumentInspectionDialog {
         colDesc.setMinWidth(150);
         colDesc.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemDescription())));
         colDesc.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-purple");
+                setAlignment(Pos.CENTER_LEFT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-purple");
-                setAlignment(Pos.CENTER_LEFT);
             }
         });
         IconFactory.applyTableHeaderIcon(colDesc, "document");
@@ -343,11 +432,13 @@ public final class SalesDocumentInspectionDialog {
         colHsn.setMinWidth(75);
         colHsn.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemHsn())));
         colHsn.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-indigo");
+                setAlignment(Pos.CENTER_LEFT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-indigo");
-                setAlignment(Pos.CENTER_LEFT);
             }
         });
         IconFactory.applyTableHeaderIcon(colHsn, "tax");
@@ -357,11 +448,13 @@ public final class SalesDocumentInspectionDialog {
         colUnit.setMinWidth(55);
         colUnit.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().getItemUnit())));
         colUnit.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-teal");
+                setAlignment(Pos.CENTER_LEFT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-teal");
-                setAlignment(Pos.CENTER_LEFT);
             }
         });
         IconFactory.applyTableHeaderIcon(colUnit, "unit");
@@ -371,11 +464,13 @@ public final class SalesDocumentInspectionDialog {
         colQty.setMinWidth(70);
         colQty.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%,.2f", v.getValue().getQuantity())));
         colQty.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-orange");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colQty, "quantity");
@@ -385,11 +480,13 @@ public final class SalesDocumentInspectionDialog {
         colRate.setMinWidth(75);
         colRate.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().getRate())));
         colRate.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-green");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-green");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colRate, "rate");
@@ -404,11 +501,13 @@ public final class SalesDocumentInspectionDialog {
             return new ReadOnlyStringWrapper("—");
         });
         colDiscount.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-orange");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colDiscount, "discount");
@@ -418,11 +517,13 @@ public final class SalesDocumentInspectionDialog {
         colGst.setMinWidth(65);
         colGst.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%.1f%%", v.getValue().getGstPercent())));
         colGst.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-orange");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colGst, "tax");
@@ -432,11 +533,13 @@ public final class SalesDocumentInspectionDialog {
         colTax.setMinWidth(80);
         colTax.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().getGstAmount())));
         colTax.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-teal");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-teal");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colTax, "tax-amount");
@@ -446,12 +549,14 @@ public final class SalesDocumentInspectionDialog {
         colTotal.setMinWidth(100);
         colTotal.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().getTotalAmount())));
         colTotal.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item);
+            {
                 getStyleClass().add("erp-table-value-colour-green");
                 setStyle("-fx-font-weight: bold;");
                 setAlignment(Pos.CENTER_RIGHT);
+            }
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
             }
         });
         IconFactory.applyTableHeaderIcon(colTotal, "total");

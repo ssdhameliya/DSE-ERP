@@ -10,6 +10,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
+import javafx.stage.Window;
 import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.controller.LinkedRecordContext;
@@ -19,6 +20,7 @@ import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.service.ExcelOutputService;
 import org.example.navigation.NavigationManager;
 import org.example.service.*;
+import org.example.theme.ThemeManager;
 
 import java.nio.file.Path;
 import java.text.NumberFormat;
@@ -45,30 +47,43 @@ public final class ReturnDocumentInspectionDialog {
 
         DialogPane pane = dialog.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "return-inspection-dialog", "approved-ui");
-        AppDialogRenderer.configureWorkspace(dialog, "return",
-                isSalesReturn ? "Sales Return" : "Purchase Return",
-                isSalesReturn ? "Sales Return" : "Purchase Return",
-                returnNo, "");
+        pane.getProperties().put("dse.dialog.presented", true);
         PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
+
+        boolean isDark = ThemeManager.isDark();
+        String hostBg = isDark ? "#0d1527" : "#ffffff";
+        String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+        String hostShadow = isDark
+                ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+        StackPane host = new StackPane();
+        host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+        host.setStyle(String.format(
+                "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                hostBg, hostBorder, hostShadow));
 
         Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
                 (isSalesReturn ? "Loading Sales Return Details — " : "Loading Purchase Return Details — ") + returnNo,
                 "Synchronizing return lines, inventory restoration status, and refund settlements…");
-        pane.setContent(loadingSkeleton);
+        host.getChildren().setAll(loadingSkeleton);
+        pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
-        Node defaultButtonBar = pane.lookup(".button-bar");
-        if (defaultButtonBar != null) {
-            defaultButtonBar.setVisible(false);
-            defaultButtonBar.setManaged(false);
-        }
+        dialog.setOnShowing(ev -> {
+            Node defaultButtonBar = pane.lookup(".button-bar");
+            if (defaultButtonBar != null) {
+                defaultButtonBar.setVisible(false);
+                defaultButtonBar.setManaged(false);
+            }
+        });
 
         UiTaskExecutor.submitLatest("return-inspection-" + returnNo,
                 () -> api.details(returnNo),
                 details -> {
                     if (details != null) {
                         dialog.setTitle((isSalesReturn ? "Sales Return Inspection — " : "Purchase Return Inspection — ") + details.no());
-                        renderContent(dialog, pane, details, isSalesReturn, api, support, onUpdated);
+                        renderContent(dialog, host, details, isSalesReturn, api, support, onUpdated);
                     } else {
                         ToastManager.error(pane, "Not Found", "Return record could not be loaded for " + returnNo);
                     }
@@ -78,7 +93,7 @@ public final class ReturnDocumentInspectionDialog {
         dialog.showAndWait();
     }
 
-    private static void renderContent(Dialog<?> dialog, DialogPane pane, ReturnApiClient.Details currentDetails, boolean isSalesReturn, ReturnApiClient api, SupportApiClient support, Runnable onUpdated) {
+    private static void renderContent(Dialog<?> dialog, StackPane host, ReturnApiClient.Details currentDetails, boolean isSalesReturn, ReturnApiClient api, SupportApiClient support, Runnable onUpdated) {
         // Header Hero
         HBox headerHero = buildHeaderHero(currentDetails, isSalesReturn, dialog);
 
@@ -114,10 +129,10 @@ public final class ReturnDocumentInspectionDialog {
         VBox contentBox = new VBox(12, headerHero, metricStrip, tabPane, actionDock);
         contentBox.setPadding(new Insets(16, 20, 16, 20));
         contentBox.getStyleClass().addAll("document-inspection-content", "erp-ui-standard");
-        contentBox.setStyle("-fx-background-color: #0b1325; -fx-background-radius: 12;");
+        contentBox.setStyle("-fx-background-color: transparent;");
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
-        pane.setContent(contentBox);
+        host.getChildren().setAll(contentBox);
     }
 
     private static HBox buildHeaderHero(ReturnApiClient.Details details, boolean isSales, Dialog<?> dialog) {
@@ -176,9 +191,33 @@ public final class ReturnDocumentInspectionDialog {
 
         statusStrip.getChildren().addAll(statusPill, refundPill);
 
+        Button btnHeroClose = new Button();
+        btnHeroClose.setGraphic(SemanticIconManager.compact("close", 14));
+        btnHeroClose.getStyleClass().addAll("dse-dialog-close", "icon-button");
+        btnHeroClose.setTooltip(new Tooltip("Close"));
+        btnHeroClose.setOnAction(e -> dialog.close());
+        statusStrip.getChildren().add(btnHeroClose);
+
         HBox hero = new HBox(12, iconLabel, titleBox, spacer, statusStrip);
         hero.setAlignment(Pos.CENTER_LEFT);
         hero.getStyleClass().add("inspection-hero-bar");
+
+        final double[] dragDelta = new double[2];
+        hero.setOnMousePressed(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                dragDelta[0] = w.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = w.getY() - mouseEvent.getScreenY();
+            }
+        });
+        hero.setOnMouseDragged(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                w.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                w.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
+
         return hero;
     }
 

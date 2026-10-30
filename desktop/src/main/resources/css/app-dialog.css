@@ -629,20 +629,45 @@
 .bank-import-metric-error { -fx-text-fill: #f87171; }
 
 /* Document Inspection Window Pop-up Styles */
-.erp-document-inspection-dialog .dse-dialog-shell {
+.erp-document-inspection-dialog .dse-dialog-shell,
+.document-inspection-host {
     -fx-min-width: 960px;
     -fx-pref-width: 1080px;
-    -fx-max-width: 1280px;
+    -fx-max-width: 1360px;
     -fx-min-height: 600px;
     -fx-pref-height: 740px;
-    -fx-max-height: 860px;
+    -fx-max-height: 880px;
     -fx-background-radius: 14;
     -fx-border-radius: 14;
+    -fx-border-width: 1;
+}
+
+.document-inspection-host {
+    -fx-padding: 0;
+    -fx-background-color: #0d1527;
+    -fx-border-color: rgba(148, 163, 184, 0.22);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10);
 }
 
 .document-inspection-content {
     -fx-padding: 16 22;
     -fx-spacing: 12;
+    -fx-background-color: transparent;
+}
+
+.dse-theme-light .erp-document-inspection-dialog .dse-dialog-shell,
+.dse-theme-light .document-inspection-host,
+.dse-theme-light.document-inspection-host {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cbd5e1;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10);
+}
+
+.erp-document-inspection-dialog > .button-bar {
+    -fx-padding: 0;
+    -fx-pref-height: 0;
+    -fx-max-height: 0;
+    -fx-opacity: 0;
 }
 
 .inspection-hero-bar {
