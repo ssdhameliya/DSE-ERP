@@ -104,4 +104,8 @@ public final class ThemeManager {
         return currentTheme;
     }
 
+    public static boolean isDark() {
+        return currentTheme == Theme.DARK;
+    }
+
 }

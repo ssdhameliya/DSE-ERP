@@ -10,6 +10,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
+import javafx.stage.Window;
 import org.example.api.quotation.QuotationApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.controller.EmailTransmissionDialog;
@@ -20,6 +21,7 @@ import org.example.service.EmailService;
 import org.example.service.ManagedInvoicePdfService;
 import org.example.service.MessageTemplateService;
 import org.example.service.SessionService;
+import org.example.theme.ThemeManager;
 
 import java.nio.file.Path;
 import java.text.NumberFormat;
@@ -47,8 +49,50 @@ public final class QuotationDocumentInspectionDialog {
 
         DialogPane pane = dialog.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "quotation-inspection-dialog", "approved-ui");
+        pane.getProperties().put("dse.dialog.presented", true);
         PopupTableWorkspace.applyInspectionSizing(dialog, ownerNode);
 
+        boolean isDark = ThemeManager.isDark();
+        String hostBg = isDark ? "#0d1527" : "#ffffff";
+        String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+        String hostShadow = isDark
+                ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+        StackPane host = new StackPane();
+        host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+        host.setStyle(String.format(
+                "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                hostBg, hostBorder, hostShadow));
+
+        Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
+                "Loading Quotation — " + quote.no(),
+                "Synchronizing quoted lines, price levels, and conversion history…");
+        host.getChildren().setAll(loadingSkeleton);
+        pane.setContent(host);
+        pane.getButtonTypes().add(ButtonType.CLOSE);
+
+        dialog.setOnShowing(ev -> {
+            Node defaultButtonBar = pane.lookup(".button-bar");
+            if (defaultButtonBar != null) {
+                defaultButtonBar.setVisible(false);
+                defaultButtonBar.setManaged(false);
+            }
+        });
+
+        UiTaskExecutor.submitLatest("quotation-inspection-" + quote.no(),
+                () -> quote,
+                resolvedQuote -> {
+                    renderContent(dialog, host, resolvedQuote, api, support, onUpdated);
+                },
+                ex -> {
+                    renderContent(dialog, host, quote, api, support, onUpdated);
+                });
+
+        dialog.showAndWait();
+    }
+
+    private static void renderContent(Dialog<?> dialog, StackPane host, QuotationApiClient.QuoteDto quote, QuotationApiClient api, SupportApiClient support, Runnable onUpdated) {
         // Header Hero
         HBox headerHero = buildHeaderHero(quote, dialog);
 
@@ -66,15 +110,27 @@ public final class QuotationDocumentInspectionDialog {
         itemsTab.setGraphic(IconFactory.compactIcon("item", 14));
         itemsTab.setContent(buildItemsTabContent(quote, api));
 
-        // Tab 2: Follow-up & Conversion
+        // Tab 2: Follow-up & Conversion (lazy-loaded on tab click)
         Tab followUpTab = new Tab("Follow-Up & Conversion");
         followUpTab.setGraphic(IconFactory.compactIcon("reminder", 14));
-        followUpTab.setContent(buildFollowUpTabContent(quote));
+        followUpTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Follow-Up…", "Retrieving conversion status…"));
+        java.util.concurrent.atomic.AtomicBoolean followUpLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
+        followUpTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected && followUpLoaded.compareAndSet(false, true)) {
+                followUpTab.setContent(buildFollowUpTabContent(quote));
+            }
+        });
 
-        // Tab 3: Notes & Terms
+        // Tab 3: Notes & Terms (lazy-loaded on tab click)
         Tab notesTab = new Tab("Terms & Notes");
         notesTab.setGraphic(IconFactory.compactIcon("notes", 14));
-        notesTab.setContent(buildNotesTabContent(quote));
+        notesTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Terms…", "Retrieving quotation terms…"));
+        java.util.concurrent.atomic.AtomicBoolean notesLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
+        notesTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected && notesLoaded.compareAndSet(false, true)) {
+                notesTab.setContent(buildNotesTabContent(quote));
+            }
+        });
 
         tabPane.getTabs().addAll(itemsTab, followUpTab, notesTab);
 
@@ -84,18 +140,10 @@ public final class QuotationDocumentInspectionDialog {
         VBox contentBox = new VBox(12, headerHero, metricStrip, tabPane, actionDock);
         contentBox.setPadding(new Insets(16, 20, 16, 20));
         contentBox.getStyleClass().addAll("document-inspection-content", "erp-ui-standard");
+        contentBox.setStyle("-fx-background-color: transparent;");
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
-        pane.setContent(contentBox);
-        pane.getButtonTypes().add(ButtonType.CLOSE);
-
-        Node defaultButtonBar = pane.lookup(".button-bar");
-        if (defaultButtonBar != null) {
-            defaultButtonBar.setVisible(false);
-            defaultButtonBar.setManaged(false);
-        }
-
-        dialog.showAndWait();
+        host.getChildren().setAll(contentBox);
     }
 
     private static HBox buildHeaderHero(QuotationApiClient.QuoteDto quote, Dialog<?> dialog) {
@@ -151,9 +199,33 @@ public final class QuotationDocumentInspectionDialog {
             statusStrip.getChildren().add(convPill);
         }
 
+        Button btnHeroClose = new Button();
+        btnHeroClose.setGraphic(SemanticIconManager.compact("close", 14));
+        btnHeroClose.getStyleClass().addAll("dse-dialog-close", "icon-button");
+        btnHeroClose.setTooltip(new Tooltip("Close"));
+        btnHeroClose.setOnAction(e -> dialog.close());
+        statusStrip.getChildren().add(btnHeroClose);
+
         HBox hero = new HBox(12, iconLabel, titleBox, spacer, statusStrip);
         hero.setAlignment(Pos.CENTER_LEFT);
         hero.getStyleClass().add("inspection-hero-bar");
+
+        final double[] dragDelta = new double[2];
+        hero.setOnMousePressed(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                dragDelta[0] = w.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = w.getY() - mouseEvent.getScreenY();
+            }
+        });
+        hero.setOnMouseDragged(mouseEvent -> {
+            if (dialog.getDialogPane().getScene() != null && dialog.getDialogPane().getScene().getWindow() != null) {
+                Window w = dialog.getDialogPane().getScene().getWindow();
+                w.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                w.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
+
         return hero;
     }
 
@@ -257,10 +329,10 @@ public final class QuotationDocumentInspectionDialog {
         colIndex.setSortable(false);
         colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(table.getItems().indexOf(v.getValue()) + 1));
         colIndex.setCellFactory(col -> new TableCell<>() {
+            { setAlignment(Pos.CENTER); }
             @Override protected void updateItem(Number item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : String.valueOf(item));
-                setAlignment(Pos.CENTER);
             }
         });
         IconFactory.applyTableHeaderIcon(colIndex, "index");
@@ -270,18 +342,19 @@ public final class QuotationDocumentInspectionDialog {
         colCode.setMinWidth(95);
         colCode.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().code())));
         colCode.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().addAll("erp-table-link-cell", "erp-table-value-colour-blue");
+                setCursor(javafx.scene.Cursor.HAND);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null || item.isBlank()) {
                     setText(null);
-                    setCursor(javafx.scene.Cursor.DEFAULT);
                     setTooltip(null);
                     setOnMouseClicked(null);
                     return;
                 }
                 setText(item);
-                getStyleClass().addAll("erp-table-link-cell", "erp-table-value-colour-blue");
-                setCursor(javafx.scene.Cursor.HAND);
                 setTooltip(new Tooltip("Item: " + item + " (Click to copy code)"));
                 setOnMouseClicked(e -> {
                     if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
@@ -301,11 +374,13 @@ public final class QuotationDocumentInspectionDialog {
         colDesc.setMinWidth(160);
         colDesc.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().description())));
         colDesc.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-purple");
+                setAlignment(Pos.CENTER_LEFT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-purple");
-                setAlignment(Pos.CENTER_LEFT);
             }
         });
         IconFactory.applyTableHeaderIcon(colDesc, "document");
@@ -315,11 +390,13 @@ public final class QuotationDocumentInspectionDialog {
         colHsn.setMinWidth(75);
         colHsn.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().hsn())));
         colHsn.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-indigo");
+                setAlignment(Pos.CENTER_LEFT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-indigo");
-                setAlignment(Pos.CENTER_LEFT);
             }
         });
         IconFactory.applyTableHeaderIcon(colHsn, "tax");
@@ -329,11 +406,13 @@ public final class QuotationDocumentInspectionDialog {
         colUnit.setMinWidth(55);
         colUnit.setCellValueFactory(v -> new ReadOnlyStringWrapper(safe(v.getValue().unit())));
         colUnit.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-teal");
+                setAlignment(Pos.CENTER_LEFT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-teal");
-                setAlignment(Pos.CENTER_LEFT);
             }
         });
         IconFactory.applyTableHeaderIcon(colUnit, "unit");
@@ -343,11 +422,13 @@ public final class QuotationDocumentInspectionDialog {
         colQty.setMinWidth(70);
         colQty.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%,.2f", v.getValue().quantity())));
         colQty.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-orange");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colQty, "quantity");
@@ -357,11 +438,13 @@ public final class QuotationDocumentInspectionDialog {
         colRate.setMinWidth(75);
         colRate.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().rate())));
         colRate.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-green");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-green");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colRate, "rate");
@@ -371,11 +454,13 @@ public final class QuotationDocumentInspectionDialog {
         colDiscount.setMinWidth(70);
         colDiscount.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().discount())));
         colDiscount.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-orange");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colDiscount, "discount");
@@ -385,11 +470,13 @@ public final class QuotationDocumentInspectionDialog {
         colGst.setMinWidth(65);
         colGst.setCellValueFactory(v -> new ReadOnlyStringWrapper(String.format(Locale.ROOT, "%.1f%%", v.getValue().gst())));
         colGst.setCellFactory(col -> new TableCell<>() {
+            {
+                getStyleClass().add("erp-table-value-colour-orange");
+                setAlignment(Pos.CENTER_RIGHT);
+            }
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item);
-                getStyleClass().add("erp-table-value-colour-orange");
-                setAlignment(Pos.CENTER_RIGHT);
             }
         });
         IconFactory.applyTableHeaderIcon(colGst, "tax");
@@ -399,12 +486,14 @@ public final class QuotationDocumentInspectionDialog {
         colTotal.setMinWidth(100);
         colTotal.setCellValueFactory(v -> new ReadOnlyStringWrapper(money(v.getValue().total())));
         colTotal.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item);
+            {
                 getStyleClass().add("erp-table-value-colour-green");
                 setStyle("-fx-font-weight: bold;");
                 setAlignment(Pos.CENTER_RIGHT);
+            }
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
             }
         });
         IconFactory.applyTableHeaderIcon(colTotal, "total");

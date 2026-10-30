@@ -1,5 +1,6 @@
 package org.example.util;
 
+import javafx.animation.PauseTransition;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
@@ -14,7 +15,9 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import javafx.util.Duration;
 import org.example.api.audit.AuditApiClient;
+import org.example.theme.ThemeManager;
 
 import java.io.File;
 import java.util.*;
@@ -41,8 +44,44 @@ public final class ActivityTimelineDialog {
             String detail,
             String source,
             String referenceNo,
-            boolean isFieldChange
-    ) {}
+            boolean isFieldChange,
+            String searchIndex
+    ) {
+        public AuditTableRow(
+                long eventId,
+                String rawTimestamp,
+                String formattedTime,
+                String action,
+                String category,
+                String fieldName,
+                String oldValue,
+                String newValue,
+                String user,
+                String detail,
+                String source,
+                String referenceNo,
+                boolean isFieldChange
+        ) {
+            this(
+                    eventId,
+                    rawTimestamp,
+                    formattedTime,
+                    action,
+                    category,
+                    fieldName,
+                    oldValue,
+                    newValue,
+                    user,
+                    detail,
+                    source,
+                    referenceNo,
+                    isFieldChange,
+                    (safe(formattedTime) + " " + safe(action) + " " + safe(category) + " " +
+                     safe(fieldName) + " " + safe(oldValue) + " " + safe(newValue) + " " +
+                     safe(user) + " " + safe(detail) + " " + safe(source) + " " + safe(referenceNo)).toLowerCase(Locale.ROOT)
+            );
+        }
+    }
 
     private ActivityTimelineDialog() { }
 
@@ -56,8 +95,21 @@ public final class ActivityTimelineDialog {
 
         DialogPane pane = dialog.getDialogPane();
         pane.getStyleClass().addAll("erp-document-inspection-dialog", "audit-dialog", "approved-ui");
-        AppDialogRenderer.configureWorkspace(dialog, "info", "Audit Trail", "Audit Trail", pretty(entityType) + " • " + safe(reference), "");
+        pane.getProperties().put("dse.dialog.presented", true);
         PopupTableWorkspace.applyInspectionSizing(dialog, owner);
+
+        boolean isDark = ThemeManager.isDark();
+        String hostBg = isDark ? "#0d1527" : "#ffffff";
+        String hostBorder = isDark ? "rgba(148, 163, 184, 0.22)" : "#cbd5e1";
+        String hostShadow = isDark
+                ? "dropshadow(gaussian, rgba(0, 0, 0, 0.70), 32, 0.2, 0, 10)"
+                : "dropshadow(gaussian, rgba(15, 23, 42, 0.20), 32, 0.15, 0, 10)";
+
+        StackPane host = new StackPane();
+        host.getStyleClass().addAll("document-inspection-host", "erp-ui-standard");
+        host.setStyle(String.format(
+                "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
+                hostBg, hostBorder, hostShadow));
 
         final String safeRef = safe(reference);
         final String entityLabel = pretty(entityType);
@@ -117,16 +169,16 @@ public final class ActivityTimelineDialog {
         colIndex.setSortable(false);
         colIndex.getProperties().put("erp-row-number", true);
         colIndex.getProperties().put("erp-header-explicit", true);
-        colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(table.getItems().indexOf(v.getValue()) + 1));
+        colIndex.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(v.getValue().eventId()));
         colIndex.setCellFactory(col -> new TableCell<>() {
             @Override protected void updateItem(Number item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                if (empty || getIndex() < 0 || getTableView() == null || getTableView().getItems() == null || getIndex() >= getTableView().getItems().size()) {
                     setText(null);
                     setGraphic(null);
                     return;
                 }
-                setText(String.valueOf(item));
+                setText(String.valueOf(getIndex() + 1));
                 setGraphic(null);
                 setAlignment(Pos.CENTER);
             }
@@ -227,6 +279,7 @@ public final class ActivityTimelineDialog {
         colOld.setMinWidth(130);
         colOld.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().oldValue()));
         colOld.setCellFactory(col -> new TableCell<>() {
+            private final Tooltip copyTooltip = new Tooltip();
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
@@ -238,9 +291,12 @@ public final class ActivityTimelineDialog {
                 }
                 setText(item);
                 setAlignment(Pos.CENTER_LEFT);
-                getStyleClass().addAll("audit-old-value");
+                if (!getStyleClass().contains("audit-old-value")) {
+                    getStyleClass().add("audit-old-value");
+                }
                 if (!item.equals("—") && !item.equalsIgnoreCase("None")) {
-                    setTooltip(new Tooltip("Old Value: " + item + "\n(Click to copy)"));
+                    copyTooltip.setText("Old Value: " + item + "\n(Click to copy)");
+                    setTooltip(copyTooltip);
                     setCursor(javafx.scene.Cursor.HAND);
                     setOnMouseClicked(e -> {
                         if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
@@ -262,6 +318,7 @@ public final class ActivityTimelineDialog {
         colNew.setMinWidth(130);
         colNew.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().newValue()));
         colNew.setCellFactory(col -> new TableCell<>() {
+            private final Tooltip copyTooltip = new Tooltip();
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
@@ -273,9 +330,12 @@ public final class ActivityTimelineDialog {
                 }
                 setText(item);
                 setAlignment(Pos.CENTER_LEFT);
-                getStyleClass().addAll("audit-new-value");
+                if (!getStyleClass().contains("audit-new-value")) {
+                    getStyleClass().add("audit-new-value");
+                }
                 if (!item.equals("—") && !item.equalsIgnoreCase("None")) {
-                    setTooltip(new Tooltip("New Value: " + item + "\n(Click to copy)"));
+                    copyTooltip.setText("New Value: " + item + "\n(Click to copy)");
+                    setTooltip(copyTooltip);
                     setCursor(javafx.scene.Cursor.HAND);
                     setOnMouseClicked(e -> {
                         if (e.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
@@ -319,6 +379,7 @@ public final class ActivityTimelineDialog {
         colRemarks.setMinWidth(180);
         colRemarks.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().detail()));
         colRemarks.setCellFactory(col -> new TableCell<>() {
+            private final Tooltip textTooltip = new Tooltip();
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || getIndex() < 0 || getTableView() == null || getTableView().getItems() == null || getIndex() >= getTableView().getItems().size()) {
@@ -337,7 +398,8 @@ public final class ActivityTimelineDialog {
                 setText(item);
                 setGraphic(null);
                 setAlignment(Pos.CENTER_LEFT);
-                setTooltip(new Tooltip(item));
+                textTooltip.setText(item);
+                setTooltip(textTooltip);
             }
         });
         IconFactory.applyTableHeaderIcon(colRemarks, "notes");
@@ -374,7 +436,7 @@ public final class ActivityTimelineDialog {
         table.setItems(filteredList);
 
         Runnable applyFilter = () -> {
-            String q = safe(txtSearch.getText()).toLowerCase(Locale.ROOT);
+            String q = safe(txtSearch.getText()).trim().toLowerCase(Locale.ROOT);
             String cat = cmbCategory.getValue();
             filteredList.setPredicate(row -> {
                 if (row == null) return false;
@@ -398,17 +460,9 @@ public final class ActivityTimelineDialog {
                         }
                     }
                 }
-                // Text search predicate
+                // Fast indexed substring search
                 if (!q.isBlank()) {
-                    boolean match = safe(row.formattedTime()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.action()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.category()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.fieldName()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.oldValue()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.newValue()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.user()).toLowerCase(Locale.ROOT).contains(q)
-                            || safe(row.detail()).toLowerCase(Locale.ROOT).contains(q);
-                    if (!match) return false;
+                    return row.searchIndex().contains(q);
                 }
                 return true;
             });
@@ -422,8 +476,11 @@ public final class ActivityTimelineDialog {
             }
         };
 
-        txtSearch.textProperty().addListener((obs, o, n) -> applyFilter.run());
-        cmbCategory.valueProperty().addListener((obs, o, n) -> applyFilter.run());
+        PauseTransition filterDebounce = new PauseTransition(Duration.millis(250));
+        filterDebounce.setOnFinished(e -> applyFilter.run());
+
+        txtSearch.textProperty().addListener((obs, o, n) -> filterDebounce.playFromStart());
+        cmbCategory.valueProperty().addListener((obs, o, n) -> filterDebounce.playFromStart());
 
         // Export CSV Handler
         btnExportCsv.setOnAction(e -> exportCsv(dialog.getDialogPane().getScene().getWindow(), entityType, safeRef, filteredList));
@@ -499,16 +556,20 @@ public final class ActivityTimelineDialog {
         VBox root = new VBox(10, headerHero, toolbar, table, footer);
         root.setPadding(new Insets(16, 20, 16, 20));
         root.getStyleClass().addAll("document-inspection-content", "erp-ui-standard");
+        root.setStyle(isDark ? "-fx-background-color: #0b1325; -fx-background-radius: 12;" : "-fx-background-color: #f8fafc; -fx-background-radius: 12;");
         VBox.setVgrow(root, Priority.ALWAYS);
 
-        pane.setContent(root);
+        host.getChildren().setAll(root);
+        pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
-        Node defaultButtonBar = pane.lookup(".button-bar");
-        if (defaultButtonBar != null) {
-            defaultButtonBar.setVisible(false);
-            defaultButtonBar.setManaged(false);
-        }
+        dialog.setOnShowing(ev -> {
+            Node defaultButtonBar = pane.lookup(".button-bar");
+            if (defaultButtonBar != null) {
+                defaultButtonBar.setVisible(false);
+                defaultButtonBar.setManaged(false);
+            }
+        });
 
         // Fire asynchronous loading immediately while the window opens in <15ms
         loadData.run();
@@ -554,10 +615,36 @@ public final class ActivityTimelineDialog {
         Label statusPill = new Label("LIVE SERVER LEDGER");
         statusPill.getStyleClass().addAll("status-pill", "pill-success");
 
-        HBox hero = new HBox(14, iconLabel, titleBox, spacer, statusPill);
+        Button btnCloseTop = new Button();
+        btnCloseTop.setGraphic(SemanticIconManager.compact("close", 14));
+        btnCloseTop.getStyleClass().addAll("dse-dialog-close", "icon-button");
+        btnCloseTop.setTooltip(new Tooltip("Close"));
+        btnCloseTop.setOnAction(e -> dialog.close());
+
+        HBox badges = new HBox(8, statusPill, btnCloseTop);
+        badges.setAlignment(Pos.CENTER_RIGHT);
+
+        HBox hero = new HBox(14, iconLabel, titleBox, spacer, badges);
         hero.setAlignment(Pos.CENTER_LEFT);
         hero.setPadding(new Insets(2, 6, 8, 6));
         hero.getStyleClass().add("inspection-hero-container");
+
+        final double[] dragDelta = new double[2];
+        hero.setOnMousePressed(mouseEvent -> {
+            Window window = dialog.getDialogPane().getScene().getWindow();
+            if (window != null) {
+                dragDelta[0] = window.getX() - mouseEvent.getScreenX();
+                dragDelta[1] = window.getY() - mouseEvent.getScreenY();
+            }
+        });
+        hero.setOnMouseDragged(mouseEvent -> {
+            Window window = dialog.getDialogPane().getScene().getWindow();
+            if (window != null) {
+                window.setX(mouseEvent.getScreenX() + dragDelta[0]);
+                window.setY(mouseEvent.getScreenY() + dragDelta[1]);
+            }
+        });
+
         return hero;
     }
 
