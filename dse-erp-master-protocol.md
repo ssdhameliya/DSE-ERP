@@ -2,7 +2,7 @@
 
 > **Single Source of Truth** for the unified Jasvi ERP ecosystem (`Jasvi-Desktop`, `Jasvi-Admin`, `Jasvi-UserView`, `Jasvi-Mobile`): Architecture, Workspace Boundaries, Desktop-Web Parity Inspection, Automation Scripts, Server Infrastructure, and Cloud Deployment.
 > **Antigravity Enforcement:** This document is automatically loaded by Antigravity on every conversation. All rules, boundaries, and checklists herein are strictly binding.
-> **Last Updated:** 2026-11-01 — Unified 4-tier ecosystem layout (`D:\Antigravity-Dev\`, `D:\JavaProject\`, `D:\GitHub\ReleaseSource-*`, `D:\GitHub\Jasvi-*`). Root `CHANGELOG-*.md` files permanently banned.
+> **Last Updated:** 2026-11-01 — Unified 4-tier ecosystem layout (`D:\Antigravity-Dev\`, `D:\JavaProject\`, `D:\GitHub\ReleaseSource-*`, `D:\GitHub\Jasvi-*`). Strict Markdown Hygiene Mandate: Non-application `.md` files permanently banned across all copies.
 
 ---
 
@@ -80,6 +80,24 @@ D:\DSE Production (PostgreSQL 16 on port 55432)
 3. **Mobile Release Staging:** `D:\GitHub\ReleaseSource-Mobile`
 4. **Mobile GitHub Target Repository:** `D:\GitHub\Jasvi-Mobile` (`https://github.com/ssdhameliya/Jasvi-Mobile`)
 5. **Live Mobile PWA Gateway:** `https://mobile-uat.jasviindustries.in/`
+
+### 1.5 Strict Repository Cleanliness & Markdown Hygiene Policy
+> **MANDATORY CLEANLINESS ENFORCEMENT ACROSS ALL 4 TIERS:**
+> To ensure all working directories remain clean, uncluttered, and production-ready:
+> 1. **Never add, generate, commit, or sync any `.md` (Markdown) file that is not an essential, integral part of the application itself.**
+> 2. **Strictly Prohibited:**
+>    - Scratch files, brainstorm documents, audit transcripts, bug investigation writeups, temporary checklists, meeting logs, or AI conversation dumps must **NEVER** be saved into any project folder.
+>    - All temporary notes and AI analysis MUST be kept exclusively within Antigravity's artifact directory (`<appDataDir>\brain\<conversation-id>`) or scratch directory, never in the codebase.
+> 3. **Whitelisted `.md` Files Only (Strict Whitelist):**
+>    - `README.md` (Repository root overview).
+>    - `dse-erp-master-protocol.md` (Unified architectural constitution).
+>    - `desktop/src/main/resources/release-notes.md` (Packaged inside desktop runtime JAR).
+>    - Pre-existing canonical functional specifications in designated application `docs/` folders.
+> 4. **Permanent Root Bans:**
+>    - Root `CHANGELOG-*.md` files are strictly banned.
+>    - Arbitrary root `.md` files outside the whitelist are strictly banned.
+> 5. **Sync Protection:**
+>    - Automated robocopy sync scripts must never introduce extraneous `.md` files into `D:\JavaProject\` or `D:\GitHub\`.
 
 ---
 
@@ -197,16 +215,17 @@ Local Workstation        Served via Caddy on OCI        Served via Caddy on OCI 
 
 ## 5. Version Management & Release Automation Scripts
 
-### 5.1 Version Governance & Clean Root Policy
+### 5.1 Version Governance, Clean Root & Strict Markdown Hygiene Policy
 * **Desktop / Server Version:** Governed strictly by `.mvn/maven.config` (`-Drevision=11.0.0`).
 * **Web Admin Client Version:** Governed by `admin/version.json` and `admin/js/version.js` (`11.0.0.01`, tag `web-v11.0.0.01`).
 * **UserView Showcase Version:** Governed by git tags in `ssdhameliya/Jasvi-UserView` (`showcase-v1.0.0`) and `data/showcase.json` (`"version": 1`).
 * **Mobile Client Version:** Governed by `MobileBuildInfo.kt` and git tags in `ssdhameliya/Jasvi-Mobile`.
 * **Release Notes (Single Source of Truth):** Every release must update `desktop/src/main/resources/release-notes.md`. This is the ONLY release notes file needed; it is packaged directly into the desktop runtime JAR.
-* **Prohibition of Root `CHANGELOG-*.md` Files (Strict Cleanliness Mandate):**
+* **Prohibition of Non-Application `.md` Files & Root Changelogs (Zero-Clutter Mandate):**
+  - **NEVER create, generate, or sync arbitrary `.md` files in any repository or directory tier.**
   - **NEVER create, generate, or sync `CHANGELOG-*.md` files in the project root.**
-  - All historical `CHANGELOG-*.md` files have been permanently removed.
-  - During synchronization across `D:\Antigravity-Dev\`, `D:\GitHub\ReleaseSource-*`, `D:\JavaProject\`, and `D:\GitHub\`, root changelog files must never be created or re-introduced.
+  - All temporary analysis, investigations, or checklists must reside exclusively in AI session artifacts, never in project code repositories.
+  - During synchronization across `D:\Antigravity-Dev\`, `D:\GitHub\ReleaseSource-*`, `D:\JavaProject\`, and `D:\GitHub\`, strict cleanliness is enforced.
 
 ---
 
