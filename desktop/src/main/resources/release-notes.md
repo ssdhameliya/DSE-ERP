@@ -1,3 +1,12 @@
+# What's New in DSE ERP v11.0.16
+
+### Google Antigravity SDK Ecosystem, Glassmorphism Defect Highlighting & AI Copilot Diagnostics
+- **Google Antigravity Java SDK Integration**: Integrated official `io.github.glaforge.antigravity:antigravity-sdk-wrapper:0.2.17` directly into the JavaFX 25 desktop application runtime, enabling autonomous agent and copilot capabilities.
+- **Asynchronous, Non-Blocking Architecture (`ErpAgentService`)**: Built a thread-safe singleton managing the agent harness and system prompts, executing all agent interactions asynchronously via `CompletableFuture` with safety timeouts to keep the JavaFX UI 100% smooth at 60fps.
+- **Dynamic Glassmorphic Defect Highlighting**: Implemented dynamic `installGlassDefectRowFactory` for JavaFX `TableView` components, applying translucent glass-red (`rgba(239, 68, 68, 0.16)`) for critical defects and glass-amber (`rgba(245, 158, 11, 0.14)`) for warnings with custom accent borders without interfering with row selection or hover transitions.
+- **AI Defect Analysis in System Diagnostics**: Embedded an **"AI Defect Analysis"** action button and glassmorphic response card inside `SystemDiagnosticsDialog.java`, providing instant automated root cause analysis and actionable remediation advice for runtime exceptions and log events.
+- **Deterministic Heuristic Fallback**: Implemented an automated offline analysis fallback ensuring enterprise-grade stability and zero crashes when running in air-gapped workstations or when external API keys are not configured.
+
 # What's New in DSE ERP v11.0.15
 
 ### Top Bar Ergonomics, Light Mode Glassmorphism & Cloud Server Diagnostics
