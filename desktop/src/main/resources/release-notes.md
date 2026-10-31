@@ -1,3 +1,12 @@
+# What's New in DSE ERP v11.0.15
+
+### Top Bar Ergonomics, Light Mode Glassmorphism & Cloud Server Diagnostics
+- **Top Bar Ergonomics & Decluttering**: Permanently removed WhatsApp and keyboard shortcut action buttons from the main shell top bar; System Diagnostics badge dynamically hides when no active alerts/errors are present.
+- **Light Mode Glassmorphism Parity**: Register inspection drawers and modal windows (`RegisterDetailDrawer`) dynamically adapt to Light Mode using pearl acrylic glassmorphism styling, `#0f172a` deep slate typography, and high-contrast jewel tones (`#047857` Emerald, `#be123c` Crimson, `#b45309` Amber, `#0369a1` Slate/Teal).
+- **Linux Cloud Server Diagnostics**: `AdminService` upgraded with robust cross-platform log discovery supporting Ubuntu/OCI Linux hosts (`/srv/dse-erp/uat/...`, `/var/log/...`, and systemd `journalctl -u dse-erp-uat.service`).
+- **Real-Time Global Audit Trail**: Instant incremental filtering on search bar text changes and user dropdown selection without requiring manual Enter/Apply triggers.
+- **Design System Ownership Parity**: Restored CSS class ownership in settings sub-cards and status badges to satisfy `SharedUiOwnershipContractTest`.
+
 # What's New in DSE ERP v11.0.14
 
 ### Headless Public Showcase & Dual-Client 3D Showcase Studio

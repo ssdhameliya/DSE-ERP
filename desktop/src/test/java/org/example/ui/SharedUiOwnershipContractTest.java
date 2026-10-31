@@ -27,13 +27,12 @@ class SharedUiOwnershipContractTest {
         String source = Files.readString(Path.of("src/main/java/org/example/controller/DashboardController.java"));
         assertTrue(source.contains("private void applyShellSemanticIcons()"));
         for (String control : List.of("btnSidebarToggle", "btnReminderTop", "btnNotifications",
-                "btnEmailCenter", "btnWhatsappCenter", "btnShortcutInfo", "btnTheme")) {
+                "btnEmailCenter", "btnSystemDiagnostics", "btnTheme")) {
             assertTrue(source.contains("UiActionIcons.apply(" + control), control + " must use compact shared action graphics");
         }
         assertFalse(source.contains("btnReminderTop.setGraphic(IconFactory.icon"));
         assertFalse(source.contains("btnNotifications.setGraphic(IconFactory.icon"));
         assertFalse(source.contains("btnEmailCenter.setGraphic(IconFactory.icon"));
-        assertFalse(source.contains("btnWhatsappCenter.setGraphic(IconFactory.icon"));
         assertFalse(source.contains("btnTheme.setGraphic(IconFactory.icon"));
         assertFalse(source.contains("btnSidebarToggle.setGraphic(IconFactory.icon"));
     }
@@ -135,7 +134,7 @@ class SharedUiOwnershipContractTest {
         String fxml = Files.readString(dashboard);
         String controller = Files.readString(Path.of("src/main/java/org/example/controller/DashboardController.java"));
         for (String id : List.of("btnSidebarToggle", "btnReminderTop", "btnNotifications", "btnEmailCenter",
-                "btnWhatsappCenter", "btnShortcutInfo")) {
+                "btnSystemDiagnostics")) {
             assertTrue(fxml.contains("fx:id=\"" + id + "\""), "Dashboard missing icon-only control " + id);
             assertTrue(controller.contains("UiActionIcons.apply(" + id), id + " must have explicit shell semantic ownership");
         }

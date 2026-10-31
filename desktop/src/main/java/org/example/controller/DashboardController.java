@@ -223,9 +223,7 @@ public class DashboardController implements ScreenLifecycle {
     @FXML private Button btnReminderTop;
     @FXML private Button btnNotifications;
     @FXML private Button btnEmailCenter;
-    @FXML private Button btnWhatsappCenter;
     @FXML private Button btnSystemDiagnostics;
-    @FXML private Button btnShortcutInfo;
     @FXML private Button btnSidebarToggle;
     @FXML private Button shellNewSale;
 
@@ -621,9 +619,7 @@ public class DashboardController implements ScreenLifecycle {
         UiActionIcons.apply(btnReminderTop, "reminder", "Reminder Center");
         UiActionIcons.apply(btnNotifications, "notification", "Notifications");
         UiActionIcons.apply(btnEmailCenter, "email", "Email centre");
-        if (btnWhatsappCenter != null) UiActionIcons.apply(btnWhatsappCenter, "whatsapp", "WhatsApp activity");
         if (btnSystemDiagnostics != null) UiActionIcons.apply(btnSystemDiagnostics, "diagnostic", "System Logs & Application Diagnostics");
-        if (btnShortcutInfo != null) UiActionIcons.apply(btnShortcutInfo, "shortcut", "Keyboard shortcuts");
         UiActionIcons.apply(menuUser, "user", "User menu");
         updateThemeButton();
     }
@@ -634,11 +630,7 @@ public class DashboardController implements ScreenLifecycle {
         dialog.setTitle("Keyboard Shortcuts");
         dialog.setHeaderText("Quick navigation from anywhere in " + org.example.service.BrandingService.applicationName() + "");
         dialog.setGraphic(IconFactory.compactIcon("shortcut", 28));
-        if (btnShortcutInfo != null && btnShortcutInfo.getScene() != null
-                && btnShortcutInfo.getScene().getWindow() != null) {
-            dialog.initOwner(btnShortcutInfo.getScene().getWindow());
-            dialog.initModality(Modality.WINDOW_MODAL);
-        }
+
 
         GridPane shortcuts = new GridPane();
         shortcuts.setHgap(18);
