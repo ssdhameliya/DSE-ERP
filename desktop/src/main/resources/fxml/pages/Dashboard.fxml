@@ -120,6 +120,7 @@
                     <Button fx:id="btnSettingsShortcuts" text="Keyboard Shortcuts" onAction="#openSettingsShortcuts" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsUpdates" text="Application Updates" onAction="#openSettingsUpdates" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsModules" text="Module Activation" onAction="#openSettingsModules" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsShowcase" text="Website &amp; 3D Showcase" onAction="#openSettingsShowcase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>
             <Button fx:id="btnSafeRollback" text="Safe Rollback" onAction="#openSafeRollback" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,safe-rollback-nav-button"/>

@@ -8,6 +8,25 @@ public final class AdminApiClient {
  public List<RoleDto> roles(){return get("/api/admin/roles",new TypeReference<List<RoleDto>>(){});} public RoleDto saveRole(RoleSaveRequest d){return d.id()==null?post("/api/admin/roles",d,RoleDto.class):put("/api/admin/roles/"+d.id(),d,RoleDto.class);} public void deleteRole(int id){delete("/api/admin/roles/"+id);}
  public RegistrationRoleDto registrationRole(){return get("/api/admin/registration-role",RegistrationRoleDto.class);} public RegistrationRoleDto setRegistrationRole(String role){return put("/api/admin/registration-role",new RegistrationRoleSaveRequest(role),RegistrationRoleDto.class);}
  public List<PermissionDto> permissions(String role){return get("/api/admin/permissions?role="+enc(role),new TypeReference<List<PermissionDto>>(){});} public PermissionSetDto permissionSet(String role){return get("/api/admin/permissions/set?role="+enc(role),PermissionSetDto.class);} public void savePermissions(String role,List<PermissionSave> p,long rowVersion){put("/api/admin/permissions",new PermissionSaveRequest(role,p,rowVersion),Ok.class);} public void audit(int userId,String action,String detail){post("/api/admin/audit",new AuditRequest(userId,action,detail),Ok.class);} public List<ServerLogEntry> serverDiagnostics(int limit){return get("/api/admin/diagnostics/server-logs?limit="+Math.max(10,limit),new TypeReference<List<ServerLogEntry>>(){});}
+ public String getShowcase() {
+     try {
+         java.net.http.HttpRequest.Builder b = java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/admin/showcase")).timeout(java.time.Duration.ofSeconds(15)).header("Accept", "application/json");
+         org.example.api.ApiSession.authorize(b);
+         var r = http.send(b.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+         if (r.statusCode() >= 200 && r.statusCode() < 300 && r.body() != null && !r.body().isBlank()) return r.body();
+         return "";
+     } catch (Exception e) { return ""; }
+ }
+ public Ok saveShowcase(String jsonPayload) {
+     try {
+         java.net.http.HttpRequest.Builder b = java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/admin/showcase")).timeout(java.time.Duration.ofSeconds(20)).header("Accept", "application/json").header("Content-Type", "application/json").PUT(java.net.http.HttpRequest.BodyPublishers.ofString(jsonPayload, java.nio.charset.StandardCharsets.UTF_8));
+         org.example.api.ApiSession.authorize(b);
+         var r = http.send(b.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+         if (r.statusCode() < 200 || r.statusCode() >= 300) throw new IllegalStateException(apiError(r.statusCode(), r.body()));
+         return json.readValue(r.body(), Ok.class);
+     } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException(e); }
+     catch (java.io.IOException e) { throw new IllegalStateException("Cannot reach admin API at " + base, e); }
+ }
  private <T>T get(String p,Class<T>c){return req("GET",p,null,c,null);}private <T>T get(String p,TypeReference<T>t){return req("GET",p,null,null,t);}private <T>T post(String p,Object b,Class<T>c){return req("POST",p,b,c,null);}private <T>T put(String p,Object b,Class<T>c){return req("PUT",p,b,c,null);}private void delete(String p){req("DELETE",p,null,Ok.class,null);} private String enc(String v){return URLEncoder.encode(v==null?"":v,StandardCharsets.UTF_8);}
  private <T>T req(String m,String p,Object body,Class<T>c,TypeReference<T>t){try{HttpRequest.Builder b=HttpRequest.newBuilder(URI.create(base+p)).timeout(Duration.ofSeconds(20)).header("Accept","application/json");org.example.api.ApiSession.authorize(b);if(body!=null)b.header("Content-Type","application/json").method(m,HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));else b.method(m,HttpRequest.BodyPublishers.noBody());var r=http.send(b.build(),HttpResponse.BodyHandlers.ofString());if(r.statusCode()<200||r.statusCode()>=300)throw new IllegalStateException(apiError(r.statusCode(),r.body()));return t!=null?json.readValue(r.body(),t):json.readValue(r.body(),c);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}catch(IOException e){throw new IllegalStateException("Cannot reach admin API at "+base,e);}}
  private String apiError(int status,String body){return org.example.api.ApiRuntime.errorMessage("Admin API",status,body);}

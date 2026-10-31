@@ -1,4 +1,6 @@
 package org.example.controller;
+import javafx.scene.control.Separator;
+import javafx.scene.layout.GridPane;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TableView;
 import org.example.util.UiTaskExecutor;
@@ -103,7 +105,7 @@ import java.util.Properties;
  */
 public class SettingsController implements ScreenLifecycle {
     public enum Section {
-        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, SECURITY, WORKSPACE, SHORTCUTS, UPDATES, MODULES
+        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, SECURITY, WORKSPACE, SHORTCUTS, UPDATES, MODULES, SHOWCASE
     }
 
     private static volatile Section requestedSection = Section.COMPANY;
@@ -519,6 +521,12 @@ public class SettingsController implements ScreenLifecycle {
     private VBox ensureSectionLoaded(Section section) {
         VBox cached = loadedPanels.get(section);
         if (cached != null) return cached;
+        if (section == Section.SHOWCASE) {
+            VBox panel = buildShowcaseStudioPanel();
+            loadedPanels.put(section, panel);
+            initializeLoadedSection(section);
+            return panel;
+        }
         String file = switch (section) {
             case COMPANY -> "CompanySettingsPanel.fxml";
             case PAYMENT -> "PaymentSettingsPanel.fxml";
@@ -530,6 +538,7 @@ public class SettingsController implements ScreenLifecycle {
             case SHORTCUTS -> "ShortcutsSettingsPanel.fxml";
             case UPDATES -> "UpdatesSettingsPanel.fxml";
             case MODULES -> "ModulesSettingsPanel.fxml";
+            default -> "";
         };
         try {
             FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/settings/" + file));
@@ -549,6 +558,7 @@ public class SettingsController implements ScreenLifecycle {
 
     private void initializeLoadedSection(Section section) {
         switch (section) {
+            case SHOWCASE -> loadShowcaseData();
             case COMPANY -> {
                 populateLookupDropdown(cmbBusinessType, "BUSINESS_TYPE", List.of("Proprietorship","Partnership","Private Limited Company","Public Limited Company","Limited Liability Partnership","Trust","Society","Other"));
                 populateLookupDropdown(cmbIndustry, "INDUSTRY", List.of("Manufacturing","Trading","Retail","Wholesale","Construction","Engineering","Textile","Automotive","Information Technology","Professional Services","Logistics","Healthcare","Food & Beverage","Other"));
@@ -840,6 +850,7 @@ public class SettingsController implements ScreenLifecycle {
             case SHORTCUTS -> showShortcuts();
             case UPDATES -> showUpdates();
             case MODULES -> showModules();
+            case SHOWCASE -> showShowcase();
             case COMPANY -> showCompany();
         }
     }
@@ -1283,6 +1294,7 @@ private record AssetPreviewRequest(
             case SHORTCUTS -> "Save Shortcuts";
             case UPDATES -> "Save Updates";
             case MODULES -> "Save Modules";
+            case SHOWCASE -> "Publish Showcase";
         };
         btnSaveSettings.setText(label);
         btnSaveSettings.setAccessibleText(label);
@@ -1296,6 +1308,7 @@ private record AssetPreviewRequest(
     @FXML private void showEmail() { selectSection(Section.EMAIL, navEmail, ensureSectionLoaded(Section.EMAIL)); }
     @FXML private void showSecurity() { selectSection(Section.SECURITY, null, ensureSectionLoaded(Section.SECURITY)); }
     @FXML private void showModules() { selectSection(Section.MODULES, navModules, ensureSectionLoaded(Section.MODULES)); }
+    @FXML private void showShowcase() { selectSection(Section.SHOWCASE, null, ensureSectionLoaded(Section.SHOWCASE)); }
 
 
 
@@ -2144,6 +2157,7 @@ private record AssetPreviewRequest(
             case SHORTCUTS -> "Shortcut settings";
             case UPDATES -> "Update settings";
             case MODULES -> "Module activation settings";
+            case SHOWCASE -> "Website & 3D Showcase settings";
         };
     }
 
@@ -2174,6 +2188,7 @@ private record AssetPreviewRequest(
                 case SHORTCUTS -> saveShortcutSettings();
                 case UPDATES -> saveUpdateSettings();
                 case MODULES -> saveModulesSettings();
+                case SHOWCASE -> saveShowcaseSettings();
             }
             ConfigManager.save();
         } finally {
@@ -3293,6 +3308,427 @@ private record AssetPreviewRequest(
             java.awt.Desktop.getDesktop().browse(java.net.URI.create("https://web-uat.jasviindustries.in/admin/#view-settings-showcase"));
         } catch (Exception ex) {
             new OwnedAlert(Alert.AlertType.INFORMATION, "Launch 3D Showcase Studio URL: https://web-uat.jasviindustries.in/admin/#view-settings-showcase", ButtonType.OK).showAndWait();
+        }
+    }
+
+
+    /* =========================================================
+       WEBSITE & 3D SHOWCASE STUDIO
+       ========================================================= */
+    private TextField txtShowcaseCompanyName;
+    private TextField txtShowcaseTagline;
+    private TextField txtShowcasePortalUrl;
+    private TextField txtShowcaseHeroBadge;
+    private TextField txtShowcaseHeroHeadline;
+    private TextArea txtShowcaseHeroLead;
+    private TextField txtShowcasePrimaryCtaLabel;
+    private TextField txtShowcasePrimaryCtaAnchor;
+    private TextField txtShowcaseSecondaryCtaLabel;
+    private TextField txtShowcaseSecondaryCtaAnchor;
+    private Label lblShowcaseServerUrl;
+    private VBox machineryContainer;
+    private final List<ShowcaseMachineRow> showcaseMachines = new ArrayList<>();
+
+    private static class ShowcaseMachineRow {
+        String id;
+        TextField txtTitle = new TextField();
+        TextField txtBadge = new TextField();
+        TextArea txtDesc = new TextArea();
+        TextField txtImage = new TextField();
+        TextField txtSpec1Key = new TextField();
+        TextField txtSpec1Val = new TextField();
+        TextField txtSpec2Key = new TextField();
+        TextField txtSpec2Val = new TextField();
+        CheckBox chkActive = new CheckBox("Active on Website");
+        VBox cardNode;
+    }
+
+    private VBox buildShowcaseStudioPanel() {
+        VBox root = new VBox(16);
+        root.setMaxWidth(Double.MAX_VALUE);
+        root.getStyleClass().addAll("settings-card", "settings-card-tall-compact");
+
+        // 1. Header Card with Quick Actions
+        VBox headerBox = new VBox(8);
+        HBox topRow = new HBox(12);
+        topRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        VBox titleCol = new VBox(3);
+        HBox.setHgrow(titleCol, javafx.scene.layout.Priority.ALWAYS);
+        Label title = new Label("Website & 3D Showcase Studio");
+        title.getStyleClass().add("settings-section-title");
+        Label desc = new Label("Live 3D interactive machinery catalog, specifications, and website hero section.");
+        desc.setWrapText(true);
+        desc.getStyleClass().add("settings-section-description");
+        titleCol.getChildren().addAll(title, desc);
+
+        Button btnLaunchShowcase = new Button("Launch 3D Showcase (Browser)");
+        btnLaunchShowcase.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnLaunchShowcase.setOnAction(e -> openBrowserUrl("http://localhost:8089/index.html"));
+
+        Button btnOpenWebAdmin = new Button("Open Web Admin Studio");
+        btnOpenWebAdmin.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnOpenWebAdmin.setOnAction(e -> openBrowserUrl("http://localhost:8089/admin/index.html#/settings"));
+
+        Button btnReload = new Button("Reload from Server");
+        btnReload.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnReload.setOnAction(e -> loadShowcaseData());
+
+        Button btnPublish = new Button("Publish Showcase");
+        btnPublish.getStyleClass().addAll("approved-button", "approved-primary-button");
+        btnPublish.setOnAction(e -> save());
+
+        topRow.getChildren().addAll(titleCol, btnLaunchShowcase, btnOpenWebAdmin, btnReload, btnPublish);
+
+        HBox serverStatusRow = new HBox(8);
+        serverStatusRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        Label serverDot = new Label("●");
+        serverDot.setStyle("-fx-text-fill: #10b981; -fx-font-size: 14px;");
+        lblShowcaseServerUrl = new Label("Showcase Web Server Active: http://localhost:8089 (Live interactive 3D model viewer)");
+        lblShowcaseServerUrl.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
+        serverStatusRow.getChildren().addAll(serverDot, lblShowcaseServerUrl);
+
+        headerBox.getChildren().addAll(topRow, serverStatusRow);
+        root.getChildren().addAll(headerBox, new Separator());
+
+        // 2. Hero Section Card
+        VBox heroCard = new VBox(10);
+        heroCard.getStyleClass().add("settings-subcard");
+        Label heroTitle = new Label("Hero Section & Website Branding");
+        heroTitle.getStyleClass().addAll("settings-form-label", "bold-label");
+        Label heroDesc = new Label("Configure the primary headline, company identity, and call-to-action buttons on the public website.");
+        heroDesc.getStyleClass().add("settings-field-hint");
+
+        GridPane heroGrid = new GridPane();
+        heroGrid.setHgap(16);
+        heroGrid.setVgap(10);
+
+        txtShowcaseCompanyName = new TextField();
+        txtShowcaseCompanyName.setPromptText("Company Name (e.g. JASVI INDUSTRIES)");
+        txtShowcaseCompanyName.getStyleClass().add("approved-input");
+
+        txtShowcaseTagline = new TextField();
+        txtShowcaseTagline.setPromptText("Tagline (e.g. Precision Engineering)");
+        txtShowcaseTagline.getStyleClass().add("approved-input");
+
+        txtShowcasePortalUrl = new TextField();
+        txtShowcasePortalUrl.setPromptText("Portal URL");
+        txtShowcasePortalUrl.getStyleClass().add("approved-input");
+
+        txtShowcaseHeroBadge = new TextField();
+        txtShowcaseHeroBadge.setPromptText("Hero Badge (e.g. Next-Gen Industrial Digital Engineering)");
+        txtShowcaseHeroBadge.getStyleClass().add("approved-input");
+
+        txtShowcaseHeroHeadline = new TextField();
+        txtShowcaseHeroHeadline.setPromptText("Headline (e.g. Precision Machining. Zero Compromise.)");
+        txtShowcaseHeroHeadline.getStyleClass().add("approved-input");
+
+        txtShowcaseHeroLead = new TextArea();
+        txtShowcaseHeroLead.setPrefRowCount(2);
+        txtShowcaseHeroLead.setWrapText(true);
+        txtShowcaseHeroLead.setPromptText("Lead description text for public visitors");
+        txtShowcaseHeroLead.getStyleClass().add("approved-input");
+
+        txtShowcasePrimaryCtaLabel = new TextField();
+        txtShowcasePrimaryCtaLabel.setPromptText("Primary Button Text");
+        txtShowcasePrimaryCtaLabel.getStyleClass().add("approved-input");
+
+        txtShowcasePrimaryCtaAnchor = new TextField();
+        txtShowcasePrimaryCtaAnchor.setPromptText("Primary Target Anchor (e.g. #rfq)");
+        txtShowcasePrimaryCtaAnchor.getStyleClass().add("approved-input");
+
+        txtShowcaseSecondaryCtaLabel = new TextField();
+        txtShowcaseSecondaryCtaLabel.setPromptText("Secondary Button Text");
+        txtShowcaseSecondaryCtaLabel.getStyleClass().add("approved-input");
+
+        txtShowcaseSecondaryCtaAnchor = new TextField();
+        txtShowcaseSecondaryCtaAnchor.setPromptText("Secondary Target Anchor (e.g. #showcase-3d)");
+        txtShowcaseSecondaryCtaAnchor.getStyleClass().add("approved-input");
+
+        heroGrid.add(new Label("Company Name:"), 0, 0);
+        heroGrid.add(txtShowcaseCompanyName, 1, 0);
+        heroGrid.add(new Label("Tagline:"), 2, 0);
+        heroGrid.add(txtShowcaseTagline, 3, 0);
+
+        heroGrid.add(new Label("Hero Badge:"), 0, 1);
+        heroGrid.add(txtShowcaseHeroBadge, 1, 1);
+        heroGrid.add(new Label("Portal URL:"), 2, 1);
+        heroGrid.add(txtShowcasePortalUrl, 3, 1);
+
+        heroGrid.add(new Label("Main Headline:"), 0, 2);
+        heroGrid.add(txtShowcaseHeroHeadline, 1, 2, 3, 1);
+
+        heroGrid.add(new Label("Lead Text:"), 0, 3);
+        heroGrid.add(txtShowcaseHeroLead, 1, 3, 3, 1);
+
+        heroGrid.add(new Label("Primary CTA:"), 0, 4);
+        heroGrid.add(txtShowcasePrimaryCtaLabel, 1, 4);
+        heroGrid.add(new Label("Target Anchor:"), 2, 4);
+        heroGrid.add(txtShowcasePrimaryCtaAnchor, 3, 4);
+
+        heroGrid.add(new Label("Secondary CTA:"), 0, 5);
+        heroGrid.add(txtShowcaseSecondaryCtaLabel, 1, 5);
+        heroGrid.add(new Label("Target Anchor:"), 2, 5);
+        heroGrid.add(txtShowcaseSecondaryCtaAnchor, 3, 5);
+
+        heroCard.getChildren().addAll(heroTitle, heroDesc, heroGrid);
+        root.getChildren().addAll(heroCard, new Separator());
+
+        // 3. Workstations & 3D Machinery Catalog
+        VBox machCard = new VBox(10);
+        machCard.getStyleClass().add("settings-subcard");
+        HBox machHeaderRow = new HBox(12);
+        machHeaderRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        VBox machTitleCol = new VBox(2);
+        HBox.setHgrow(machTitleCol, javafx.scene.layout.Priority.ALWAYS);
+        Label machTitle = new Label("Workstations & 3D Interactive Models Catalog");
+        machTitle.getStyleClass().addAll("settings-form-label", "bold-label");
+        Label machDesc = new Label("Manage high-precision CNC stations, metrology suites, technical specifications, and 3D preview assets.");
+        machDesc.getStyleClass().add("settings-field-hint");
+        machTitleCol.getChildren().addAll(machTitle, machDesc);
+
+        Button btnAddMachine = new Button("+ Add Workstation");
+        btnAddMachine.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnAddMachine.setOnAction(e -> {
+            var mRow = new ShowcaseMachineRow();
+            mRow.id = "mach-" + System.currentTimeMillis();
+            mRow.txtTitle.setText("New Industrial Workstation");
+            mRow.txtBadge.setText("Precision Unit");
+            mRow.txtDesc.setText("Industrial manufacturing equipment specifications.");
+            mRow.txtImage.setText("assets/images/machine_vmc_5axis.jpg");
+            mRow.txtSpec1Key.setText("Accuracy");
+            mRow.txtSpec1Val.setText("±0.005 mm");
+            mRow.chkActive.setSelected(true);
+            renderMachineCard(mRow);
+            showcaseMachines.add(mRow);
+        });
+
+        machHeaderRow.getChildren().addAll(machTitleCol, btnAddMachine);
+
+        machineryContainer = new VBox(12);
+        machCard.getChildren().addAll(machHeaderRow, machineryContainer);
+        root.getChildren().add(machCard);
+
+        return root;
+    }
+
+    private void renderMachineCard(ShowcaseMachineRow row) {
+        VBox card = new VBox(8);
+        card.setStyle("-fx-background-color: rgba(30, 41, 59, 0.4); -fx-border-color: rgba(148, 163, 184, 0.15); -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 12;");
+        row.cardNode = card;
+
+        HBox top = new HBox(10);
+        top.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        Label lblName = new Label("Workstation:");
+        lblName.setStyle("-fx-font-weight: bold;");
+        row.txtTitle.setPromptText("Machine Name");
+        row.txtTitle.getStyleClass().add("approved-input");
+        HBox.setHgrow(row.txtTitle, javafx.scene.layout.Priority.ALWAYS);
+
+        row.txtBadge.setPromptText("Badge (e.g. 5-Axis VMC)");
+        row.txtBadge.getStyleClass().add("approved-input");
+        row.txtBadge.setPrefWidth(160);
+
+        row.chkActive.getStyleClass().add("approved-checkbox");
+
+        Button btnDelete = new Button("Remove");
+        btnDelete.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        btnDelete.setStyle("-fx-text-fill: #f87171;");
+        btnDelete.setOnAction(e -> {
+            showcaseMachines.remove(row);
+            if (machineryContainer != null) machineryContainer.getChildren().remove(card);
+        });
+
+        top.getChildren().addAll(lblName, row.txtTitle, row.txtBadge, row.chkActive, btnDelete);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(12);
+        grid.setVgap(6);
+
+        row.txtDesc.setPrefRowCount(2);
+        row.txtDesc.setWrapText(true);
+        row.txtDesc.setPromptText("Description of the machine and capabilities");
+        row.txtDesc.getStyleClass().add("approved-input");
+
+        row.txtImage.setPromptText("Image / 3D Asset URL (e.g. assets/images/machine_vmc_5axis.jpg)");
+        row.txtImage.getStyleClass().add("approved-input");
+
+        row.txtSpec1Key.setPromptText("Spec 1 Name (e.g. Working Area)");
+        row.txtSpec1Key.getStyleClass().add("approved-input");
+        row.txtSpec1Val.setPromptText("Spec 1 Value (e.g. 1200 x 800 mm)");
+        row.txtSpec1Val.getStyleClass().add("approved-input");
+
+        row.txtSpec2Key.setPromptText("Spec 2 Name (e.g. Spindle Speed)");
+        row.txtSpec2Key.getStyleClass().add("approved-input");
+        row.txtSpec2Val.setPromptText("Spec 2 Value (e.g. 15,000 RPM)");
+        row.txtSpec2Val.getStyleClass().add("approved-input");
+
+        grid.add(new Label("Description:"), 0, 0);
+        grid.add(row.txtDesc, 1, 0, 3, 1);
+
+        grid.add(new Label("Asset URL:"), 0, 1);
+        grid.add(row.txtImage, 1, 1, 3, 1);
+
+        grid.add(new Label("Specification 1:"), 0, 2);
+        grid.add(row.txtSpec1Key, 1, 2);
+        grid.add(row.txtSpec1Val, 2, 2);
+
+        grid.add(new Label("Specification 2:"), 0, 3);
+        grid.add(row.txtSpec2Key, 1, 3);
+        grid.add(row.txtSpec2Val, 2, 3);
+
+        card.getChildren().addAll(top, grid);
+        if (machineryContainer != null) machineryContainer.getChildren().add(card);
+    }
+
+    private void addMachineCardFromNode(com.fasterxml.jackson.databind.JsonNode mNode) {
+        ShowcaseMachineRow row = new ShowcaseMachineRow();
+        row.id = mNode.path("id").asText("mach-" + System.currentTimeMillis());
+        row.txtTitle.setText(mNode.path("title").asText(""));
+        row.txtBadge.setText(mNode.path("badge").asText(""));
+        row.txtDesc.setText(mNode.path("description").asText(""));
+        row.txtImage.setText(mNode.path("image").asText(""));
+        row.chkActive.setSelected(mNode.path("active").asBoolean(true));
+
+        var specs = mNode.path("specs");
+        if (specs.isArray() && specs.size() > 0) {
+            row.txtSpec1Key.setText(specs.get(0).path("key").asText(""));
+            row.txtSpec1Val.setText(specs.get(0).path("value").asText(""));
+        }
+        if (specs.isArray() && specs.size() > 1) {
+            row.txtSpec2Key.setText(specs.get(1).path("key").asText(""));
+            row.txtSpec2Val.setText(specs.get(1).path("value").asText(""));
+        }
+
+        renderMachineCard(row);
+        showcaseMachines.add(row);
+    }
+
+    private void loadShowcaseData() {
+        try {
+            String jsonStr = "";
+            try {
+                jsonStr = new org.example.api.admin.AdminApiClient().getShowcase();
+            } catch (Exception ignored) {}
+
+            if (jsonStr == null || jsonStr.isBlank()) {
+                jsonStr = ConfigManager.get("showcase.content", "");
+            }
+            if (jsonStr == null || jsonStr.isBlank()) {
+                try (var is = getClass().getResourceAsStream("/showcase/default-showcase.json")) {
+                    if (is != null) jsonStr = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                } catch (Exception ignored) {}
+            }
+            if (jsonStr != null && !jsonStr.isBlank()) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(jsonStr);
+
+                var branding = root.path("branding");
+                if (txtShowcaseCompanyName != null) txtShowcaseCompanyName.setText(branding.path("companyName").asText("JASVI INDUSTRIES"));
+                if (txtShowcaseTagline != null) txtShowcaseTagline.setText(branding.path("tagline").asText("Precision Engineering"));
+                if (txtShowcasePortalUrl != null) txtShowcasePortalUrl.setText(branding.path("portalUrl").asText("https://erp.jasviindustries.in/"));
+
+                var hero = root.path("hero");
+                if (txtShowcaseHeroBadge != null) txtShowcaseHeroBadge.setText(hero.path("badge").asText("Next-Gen Industrial Digital Engineering"));
+                if (txtShowcaseHeroHeadline != null) txtShowcaseHeroHeadline.setText(hero.path("headline").asText("Precision Machining. Zero Compromise."));
+                if (txtShowcaseHeroLead != null) txtShowcaseHeroLead.setText(hero.path("leadParagraph").asText(""));
+
+                var pCta = hero.path("primaryCta");
+                if (txtShowcasePrimaryCtaLabel != null) txtShowcasePrimaryCtaLabel.setText(pCta.path("label").asText("Instant Blueprint RFQ"));
+                if (txtShowcasePrimaryCtaAnchor != null) txtShowcasePrimaryCtaAnchor.setText(pCta.path("anchor").asText("#rfq"));
+
+                var sCta = hero.path("secondaryCta");
+                if (txtShowcaseSecondaryCtaLabel != null) txtShowcaseSecondaryCtaLabel.setText(sCta.path("label").asText("Explore 3D Machinery"));
+                if (txtShowcaseSecondaryCtaAnchor != null) txtShowcaseSecondaryCtaAnchor.setText(sCta.path("anchor").asText("#showcase-3d"));
+
+                var machinery = root.path("machinery");
+                if (machinery.isArray()) {
+                    showcaseMachines.clear();
+                    if (machineryContainer != null) machineryContainer.getChildren().clear();
+                    for (var mNode : machinery) {
+                        addMachineCardFromNode(mNode);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Failed to load showcase data: " + ex.getMessage());
+        }
+    }
+
+    private void saveShowcaseSettings() {
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var root = mapper.createObjectNode();
+            root.put("version", 1);
+            root.put("lastModified", java.time.Instant.now().toString());
+
+            var branding = root.putObject("branding");
+            branding.put("companyName", txtShowcaseCompanyName != null ? txtShowcaseCompanyName.getText() : "JASVI INDUSTRIES");
+            branding.put("tagline", txtShowcaseTagline != null ? txtShowcaseTagline.getText() : "Precision Engineering");
+            branding.put("portalUrl", txtShowcasePortalUrl != null ? txtShowcasePortalUrl.getText() : "");
+            branding.put("badgeText", txtShowcaseHeroBadge != null ? txtShowcaseHeroBadge.getText() : "");
+
+            var hero = root.putObject("hero");
+            hero.put("badge", txtShowcaseHeroBadge != null ? txtShowcaseHeroBadge.getText() : "");
+            hero.put("headline", txtShowcaseHeroHeadline != null ? txtShowcaseHeroHeadline.getText() : "");
+            hero.put("leadParagraph", txtShowcaseHeroLead != null ? txtShowcaseHeroLead.getText() : "");
+
+            var pCta = hero.putObject("primaryCta");
+            pCta.put("label", txtShowcasePrimaryCtaLabel != null ? txtShowcasePrimaryCtaLabel.getText() : "Instant Blueprint RFQ");
+            pCta.put("anchor", txtShowcasePrimaryCtaAnchor != null ? txtShowcasePrimaryCtaAnchor.getText() : "#rfq");
+
+            var sCta = hero.putObject("secondaryCta");
+            sCta.put("label", txtShowcaseSecondaryCtaLabel != null ? txtShowcaseSecondaryCtaLabel.getText() : "Explore 3D Machinery");
+            sCta.put("anchor", txtShowcaseSecondaryCtaAnchor != null ? txtShowcaseSecondaryCtaAnchor.getText() : "#showcase-3d");
+
+            var machArray = root.putArray("machinery");
+            int sort = 1;
+            for (var row : showcaseMachines) {
+                var m = machArray.addObject();
+                m.put("id", row.id != null && !row.id.isBlank() ? row.id : "mach-" + sort);
+                m.put("badge", row.txtBadge.getText());
+                m.put("title", row.txtTitle.getText());
+                m.put("description", row.txtDesc.getText());
+                m.put("image", row.txtImage.getText());
+                m.put("active", row.chkActive.isSelected());
+                m.put("sortOrder", sort++);
+                var specs = m.putArray("specs");
+                if (row.txtSpec1Key != null && !row.txtSpec1Key.getText().isBlank()) {
+                    var s1 = specs.addObject();
+                    s1.put("key", row.txtSpec1Key.getText());
+                    s1.put("value", row.txtSpec1Val.getText());
+                }
+                if (row.txtSpec2Key != null && !row.txtSpec2Key.getText().isBlank()) {
+                    var s2 = specs.addObject();
+                    s2.put("key", row.txtSpec2Key.getText());
+                    s2.put("value", row.txtSpec2Val.getText());
+                }
+            }
+
+            String jsonPayload = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
+            try {
+                new org.example.api.admin.AdminApiClient().saveShowcase(jsonPayload);
+            } catch (Exception apiEx) {
+                System.err.println("Remote showcase save warning: " + apiEx.getMessage());
+            }
+            putSetting("showcase.content", jsonPayload);
+            ConfigManager.save();
+            org.example.util.ToastManager.success(panelHost, "Showcase Published", "Website & 3D Showcase content published successfully.");
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to save showcase settings: " + ex.getMessage(), ex);
+        }
+    }
+
+    private void openBrowserUrl(String url) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
+            } else {
+                new ProcessBuilder("cmd", "/c", "start", url).start();
+            }
+        } catch (Exception e) {
+            showError("Could not open browser for " + url + ": " + e.getMessage());
         }
     }
 

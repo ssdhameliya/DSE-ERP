@@ -174,6 +174,7 @@ public class DashboardController implements ScreenLifecycle {
     @FXML private Button btnSettingsShortcuts;
     @FXML private Button btnSettingsUpdates;
     @FXML private Button btnSettingsModules;
+    @FXML private Button btnSettingsShowcase;
     @FXML private Button btnGeneralLedger;
     @FXML private Button btnGstCompliance;
     @FXML private Button btnAutomationCenter;
@@ -371,6 +372,7 @@ public class DashboardController implements ScreenLifecycle {
         if (btnEWayBill != null) UiActionIcons.apply(btnEWayBill, "delivery", "E-Way Bill & E-Invoice");
         if (btnAutomationCenter != null) UiActionIcons.apply(btnAutomationCenter, "automation", "Automation Center");
         if (btnSettingsModules != null) UiActionIcons.apply(btnSettingsModules, "module", "Module Activation");
+        if (btnSettingsShowcase != null) UiActionIcons.apply(btnSettingsShowcase, "view", "Website & 3D Showcase");
     }
 
     /** Keeps visible shell/navigation labels synchronized with the user shortcut registry. */
@@ -560,7 +562,7 @@ public class DashboardController implements ScreenLifecycle {
 
         inheritGroupPermission(btnDocumentStudio, btnPdfStudio, btnExcelStudio);
         inheritGroupPermission(btnSettings, btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice,
-                btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules);
+                btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules, btnSettingsShowcase, btnSettingsShowcase);
     }
 
     private void protect(Button button, String permission) {
@@ -1152,7 +1154,7 @@ public class DashboardController implements ScreenLifecycle {
             return NavGroup.DOCUMENT_STUDIO;
         if (button == btnSettings || button == btnSettingsCompany || button == btnSettingsPayment
                 || button == btnSettingsInvoice || button == btnSettingsNotifications || button == btnSettingsEmail || button == btnSettingsSecurity
-                || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates || button == btnSettingsModules)
+                || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates || button == btnSettingsModules || button == btnSettingsShowcase)
             return NavGroup.SETTINGS;
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
         if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.contains("creditnoteregister") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
@@ -1215,7 +1217,7 @@ public class DashboardController implements ScreenLifecycle {
                 btnImport, btnInventory, btnBarcodeStudio, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnAuditTrail, btnSystemDiagnosticsNav, btnCommunication,
                 btnDocumentStudio, btnPdfStudio, btnExcelStudio, btnSettings, btnSettingsCompany, btnSettingsPayment,
                 btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace,
-                btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules,
+                btnSettingsShortcuts, btnSettingsUpdates, btnSettingsModules, btnSettingsShowcase,
                 btnAutomationCenter,
                 btnSafeRollback, btnBackup)
             .filter(java.util.Objects::nonNull)
@@ -1588,6 +1590,10 @@ public class DashboardController implements ScreenLifecycle {
 
     @FXML private void openSettingsModules() {
         openSettingsSection(btnSettingsModules, SettingsController.Section.MODULES, "Module Activation");
+    }
+
+    @FXML private void openSettingsShowcase() {
+        openSettingsSection(btnSettingsShowcase, SettingsController.Section.SHOWCASE, "Website & 3D Showcase");
     }
 
     @FXML private void openGeneralLedger() {
