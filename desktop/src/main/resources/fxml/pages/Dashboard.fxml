@@ -166,12 +166,21 @@
                 </Button>
                 <Label fx:id="lblEmailBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
             </StackPane>
+            <StackPane styleClass="notification-button-wrap" visible="false" managed="false">
+                <Button fx:id="btnWhatsappCenter" visible="false" managed="false" contentDisplay="GRAPHIC_ONLY" onAction="#openWhatsappCenter" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
+                    <tooltip><Tooltip text="WhatsApp activity"/></tooltip>
+                </Button>
+                <Label fx:id="lblWhatsappBadge" visible="false" managed="false" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
             <StackPane styleClass="notification-button-wrap">
                 <Button fx:id="btnSystemDiagnostics" contentDisplay="GRAPHIC_ONLY" onAction="#openSystemDiagnostics" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
                     <tooltip><Tooltip text="System Logs &amp; Application Diagnostics (Ctrl + Shift + L)"/></tooltip>
                 </Button>
                 <Label fx:id="lblDiagnosticsBadge" text="" visible="false" managed="false" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
             </StackPane>
+            <Button fx:id="btnShortcutInfo" visible="false" managed="false" contentDisplay="GRAPHIC_ONLY" onAction="#showShortcutInfo" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
+                <tooltip><Tooltip text="Keyboard shortcuts"/></tooltip>
+            </Button>
             <MenuButton fx:id="menuUser" text="Administrator" styleClass="top-user,approved-menu-button"><items>
                 <MenuItem text="My Profile" onAction="#showProfile"/>
                 <MenuItem text="Settings" onAction="#openSettings"/>

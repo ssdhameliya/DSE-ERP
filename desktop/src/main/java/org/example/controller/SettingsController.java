@@ -3383,9 +3383,11 @@ private record AssetPreviewRequest(
         HBox serverStatusRow = new HBox(8);
         serverStatusRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         Label serverDot = new Label("●");
-        serverDot.setStyle("-fx-text-fill: #10b981; -fx-font-size: 14px;");
+        serverDot.getStyleClass().addAll("status-positive", "settings-field-hint");
+        serverDot.setStyle("-fx-font-size: 14px;");
         lblShowcaseServerUrl = new Label("Showcase Web Server Active: http://localhost:8089 (Live interactive 3D model viewer)");
-        lblShowcaseServerUrl.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
+        lblShowcaseServerUrl.getStyleClass().addAll("page-subtitle", "settings-field-hint");
+        lblShowcaseServerUrl.setStyle("-fx-font-size: 11px;");
         serverStatusRow.getChildren().addAll(serverDot, lblShowcaseServerUrl);
 
         headerBox.getChildren().addAll(topRow, serverStatusRow);
@@ -3514,7 +3516,8 @@ private record AssetPreviewRequest(
 
     private void renderMachineCard(ShowcaseMachineRow row) {
         VBox card = new VBox(8);
-        card.setStyle("-fx-background-color: rgba(30, 41, 59, 0.4); -fx-border-color: rgba(148, 163, 184, 0.15); -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 12;");
+        card.getStyleClass().addAll("settings-subcard", "card");
+        card.setStyle("-fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 12;");
         row.cardNode = card;
 
         HBox top = new HBox(10);
@@ -3534,7 +3537,7 @@ private record AssetPreviewRequest(
 
         Button btnDelete = new Button("Remove");
         btnDelete.getStyleClass().addAll("approved-button", "approved-secondary-button");
-        btnDelete.setStyle("-fx-text-fill: #f87171;");
+        btnDelete.getStyleClass().add("approved-danger-button");
         btnDelete.setOnAction(e -> {
             showcaseMachines.remove(row);
             if (machineryContainer != null) machineryContainer.getChildren().remove(card);
