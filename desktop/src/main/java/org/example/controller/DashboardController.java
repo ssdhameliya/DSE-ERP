@@ -236,6 +236,7 @@ public class DashboardController implements ScreenLifecycle {
         DashboardController previous = CURRENT;
         if (previous != null && previous != this) previous.stopRecurringTasks();
         CURRENT = this;
+        applyBadge(lblDiagnosticsBadge, 0);
         ShellIndicatorBus.subscribe(shellIndicatorListener);
         PermissionService.addChangeListener(permissionChangeListener);
 
@@ -411,6 +412,7 @@ public class DashboardController implements ScreenLifecycle {
                     applyBadge(lblEmailBadge, counts[1]);
                     applyBadge(lblWhatsappBadge, counts[2]);
                     applyBadge(lblReminderBadge, counts[3]);
+                    applyBadge(lblDiagnosticsBadge, 0);
                 }
             } finally { indicatorRefreshRunning.set(false); }
         }));
@@ -621,7 +623,7 @@ public class DashboardController implements ScreenLifecycle {
         UiActionIcons.apply(btnEmailCenter, "email", "Email centre");
         if (btnWhatsappCenter != null) UiActionIcons.apply(btnWhatsappCenter, "whatsapp", "WhatsApp activity");
         if (btnSystemDiagnostics != null) UiActionIcons.apply(btnSystemDiagnostics, "diagnostic", "System Logs & Application Diagnostics");
-        UiActionIcons.apply(btnShortcutInfo, "shortcut", "Keyboard shortcuts");
+        if (btnShortcutInfo != null) UiActionIcons.apply(btnShortcutInfo, "shortcut", "Keyboard shortcuts");
         UiActionIcons.apply(menuUser, "user", "User menu");
         updateThemeButton();
     }

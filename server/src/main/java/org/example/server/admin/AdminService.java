@@ -448,25 +448,73 @@ public class AdminService {
         List<AdminDtos.ServerLogEntry> results = new java.util.ArrayList<>();
 
         java.nio.file.Path logFile = null;
-        if (workspacePath != null && !workspacePath.isBlank()) {
-            java.nio.file.Path candidate = java.nio.file.Path.of(workspacePath, "Logs", "Server", "dse-erp-server.log");
-            if (java.nio.file.Files.exists(candidate)) logFile = candidate;
-        }
-        if (logFile == null) {
-            java.nio.file.Path candidate = java.nio.file.Path.of("D:", "DSE Production", "Logs", "Server", "dse-erp-server.log");
-            if (java.nio.file.Files.exists(candidate)) logFile = candidate;
-        }
-        if (logFile == null) {
-            java.nio.file.Path candidate = java.nio.file.Path.of("logs", "dse-erp-server.log");
+
+        String envFile = System.getenv("DSE_LOG_FILE");
+        if (envFile == null || envFile.isBlank()) envFile = System.getenv("LOG_FILE");
+        if (envFile == null || envFile.isBlank()) envFile = System.getProperty("logging.file.name");
+        if (envFile != null && !envFile.isBlank()) {
+            java.nio.file.Path candidate = java.nio.file.Path.of(envFile);
             if (java.nio.file.Files.exists(candidate)) logFile = candidate;
         }
 
-        if (logFile == null || !java.nio.file.Files.exists(logFile)) {
+        if (logFile == null && workspacePath != null && !workspacePath.isBlank()) {
+            for (String sub : List.of("Logs/Server/dse-erp-server.log", "logs/dse-erp-server.log", "logs/server.log")) {
+                java.nio.file.Path candidate = java.nio.file.Path.of(workspacePath, sub.split("/"));
+                if (java.nio.file.Files.exists(candidate)) {
+                    logFile = candidate;
+                    break;
+                }
+            }
+        }
+
+        if (logFile == null) {
+            List<String> platformCandidates = new java.util.ArrayList<>();
+            platformCandidates.add("/srv/dse-erp/Logs/Server/dse-erp-server.log");
+            platformCandidates.add("/srv/dse-erp/prod/Logs/Server/dse-erp-server.log");
+            platformCandidates.add("/srv/dse-erp/uat/Logs/Server/dse-erp-server.log");
+            platformCandidates.add("/srv/dse-erp/logs/dse-erp-server.log");
+            platformCandidates.add("/var/log/dse-erp/dse-erp-server.log");
+            platformCandidates.add(System.getProperty("user.home", "") + "/.dse-erp/Logs/Server/dse-erp-server.log");
+            platformCandidates.add("D:/DSE Production/Logs/Server/dse-erp-server.log");
+            platformCandidates.add("logs/dse-erp-server.log");
+            platformCandidates.add("logs/server.log");
+
+            for (String candStr : platformCandidates) {
+                try {
+                    java.nio.file.Path candidate = java.nio.file.Path.of(candStr);
+                    if (java.nio.file.Files.exists(candidate)) {
+                        logFile = candidate;
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        List<String> lines = null;
+        if (logFile != null && java.nio.file.Files.exists(logFile)) {
+            try {
+                lines = java.nio.file.Files.readAllLines(logFile, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception ignored) {}
+        }
+
+        if ((lines == null || lines.isEmpty()) && !System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
+            try {
+                Process proc = new ProcessBuilder("journalctl", "-u", "dse-erp-prod", "-u", "dse-erp-uat", "-n", String.valueOf(Math.max(maxLines * 4, 1000)), "--no-pager")
+                        .redirectErrorStream(true)
+                        .start();
+                if (proc.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
+                    try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+                        lines = reader.lines().toList();
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (lines == null || lines.isEmpty()) {
             return List.of();
         }
 
         try {
-            List<String> lines = java.nio.file.Files.readAllLines(logFile, java.nio.charset.StandardCharsets.UTF_8);
             int start = Math.max(0, lines.size() - Math.max(maxLines * 4, 3000));
             List<String> traceBuffer = new java.util.ArrayList<>();
 

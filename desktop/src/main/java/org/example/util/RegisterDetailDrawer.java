@@ -192,6 +192,9 @@ public final class RegisterDetailDrawer extends VBox {
         dialogRoot.setPrefSize(680, 560);
         dialogRoot.setMinSize(540, 400);
 
+        pane.getProperties().put("dse.dialog.presented", true);
+        pane.getProperties().put("dse.dialog.workspace", true);
+        pane.getStyleClass().add("erp-document-inspection-dialog");
         pane.setContent(dialogRoot);
         pane.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
 

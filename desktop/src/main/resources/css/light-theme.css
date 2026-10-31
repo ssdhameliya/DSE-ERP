@@ -8599,7 +8599,7 @@
 -fx-text-fill: #2563eb;
 }
 .card {
--fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0.15, 0, 3);
+-fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.08), 16, 0.12, 0, 4);
 }
 .footer {
 -fx-border-color: #e5e7eb;
@@ -12812,13 +12812,13 @@
 -fx-text-fill: #c084fc;
 }
 .meta-cyan {
--fx-text-fill: #22d3ee;
+-fx-text-fill: #0e7490;
 }
 .meta-orange {
--fx-text-fill: #fbbf24;
+-fx-text-fill: #b45309;
 }
 .meta-green {
--fx-text-fill: #34d399;
+-fx-text-fill: #047857;
 }
 .status-paid {
 -fx-background-color: rgba(16,185,129,0.22);
@@ -12877,7 +12877,7 @@
 -fx-text-fill: #c084fc;
 }
 .timeline-title {
--fx-text-fill: #fbbf24;
+-fx-text-fill: #b45309;
 }
 .timeline-line {
 -fx-background-color: linear-gradient(to right, #8b5cf6, #22d3ee, #22c55e, #f59e0b, #8b5cf6);
@@ -13052,23 +13052,23 @@
 }
 .dashboard-row-accent-0 {
 -fx-background-color: rgba(37, 99, 235, 0.13);
-    -fx-text-fill: #60a5fa;
+    -fx-text-fill: #1d4ed8;
 }
 .dashboard-row-accent-1 {
 -fx-background-color: rgba(16, 185, 129, 0.13);
-    -fx-text-fill: #34d399;
+    -fx-text-fill: #047857;
 }
 .dashboard-row-accent-2 {
 -fx-background-color: rgba(168, 85, 247, 0.13);
-    -fx-text-fill: #c084fc;
+    -fx-text-fill: #6d28d9;
 }
 .dashboard-row-accent-3 {
 -fx-background-color: rgba(245, 158, 11, 0.13);
-    -fx-text-fill: #fbbf24;
+    -fx-text-fill: #b45309;
 }
 .dashboard-row-accent-4 {
 -fx-background-color: rgba(236, 72, 153, 0.13);
-    -fx-text-fill: #f472b6;
+    -fx-text-fill: #be123c;
 }
 .sales-entry-page .sales-entry-actions-card {
 -fx-border-color: #9b83d8;
@@ -14692,7 +14692,7 @@
 -fx-text-fill:white;
 }
 .dse-global-search-v3-root .dse-global-search-v3-module-name-items, .dse-global-search-v3-root .dse-global-search-v3-group-title-items, .dse-global-search-v3-root .dse-global-search-v3-ref-items {
--fx-text-fill:#fbbf24;
+-fx-text-fill:#b45309;
 }
 .dse-global-search-v3-root .dse-global-search-v3-module-name-customers, .dse-global-search-v3-root .dse-global-search-v3-group-title-customers, .dse-global-search-v3-root .dse-global-search-v3-ref-customers {
 -fx-text-fill:#38bdf8;
@@ -14719,7 +14719,7 @@
 -fx-text-fill:#4ade80;
 }
 .dse-global-search-v3-root .dse-global-search-v3-module-name-bank-expense-entries, .dse-global-search-v3-root .dse-global-search-v3-group-title-bank-expense-entries, .dse-global-search-v3-root .dse-global-search-v3-ref-bank-expense-entries {
--fx-text-fill:#f472b6;
+-fx-text-fill:#be123c;
 }
 .dse-global-search-v3-root .dse-global-search-v3-module-name-bank-statement, .dse-global-search-v3-root .dse-global-search-v3-group-title-bank-statement, .dse-global-search-v3-root .dse-global-search-v3-ref-bank-statement {
 -fx-text-fill:#2dd4bf;
@@ -14737,10 +14737,10 @@
 -fx-text-fill:#a78bfa;
 }
 .dse-global-search-v3-root .dse-global-search-v3-module-name-users, .dse-global-search-v3-root .dse-global-search-v3-group-title-users, .dse-global-search-v3-root .dse-global-search-v3-ref-users {
--fx-text-fill:#f472b6;
+-fx-text-fill:#be123c;
 }
 .dse-global-search-v3-root .dse-global-search-v3-desc-items {
--fx-text-fill:#fde68a;
+-fx-text-fill:#78350f;
 }
 .dse-global-search-v3-root .dse-global-search-v3-desc-customers {
 -fx-text-fill:#7dd3fc;
@@ -18064,7 +18064,7 @@
 .workspace-tab-label {
     -fx-font-size: 11px;
     -fx-font-weight: 600;
-    -fx-text-fill: #64748b;
+    -fx-text-fill: #1e293b;
 }
 
 .workspace-tab.active .workspace-tab-label {
@@ -18088,7 +18088,7 @@
 }
 
 .workspace-tab-icon {
-    -fx-fill: #64748b;
+    -fx-fill: #334155;
     -fx-scale-x: 0.75;
     -fx-scale-y: 0.75;
 }
@@ -18099,8 +18099,8 @@
 
 .workspace-tab-hint {
     -fx-font-size: 10px;
-    -fx-text-fill: #94a3b8;
-    -fx-font-weight: 500;
+    -fx-text-fill: #334155;
+    -fx-font-weight: 600;
 }
 
 .workspace-tab-hints-wrap {

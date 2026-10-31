@@ -21,7 +21,7 @@
     <HBox spacing="8" alignment="CENTER_LEFT" styleClass="audit-filter-bar">
         <ComboBox fx:id="cmbModule" promptText="All Modules"/>
         <ComboBox fx:id="cmbAction" promptText="All Actions"/>
-        <TextField fx:id="txtUser" promptText="User"/>
+        <ComboBox fx:id="cmbUser" promptText="All Users"/>
         <TextField fx:id="txtReference" promptText="Reference"/>
         <TextField fx:id="txtSearch" promptText="Search field, detail or user" HBox.hgrow="ALWAYS"/>
         <Button text="Clear" onAction="#clearFilters" styleClass="secondary-button"/>

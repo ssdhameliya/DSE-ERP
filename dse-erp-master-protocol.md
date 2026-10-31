@@ -2,7 +2,6 @@
 
 > **Single Source of Truth** for DSE-ERP Architecture, Workspace Boundaries, Desktop-Web Parity Inspection, Automation Scripts, Server Infrastructure, and Cloud Deployment.
 > **Antigravity Enforcement:** This document is automatically loaded by Antigravity on every conversation. All rules, boundaries, and checklists herein are strictly binding.
-> **Last Updated:** 2026-10-31 — Established Strict Clean Root Policy: Root `CHANGELOG-*.md` or any extra  which are not request  files permanently banned.
 
 ---
 
@@ -23,6 +22,13 @@ c:\...\DSE-ERP-10.0.25                    D:\DSE Production (DB 55432)
 [ Web Working Directory ]                  [ Web GitHub Target Project ]
 D:\ERP Website\admin                      D:\GitHub\DSE-ERP-Enterprise (web/admin)
 (Decoupled HTML5/CSS3/JS)                 (Automated Cloud Deployment via Caddy)
+
+[ UserView Working Directory ]             [ UserView GitHub Target Project ]
+D:\ERP USERSHOW                            D:\GitHub\DSE-UserView (ssdhameliya/DSE-UserView)
+(Interactive 3D / Dynamic Showcase)        (Automated Cloud Deployment to /srv/dse-erp/web/public)
+         │                                          ▲
+         └──► [ Staging Mirror ] ───────────────────┘
+              D:\GitHub\ReleaseSource UserView
 ```
 
 ### 1.1 Desktop & Server Workspaces
@@ -51,6 +57,15 @@ D:\ERP Website\admin                      D:\GitHub\DSE-ERP-Enterprise (web/admi
 3. **Live Web UAT URL:** `https://erp-uat.jasviindustries.in/`
 4. **Live Web PROD URL:** `https://erp.jasviindustries.in/`
 
+### 1.3 Public UserView & Dynamic Showcase Workspaces
+1. **UserView Working Directory (Interactive 3D / Claymorphism):** `D:\ERP USERSHOW`  
+   *The single source of truth for the public showcase, machinery catalog, and instant RFQ portal.*
+2. **UserView Release Staging:** `D:\GitHub\ReleaseSource UserView`  
+   *Mirrored staging copy verified before pushing releases to GitHub.*
+3. **UserView GitHub Target Repository:** `D:\GitHub\DSE-UserView` (`https://github.com/ssdhameliya/DSE-UserView`)
+4. **Live UserView UAT URL:** `https://web-uat.jasviindustries.in/` (`/srv/dse-erp/web/public` on OCI UAT `144.24.109.1`)
+5. **Live UserView PROD URLs:** `https://jasviindustries.in/` & `https://www.jasviindustries.in/` (`/srv/dse-erp/web/public` on OCI PROD `130.210.35.1`)
+
 ---
 
 ## 2. Server Infrastructure, DNS & Environment Inventory
@@ -58,16 +73,16 @@ D:\ERP Website\admin                      D:\GitHub\DSE-ERP-Enterprise (web/admi
 All verified IP addresses, DNS mappings, ports, databases, and SSH credentials across Hostinger and Oracle Cloud Infrastructure (OCI):
 
 ### 2.1 Hostinger DNS Records (Domain: `jasviindustries.in`)
-| Domain / Subdomain | Target IP / Host | Environment | Destination / Role |
-| :--- | :--- | :---: | :--- |
-| **`jasviindustries.in`** | `130.210.35.1` | **PROD** | Public Company Showcase / Root |
-| **`www.jasviindustries.in`** | `130.210.35.1` | **PROD** | Public Company Showcase (CNAME to `@`) |
-| **`erp.jasviindustries.in`** | `130.210.35.1` | **PROD** | Production Decoupled Web ERP Admin Studio |
-| **`api.jasviindustries.in`** | `130.210.35.1` | **PROD** | Production REST Backend API (Port `8080`) |
-| **`web-uat.jasviindustries.in`** | `144.24.109.1` | **UAT** | UAT Public Showcase Staging |
-| **`erp-uat.jasviindustries.in`** | `144.24.109.1` | **UAT** | UAT Decoupled Web ERP Testing Studio |
-| **`api-uat.jasviindustries.in`** | `144.24.109.1` | **UAT** | UAT REST Backend API (Port `8081`) |
-| **`mobile-uat.jasviindustries.in`**| `ssdhameliya.github.io` | **UAT** | Mobile PWA Gateway |
+| Domain / Subdomain | Target IP / Host | Environment | Destination / Role | Source Repository |
+| :--- | :--- | :---: | :--- | :--- |
+| **`jasviindustries.in`** | `130.210.35.1` | **PROD** | Public 3D Showcase / Root (`/srv/dse-erp/web/public`) | `ssdhameliya/DSE-UserView` |
+| **`www.jasviindustries.in`** | `130.210.35.1` | **PROD** | Public 3D Showcase (CNAME to `@`) | `ssdhameliya/DSE-UserView` |
+| **`erp.jasviindustries.in`** | `130.210.35.1` | **PROD** | Production Web ERP Admin Studio (`/srv/dse-erp/web/admin`) | `ssdhameliya/DSE-ERP-Enterprise` |
+| **`api.jasviindustries.in`** | `130.210.35.1` | **PROD** | Production REST Backend API (Port `8080`) | `ssdhameliya/DSE-ERP` |
+| **`web-uat.jasviindustries.in`** | `144.24.109.1` | **UAT** | UAT Public 3D Showcase Staging (`/srv/dse-erp/web/public`) | `ssdhameliya/DSE-UserView` |
+| **`erp-uat.jasviindustries.in`** | `144.24.109.1` | **UAT** | UAT Web ERP Testing Studio (`/srv/dse-erp/web/admin`) | `ssdhameliya/DSE-ERP-Enterprise` |
+| **`api-uat.jasviindustries.in`** | `144.24.109.1` | **UAT** | UAT REST Backend API (Port `8081`) | `ssdhameliya/DSE-ERP` |
+| **`mobile-uat.jasviindustries.in`**| `ssdhameliya.github.io` | **UAT** | Mobile PWA Gateway | `ssdhameliya.github.io` |
 
 ### 2.2 Oracle Cloud (OCI) Server Specification & Paths
 | Parameter | Production (PROD) | Testing (UAT) |
@@ -83,68 +98,7 @@ All verified IP addresses, DNS mappings, ports, databases, and SSH credentials a
 
 ---
 
-## 3. Decoupled Multi-Platform Architecture
-
-DSE-ERP uses a **clean decoupled architecture**. The backend server is a stateless, high-performance Spring Boot REST API. Both Desktop and Web clients connect to the identical REST endpoints using Bearer JWT authentication:
-
-```
-                                  MULTI-USER CLOUD PLATFORM
-                                               │
-                       ┌───────────────────────┴───────────────────────┐
-                       ▼                                               ▼
-          [ Desktop Client (JavaFX 25) ]                 [ Web Client (HTML5 / CSS3 / JS) ]
-          70 FXML Pages                                  MVC SPA Architecture (D:\ERP Website\admin)
-          Bearer JWT Auth (/api/**)                      Bearer JWT Auth (/api/**)
-          Local Workstation Runtime                      Served via Caddy file_server on OCI VM
-                       │                                               │
-                       └───────────────────────┬───────────────────────┘
-                                               │
-                                               ▼
-                              [ Spring Boot 4.1.0 Backend ]
-                              (org.example.server - Port 8080 / 8081)
-                              Stateless JWT SecurityConfig (/api/**)
-                              227 Business Services & Repositories
-                              Zero Embedded UI / Zero Vaadin
-                                               │
-                                               ▼
-                              [ Shared Pure Java Contracts ]
-                              (org.example.shared)
-                              DocumentCalculationEngine, PermissionCatalog,
-                              AmountInWordsConverter, Code128Encoder
-                                               │
-                                               ▼
-                              [ PostgreSQL Relational Database ]
-                              (Single Source of Truth, 60+ Flyway Migrations)
-```
-
-### 3.1 Web Client Architecture Standards (`D:\ERP Website\admin`)
-* **Pure Decoupled Client:** The web portal is written in standard, high-performance HTML5, CSS3, and modern Vanilla JavaScript adhering strictly to MVC separation:
-  - `admin/index.html`: Unified layout shell, navigation drawer, status bar, and universal modals.
-  - `admin/js/controllers/`: Screen controllers mapping 1-to-1 to Desktop controllers (`SalesController.js`, `PurchaseController.js`, `FinanceController.js`, etc.).
-  - `admin/js/services/`: Centralized API clients (`ApiService.js`, `AuthService.js`, `MasterService.js`, etc.).
-  - `admin/js/util/`: Desktop parity calculation engines (`DocumentCalculationEngine.js`, `AmountInWordsConverter.js`, `AppDialogService.js`, etc.).
-* **Zero Server UI Dependencies:** All Vaadin Flow code has been permanently removed from the Spring Boot backend (`dse-erp-server-11.0.0.jar`). The backend only serves pure REST endpoints under `/api/**`.
-* **Universal Modal Dialog Policy:**
-  - `window.alert`, `window.confirm`, and `window.prompt` are strictly forbidden. All user alerts, confirmations, and prompts must use `AppDialogService` (`modal-app-dialog`) for an enterprise look & feel matching the desktop.
-* **Universal Attachment & Document Lightbox:**
-  - Attachments across Sales, Purchase, Inward, Outward, and Master records are previewed via `window.openUniversalPreviewModal()` and fetched with Bearer JWT tokens via `ApiService.viewFile()`.
-
-### 3.2 Backend Security & Filter Chain (`SecurityConfig.java`)
-* **Stateless JWT Security (`/api/**`):** Stateless Bearer token authentication (`SessionCreationPolicy.STATELESS`). Exclusively serves both the JavaFX Desktop Client and the Web Client API requests.
-* **CORS & Forward Headers:** Configured for cross-origin web access and native reverse-proxy forwarding (`server.forward-headers-strategy=native`).
-
-### 3.3 Desktop Client Centralized Core Systems (`desktop`)
-The desktop client features a unified, centralized backbone providing high performance, consistent styling, and non-blocking background task execution across all screens:
-* **High-Speed Document Inspection Modals:** Standardized, instant-load modal dialogs for Sales (`SalesDocumentInspectionDialog`), Purchases (`PurchaseDocumentInspectionDialog`), Quotations (`QuotationDocumentInspectionDialog`), and Debit/Credit Notes (`CreditDebitNoteInspectionDialog`, `ReturnDocumentInspectionDialog`) featuring **0ms tab switching**, asynchronous line item streaming, and non-blocking action docks.
-* **Unified UI & Modal Architecture:** Standardized vector SVG icons (`IconFactory`, `UiActionIcons`, `SemanticIconManager`), owned modal dialog lifecycle (`AppDialogService`, `OwnedDialog`, `DialogOwnerResolver`) to prevent misplaced or orphaned popups, and auto-sizing table registers that save custom column widths per user (`DynamicTableLayoutManager`, `RegisterColumnPreferences`).
-* **Concurrency & Freeze Prevention:** Background worker thread pool (`UiTaskExecutor`) ensuring heavy REST operations and exports never block the JavaFX Application Thread, UI responsiveness watchdog (`FxThreadWatchdog`), and input debouncers (`FxDebouncer`) keeping the UI smooth at 60 FPS.
-* **Multi-Tab Workspace Navigation:** Multi-screen workspace tabs (`WorkspaceTabManager`), idle screen prewarming (`NavigationManager`), and dirty-state guards (`UnsavedChangesManager`) that protect against accidental closure of in-progress entries.
-* **Security, RBAC & API Runtime:** Dynamic role-based permission toggling on buttons and menus (`PermissionService`), inactivity auto-lock session watchdog (`SessionService`, `SessionActivityManager`), Bearer JWT injection (`ApiRuntime`, `ApiSession`), and live server/database health checking (`RuntimeHealthMonitor`).
-* **Universal Document Studio & Exporters:** Standardized GST PDF invoice rendering (`ProfessionalDocumentRenderer`, `InvoicePdfService`), dynamic UPI QR code & barcode generation (`QrCodeImageFactory`, `Code128Encoder`), and unified Excel/PDF register exporting (`UnifiedReportExportService`, `BrandedRegisterPdfService`).
-
----
-
-## 4. Mandatory 7-Point First-Principle Inspection Checklist
+## 3. Mandatory 7-Point First-Principle Inspection Checklist
 
 > **CRITICAL RULE:** Before touching any code or responding to a feature request, Antigravity MUST execute this 7-point inspection against the desktop reference codebase (`c:\...\DSE-ERP-10.0.25`).
 > **"Each and everything means each and everything."** Never build half-finished screens, never guess formulas, and **NEVER use mock or dummy data.**
@@ -190,20 +144,17 @@ The desktop client features a unified, centralized backbone providing high perfo
 
 ---
 
-## 5. Version Management & Release Automation Scripts
+## 4. Version Management & Release Automation Scripts
 
-### 5.1 Version Governance & Clean Root Policy
+### 4.1 Version Governance
 * **Desktop / Server Version:** Governed strictly by `.mvn/maven.config` (`-Drevision=11.0.0`).
-* **Web Client Version:** Governed by `admin/version.json` and `admin/js/version.js` (`11.0.0.01`, tag `web-v11.0.0.01`).
-* **Release Notes (Single Source of Truth):** Every release must update `desktop/src/main/resources/release-notes.md`. This is the ONLY release notes file needed; it is packaged directly into the desktop runtime JAR.
-* **Prohibition of Root `CHANGELOG-*.md` Files (Strict Cleanliness Mandate):**
-  - **NEVER create, generate, or sync `CHANGELOG-*.md` files in the project root.**
-  - All historical `CHANGELOG-*.md` files have been permanently removed.
-  - During synchronization across `DSE-ERP-10.0.25`, `D:\GitHub\ReleaseSource`, `D:\JavaProject\DSE-ERP-Final`, and `D:\GitHub\DSE-ERP-Primary`, root changelog files must never be created or re-introduced.
+* **Web Admin Client Version:** Governed by `admin/version.json` and `admin/js/version.js` (`11.0.0.01`, tag `web-v11.0.0.01`).
+* **UserView Showcase Version:** Governed by git tags in `ssdhameliya/DSE-UserView` (`showcase-v1.0.0` or `v1.0.0`) and `data/showcase.json` (`"version": 1`).
+* **Release Notes:** Every release must update `desktop/src/main/resources/release-notes.md` and add `CHANGELOG-<version>.md`.
 
 ---
 
-### 5.2 PowerShell Script 1: Desktop/Server Release & PR Automation
+### 4.2 PowerShell Script 1: Desktop/Server Release & PR Automation
 ```powershell
 $Version = "11.0.0"
 $Note    = "Pure Decoupled Architecture Rollback"
@@ -290,7 +241,7 @@ Write-Host "Synchronized $Source -> $LocalUserCopy (Robocopy Exit Code: $LASTEXI
 
 ---
 
-### 5.3 PowerShell Script 2: Tag Push & Automated UAT Deployment
+### 4.3 PowerShell Script 2: Tag Push & Automated UAT Deployment
 ```powershell
 $Version = "11.0.0"
 $Note    = "Pure Decoupled Architecture Rollback"
@@ -335,7 +286,7 @@ if (-not $RemotePeeled) {
 
 ---
 
-### 5.4 PowerShell Script 3: Web Application Release Script
+### 4.4 PowerShell Script 3: Web Application Release Script
 ```powershell
 $WebVersion = "11.0.0.01" # Format: <DesktopVersion>.<WebBuild: 2 digits>
 $Tag        = "web-v$WebVersion"
@@ -364,7 +315,39 @@ Write-Host "Live PROD: https://erp.jasviindustries.in/"
 
 ---
 
-### 5.5 CI/CD Pipefail Hardening Rule
+### 4.5 PowerShell Script 4: UserView Showcase Release Script
+```powershell
+$Tag  = "showcase-v1.0.0"
+$Note = "Production Launch of Dynamic 3D UserView Showcase"
+
+$SourceDir  = "D:\ERP USERSHOW"
+$StagingDir = "D:\GitHub\ReleaseSource UserView"
+$GitTarget  = "D:\GitHub\DSE-UserView"
+
+# 1. Sync to staging mirror
+robocopy $SourceDir $StagingDir /MIR /R:1 /W:1 /XD .git .idea
+if ($LASTEXITCODE -gt 7) { throw "Robocopy to staging failed" }
+
+# 2. Sync to git target repository
+robocopy $SourceDir $GitTarget /MIR /R:1 /W:1 /XD .git .idea .github
+if ($LASTEXITCODE -gt 7) { throw "Robocopy to git target failed" }
+
+# 3. Commit, tag, and push to GitHub
+Set-Location $GitTarget
+git add -A
+git commit -m "Release $Tag: $Note"
+git tag -f $Tag -m "Release $Tag - $Note"
+git push -u origin main
+git push -f origin $Tag
+
+Write-Host "Triggered UserView deployment pipeline via GitHub Actions."
+Write-Host "Live UAT:  https://web-uat.jasviindustries.in/"
+Write-Host "Live PROD: https://jasviindustries.in/"
+```
+
+---
+
+### 4.6 CI/CD Pipefail Hardening Rule
 > **MANDATORY LESSON LEARNED:** Under GitHub Actions bash with `set -euo pipefail`, never pipe large curl outputs directly into `grep -q` (e.g. `curl ... | grep -q ...`). `grep -q` closes stdin immediately after finding the first match, causing curl to receive `SIGPIPE` / `EPIPE` (`exit code 23`).  
 > **Always buffer the response in a variable or use native bash pattern matching:**
 > ```bash
@@ -374,9 +357,9 @@ Write-Host "Live PROD: https://erp.jasviindustries.in/"
 
 ---
 
-## 6. Cloud Deployment & OCI Production Reference
+## 5. Cloud Deployment & OCI Production Reference
 
-### 6.1 Systemd Service Unit (`/etc/systemd/system/dse-erp-prod.service`)
+### 5.1 Systemd Service Unit (`/etc/systemd/system/dse-erp-prod.service`)
 ```ini
 [Unit]
 Description=DSE-ERP Cloud Platform Service (Spring Boot REST API)
@@ -405,7 +388,7 @@ StandardError=journal
 WantedBy=multi-user.target
 ```
 
-### 6.2 Caddy Decoupled Configuration (`/etc/caddy/Caddyfile`)
+### 5.2 Caddy Configuration (`/etc/caddy/Caddyfile`)
 ```caddy
 # Public Company Showcase
 jasviindustries.in, www.jasviindustries.in {
@@ -463,7 +446,7 @@ api-uat.jasviindustries.in {
 }
 ```
 
-### 6.3 PostgreSQL OCI Production Tuning (`postgresql.conf`)
+### 5.3 PostgreSQL OCI Production Tuning (`postgresql.conf`)
 * **`shared_buffers`**: `2560MB` (25% of total RAM on 12GB instances)
 * **`effective_cache_size`**: `6GB` (50–75% of total RAM)
 * **`work_mem`**: `16MB`
@@ -473,7 +456,7 @@ api-uat.jasviindustries.in {
 
 ---
 
-## 7. Master Rollback History & Parity Audit Reference
+## 6. Master Rollback History & Parity Audit Reference
 
 For full historical reference on the pure decoupled architecture rollback, consult [`rollback.md`](file:///D:/ERP%20Website/rollback.md) in the project workspace.
 * Core Git Tag: `v11.0.0` (PR #70)

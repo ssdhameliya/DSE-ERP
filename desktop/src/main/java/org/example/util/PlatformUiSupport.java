@@ -148,11 +148,13 @@ public final class PlatformUiSupport {
 
     public static void animateEntrance(Node node) {
         if (node == null) return;
-        node.setScaleX(0.94);
-        node.setScaleY(0.94);
-        node.setOpacity(0.0);
+        double fromOpacity = node.getOpacity() < 0.1 ? 0.0 : 0.85;
+        double fromScale = node.getScaleX() < 0.9 ? 0.95 : node.getScaleX();
+        node.setScaleX(fromScale);
+        node.setScaleY(fromScale);
+        node.setOpacity(fromOpacity);
 
-        ScaleTransition scale = new ScaleTransition(Duration.millis(220), node);
+        ScaleTransition scale = new ScaleTransition(Duration.millis(200), node);
         scale.setToX(1.0);
         scale.setToY(1.0);
         scale.setInterpolator(Interpolator.SPLINE(0.16, 1.0, 0.3, 1.0));

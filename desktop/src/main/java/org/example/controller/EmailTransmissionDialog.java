@@ -381,7 +381,6 @@ public class EmailTransmissionDialog {
     public static Optional<TransmissionResult> show(Node ownerNode, EmailDraft draft) {
         try {
             FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/EmailTransmissionDialog.fxml"));
-            DialogPane pane = new DialogPane();
             BorderPane content = loader.load();
             org.example.util.ProfessionalUiEnhancer.enhance(content);
 
@@ -398,6 +397,10 @@ public class EmailTransmissionDialog {
                     draft.subtitle() != null ? draft.subtitle() : "Direct SMTP delivery to customer billing contact",
                     "");
             dialog.setResizable(true);
+            DialogPane pane = dialog.getDialogPane();
+            pane.getStyleClass().add("erp-document-inspection-dialog");
+            pane.getProperties().put("dse.dialog.presented", true);
+            pane.getProperties().put("dse.dialog.workspace", true);
             pane.setContent(content);
             pane.setPrefSize(860, 780);
             pane.setMinSize(760, 620);
@@ -407,15 +410,11 @@ public class EmailTransmissionDialog {
                 closeBtn.setVisible(false);
                 closeBtn.setManaged(false);
             }
-            javafx.application.Platform.runLater(() -> {
-                Node btnBar = pane.lookup(".button-bar");
-                if (btnBar != null) {
-                    btnBar.setVisible(false);
-                    btnBar.setManaged(false);
+            pane.sceneProperty().addListener((obs, oldScene, scene) -> {
+                if (scene != null) {
+                    scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
                 }
             });
-
-            dialog.setDialogPane(pane);
             dialog.setResultConverter(buttonType -> controller.result);
 
             controller.setDraft(draft, dialog);
