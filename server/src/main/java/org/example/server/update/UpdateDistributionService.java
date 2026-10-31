@@ -45,7 +45,7 @@ public final class UpdateDistributionService {
     @Autowired
     public UpdateDistributionService(
             @Value("${dse.update.github.owner:ssdhameliya}") String owner,
-            @Value("${dse.update.github.repository:DSE-ERP}") String repository,
+            @Value("${dse.update.github.repository:Jasvi-Desktop}") String repository,
             @Value("${dse.update.github.token:}") String token,
             @Value("${dse.update.github.api-base:https://api.github.com}") String apiBase,
             @Value("${dse.deployment.environment:LOCAL}") String deploymentEnvironment,
