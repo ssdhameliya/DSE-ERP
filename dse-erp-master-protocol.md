@@ -2,7 +2,7 @@
 
 > **Single Source of Truth** for DSE-ERP Architecture, Workspace Boundaries, Desktop-Web Parity Inspection, Automation Scripts, Server Infrastructure, and Cloud Deployment.
 > **Antigravity Enforcement:** This document is automatically loaded by Antigravity on every conversation. All rules, boundaries, and checklists herein are strictly binding.
-> **Last Updated:** 2026-10-31 — Established Strict Clean Root Policy: Root `CHANGELOG-*.md` files permanently banned.
+> **Last Updated:** 2026-10-31 — Established Strict Clean Root Policy: Root `CHANGELOG-*.md` or any extra  which are not request  files permanently banned.
 
 ---
 

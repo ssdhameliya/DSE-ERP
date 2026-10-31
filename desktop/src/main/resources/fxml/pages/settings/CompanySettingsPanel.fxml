@@ -156,6 +156,18 @@
                                     </VBox>
                                 </GridPane>
                             </VBox>
+
+                            <Separator/>
+                            <VBox spacing="8" styleClass="settings-subcard">
+                                <HBox alignment="CENTER_LEFT" spacing="12">
+                                    <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                        <Label text="Website &amp; 3D Machinery Showcase" styleClass="settings-form-label,bold-label"/>
+                                        <Label text="Manage public 3D coverflow workstations, machinery photography, tolerance specifications, and instant RFQ settings." wrapText="true" styleClass="settings-field-hint"/>
+                                    </VBox>
+                                    <Button fx:id="btnLaunchShowcaseStudio" text="Launch 3D Showcase Studio" onAction="#launchShowcaseStudio" styleClass="approved-button,approved-primary-button"/>
+                                    <Button fx:id="btnPreviewShowcase" text="Preview Website" onAction="#previewShowcaseInBrowser" styleClass="approved-button,approved-secondary-button"/>
+                                </HBox>
+                            </VBox>
 </VBox>
 
 
