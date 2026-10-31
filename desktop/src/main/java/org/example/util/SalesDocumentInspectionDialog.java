@@ -69,10 +69,6 @@ public final class SalesDocumentInspectionDialog {
                 "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
                 hostBg, hostBorder, hostShadow));
 
-        Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
-                "Loading Sales Invoice — " + currentSale.getInvoiceNo(),
-                "Synchronizing consignment lines, payment allocations, and customer ledger status…");
-        host.getChildren().setAll(loadingSkeleton);
         pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
@@ -84,29 +80,15 @@ public final class SalesDocumentInspectionDialog {
             }
         });
 
-        UiTaskExecutor.submitLatest("sales-inspection-" + currentSale.getInvoiceNo(),
-                () -> {
-                    if (currentSale.getLines() != null && !currentSale.getLines().isEmpty()) {
-                        return currentSale;
-                    }
-                    try {
-                        Sales full = salesService.getByInvoice(currentSale.getInvoiceNo());
-                        return full != null ? full : currentSale;
-                    } catch (Exception ex) {
-                        return currentSale;
-                    }
-                },
-                resolvedSale -> {
-                    renderContent(dialog, host, resolvedSale, salesService, support, onUpdated);
-                },
-                ex -> {
-                    renderContent(dialog, host, currentSale, salesService, support, onUpdated);
-                });
+        java.util.concurrent.atomic.AtomicReference<Sales> resolvedSaleRef = new java.util.concurrent.atomic.AtomicReference<>(currentSale);
+
+        // Instant Shell Mount (0ms): render Header Hero, Metric Cards, Tabs, and Action Dock synchronously
+        renderContent(dialog, host, currentSale, resolvedSaleRef, salesService, support, onUpdated);
 
         dialog.showAndWait();
     }
 
-    private static void renderContent(Dialog<?> dialog, StackPane host, Sales currentSale, SalesService salesService, SupportApiClient support, Runnable onUpdated) {
+    private static void renderContent(Dialog<?> dialog, StackPane host, Sales currentSale, java.util.concurrent.atomic.AtomicReference<Sales> resolvedSaleRef, SalesService salesService, SupportApiClient support, Runnable onUpdated) {
         // ================= HEADER HERO =================
         HBox headerHero = buildHeaderHero(currentSale, dialog);
 
@@ -119,48 +101,30 @@ public final class SalesDocumentInspectionDialog {
         tabPane.getStyleClass().addAll("erp-inspection-tabs", "approved-tab-pane");
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
-        // Tab 1: Consignment Items
-        Tab itemsTab = new Tab("Consignment Items (" + (currentSale.getLines() == null ? 0 : currentSale.getLines().size()) + ")");
+        // Tab 1: Consignment Items (Pre-mounted, lines stream in background)
+        Tab itemsTab = new Tab("Consignment Items" + (currentSale.getLines() != null && !currentSale.getLines().isEmpty() ? " (" + currentSale.getLines().size() + ")" : ""));
         itemsTab.setGraphic(IconFactory.compactIcon("item", 14));
-        itemsTab.setContent(buildItemsTabContent(currentSale, salesService, itemsTab));
+        itemsTab.setContent(buildItemsTabContent(currentSale, resolvedSaleRef, salesService, itemsTab));
 
-        // Tab 2: Payments & Allocations (lazy-loaded on tab click)
+        // Tab 2: Payments & Allocations (Pre-mounted, data streams in background; 0ms tab switch)
         Tab paymentsTab = new Tab("Payments & Allocations");
         paymentsTab.setGraphic(IconFactory.compactIcon("payment", 14));
-        paymentsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Payments…", "Synchronizing payment allocations…"));
-        java.util.concurrent.atomic.AtomicBoolean paymentsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
-        paymentsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (isSelected && paymentsLoaded.compareAndSet(false, true)) {
-                paymentsTab.setContent(buildPaymentsTabContent(currentSale, support, dialog, onUpdated));
-            }
-        });
+        paymentsTab.setContent(buildPaymentsTabContent(currentSale, support, dialog, onUpdated));
 
-        // Tab 3: Document Attachments (lazy-loaded on tab click)
+        // Tab 3: Document Attachments (Pre-mounted, metadata streams in background; 0ms tab switch)
         Tab attachmentsTab = new Tab("Attachments");
         attachmentsTab.setGraphic(IconFactory.compactIcon("document", 14));
-        attachmentsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Attachments…", "Synchronizing document files…"));
-        java.util.concurrent.atomic.AtomicBoolean attachmentsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
-        attachmentsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (isSelected && attachmentsLoaded.compareAndSet(false, true)) {
-                attachmentsTab.setContent(buildAttachmentsTabContent(currentSale, support, dialog));
-            }
-        });
+        attachmentsTab.setContent(buildAttachmentsTabContent(currentSale, support, dialog));
 
-        // Tab 4: Logistics & Notes (lazy-loaded on tab click)
+        // Tab 4: Logistics & Notes (Instant mount, all fields already in-memory; 0ms tab switch)
         Tab logisticsTab = new Tab("Transport & Notes");
         logisticsTab.setGraphic(IconFactory.compactIcon("delivery", 14));
-        logisticsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Transport…", "Synchronizing dispatch details…"));
-        java.util.concurrent.atomic.AtomicBoolean logisticsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
-        logisticsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (isSelected && logisticsLoaded.compareAndSet(false, true)) {
-                logisticsTab.setContent(buildLogisticsTabContent(currentSale));
-            }
-        });
+        logisticsTab.setContent(buildLogisticsTabContent(currentSale));
 
         tabPane.getTabs().addAll(itemsTab, paymentsTab, attachmentsTab, logisticsTab);
 
         // ================= ACTION DOCK =================
-        HBox actionDock = buildActionDock(currentSale, dialog, salesService, support, onUpdated);
+        HBox actionDock = buildActionDock(currentSale, resolvedSaleRef, dialog, salesService, support, onUpdated);
 
         VBox contentBox = new VBox(12, headerHero, metricStrip, tabPane, actionDock);
         contentBox.setPadding(new Insets(16, 20, 16, 20));
@@ -358,7 +322,7 @@ public final class SalesDocumentInspectionDialog {
         return card;
     }
 
-    private static Node buildItemsTabContent(Sales sale, SalesService salesService, Tab itemsTab) {
+    private static Node buildItemsTabContent(Sales sale, java.util.concurrent.atomic.AtomicReference<Sales> resolvedSaleRef, SalesService salesService, Tab itemsTab) {
         TableView<SalesLine> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
         table.setPlaceholder(new Label("No line items associated with this sales invoice."));
@@ -624,6 +588,7 @@ public final class SalesDocumentInspectionDialog {
                         if (loaded != null && loaded.getLines() != null && !loaded.getLines().isEmpty()) {
                             sale.setLines(loaded.getLines());
                             if (loaded.getCharges() != null) sale.setCharges(loaded.getCharges());
+                            if (resolvedSaleRef != null) resolvedSaleRef.set(loaded);
                             table.getItems().setAll(loaded.getLines());
                             double q = loaded.getLines().stream().mapToDouble(SalesLine::getQuantity).sum();
                             double t = loaded.getLines().stream().mapToDouble(SalesLine::getGstAmount).sum();
@@ -899,22 +864,6 @@ public final class SalesDocumentInspectionDialog {
                                     }
                             ));
                         }
-                    } else if (items.isEmpty()) {
-                        try {
-                            var primary = support.documentAttachment("SALE", sale.getId());
-                            if (primary != null && primary.data() != null && primary.data().length > 0) {
-                                String fn = (primary.fileName() != null && !primary.fileName().isBlank()) ? primary.fileName() : "sale-attachment.pdf";
-                                seenNames.add(fn.toLowerCase(Locale.ROOT));
-                                items.add(new InspectionAttachment(
-                                        "Order Attachment",
-                                        "pill-info",
-                                        fn,
-                                        "Primary document attachment",
-                                        "document",
-                                        () -> primary
-                                ));
-                            }
-                        } catch (Exception ignored) {}
                     }
 
                     // 3. Payment attachments (Payment proofs)
@@ -1005,7 +954,7 @@ public final class SalesDocumentInspectionDialog {
         grid.add(valLbl, 1, row);
     }
 
-    private static HBox buildActionDock(Sales sale, Dialog<?> dialog, SalesService service, SupportApiClient support, Runnable onUpdated) {
+    private static HBox buildActionDock(Sales sale, java.util.concurrent.atomic.AtomicReference<Sales> resolvedSaleRef, Dialog<?> dialog, SalesService service, SupportApiClient support, Runnable onUpdated) {
         HBox dock = new HBox(8);
         dock.setAlignment(Pos.CENTER_LEFT);
         dock.getStyleClass().add("inspection-action-dock");
@@ -1038,19 +987,17 @@ public final class SalesDocumentInspectionDialog {
         btnDuplicate.setDisable(inactive);
         btnDuplicate.setOnAction(e -> {
             dialog.close();
-            try {
-                javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(ResourceLocator.require("/fxml/pages/Sale.fxml"));
-                javafx.scene.Parent root = loader.load();
-                ProfessionalUiEnhancer.enhance(root);
-                org.example.controller.SalesController controller = loader.getController();
-                Sales full = service.getByInvoice(sale.getInvoiceNo());
-                if (full != null) {
-                    controller.loadSale(full);
-                    controller.prepareDuplicate();
-                    NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml", root, controller);
-                }
-            } catch (Exception ex) {
-                AppDialogService.error(dialog.getDialogPane(), "Sales", "Duplicate Sale", "Failed to duplicate sale: " + ex.getMessage());
+            Sales current = resolvedSaleRef != null && resolvedSaleRef.get() != null ? resolvedSaleRef.get() : sale;
+            if (current.getLines() != null && !current.getLines().isEmpty()) {
+                openDuplicateSale(current);
+            } else {
+                UiTaskExecutor.submitAction("sales-duplicate-load-" + sale.getId(), () -> {
+                    Sales full = (service != null) ? service.getByInvoice(sale.getInvoiceNo()) : null;
+                    return full != null ? full : sale;
+                }, loaded -> {
+                    if (resolvedSaleRef != null) resolvedSaleRef.set(loaded);
+                    openDuplicateSale(loaded);
+                }, err -> openDuplicateSale(sale));
             }
         });
 
@@ -1059,16 +1006,28 @@ public final class SalesDocumentInspectionDialog {
         btnPrint.setGraphic(IconFactory.compactIcon("print", 14));
         btnPrint.getStyleClass().addAll("approved-button", "approved-purple-button");
         btnPrint.setOnAction(e -> {
+            btnPrint.setDisable(true);
             UiTaskExecutor.submitAction("sales-pdf-" + sale.getId(), () -> {
-                Sales full = service.getByInvoice(sale.getInvoiceNo());
-                return ManagedInvoicePdfService.sales(full != null ? full : sale);
+                Sales current = resolvedSaleRef != null && resolvedSaleRef.get() != null ? resolvedSaleRef.get() : sale;
+                if (current.getLines() == null || current.getLines().isEmpty()) {
+                    Sales full = (service != null) ? service.getByInvoice(sale.getInvoiceNo()) : null;
+                    if (full != null) {
+                        if (resolvedSaleRef != null) resolvedSaleRef.set(full);
+                        current = full;
+                    }
+                }
+                return ManagedInvoicePdfService.sales(current);
             }, path -> {
+                btnPrint.setDisable(false);
                 try {
                     if (java.awt.Desktop.isDesktopSupported()) java.awt.Desktop.getDesktop().open(path.toFile());
                 } catch (Exception ex) {
                     ToastManager.error(dialog.getDialogPane(), "Failed to open PDF", ex.getMessage());
                 }
-            }, err -> ToastManager.error(dialog.getDialogPane(), "PDF generation failed", err.getMessage()));
+            }, err -> {
+                btnPrint.setDisable(false);
+                ToastManager.error(dialog.getDialogPane(), "PDF generation failed", err.getMessage());
+            });
         });
 
         // 4. Barcode
@@ -1077,18 +1036,38 @@ public final class SalesDocumentInspectionDialog {
         btnBarcode.getStyleClass().addAll("approved-button", "approved-cyan-button");
         btnBarcode.setOnAction(e -> OrderDispatchBarcodeDialog.showForSale(dialog.getDialogPane(), sale));
 
-        // 5. Excel
+        // 5. Excel (Offloaded to background worker with responsive progress feedback)
         Button btnExcel = new Button("Excel");
         btnExcel.setGraphic(IconFactory.compactIcon("excel", 14));
         btnExcel.getStyleClass().addAll("approved-button", "approved-emerald-button");
         btnExcel.setOnAction(e -> {
-            try {
-                Sales full = service.getByInvoice(sale.getInvoiceNo());
-                Path path = ExcelOutputService.sales(full != null ? full : sale);
-                if (java.awt.Desktop.isDesktopSupported()) java.awt.Desktop.getDesktop().open(path.toFile());
-            } catch (Exception ex) {
-                ToastManager.error(dialog.getDialogPane(), "Failed to open Excel", ex.getMessage());
-            }
+            btnExcel.setDisable(true);
+            btnExcel.setText("Exporting…");
+            UiTaskExecutor.submitAction("sales-excel-" + sale.getId(), () -> {
+                Sales current = resolvedSaleRef != null && resolvedSaleRef.get() != null ? resolvedSaleRef.get() : sale;
+                if (current.getLines() == null || current.getLines().isEmpty()) {
+                    Sales full = (service != null) ? service.getByInvoice(sale.getInvoiceNo()) : null;
+                    if (full != null) {
+                        if (resolvedSaleRef != null) resolvedSaleRef.set(full);
+                        current = full;
+                    }
+                }
+                return ExcelOutputService.sales(current);
+            }, path -> {
+                btnExcel.setDisable(false);
+                btnExcel.setText("Excel");
+                try {
+                    if (path != null && java.awt.Desktop.isDesktopSupported()) {
+                        java.awt.Desktop.getDesktop().open(path.toFile());
+                    }
+                } catch (Exception ex) {
+                    ToastManager.error(dialog.getDialogPane(), "Failed to open Excel", ex.getMessage());
+                }
+            }, err -> {
+                btnExcel.setDisable(false);
+                btnExcel.setText("Excel");
+                ToastManager.error(dialog.getDialogPane(), "Excel export failed", err.getMessage());
+            });
         });
 
         // 6. Email
@@ -1097,7 +1076,7 @@ public final class SalesDocumentInspectionDialog {
         btnEmail.getStyleClass().addAll("approved-button", "approved-sky-button");
         btnEmail.setOnAction(e -> {
             UiTaskExecutor.submitAction("sales-prepare-email-" + sale.getId(), () -> {
-                Sales full = service.getByInvoice(sale.getInvoiceNo());
+                Sales full = (service != null) ? service.getByInvoice(sale.getInvoiceNo()) : null;
                 if (full == null) throw new IllegalStateException("Sales invoice " + sale.getInvoiceNo() + " was not found. Refresh the register and try again.");
                 Path pdf = ManagedInvoicePdfService.sales(full);
                 MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatSalesEmail(full);
@@ -1194,26 +1173,18 @@ public final class SalesDocumentInspectionDialog {
             }
             btnReturn.setOnAction(e -> {
                 dialog.close();
-                Sales full = (service != null) ? service.getByInvoice(sale.getInvoiceNo()) : null;
-                if (full == null) full = sale;
-                List<ReturnEditorService.InvoiceItem> items = (full.getLines() != null ? full.getLines() : List.<SalesLine>of()).stream()
-                        .map(line -> new ReturnEditorService.InvoiceItem(
-                                line.getItemCode(),
-                                line.getItemDescription(),
-                                line.getQuantity(),
-                                line.getRate(),
-                                line.getDiscountPercent(),
-                                line.getGstPercent()))
-                        .toList();
-                Window ownerWindow = dialog.getOwner() != null ? dialog.getOwner() : (dialog.getDialogPane() != null && dialog.getDialogPane().getScene() != null ? dialog.getDialogPane().getScene().getWindow() : null);
-                ReturnEditorService.show(ownerWindow, ReturnEditorService.Type.SALES,
-                        sale.getInvoiceNo(),
-                        sale.getCustomer() != null ? sale.getCustomer().getName() : "Customer",
-                        sale.getCustomer() != null ? sale.getCustomer().getId() : 0,
-                        items).ifPresent(no -> {
-                            if (onUpdated != null) onUpdated.run();
-                            ToastManager.success(dialog.getDialogPane(), "Return Created", "Sales return created: " + no);
-                        });
+                Sales current = resolvedSaleRef != null && resolvedSaleRef.get() != null ? resolvedSaleRef.get() : sale;
+                if (current.getLines() != null && !current.getLines().isEmpty()) {
+                    openSalesReturnModal(dialog, current, onUpdated);
+                } else {
+                    UiTaskExecutor.submitAction("sales-return-load-" + sale.getId(), () -> {
+                        Sales full = (service != null) ? service.getByInvoice(sale.getInvoiceNo()) : null;
+                        return full != null ? full : sale;
+                    }, loaded -> {
+                        if (resolvedSaleRef != null) resolvedSaleRef.set(loaded);
+                        openSalesReturnModal(dialog, loaded, onUpdated);
+                    }, err -> openSalesReturnModal(dialog, sale, onUpdated));
+                }
             });
         }
 
@@ -1234,15 +1205,19 @@ public final class SalesDocumentInspectionDialog {
             btnApprove.setGraphic(IconFactory.compactIcon("complete", 14));
             btnApprove.getStyleClass().addAll("approved-button", "approved-success-button");
             btnApprove.setOnAction(e -> {
-                try {
+                btnApprove.setDisable(true);
+                UiTaskExecutor.submitAction("sales-approve-" + sale.getId(), () -> {
                     service.approve(sale.getInvoiceNo());
+                    return true;
+                }, ok -> {
                     NotificationService.add("Sale " + sale.getInvoiceNo() + " approved.");
                     ToastManager.success(dialog.getDialogPane(), "Approved", "Sale invoice approved successfully.");
                     if (onUpdated != null) onUpdated.run();
                     dialog.close();
-                } catch (Exception ex) {
+                }, ex -> {
+                    btnApprove.setDisable(false);
                     ToastManager.error(dialog.getDialogPane(), "Approval failed", ex.getMessage());
-                }
+                });
             });
 
             Button btnReject = new Button("Reject Sale");
@@ -1254,14 +1229,18 @@ public final class SalesDocumentInspectionDialog {
                 td.setHeaderText("Reject " + sale.getInvoiceNo());
                 td.setContentText("Reason:");
                 td.showAndWait().map(String::trim).filter(r -> !r.isBlank()).ifPresent(reason -> {
-                    try {
+                    btnReject.setDisable(true);
+                    UiTaskExecutor.submitAction("sales-reject-" + sale.getId(), () -> {
                         service.reject(sale.getInvoiceNo(), reason);
+                        return true;
+                    }, ok -> {
                         NotificationService.add("Sale " + sale.getInvoiceNo() + " rejected.");
                         if (onUpdated != null) onUpdated.run();
                         dialog.close();
-                    } catch (Exception ex) {
+                    }, ex -> {
+                        btnReject.setDisable(false);
                         ToastManager.error(dialog.getDialogPane(), "Rejection failed", ex.getMessage());
-                    }
+                    });
                 });
             });
 
@@ -1278,6 +1257,41 @@ public final class SalesDocumentInspectionDialog {
 
         dock.getChildren().addAll(spacer, btnClose);
         return dock;
+    }
+
+    private static void openDuplicateSale(Sales saleToDuplicate) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(ResourceLocator.require("/fxml/pages/Sale.fxml"));
+            javafx.scene.Parent root = loader.load();
+            ProfessionalUiEnhancer.enhance(root);
+            org.example.controller.SalesController controller = loader.getController();
+            controller.loadSale(saleToDuplicate);
+            controller.prepareDuplicate();
+            NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml", root, controller);
+        } catch (Exception ex) {
+            NotificationService.createNotification("Duplicate Sale", "Failed to duplicate sale: " + ex.getMessage(), "ERROR");
+        }
+    }
+
+    private static void openSalesReturnModal(Dialog<?> dialog, Sales full, Runnable onUpdated) {
+        List<ReturnEditorService.InvoiceItem> items = (full.getLines() != null ? full.getLines() : List.<SalesLine>of()).stream()
+                .map(line -> new ReturnEditorService.InvoiceItem(
+                        line.getItemCode(),
+                        line.getItemDescription(),
+                        line.getQuantity(),
+                        line.getRate(),
+                        line.getDiscountPercent(),
+                        line.getGstPercent()))
+                .toList();
+        Window ownerWindow = dialog.getOwner() != null ? dialog.getOwner() : (dialog.getDialogPane() != null && dialog.getDialogPane().getScene() != null ? dialog.getDialogPane().getScene().getWindow() : null);
+        ReturnEditorService.show(ownerWindow, ReturnEditorService.Type.SALES,
+                full.getInvoiceNo(),
+                full.getCustomer() != null ? full.getCustomer().getName() : "Customer",
+                full.getCustomer() != null ? full.getCustomer().getId() : 0,
+                items).ifPresent(no -> {
+                    if (onUpdated != null) onUpdated.run();
+                    ToastManager.success(dialog.getDialogPane(), "Return Created", "Sales return created: " + no);
+                });
     }
 
     private static String money(double value) {

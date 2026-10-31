@@ -69,10 +69,6 @@ public final class PurchaseDocumentInspectionDialog {
                 "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
                 hostBg, hostBorder, hostShadow));
 
-        Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
-                "Loading Purchase Invoice — " + currentPurchase.getInvoiceNo(),
-                "Synchronizing supplier bill items, tax credits, and payment allocations…");
-        host.getChildren().setAll(loadingSkeleton);
         pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
@@ -84,29 +80,15 @@ public final class PurchaseDocumentInspectionDialog {
             }
         });
 
-        UiTaskExecutor.submitLatest("purchase-inspection-" + currentPurchase.getInvoiceNo(),
-                () -> {
-                    if (currentPurchase.getLines() != null && !currentPurchase.getLines().isEmpty()) {
-                        return currentPurchase;
-                    }
-                    try {
-                        Purchase full = purchaseService.getByInvoice(currentPurchase.getInvoiceNo());
-                        return full != null ? full : currentPurchase;
-                    } catch (Exception ex) {
-                        return currentPurchase;
-                    }
-                },
-                resolvedPurchase -> {
-                    renderContent(dialog, host, resolvedPurchase, purchaseService, support, onUpdated);
-                },
-                ex -> {
-                    renderContent(dialog, host, currentPurchase, purchaseService, support, onUpdated);
-                });
+        java.util.concurrent.atomic.AtomicReference<Purchase> resolvedPurchaseRef = new java.util.concurrent.atomic.AtomicReference<>(currentPurchase);
+
+        // Instant Shell Mount (0ms): render Header Hero, Metric Cards, Tabs, and Action Dock synchronously
+        renderContent(dialog, host, currentPurchase, resolvedPurchaseRef, purchaseService, support, onUpdated);
 
         dialog.showAndWait();
     }
 
-    private static void renderContent(Dialog<?> dialog, StackPane host, Purchase currentPurchase, PurchaseService purchaseService, SupportApiClient support, Runnable onUpdated) {
+    private static void renderContent(Dialog<?> dialog, StackPane host, Purchase currentPurchase, java.util.concurrent.atomic.AtomicReference<Purchase> resolvedPurchaseRef, PurchaseService purchaseService, SupportApiClient support, Runnable onUpdated) {
         // Header Hero
         HBox headerHero = buildHeaderHero(currentPurchase, dialog);
 
@@ -120,47 +102,30 @@ public final class PurchaseDocumentInspectionDialog {
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
         // Tab 1: Inward Items
-        Tab itemsTab = new Tab("Purchased Items (" + (currentPurchase.getLines() == null ? 0 : currentPurchase.getLines().size()) + ")");
+        // Tab 1: Purchased Items (Pre-mounted, lines stream in background)
+        Tab itemsTab = new Tab("Purchased Items" + (currentPurchase.getLines() != null && !currentPurchase.getLines().isEmpty() ? " (" + currentPurchase.getLines().size() + ")" : ""));
         itemsTab.setGraphic(IconFactory.compactIcon("item", 14));
-        itemsTab.setContent(buildItemsTabContent(currentPurchase, purchaseService, itemsTab));
+        itemsTab.setContent(buildItemsTabContent(currentPurchase, resolvedPurchaseRef, purchaseService, itemsTab));
 
-        // Tab 2: Payments & Allocations (lazy-loaded on tab click)
+        // Tab 2: Payments & Allocations (Pre-mounted, data streams in background; 0ms tab switch)
         Tab paymentsTab = new Tab("Payments & Allocations");
         paymentsTab.setGraphic(IconFactory.compactIcon("payment", 14));
-        paymentsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Payments…", "Synchronizing payment allocations…"));
-        java.util.concurrent.atomic.AtomicBoolean paymentsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
-        paymentsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (isSelected && paymentsLoaded.compareAndSet(false, true)) {
-                paymentsTab.setContent(buildPaymentsTabContent(currentPurchase, support, dialog, onUpdated));
-            }
-        });
+        paymentsTab.setContent(buildPaymentsTabContent(currentPurchase, support, dialog, onUpdated));
 
-        // Tab 3: Document Attachments (lazy-loaded on tab click)
+        // Tab 3: Document Attachments (Pre-mounted, metadata streams in background; 0ms tab switch)
         Tab attachmentsTab = new Tab("Attachments");
         attachmentsTab.setGraphic(IconFactory.compactIcon("document", 14));
-        attachmentsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Attachments…", "Synchronizing document files…"));
-        java.util.concurrent.atomic.AtomicBoolean attachmentsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
-        attachmentsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (isSelected && attachmentsLoaded.compareAndSet(false, true)) {
-                attachmentsTab.setContent(buildAttachmentsTabContent(currentPurchase, support, dialog));
-            }
-        });
+        attachmentsTab.setContent(buildAttachmentsTabContent(currentPurchase, support, dialog));
 
-        // Tab 4: Logistics & Notes (lazy-loaded on tab click)
+        // Tab 4: Logistics & Notes (Instant mount, all fields already in-memory; 0ms tab switch)
         Tab logisticsTab = new Tab("Logistics & Terms");
         logisticsTab.setGraphic(IconFactory.compactIcon("delivery", 14));
-        logisticsTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Logistics…", "Synchronizing terms and notes…"));
-        java.util.concurrent.atomic.AtomicBoolean logisticsLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
-        logisticsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (isSelected && logisticsLoaded.compareAndSet(false, true)) {
-                logisticsTab.setContent(buildLogisticsTabContent(currentPurchase));
-            }
-        });
+        logisticsTab.setContent(buildLogisticsTabContent(currentPurchase));
 
         tabPane.getTabs().addAll(itemsTab, paymentsTab, attachmentsTab, logisticsTab);
 
         // Action Dock
-        HBox actionDock = buildActionDock(currentPurchase, dialog, purchaseService, support, onUpdated);
+        HBox actionDock = buildActionDock(currentPurchase, resolvedPurchaseRef, dialog, purchaseService, support, onUpdated);
 
         VBox contentBox = new VBox(12, headerHero, metricStrip, tabPane, actionDock);
         contentBox.setPadding(new Insets(16, 20, 16, 20));
@@ -350,7 +315,7 @@ public final class PurchaseDocumentInspectionDialog {
         return card;
     }
 
-    private static Node buildItemsTabContent(Purchase purchase, PurchaseService purchaseService, Tab itemsTab) {
+    private static Node buildItemsTabContent(Purchase purchase, java.util.concurrent.atomic.AtomicReference<Purchase> resolvedPurchaseRef, PurchaseService purchaseService, Tab itemsTab) {
         TableView<PurchaseLine> table = new TableView<>();
         table.getStyleClass().addAll("approved-table", "erp-table-standard", "inspection-items-table");
         table.setPlaceholder(new Label("No line items associated with this purchase invoice."));
@@ -614,6 +579,7 @@ public final class PurchaseDocumentInspectionDialog {
                         if (loaded != null && loaded.getLines() != null && !loaded.getLines().isEmpty()) {
                             purchase.setLines(loaded.getLines());
                             if (loaded.getCharges() != null) purchase.setCharges(loaded.getCharges());
+                            if (resolvedPurchaseRef != null) resolvedPurchaseRef.set(loaded);
                             table.getItems().setAll(loaded.getLines());
                             double q = loaded.getLines().stream().mapToDouble(PurchaseLine::getQuantity).sum();
                             double t = loaded.getLines().stream().mapToDouble(PurchaseLine::getGstAmount).sum();
@@ -888,22 +854,6 @@ public final class PurchaseDocumentInspectionDialog {
                                     }
                             ));
                         }
-                    } else if (items.isEmpty()) {
-                        try {
-                            var primary = support.documentAttachment("PURCHASE", purchase.getId());
-                            if (primary != null && primary.data() != null && primary.data().length > 0) {
-                                String fn = (primary.fileName() != null && !primary.fileName().isBlank()) ? primary.fileName() : "purchase-attachment.pdf";
-                                seenNames.add(fn.toLowerCase(Locale.ROOT));
-                                items.add(new InspectionAttachment(
-                                        "Order Attachment",
-                                        "pill-info",
-                                        fn,
-                                        "Primary purchase document attachment",
-                                        "document",
-                                        () -> primary
-                                ));
-                            }
-                        } catch (Exception ignored) {}
                     }
 
                     // 3. Payment attachments (Payment proofs)
@@ -994,7 +944,7 @@ public final class PurchaseDocumentInspectionDialog {
         grid.add(valLbl, 1, row);
     }
 
-    private static HBox buildActionDock(Purchase purchase, Dialog<?> dialog, PurchaseService service, SupportApiClient support, Runnable onUpdated) {
+    private static HBox buildActionDock(Purchase purchase, java.util.concurrent.atomic.AtomicReference<Purchase> resolvedPurchaseRef, Dialog<?> dialog, PurchaseService service, SupportApiClient support, Runnable onUpdated) {
         HBox dock = new HBox(8);
         dock.setAlignment(Pos.CENTER_LEFT);
         dock.getStyleClass().add("inspection-action-dock");
@@ -1024,21 +974,20 @@ public final class PurchaseDocumentInspectionDialog {
         Button btnDuplicate = new Button("Duplicate Purchase");
         btnDuplicate.setGraphic(IconFactory.compactIcon("copy", 14));
         btnDuplicate.getStyleClass().addAll("approved-button", "approved-indigo-button");
+        btnDuplicate.setDisable(inactive);
         btnDuplicate.setOnAction(e -> {
             dialog.close();
-            try {
-                javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(ResourceLocator.require("/fxml/pages/Purchase.fxml"));
-                javafx.scene.Parent root = loader.load();
-                ProfessionalUiEnhancer.enhance(root);
-                org.example.controller.PurchaseController controller = loader.getController();
-                Purchase full = service.getByInvoice(purchase.getInvoiceNo());
-                if (full != null) {
-                    controller.loadPurchase(full);
-                    controller.prepareDuplicate();
-                    NavigationManager.getInstance().showPreparedPage("/fxml/pages/Purchase.fxml", root, controller);
-                }
-            } catch (Exception ex) {
-                AppDialogService.error(dialog.getDialogPane(), "Purchase", "Duplicate Purchase", "Failed to duplicate purchase bill: " + ex.getMessage());
+            Purchase current = resolvedPurchaseRef != null && resolvedPurchaseRef.get() != null ? resolvedPurchaseRef.get() : purchase;
+            if (current.getLines() != null && !current.getLines().isEmpty()) {
+                openDuplicatePurchase(current);
+            } else {
+                UiTaskExecutor.submitAction("purchase-duplicate-load-" + purchase.getId(), () -> {
+                    Purchase full = (service != null) ? service.getByInvoice(purchase.getInvoiceNo()) : null;
+                    return full != null ? full : purchase;
+                }, loaded -> {
+                    if (resolvedPurchaseRef != null) resolvedPurchaseRef.set(loaded);
+                    openDuplicatePurchase(loaded);
+                }, err -> openDuplicatePurchase(purchase));
             }
         });
 
@@ -1047,16 +996,28 @@ public final class PurchaseDocumentInspectionDialog {
         btnPrint.setGraphic(IconFactory.compactIcon("print", 14));
         btnPrint.getStyleClass().addAll("approved-button", "approved-purple-button");
         btnPrint.setOnAction(e -> {
+            btnPrint.setDisable(true);
             UiTaskExecutor.submitAction("purchase-pdf-" + purchase.getId(), () -> {
-                Purchase full = service.getByInvoice(purchase.getInvoiceNo());
-                return ManagedInvoicePdfService.purchase(full != null ? full : purchase);
+                Purchase current = resolvedPurchaseRef != null && resolvedPurchaseRef.get() != null ? resolvedPurchaseRef.get() : purchase;
+                if (current.getLines() == null || current.getLines().isEmpty()) {
+                    Purchase full = (service != null) ? service.getByInvoice(purchase.getInvoiceNo()) : null;
+                    if (full != null) {
+                        if (resolvedPurchaseRef != null) resolvedPurchaseRef.set(full);
+                        current = full;
+                    }
+                }
+                return ManagedInvoicePdfService.purchase(current);
             }, path -> {
+                btnPrint.setDisable(false);
                 try {
                     if (java.awt.Desktop.isDesktopSupported()) java.awt.Desktop.getDesktop().open(path.toFile());
                 } catch (Exception ex) {
                     ToastManager.error(dialog.getDialogPane(), "Failed to open PDF", ex.getMessage());
                 }
-            }, err -> ToastManager.error(dialog.getDialogPane(), "PDF generation failed", err.getMessage()));
+            }, err -> {
+                btnPrint.setDisable(false);
+                ToastManager.error(dialog.getDialogPane(), "PDF generation failed", err.getMessage());
+            });
         });
 
         // 4. Inward Barcode
@@ -1065,18 +1026,38 @@ public final class PurchaseDocumentInspectionDialog {
         btnBarcode.getStyleClass().addAll("approved-button", "approved-cyan-button");
         btnBarcode.setOnAction(e -> OrderDispatchBarcodeDialog.showForPurchase(dialog.getDialogPane(), purchase));
 
-        // 5. Excel
+        // 5. Excel (Offloaded to background worker with responsive progress feedback)
         Button btnExcel = new Button("Excel");
         btnExcel.setGraphic(IconFactory.compactIcon("excel", 14));
         btnExcel.getStyleClass().addAll("approved-button", "approved-emerald-button");
         btnExcel.setOnAction(e -> {
-            try {
-                Purchase full = service.getByInvoice(purchase.getInvoiceNo());
-                Path path = ExcelOutputService.purchase(full != null ? full : purchase);
-                if (java.awt.Desktop.isDesktopSupported()) java.awt.Desktop.getDesktop().open(path.toFile());
-            } catch (Exception ex) {
-                ToastManager.error(dialog.getDialogPane(), "Failed to open Excel", ex.getMessage());
-            }
+            btnExcel.setDisable(true);
+            btnExcel.setText("Exporting…");
+            UiTaskExecutor.submitAction("purchase-excel-" + purchase.getId(), () -> {
+                Purchase current = resolvedPurchaseRef != null && resolvedPurchaseRef.get() != null ? resolvedPurchaseRef.get() : purchase;
+                if (current.getLines() == null || current.getLines().isEmpty()) {
+                    Purchase full = (service != null) ? service.getByInvoice(purchase.getInvoiceNo()) : null;
+                    if (full != null) {
+                        if (resolvedPurchaseRef != null) resolvedPurchaseRef.set(full);
+                        current = full;
+                    }
+                }
+                return ExcelOutputService.purchase(current);
+            }, path -> {
+                btnExcel.setDisable(false);
+                btnExcel.setText("Excel");
+                try {
+                    if (path != null && java.awt.Desktop.isDesktopSupported()) {
+                        java.awt.Desktop.getDesktop().open(path.toFile());
+                    }
+                } catch (Exception ex) {
+                    ToastManager.error(dialog.getDialogPane(), "Failed to open Excel", ex.getMessage());
+                }
+            }, err -> {
+                btnExcel.setDisable(false);
+                btnExcel.setText("Excel");
+                ToastManager.error(dialog.getDialogPane(), "Excel export failed", err.getMessage());
+            });
         });
 
         // 6. Email
@@ -1085,7 +1066,7 @@ public final class PurchaseDocumentInspectionDialog {
         btnEmail.getStyleClass().addAll("approved-button", "approved-sky-button");
         btnEmail.setOnAction(e -> {
             UiTaskExecutor.submitAction("purchase-prepare-email-" + purchase.getId(), () -> {
-                Purchase full = service.getByInvoice(purchase.getInvoiceNo());
+                Purchase full = (service != null) ? service.getByInvoice(purchase.getInvoiceNo()) : null;
                 if (full == null) throw new IllegalStateException("Purchase order " + purchase.getInvoiceNo() + " was not found. Refresh the register and try again.");
                 Path pdf = ManagedInvoicePdfService.purchase(full);
                 MessageTemplateService.FormattedMessage msg = MessageTemplateService.formatPurchaseEmail(full);
@@ -1182,26 +1163,18 @@ public final class PurchaseDocumentInspectionDialog {
             }
             btnReturn.setOnAction(e -> {
                 dialog.close();
-                Purchase full = (service != null) ? service.getByInvoice(purchase.getInvoiceNo()) : null;
-                if (full == null) full = purchase;
-                List<ReturnEditorService.InvoiceItem> items = (full.getLines() != null ? full.getLines() : List.<PurchaseLine>of()).stream()
-                        .map(line -> new ReturnEditorService.InvoiceItem(
-                                line.getItemCode(),
-                                line.getItemDescription(),
-                                line.getQuantity(),
-                                line.getRate(),
-                                line.getDiscountPercent(),
-                                line.getGstPercent()))
-                        .toList();
-                Window ownerWindow = dialog.getOwner() != null ? dialog.getOwner() : (dialog.getDialogPane() != null && dialog.getDialogPane().getScene() != null ? dialog.getDialogPane().getScene().getWindow() : null);
-                ReturnEditorService.show(ownerWindow, ReturnEditorService.Type.PURCHASE,
-                        purchase.getInvoiceNo(),
-                        purchase.getSupplier() != null ? purchase.getSupplier().getName() : "Supplier",
-                        purchase.getSupplier() != null ? purchase.getSupplier().getId() : 0,
-                        items).ifPresent(no -> {
-                            if (onUpdated != null) onUpdated.run();
-                            ToastManager.success(dialog.getDialogPane(), "Return Created", "Purchase return created: " + no);
-                        });
+                Purchase current = resolvedPurchaseRef != null && resolvedPurchaseRef.get() != null ? resolvedPurchaseRef.get() : purchase;
+                if (current.getLines() != null && !current.getLines().isEmpty()) {
+                    openPurchaseReturnModal(dialog, current, onUpdated);
+                } else {
+                    UiTaskExecutor.submitAction("purchase-return-load-" + purchase.getId(), () -> {
+                        Purchase full = (service != null) ? service.getByInvoice(purchase.getInvoiceNo()) : null;
+                        return full != null ? full : purchase;
+                    }, loaded -> {
+                        if (resolvedPurchaseRef != null) resolvedPurchaseRef.set(loaded);
+                        openPurchaseReturnModal(dialog, loaded, onUpdated);
+                    }, err -> openPurchaseReturnModal(dialog, purchase, onUpdated));
+                }
             });
         }
 
@@ -1221,15 +1194,19 @@ public final class PurchaseDocumentInspectionDialog {
             btnApprove.setGraphic(IconFactory.compactIcon("complete", 14));
             btnApprove.getStyleClass().addAll("approved-button", "approved-success-button");
             btnApprove.setOnAction(e -> {
-                try {
+                btnApprove.setDisable(true);
+                UiTaskExecutor.submitAction("purchase-approve-" + purchase.getId(), () -> {
                     service.approve(purchase.getInvoiceNo());
+                    return true;
+                }, ok -> {
                     NotificationService.add("Purchase " + purchase.getInvoiceNo() + " approved.");
                     ToastManager.success(dialog.getDialogPane(), "Approved", "Purchase order approved successfully.");
                     if (onUpdated != null) onUpdated.run();
                     dialog.close();
-                } catch (Exception ex) {
+                }, ex -> {
+                    btnApprove.setDisable(false);
                     ToastManager.error(dialog.getDialogPane(), "Approval failed", ex.getMessage());
-                }
+                });
             });
 
             Button btnReject = new Button("Reject Purchase");
@@ -1241,14 +1218,18 @@ public final class PurchaseDocumentInspectionDialog {
                 td.setHeaderText("Reject " + purchase.getInvoiceNo());
                 td.setContentText("Reason:");
                 td.showAndWait().map(String::trim).filter(r -> !r.isBlank()).ifPresent(reason -> {
-                    try {
+                    btnReject.setDisable(true);
+                    UiTaskExecutor.submitAction("purchase-reject-" + purchase.getId(), () -> {
                         service.reject(purchase.getInvoiceNo(), reason);
+                        return true;
+                    }, ok -> {
                         NotificationService.add("Purchase " + purchase.getInvoiceNo() + " rejected.");
                         if (onUpdated != null) onUpdated.run();
                         dialog.close();
-                    } catch (Exception ex) {
+                    }, ex -> {
+                        btnReject.setDisable(false);
                         ToastManager.error(dialog.getDialogPane(), "Rejection failed", ex.getMessage());
-                    }
+                    });
                 });
             });
 
@@ -1265,6 +1246,41 @@ public final class PurchaseDocumentInspectionDialog {
 
         dock.getChildren().addAll(spacer, btnClose);
         return dock;
+    }
+
+    private static void openDuplicatePurchase(Purchase purchaseToDuplicate) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(ResourceLocator.require("/fxml/pages/Purchase.fxml"));
+            javafx.scene.Parent root = loader.load();
+            ProfessionalUiEnhancer.enhance(root);
+            org.example.controller.PurchaseController controller = loader.getController();
+            controller.loadPurchase(purchaseToDuplicate);
+            controller.prepareDuplicate();
+            NavigationManager.getInstance().showPreparedPage("/fxml/pages/Purchase.fxml", root, controller);
+        } catch (Exception ex) {
+            NotificationService.createNotification("Duplicate Purchase", "Failed to duplicate purchase bill: " + ex.getMessage(), "ERROR");
+        }
+    }
+
+    private static void openPurchaseReturnModal(Dialog<?> dialog, Purchase full, Runnable onUpdated) {
+        List<ReturnEditorService.InvoiceItem> items = (full.getLines() != null ? full.getLines() : List.<PurchaseLine>of()).stream()
+                .map(line -> new ReturnEditorService.InvoiceItem(
+                        line.getItemCode(),
+                        line.getItemDescription(),
+                        line.getQuantity(),
+                        line.getRate(),
+                        line.getDiscountPercent(),
+                        line.getGstPercent()))
+                .toList();
+        Window ownerWindow = dialog.getOwner() != null ? dialog.getOwner() : (dialog.getDialogPane() != null && dialog.getDialogPane().getScene() != null ? dialog.getDialogPane().getScene().getWindow() : null);
+        ReturnEditorService.show(ownerWindow, ReturnEditorService.Type.PURCHASE,
+                full.getInvoiceNo(),
+                full.getSupplier() != null ? full.getSupplier().getName() : "Supplier",
+                full.getSupplier() != null ? full.getSupplier().getId() : 0,
+                items).ifPresent(no -> {
+                    if (onUpdated != null) onUpdated.run();
+                    ToastManager.success(dialog.getDialogPane(), "Return Created", "Purchase return created: " + no);
+                });
     }
 
     private static String money(double value) {

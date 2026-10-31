@@ -65,10 +65,6 @@ public final class QuotationDocumentInspectionDialog {
                 "-fx-background-color: %s; -fx-background-radius: 14; -fx-border-color: %s; -fx-border-radius: 14; -fx-border-width: 1; -fx-effect: %s;",
                 hostBg, hostBorder, hostShadow));
 
-        Classy3DLoadingView loadingSkeleton = Classy3DLoadingView.createTableSkeleton(
-                "Loading Quotation — " + quote.no(),
-                "Synchronizing quoted lines, price levels, and conversion history…");
-        host.getChildren().setAll(loadingSkeleton);
         pane.setContent(host);
         pane.getButtonTypes().add(ButtonType.CLOSE);
 
@@ -80,14 +76,8 @@ public final class QuotationDocumentInspectionDialog {
             }
         });
 
-        UiTaskExecutor.submitLatest("quotation-inspection-" + quote.no(),
-                () -> quote,
-                resolvedQuote -> {
-                    renderContent(dialog, host, resolvedQuote, api, support, onUpdated);
-                },
-                ex -> {
-                    renderContent(dialog, host, quote, api, support, onUpdated);
-                });
+        // Instant Shell Mount (0ms): render Header Hero, Metric Cards, Tabs, and Action Dock synchronously
+        renderContent(dialog, host, quote, api, support, onUpdated);
 
         dialog.showAndWait();
     }
@@ -121,16 +111,10 @@ public final class QuotationDocumentInspectionDialog {
             }
         });
 
-        // Tab 3: Notes & Terms (lazy-loaded on tab click)
+        // Tab 3: Notes & Terms (Instant mount, all fields already in-memory)
         Tab notesTab = new Tab("Terms & Notes");
         notesTab.setGraphic(IconFactory.compactIcon("notes", 14));
-        notesTab.setContent(Classy3DLoadingView.createTableSkeleton("Loading Terms…", "Retrieving quotation terms…"));
-        java.util.concurrent.atomic.AtomicBoolean notesLoaded = new java.util.concurrent.atomic.AtomicBoolean(false);
-        notesTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (isSelected && notesLoaded.compareAndSet(false, true)) {
-                notesTab.setContent(buildNotesTabContent(quote));
-            }
-        });
+        notesTab.setContent(buildNotesTabContent(quote));
 
         tabPane.getTabs().addAll(itemsTab, followUpTab, notesTab);
 

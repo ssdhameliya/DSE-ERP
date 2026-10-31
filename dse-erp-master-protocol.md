@@ -2,6 +2,7 @@
 
 > **Single Source of Truth** for DSE-ERP Architecture, Workspace Boundaries, Desktop-Web Parity Inspection, Automation Scripts, Server Infrastructure, and Cloud Deployment.
 > **Antigravity Enforcement:** This document is automatically loaded by Antigravity on every conversation. All rules, boundaries, and checklists herein are strictly binding.
+> **Last Updated:** 2026-10-31 — Established Strict Clean Root Policy: Root `CHANGELOG-*.md` files permanently banned.
 
 ---
 
@@ -182,10 +183,14 @@ DSE-ERP uses a **clean decoupled architecture**. The backend server is a statele
 
 ## 5. Version Management & Release Automation Scripts
 
-### 5.1 Version Governance
+### 5.1 Version Governance & Clean Root Policy
 * **Desktop / Server Version:** Governed strictly by `.mvn/maven.config` (`-Drevision=11.0.0`).
 * **Web Client Version:** Governed by `admin/version.json` and `admin/js/version.js` (`11.0.0.01`, tag `web-v11.0.0.01`).
-* **Release Notes:** Every release must update `desktop/src/main/resources/release-notes.md` and add `CHANGELOG-<version>.md`.
+* **Release Notes (Single Source of Truth):** Every release must update `desktop/src/main/resources/release-notes.md`. This is the ONLY release notes file needed; it is packaged directly into the desktop runtime JAR.
+* **Prohibition of Root `CHANGELOG-*.md` Files (Strict Cleanliness Mandate):**
+  - **NEVER create, generate, or sync `CHANGELOG-*.md` files in the project root.**
+  - All historical `CHANGELOG-*.md` files have been permanently removed.
+  - During synchronization across `DSE-ERP-10.0.25`, `D:\GitHub\ReleaseSource`, `D:\JavaProject\DSE-ERP-Final`, and `D:\GitHub\DSE-ERP-Primary`, root changelog files must never be created or re-introduced.
 
 ---
 
