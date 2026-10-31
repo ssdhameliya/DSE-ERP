@@ -20,6 +20,7 @@ import javafx.util.Duration;
 import org.example.config.WorkspaceManager;
 import org.example.service.SessionService;
 import org.example.theme.ThemeManager;
+import org.example.ai.ErpAgentService;
 
 import java.io.File;
 import java.io.IOException;
@@ -218,6 +219,18 @@ public final class SystemDiagnosticsDialog {
         table.setPlaceholder(Classy3DLoadingView.createTableSkeleton("Loading System Diagnostic Ledger…", "Fetching real-time error logs, stack traces, and background events…"));
         table.setFixedCellSize(38.0);
         table.getProperties().put("erp-keep-selection", true);
+
+        // Bind dynamic glassmorphic defect styling via Antigravity Agent Service
+        ErpAgentService.installGlassDefectRowFactory(table, r -> {
+            if (r == null) return ErpAgentService.DefectSeverity.NONE;
+            if ("ERROR".equalsIgnoreCase(r.level()) || "FATAL".equalsIgnoreCase(r.level())) {
+                return ErpAgentService.DefectSeverity.CRITICAL;
+            } else if ("WARN".equalsIgnoreCase(r.level())) {
+                return ErpAgentService.DefectSeverity.WARNING;
+            } else {
+                return ErpAgentService.DefectSeverity.INFO;
+            }
+        });
 
         // Col 1: # (Index)
         TableColumn<DiagnosticRow, Number> colIndex = new TableColumn<>("#");
@@ -752,6 +765,50 @@ public final class SystemDiagnosticsDialog {
                 + (row.rawFailure().isBlank() ? "" : "--- STACK TRACE / EXCEPTION ---\n" + row.rawFailure() + "\n"));
         VBox.setVgrow(txtTrace, Priority.ALWAYS);
 
+        // Glassmorphic AI Diagnostic Card
+        VBox aiCard = new VBox(6);
+        aiCard.getStyleClass().addAll("glass-card", "ai-diagnostic-card");
+        aiCard.setStyle(isDark
+                ? "-fx-background-color: rgba(56, 189, 248, 0.08); -fx-border-color: rgba(56, 189, 248, 0.35); -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10;"
+                : "-fx-background-color: rgba(224, 242, 254, 0.50); -fx-border-color: #0284c7; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10;");
+        aiCard.setVisible(false);
+        aiCard.setManaged(false);
+
+        Label lblAiTitle = new Label("AI Copilot Diagnosis & Recommended Fix:");
+        lblAiTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #38bdf8;");
+        Label lblAiBody = new Label();
+        lblAiBody.setWrapText(true);
+        lblAiBody.setStyle(isDark ? "-fx-font-size: 12px; -fx-text-fill: #e2e8f0;" : "-fx-font-size: 12px; -fx-text-fill: #1e293b;");
+        aiCard.getChildren().addAll(lblAiTitle, lblAiBody);
+
+        Button btnAiDiagnose = new Button("AI Defect Analysis");
+        btnAiDiagnose.setGraphic(IconFactory.compactIcon("action", 13));
+        btnAiDiagnose.getStyleClass().addAll("approved-button", "approved-primary-button");
+        btnAiDiagnose.setOnAction(e -> {
+            btnAiDiagnose.setDisable(true);
+            btnAiDiagnose.setText("Analyzing with AI Agent…");
+            aiCard.setVisible(true);
+            aiCard.setManaged(true);
+            lblAiBody.setText("Interfacing with Antigravity AI Agent… scanning stack trace & exception context…");
+
+            ErpAgentService.getInstance().diagnoseDiagnosticRow(row).thenAccept(diag -> {
+                Platform.runLater(() -> {
+                    btnAiDiagnose.setDisable(false);
+                    btnAiDiagnose.setText("Re-analyze with AI");
+                    String badge = diag.isAiGenerated() ? " [Google Antigravity Agent]" : " [Deterministic Engine]";
+                    lblAiTitle.setText("AI Diagnosis" + badge + ":");
+                    lblAiBody.setText("Root Cause: " + diag.rootCause() + "\n\nRecommended Fix: " + diag.recommendedFix());
+                });
+            }).exceptionally(ex -> {
+                Platform.runLater(() -> {
+                    btnAiDiagnose.setDisable(false);
+                    btnAiDiagnose.setText("AI Defect Analysis");
+                    lblAiBody.setText("Analysis failed: " + ex.getMessage());
+                });
+                return null;
+            });
+        });
+
         Button btnCopy = new Button("Copy Technical Details");
         btnCopy.setGraphic(IconFactory.compactIcon("copy", 13));
         btnCopy.getStyleClass().addAll("approved-button", "approved-secondary-button");
@@ -767,10 +824,10 @@ public final class SystemDiagnosticsDialog {
         btnClose.getStyleClass().addAll("approved-button", "approved-secondary-button");
         btnClose.setOnAction(e -> modal.close());
 
-        HBox actions = new HBox(10, btnCopy, btnClose);
+        HBox actions = new HBox(10, btnAiDiagnose, btnCopy, btnClose);
         actions.setAlignment(Pos.CENTER_RIGHT);
 
-        VBox content = new VBox(10, modalHero, lblReason, lblAction, txtTrace, actions);
+        VBox content = new VBox(10, modalHero, lblReason, lblAction, aiCard, txtTrace, actions);
         content.setPadding(new Insets(16));
         content.setStyle(isDark ? "-fx-background-color: #0b1325; -fx-background-radius: 12;" : "-fx-background-color: #f8fafc; -fx-background-radius: 12;");
         content.setPrefSize(720, 500);
