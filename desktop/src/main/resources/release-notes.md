@@ -1,3 +1,10 @@
+# What's New in DSE ERP v11.0.13
+
+### Centralized Core Architecture & Master Protocol Section 3.3
+- **Centralized System Standards**: Formally documented the 6 centralized core systems in `dse-erp-master-protocol.md` (High-Speed Document Inspection Modals, Unified SVG UI Design System, Concurrency & Freeze Prevention Thread Pools, Multi-Tab Workspace Navigation, RBAC Security & API Runtime, and Universal Document Studio Exporters).
+- **Strict Clean Root Mandate**: Permanently purged historical `CHANGELOG-*.md` files and obsolete legacy protocols from repository roots, standardizing all release history exclusively in `release-notes.md`.
+- **Ponytail Minimalist Architecture**: Integrated Ponytail (YAGNI / minimal diff ladder) to eliminate over-engineering, protect JavaFX memory heap, and ensure maximum desktop responsiveness.
+
 # What's New in DSE ERP v11.0.12
 
 ### Ultra-Fast Document Inspection Pop-ups & Zero-Lag Tab Navigation
