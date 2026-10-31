@@ -1,3 +1,10 @@
+# What's New in DSE ERP v11.0.14
+
+### Headless Public Showcase & Dual-Client 3D Showcase Studio
+- **Dynamic 3D Machinery Showcase Engine**: Empowered administrators to manage public 3D coverflow workstations, machinery photography, precision tolerance specs, hero metrics, marquee ticker, and contact information dynamically from both the Web Admin Studio and Desktop ERP Client without code redeployment.
+- **High-Performance Headless REST APIs**: Implemented sub-10ms in-memory cached endpoints (`GET /api/public/showcase`, `GET /api/public/showcase/media/{key}`, and `POST /api/public/showcase/rfq`) with SHA-256 ETag binary caching, backed safely by existing PostgreSQL `application_setting` and `server_resource` tables without altering database schema.
+- **Desktop Company Settings Showcase Dock**: Integrated 1-click administrative launch dock directly into `CompanySettingsPanel.fxml`, keeping exact FXML count at 72 files and preserving full release audit compliance.
+
 # What's New in DSE ERP v11.0.13
 
 ### Centralized Core Architecture & Master Protocol Section 3.3

@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "lastModified": "2026-10-31T19:00:00Z",
+  "branding": {
+    "companyName": "JASVI INDUSTRIES",
+    "tagline": "Precision Engineering",
+    "badgeText": "Next-Gen Industrial Digital Engineering",
+    "portalUrl": "https://erp.jasviindustries.in/"
+  },
+  "hero": {
+    "badge": "Next-Gen Industrial Digital Engineering",
+    "headline": "Precision Machining. Zero Compromise.",
+    "leadParagraph": "Jasvi Industries delivers micron-tolerance 5-axis CNC milling, high-speed turning, and turnkey contract fabrication for global aerospace, EV, and high-tech engineering partners.",
+    "primaryCta": { "label": "Instant Blueprint RFQ", "anchor": "#rfq" },
+    "secondaryCta": { "label": "Explore 3D Machinery", "anchor": "#showcase-3d" },
+    "kpiStats": [
+      { "id": "stat-1", "number": "15", "suffix": "+", "label": "Years Industrial Mastery" },
+      { "id": "stat-2", "number": "±0.01", "suffix": "mm", "label": "CMM Verified Tolerance" },
+      { "id": "stat-3", "number": "10K", "suffix": "+", "label": "Precision Parts Delivered" },
+      { "id": "stat-4", "number": "ISO", "suffix": "9001", "label": "Certified Quality System" }
+    ]
+  },
+  "marquee": [
+    "ISO 9001:2015 Certified System",
+    "5-Axis Simultaneous VMC",
+    "±0.005mm Micron Tolerance",
+    "CMM 3D Metrology Lab",
+    "Aerospace Ti-6Al-4V Grade",
+    "100% Full Material Traceability",
+    "DFM Blueprint Analysis",
+    "Automated Live-Tooling Turning"
+  ],
+  "machinerySection": {
+    "badge": "Interactive 3D Coverflow",
+    "title": "Advanced Machinery & Workstations",
+    "subtitle": "Swipe, drag, or hover across our high-precision CNC stations, climate-controlled metrology suites, and automated fabrication cells."
+  },
+  "machinery": [
+    {
+      "id": "mach-vmc-5axis",
+      "badge": "Simultaneous Multi-Axis",
+      "title": "5-Axis VMC Machining",
+      "description": "Engineered for impellers, aerospace turbine blades, and compound complex housings in a single clamping.",
+      "image": "assets/images/machine_vmc_5axis.jpg",
+      "specs": [
+        { "key": "Working Area", "value": "1200 x 800 x 600 mm" },
+        { "key": "Positional Accuracy", "value": "±0.004 mm" },
+        { "key": "Direct Spindle", "value": "15,000 RPM HSK-A63" }
+      ],
+      "active": true,
+      "sortOrder": 1
+    },
+    {
+      "id": "mach-cnc-turning",
+      "badge": "Live-Tooling Lathe",
+      "title": "CNC Precision Turning",
+      "description": "Twin-spindle turning centers with driven tools for mill-turn rotational components and high-precision shafts.",
+      "image": "assets/images/machine_cnc_turning.jpg",
+      "specs": [
+        { "key": "Max Chucking Dia", "value": "Ø 450 mm" },
+        { "key": "Bed Length", "value": "Up to 1000 mm" },
+        { "key": "Surface Quality", "value": "Ra 0.35 µm" }
+      ],
+      "active": true,
+      "sortOrder": 2
+    },
+    {
+      "id": "mach-cmm-lab",
+      "badge": "Metrology & Traceability",
+      "title": "3D CNC CMM Quality Lab",
+      "description": "Climate-controlled Clean Room metrology with laser line probes and Renishaw 5-axis scanning heads.",
+      "image": "assets/images/quality_cmm_inspection.jpg",
+      "specs": [
+        { "key": "Resolution", "value": "0.0001 mm (0.1µ)" },
+        { "key": "Standards", "value": "ISO 10360-2 Certified" },
+        { "key": "Reporting", "value": "Full PPAP Level 3 / FAI" }
+      ],
+      "active": true,
+      "sortOrder": 3
+    },
+    {
+      "id": "mach-smart-cell",
+      "badge": "Industry 4.0 Digital Twin",
+      "title": "Smart Manufacturing Cell",
+      "description": "Connected IoT machining floor with live telemetry, automated tool life management, and zero downtime scheduling.",
+      "image": "assets/images/hero_smart_factory.jpg",
+      "specs": [
+        { "key": "Telemetry", "value": "Live Spindle Load / OEE" },
+        { "key": "Traceability", "value": "QR / Barcoded Batches" },
+        { "key": "Capacity", "value": "24/7 Lights-Out Operations" }
+      ],
+      "active": true,
+      "sortOrder": 4
+    },
+    {
+      "id": "mach-dfm-pipeline",
+      "badge": "Automated DFM Suite",
+      "title": "Instant Blueprint Engineering",
+      "description": "Algorithmic CAD analysis detecting tool reachability, undercut warnings, and material cost optimization.",
+      "image": "assets/images/ui_mockup_catalog_rfq.jpg",
+      "specs": [
+        { "key": "CAD Support", "value": "STEP, IGES, DXF, SLDPRT" },
+        { "key": "Turnaround", "value": "< 24 Hour Quotes" },
+        { "key": "Integration", "value": "Direct to Jasvi ERP" }
+      ],
+      "active": true,
+      "sortOrder": 5
+    }
+  ],
+  "portfolioSection": {
+    "badge": "Portfolio & Case Studies",
+    "title": "Engineered Components Showcase",
+    "subtitle": "Hover over each card to experience dynamic 3D perspective tilting. Real components engineered by Jasvi Industries."
+  },
+  "portfolio": {
+    "categories": [
+      { "key": "all", "label": "All Industries" },
+      { "key": "aerospace", "label": "Aerospace" },
+      { "key": "automotive", "label": "Automotive & EV" },
+      { "key": "energy", "label": "Energy & Hydraulics" }
+    ],
+    "items": [
+      {
+        "id": "port-1",
+        "category": "aerospace",
+        "tag": "Aerospace",
+        "title": "Titanium Impeller Rotor",
+        "meta": "Machined from solid Grade 5 Titanium billet using 5-axis continuous milling.",
+        "badges": ["Ti-6Al-4V", "±0.008 mm", "CMM Inspected"],
+        "active": true
+      },
+      {
+        "id": "port-2",
+        "category": "automotive",
+        "tag": "Automotive & EV",
+        "title": "EV Motor Housing Manifold",
+        "meta": "Integrated cooling jacket with leak-proof O-ring channels and precision bore tolerances.",
+        "badges": ["Al 6061-T6", "H7 Bore Fit", "Pressure Tested"],
+        "active": true
+      },
+      {
+        "id": "port-3",
+        "category": "energy",
+        "tag": "Energy & Hydraulics",
+        "title": "High-Pressure Valve Spool",
+        "meta": "Sub-micron cylindrical grinding and micro-honing for 450 bar hydraulic circuits.",
+        "badges": ["SS 316L", "Ra 0.2 µm", "Cryo Treated"],
+        "active": true
+      }
+    ]
+  },
+  "processSection": {
+    "badge": "Execution Blueprint",
+    "title": "From Blueprint to Global Dispatch",
+    "subtitle": "Our four-phase execution pipeline guarantees predictable lead times, zero defect tolerance, and end-to-end traceability."
+  },
+  "process": [
+    { "step": "01", "title": "DFM Feasibility", "description": "CAD model review, toolpath simulation, and material yield optimization within 24 hours." },
+    { "step": "02", "title": "CNC Machining", "description": "Multi-axis automated machining with calibrated tooling and real-time spindle monitoring." },
+    { "step": "03", "title": "CMM Metrology", "description": "100% dimensional verification against GD&T specs with digital CMM inspection reports." },
+    { "step": "04", "title": "Global Delivery", "description": "VCI anti-rust barrier packaging and barcoded shipment with complete material certificates." }
+  ],
+  "contact": {
+    "plantAddress": "Plot No. 42, GIDC Industrial Estate,\nSurat, Gujarat, India.",
+    "email": "info@jasviindustries.in",
+    "phone": "+91 98765 43210",
+    "certification": "ISO 9001:2015 Certified",
+    "tagline": "Premier Indian manufacturer specializing in high-tolerance 5-axis CNC milling, precision turning, and turnkey industrial solutions for global enterprise clients.",
+    "copyrightYear": 2026
+  }
+}

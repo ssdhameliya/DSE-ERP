@@ -1,5 +1,7 @@
 package org.example.controller;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.TableView;
+import org.example.util.UiTaskExecutor;
 import javafx.scene.control.Tooltip;
 
 import org.example.config.SettingsFieldSupport;
@@ -3275,6 +3277,23 @@ private record AssetPreviewRequest(
         if (chkBriefingEmail != null) putSetting("module.briefing.email", String.valueOf(chkBriefingEmail.isSelected()));
         if (txtBriefingPhone != null) putSetting("module.briefing.phone", text(txtBriefingPhone));
         if (chkBatchSerialTracking != null) putSetting("module.inventory.batchSerialTracking", String.valueOf(chkBatchSerialTracking.isSelected()));
+    }
+
+
+    @FXML private void previewShowcaseInBrowser() {
+        try {
+            java.awt.Desktop.getDesktop().browse(java.net.URI.create("http://localhost:8089/index.html"));
+        } catch (Exception ex) {
+            new OwnedAlert(Alert.AlertType.INFORMATION, "Showcase preview URL: http://localhost:8089/index.html\nEnsure preview server is running.", ButtonType.OK).showAndWait();
+        }
+    }
+
+    @FXML private void launchShowcaseStudio() {
+        try {
+            java.awt.Desktop.getDesktop().browse(java.net.URI.create("https://web-uat.jasviindustries.in/admin/#view-settings-showcase"));
+        } catch (Exception ex) {
+            new OwnedAlert(Alert.AlertType.INFORMATION, "Launch 3D Showcase Studio URL: https://web-uat.jasviindustries.in/admin/#view-settings-showcase", ButtonType.OK).showAndWait();
+        }
     }
 
 }
